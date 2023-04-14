@@ -19,9 +19,6 @@ config MCUBOOT_GENERATE_CONFIRMED_IMAGE
 config ROM_START_OFFSET
 	default 0x20
 
-config HAS_DYNAMIC_DEVICE_HANDLES
-	default y
-
 endif
 
 config SOC
@@ -51,7 +48,7 @@ config ATOMIC_OPERATIONS_C
 config MINIMAL_LIBC_OPTIMIZE_STRING_FOR_SIZE
 	default n
 
-config SYS_CLOCK_HW_CYCLES_PER_SEC
-	default 16000000
+config LOG_DETECT_MISSED_STRDUP
+	default n
 
 endif

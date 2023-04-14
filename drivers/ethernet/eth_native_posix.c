@@ -436,7 +436,7 @@ static void eth_iface_init(struct net_if *iface)
 
 	ctx->init_done = true;
 
-#if defined(CONFIG_ETH_NATIVE_POSIX_RANDOM_MAC)
+#if IS_ENABLED(CONFIG_ETH_NATIVE_POSIX_RANDOM_MAC)
 	/* 00-00-5E-00-53-xx Documentation RFC 7042 */
 	gen_random_mac(ctx->mac_addr, 0x00, 0x00, 0x5E);
 
@@ -473,7 +473,7 @@ static void eth_iface_init(struct net_if *iface)
 		ctx->if_name = ETH_NATIVE_POSIX_DRV_NAME;
 	}
 
-	LOG_DBG("Interface %p using \"%s\"", iface, ctx->if_name);
+	LOG_DBG("Interface %p using \"%s\"", iface, log_strdup(ctx->if_name));
 
 	net_if_set_link_addr(iface, ll_addr->addr, ll_addr->len,
 			     NET_LINK_ETHERNET);
@@ -650,7 +650,7 @@ LISTIFY(CONFIG_ETH_NATIVE_POSIX_INTERFACE_COUNT, DEFINE_ETH_DEVICE, (;), _);
 
 #if defined(CONFIG_ETH_NATIVE_POSIX_PTP_CLOCK)
 
-#if defined(CONFIG_NET_GPTP)
+#if IS_ENABLED(CONFIG_NET_GPTP)
 BUILD_ASSERT(								\
 	CONFIG_ETH_NATIVE_POSIX_INTERFACE_COUNT == CONFIG_NET_GPTP_NUM_PORTS, \
 	"Number of network interfaces must match gPTP port count");
@@ -722,7 +722,7 @@ static const struct ptp_clock_driver_api api = {
 #define PTP_INIT_FUNC(x, _)						\
 	static int ptp_init_##x(const struct device *port)			\
 	{								\
-		const struct device *const eth_dev = DEVICE_GET(eth_native_posix_##x); \
+		const struct device *eth_dev = DEVICE_GET(eth_native_posix_##x); \
 		struct eth_context *context = eth_dev->data;	\
 		struct ptp_context *ptp_context = port->data;	\
 									\

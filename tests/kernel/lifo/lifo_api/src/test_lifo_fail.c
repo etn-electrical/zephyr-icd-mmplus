@@ -20,7 +20,7 @@
  * when there is no data to read
  * @see k_lifo_init(), k_lifo_get()
  */
-ZTEST(lifo_fail, test_lifo_get_fail)
+void test_lifo_get_fail(void *p1, void *p2, void *p3)
 {
 	static struct k_lifo lifo;
 
@@ -33,5 +33,3 @@ ZTEST(lifo_fail, test_lifo_get_fail)
 /**
  * @}
  */
-
-ZTEST_SUITE(lifo_fail, NULL, NULL, NULL, NULL, NULL);

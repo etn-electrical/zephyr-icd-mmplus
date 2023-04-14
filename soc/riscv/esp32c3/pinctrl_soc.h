@@ -32,15 +32,14 @@ typedef struct pinctrl_soc_pin {
  *
  * @param node_id Node identifier.
  */
-#define Z_PINCTRL_ESP32_PINMUX_INIT(node_id, prop, idx) \
-	DT_PROP_BY_IDX(node_id, prop, idx)
+#define Z_PINCTRL_ESP32_PINMUX_INIT(node_id) DT_PROP(node_id, pinmux)
 
 /**
  * @brief Utility macro to initialize pincfg field in #pinctrl_pin_t.
  *
  * @param node_id Node identifier.
  */
-#define Z_PINCTRL_ESP32_PINCFG_INIT(node_id)							\
+#define Z_PINCTRL_ESP32_PINCFG_INIT(node_id)	\
 	(((ESP32_NO_PULL * DT_PROP(node_id, bias_disable)) << ESP32_PIN_BIAS_SHIFT) |		\
 	 ((ESP32_PULL_UP * DT_PROP(node_id, bias_pull_up)) << ESP32_PIN_BIAS_SHIFT) |		\
 	 ((ESP32_PULL_DOWN * DT_PROP(node_id, bias_pull_down)) << ESP32_PIN_BIAS_SHIFT) |	\
@@ -53,12 +52,14 @@ typedef struct pinctrl_soc_pin {
  * @brief Utility macro to initialize each pin.
  *
  * @param node_id Node identifier.
- * @param prop Property name.
- * @param idx Property entry index.
+ * @param state_prop State property name.
+ * @param idx State property entry index.
  */
-#define Z_PINCTRL_STATE_PIN_INIT(node_id, prop, idx)				\
-	{ .pinmux = Z_PINCTRL_ESP32_PINMUX_INIT(node_id, prop, idx),		\
-	  .pincfg = Z_PINCTRL_ESP32_PINCFG_INIT(node_id) },
+#define Z_PINCTRL_STATE_PIN_INIT(node_id, state_prop, idx)			\
+	{ .pinmux = Z_PINCTRL_ESP32_PINMUX_INIT(				\
+		DT_PROP_BY_IDX(node_id, state_prop, idx)),			\
+	  .pincfg = Z_PINCTRL_ESP32_PINCFG_INIT(				\
+		DT_PROP_BY_IDX(node_id, state_prop, idx)) },
 
 /**
  * @brief Utility macro to initialize state pins contained in a given property.
@@ -67,9 +68,7 @@ typedef struct pinctrl_soc_pin {
  * @param prop Property name describing state pins.
  */
 #define Z_PINCTRL_STATE_PINS_INIT(node_id, prop)			       \
-	{DT_FOREACH_CHILD_VARGS(DT_PHANDLE(node_id, prop),		       \
-				DT_FOREACH_PROP_ELEM, pinmux,		       \
-				Z_PINCTRL_STATE_PIN_INIT)}
+	{DT_FOREACH_PROP_ELEM(node_id, prop, Z_PINCTRL_STATE_PIN_INIT)}
 
 /** @endcond */
 

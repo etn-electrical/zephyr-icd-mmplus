@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <zephyr/syscall_handler.h>
-#include <zephyr/ztest.h>
+#include <ztest.h>
 #include <zephyr/linker/linker-defs.h>
 #include "test_syscalls.h"
 #include <mmu.h>
@@ -194,7 +194,7 @@ static inline uint32_t z_vrfy_more_args(uint32_t arg1, uint32_t arg2,
  *
  * @see z_user_string_nlen()
  */
-ZTEST_USER(syscalls, test_string_nlen)
+void test_string_nlen(void)
 {
 	int err;
 	size_t ret;
@@ -242,7 +242,7 @@ ZTEST_USER(syscalls, test_string_nlen)
  *
  * @see z_user_string_alloc_copy(), strcmp()
  */
-ZTEST_USER(syscalls, test_user_string_alloc_copy)
+void test_user_string_alloc_copy(void)
 {
 	int ret;
 
@@ -267,7 +267,7 @@ ZTEST_USER(syscalls, test_user_string_alloc_copy)
  *
  * @see z_user_string_copy(), strcmp()
  */
-ZTEST_USER(syscalls, test_user_string_copy)
+void test_user_string_copy(void)
 {
 	int ret;
 
@@ -291,7 +291,7 @@ ZTEST_USER(syscalls, test_user_string_copy)
  *
  * @see memcpy(), z_user_to_copy()
  */
-ZTEST_USER(syscalls, test_to_copy)
+void test_to_copy(void)
 {
 	char buf[BUF_SIZE];
 	int ret;
@@ -305,7 +305,7 @@ ZTEST_USER(syscalls, test_to_copy)
 	zassert_equal(ret, 0, "string should have matched");
 }
 
-void run_test_arg64(void)
+void test_arg64(void)
 {
 	zassert_equal(syscall_arg64(54321),
 		      z_impl_syscall_arg64(54321),
@@ -316,24 +316,18 @@ void run_test_arg64(void)
 		      "syscall didn't match impl");
 }
 
-ZTEST_USER(syscalls, test_arg64)
-{
-	run_test_arg64();
-}
-
-ZTEST_USER(syscalls, test_more_args)
+void test_more_args(void)
 {
 	zassert_equal(more_args(1, 2, 3, 4, 5, 6, 7),
 		      z_impl_more_args(1, 2, 3, 4, 5, 6, 7),
 		      "syscall didn't match impl");
 }
 
-#define NR_THREADS	(arch_num_cpus() * 4)
-#define MAX_NR_THREADS	(CONFIG_MP_MAX_NUM_CPUS * 4)
+#define NR_THREADS	(CONFIG_MP_NUM_CPUS * 4)
 #define STACK_SZ	(1024 + CONFIG_TEST_EXTRA_STACK_SIZE)
 
-struct k_thread torture_threads[MAX_NR_THREADS];
-K_THREAD_STACK_ARRAY_DEFINE(torture_stacks, MAX_NR_THREADS, STACK_SZ);
+struct k_thread torture_threads[NR_THREADS];
+K_THREAD_STACK_ARRAY_DEFINE(torture_stacks, NR_THREADS, STACK_SZ);
 
 void syscall_torture(void *arg1, void *arg2, void *arg3)
 {
@@ -363,7 +357,7 @@ void syscall_torture(void *arg1, void *arg2, void *arg3)
 		ret = strcmp(buf, user_string);
 		zassert_equal(ret, 0, "string should have matched");
 
-		run_test_arg64();
+		test_arg64();
 
 		if (count++ == 30000) {
 			printk("%ld", id);
@@ -372,12 +366,12 @@ void syscall_torture(void *arg1, void *arg2, void *arg3)
 	}
 }
 
-ZTEST(syscalls, test_syscall_torture)
+void test_syscall_torture(void)
 {
 	uintptr_t i;
 
 	printk("Running syscall torture test with %d threads on %d cpu(s)\n",
-	       NR_THREADS, arch_num_cpus());
+	       NR_THREADS, CONFIG_MP_NUM_CPUS);
 
 	for (i = 0; i < NR_THREADS; i++) {
 		k_thread_create(&torture_threads[i], torture_stacks[i],
@@ -422,7 +416,7 @@ void test_syscall_context_user(void *p1, void *p2, void *p3)
 }
 
 /* Show that z_is_in_syscall() works properly */
-ZTEST(syscalls, test_syscall_context)
+void test_syscall_context(void)
 {
 	/* We're a regular supervisor thread. */
 	zassert_false(z_is_in_user_syscall(),
@@ -438,15 +432,24 @@ ZTEST(syscalls, test_syscall_context)
 	k_thread_user_mode_enter(test_syscall_context_user, NULL, NULL, NULL);
 }
 
-K_HEAP_DEFINE(test_heap, BUF_SIZE * (4 * MAX_NR_THREADS));
+K_HEAP_DEFINE(test_heap, BUF_SIZE * (4 * NR_THREADS));
 
-void *syscalls_setup(void)
+void test_main(void)
 {
 	sprintf(kernel_string, "this is a kernel string");
 	sprintf(user_string, "this is a user string");
 	k_thread_heap_assign(k_current_get(), &test_heap);
 
-	return NULL;
+	ztest_test_suite(syscalls,
+			 ztest_unit_test(test_string_nlen),
+			 ztest_user_unit_test(test_string_nlen),
+			 ztest_user_unit_test(test_to_copy),
+			 ztest_user_unit_test(test_user_string_copy),
+			 ztest_user_unit_test(test_user_string_alloc_copy),
+			 ztest_user_unit_test(test_arg64),
+			 ztest_user_unit_test(test_more_args),
+			 ztest_unit_test(test_syscall_torture),
+			 ztest_unit_test(test_syscall_context)
+			 );
+	ztest_run_test_suite(syscalls);
 }
-
-ZTEST_SUITE(syscalls, NULL, syscalls_setup, NULL, NULL, NULL);

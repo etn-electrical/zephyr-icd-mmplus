@@ -5,30 +5,24 @@ description: Microchip ESPI controller
 
 compatible: "microchip,xec-espi"
 
-include: [espi-controller.yaml, pinctrl-device.yaml]
+include: espi-controller.yaml
 
 properties:
-  reg:
-    description: mmio register space
-    required: true
+    reg:
+      description: mmio register space
+      required: true
 
-  io_girq:
-    type: int
-    description: soc group irq index for eSPI I/O
-    required: true
+    io_girq:
+      type: int
+      description: soc group irq index for eSPI I/O
+      required: true
 
-  vw_girqs:
-    type: array
-    description: soc group irq indexes for eSPI virtual wires channel
-    required: true
+    vw_girqs:
+      type: array
+      description: soc group irq indexes for eSPI virtual wires channel
+      required: true
 
-  pc_girq:
-    type: int
-    description: soc group irq index for eSPI peripheral channel
-    required: true
-
-  pinctrl-0:
-    required: true
-
-  pinctrl-names:
-    required: true
+    pc_girq:
+      type: int
+      description: soc group irq index for eSPI peripheral channel
+      required: true

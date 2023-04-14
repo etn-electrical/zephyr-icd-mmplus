@@ -11,7 +11,7 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(eth_w5500, CONFIG_ETHERNET_LOG_LEVEL);
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <zephyr/device.h>
 #include <string.h>
 #include <errno.h>
@@ -160,17 +160,18 @@ static int w5500_command(const struct device *dev, uint8_t cmd)
 	uint64_t end = sys_clock_timeout_end_calc(K_MSEC(100));
 
 	w5500_spi_write(dev, W5500_S0_CR, &cmd, 1);
-	while (1) {
-		w5500_spi_read(dev, W5500_S0_CR, &reg, 1);
-		if (!reg) {
-			break;
-			}
+	do {
 		int64_t remaining = end - sys_clock_tick_get();
+
 		if (remaining <= 0) {
 			return -EIO;
-			}
-		k_busy_wait(W5500_PHY_ACCESS_DELAY);
 		}
+
+		w5500_spi_read(dev, W5500_S0_CR, &reg, 1);
+
+		k_msleep(1);
+	} while (reg != 0);
+
 	return 0;
 }
 
@@ -347,13 +348,12 @@ static int w5500_set_config(const struct device *dev,
 	if (IS_ENABLED(CONFIG_NET_PROMISCUOUS_MODE) &&
 	    type == ETHERNET_CONFIG_TYPE_PROMISC_MODE) {
 		if (config->promisc_mode) {
-			if (!(mode & BIT(mr))) {
+			if (!(mode & BIT(mr)))
 				return -EALREADY;
 			}
-		}
 
-		/* clear */
-		WRITE_BIT(mode, mr, 0);
+			/* clear */
+			WRITE_BIT(mode, mr, 0);
 	} else {
 		if (mode & BIT(mr)) {
 			return -EALREADY;
@@ -473,7 +473,7 @@ static int w5500_init(const struct device *dev)
 	const struct w5500_config *config = dev->config;
 	struct w5500_runtime *ctx = dev->data;
 
-	if (!spi_is_ready_dt(&config->spi)) {
+	if (!spi_is_ready(&config->spi)) {
 		LOG_ERR("SPI master port %s not ready", config->spi.bus->name);
 		return -EINVAL;
 	}

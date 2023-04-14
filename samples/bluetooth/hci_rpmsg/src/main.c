@@ -10,7 +10,7 @@
 #include <string.h>
 
 #include <zephyr/device.h>
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <zephyr/sys/byteorder.h>
 #include <zephyr/sys/util.h>
 
@@ -22,15 +22,10 @@
 #include <zephyr/bluetooth/hci.h>
 #include <zephyr/bluetooth/buf.h>
 #include <zephyr/bluetooth/hci_raw.h>
-#include <zephyr/bluetooth/hci_vs.h>
 
-#if defined(CONFIG_BT_HCI_VS_FATAL_ERROR)
-#include <zephyr/logging/log_ctrl.h>
-#endif /* CONFIG_BT_HCI_VS_FATAL_ERROR */
-
-#include <zephyr/logging/log.h>
-
-LOG_MODULE_REGISTER(hci_rpmsg, CONFIG_BT_LOG_LEVEL);
+#define BT_DBG_ENABLED 0
+#define LOG_MODULE_NAME hci_rpmsg
+#include "common/log.h"
 
 static struct ipc_ept hci_ept;
 
@@ -38,21 +33,12 @@ static K_THREAD_STACK_DEFINE(tx_thread_stack, CONFIG_BT_HCI_TX_STACK_SIZE);
 static struct k_thread tx_thread_data;
 static K_FIFO_DEFINE(tx_queue);
 static K_SEM_DEFINE(ipc_bound_sem, 0, 1);
-#if defined(CONFIG_BT_CTLR_ASSERT_HANDLER) || defined(CONFIG_BT_HCI_VS_FATAL_ERROR)
-/* A flag used to store information if the IPC endpoint has already been bound. The end point can't
- * be used before that happens.
- */
-static bool ipc_ept_ready;
-#endif /* CONFIG_BT_CTLR_ASSERT_HANDLER || CONFIG_BT_HCI_VS_FATAL_ERROR */
 
 #define HCI_RPMSG_CMD 0x01
 #define HCI_RPMSG_ACL 0x02
 #define HCI_RPMSG_SCO 0x03
 #define HCI_RPMSG_EVT 0x04
 #define HCI_RPMSG_ISO 0x05
-
-#define HCI_FATAL_ERR_MSG true
-#define HCI_REGULAR_MSG false
 
 static struct net_buf *hci_rpmsg_cmd_recv(uint8_t *data, size_t remaining)
 {
@@ -205,13 +191,14 @@ static void tx_thread(void *p1, void *p2, void *p3)
 	}
 }
 
-static void hci_rpmsg_send(struct net_buf *buf, bool is_fatal_err)
+static void hci_rpmsg_send(struct net_buf *buf)
 {
 	uint8_t pkt_indicator;
 	uint8_t retries = 0;
 	int ret;
 
-	LOG_DBG("buf %p type %u len %u", buf, bt_buf_get_type(buf), buf->len);
+	LOG_DBG("buf %p type %u len %u", buf, bt_buf_get_type(buf),
+		buf->len);
 
 	LOG_HEXDUMP_DBG(buf->data, buf->len, "Controller buffer:");
 
@@ -243,21 +230,7 @@ static void hci_rpmsg_send(struct net_buf *buf, bool is_fatal_err)
 				LOG_WRN("IPC send has been blocked for 1.5 seconds.");
 				retries = 0;
 			}
-
-			/* The function can be called by the application main thread,
-			 * bt_ctlr_assert_handle and k_sys_fatal_error_handler. In case of a call by
-			 * Bluetooth Controller assert handler or system fatal error handler the
-			 * call can be from ISR context, hence there is no thread to yield. Besides
-			 * that both handlers implement a policy to provide error information and
-			 * stop the system in an infinite loop. The goal is to prevent any other
-			 * damage to the system if one of such exeptional situations occur, hence
-			 * call to k_yield is against it.
-			 */
-			if (is_fatal_err) {
-				LOG_ERR("IPC service send error: %d", ret);
-			} else {
-				k_yield();
-			}
+			k_yield();
 		}
 	} while (ret < 0);
 
@@ -269,76 +242,13 @@ static void hci_rpmsg_send(struct net_buf *buf, bool is_fatal_err)
 #if defined(CONFIG_BT_CTLR_ASSERT_HANDLER)
 void bt_ctlr_assert_handle(char *file, uint32_t line)
 {
-	/* Disable interrupts, this is unrecoverable */
-	(void)irq_lock();
-
-#if defined(CONFIG_BT_HCI_VS_FATAL_ERROR)
-	/* Generate an error event only when IPC service endpoint is already bound. */
-	if (ipc_ept_ready) {
-		/* Prepare vendor specific HCI debug event */
-		struct net_buf *buf;
-
-		buf = hci_vs_err_assert(file, line);
-		if (buf == NULL) {
-			/* Send the event over rpmsg */
-			hci_rpmsg_send(buf, HCI_FATAL_ERR_MSG);
-		} else {
-			LOG_ERR("Can't create Fatal Error HCI event: %s at %d", __FILE__, __LINE__);
-		}
-	} else {
-		LOG_ERR("IPC endpoint is not ready yet: %s at %d", __FILE__, __LINE__);
-	}
-
-	LOG_ERR("Halting system");
-
-#else /* !CONFIG_BT_HCI_VS_FATAL_ERROR */
-	LOG_ERR("Controller assert in: %s at %d", file, line);
-
-#endif /* !CONFIG_BT_HCI_VS_FATAL_ERROR */
-
-	while (true) {
-	};
+	BT_ASSERT_MSG(false, "Controller assert in: %s at %d", file, line);
 }
 #endif /* CONFIG_BT_CTLR_ASSERT_HANDLER */
-
-#if defined(CONFIG_BT_HCI_VS_FATAL_ERROR)
-void k_sys_fatal_error_handler(unsigned int reason, const z_arch_esf_t *esf)
-{
-	LOG_PANIC();
-
-	/* Disable interrupts, this is unrecoverable */
-	(void)irq_lock();
-
-	/* Generate an error event only when there is a stack frame and IPC service endpoint is
-	 * already bound.
-	 */
-	if (esf != NULL && ipc_ept_ready) {
-		/* Prepare vendor specific HCI debug event */
-		struct net_buf *buf;
-
-		buf = hci_vs_err_stack_frame(reason, esf);
-		if (buf != NULL) {
-			hci_rpmsg_send(buf, HCI_FATAL_ERR_MSG);
-		} else {
-			LOG_ERR("Can't create Fatal Error HCI event.\n");
-		}
-	}
-
-	LOG_ERR("Halting system");
-
-	while (true) {
-	};
-
-	CODE_UNREACHABLE;
-}
-#endif /* CONFIG_BT_HCI_VS_FATAL_ERROR */
 
 static void hci_ept_bound(void *priv)
 {
 	k_sem_give(&ipc_bound_sem);
-#if defined(CONFIG_BT_CTLR_ASSERT_HANDLER) || defined(CONFIG_BT_HCI_VS_FATAL_ERROR)
-	ipc_ept_ready = true;
-#endif /* CONFIG_BT_CTLR_ASSERT_HANDLER || CONFIG_BT_HCI_VS_FATAL_ERROR */
 }
 
 static void hci_ept_recv(const void *data, size_t len, void *priv)
@@ -379,7 +289,7 @@ void main(void)
 
 	/* Initialize IPC service instance and register endpoint. */
 	err = ipc_service_open_instance(hci_ipc_instance);
-	if (err < 0 && err != -EALREADY) {
+	if (err) {
 		LOG_ERR("IPC service instance initialization failed: %d\n", err);
 	}
 
@@ -394,6 +304,6 @@ void main(void)
 		struct net_buf *buf;
 
 		buf = net_buf_get(&rx_queue, K_FOREVER);
-		hci_rpmsg_send(buf, HCI_REGULAR_MSG);
+		hci_rpmsg_send(buf);
 	}
 }

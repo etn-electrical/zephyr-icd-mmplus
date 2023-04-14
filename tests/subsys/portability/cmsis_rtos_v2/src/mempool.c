@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
+#include <ztest.h>
 #include <zephyr/kernel.h>
 #include <cmsis_os2.h>
 
@@ -101,7 +101,7 @@ static void mempool_common_tests(osMemoryPoolId_t mp_id,
  *
  * @see osMemoryPoolNew(), osMemoryPoolAlloc(), osMemoryPoolFree(),
  */
-ZTEST(cmsis_mempool, test_mempool_dynamic)
+void test_mempool_dynamic(void)
 {
 	osMemoryPoolId_t mp_id;
 
@@ -117,7 +117,7 @@ ZTEST(cmsis_mempool, test_mempool_dynamic)
  *
  * @see osMemoryPoolNew(), osMemoryPoolAlloc(), osMemoryPoolFree(),
  */
-ZTEST(cmsis_mempool, test_mempool)
+void test_mempool(void)
 {
 	osMemoryPoolId_t mp_id;
 
@@ -132,4 +132,3 @@ ZTEST(cmsis_mempool, test_mempool)
 
 	mempool_common_tests(mp_id, mp_attrs.name);
 }
-ZTEST_SUITE(cmsis_mempool, NULL, NULL, NULL, NULL, NULL);

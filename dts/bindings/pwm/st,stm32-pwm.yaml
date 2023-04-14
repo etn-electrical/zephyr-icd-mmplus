@@ -5,21 +5,34 @@ compatible: "st,stm32-pwm"
 include: [pwm-controller.yaml, base.yaml, pinctrl-device.yaml]
 
 properties:
-  pinctrl-0:
-    required: true
+    label:
+      required: true
 
-  pinctrl-names:
-    required: true
+    pinctrl-0:
+      required: true
 
-  "#pwm-cells":
-    const: 3
-    description: |
-      Number of items to expect in a PWM
-      - channel of the timer used for PWM
-      - period to set in ns
-      - flags : combination of standard flags like PWM_POLARITY_NORMAL
-        or specific flags like STM32_PWM_COMPLEMENTARY. As an example for channel2:
-         <&pwm1 2 100 (PWM_POLARITY_NORMAL | STM32_PWM_COMPLEMENTARY)>;
+    pinctrl-names:
+      required: true
+
+    st,prescaler:
+      type: int
+      required: false
+      deprecated: true
+      description: |
+        Clock prescaler at the input of the timer
+        Note: This property is obsolete and was replaced by "st,prescaler"
+        binding of parent timer node. It is kept temporarily for compatibility
+        reasons.
+
+    "#pwm-cells":
+      const: 3
+      description: |
+        Number of items to expect in a PWM
+        - channel of the timer used for PWM
+        - period to set in ns
+        - flags : combination of standard flags like PWM_POLARITY_NORMAL
+          or specific flags like PWM_STM32_COMPLEMENTARY. As an example for channel2:
+           <&pwm1 2 100 (PWM_POLARITY_NORMAL | PWM_STM32_COMPLEMENTARY)>;
 
 pwm-cells:
   - channel

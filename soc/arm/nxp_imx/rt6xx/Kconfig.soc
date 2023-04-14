@@ -30,6 +30,7 @@ config SOC_MIMXRT685S_CM33
 	select HAS_MCUX_USDHC2
 	select INIT_SYS_PLL
 	select HAS_MCUX_USB_LPCIP3511
+	select USB_DEDICATED_MEMORY if USB_DEVICE_DRIVER
 	select HAS_MCUX_CTIMER
 endchoice
 
@@ -60,6 +61,9 @@ config INIT_SYS_PLL
 
 config INIT_AUDIO_PLL
 	bool "Initialize Audio PLL"
+
+config USB_DEDICATED_MEMORY
+	bool "Dedicated memory for USB transfer buffer and controller operation buffers"
 
 config XTAL_SYS_CLK_HZ
 	int "External oscillator frequency"
@@ -109,11 +113,5 @@ config IMAGE_VECTOR_TABLE_OFFSET
 
 endif # NXP_IMX_RT6XX_BOOT_HEADER
 
-config IMXRT6XX_CODE_CACHE
-	bool "Code cache"
-	default y
-	help
-	  Enable code cache for FlexSPI region at boot. If this Kconfig is
-	  cleared, the CACHE64 controller will be disabled during SOC init
 
 endif # SOC_SERIES_IMX_RT6XX

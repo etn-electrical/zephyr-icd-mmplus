@@ -19,10 +19,7 @@
 #include "util/memq.h"
 #include "util/dbuf.h"
 
-#include "pdu_df.h"
-#include "lll/pdu_vendor.h"
 #include "pdu.h"
-
 #include "ll.h"
 #include "ll_feat.h"
 #include "ll_settings.h"
@@ -30,14 +27,8 @@
 #include "lll.h"
 #include "lll/lll_df_types.h"
 #include "lll_conn.h"
-#include "lll_conn_iso.h"
 
 #include "ull_tx_queue.h"
-
-#include "isoal.h"
-#include "ull_iso_types.h"
-#include "ull_conn_iso_types.h"
-#include "ull_conn_iso_internal.h"
 
 #include "ull_conn_types.h"
 #include "ull_internal.h"
@@ -46,6 +37,9 @@
 #include "ull_llcp_features.h"
 #include "ull_conn_internal.h"
 
+#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_DEBUG_HCI_DRIVER)
+#define LOG_MODULE_NAME bt_ctlr_ull_llcp_enc
+#include "common/log.h"
 #include <soc.h>
 #include "hal/debug.h"
 
@@ -144,37 +138,6 @@ enum {
 };
 #endif /* CONFIG_BT_PERIPHERAL */
 
-
-static void enc_setup_lll(struct ll_conn *conn, struct proc_ctx *ctx, uint8_t role)
-{
-	/* TODO(thoh): Move LLL/CCM manipulation to ULL? */
-
-	/* Calculate the Session Key */
-	ecb_encrypt(&ctx->data.enc.ltk[0], &ctx->data.enc.skd[0], NULL, &conn->lll.ccm_rx.key[0]);
-
-	/* Copy the Session Key */
-	memcpy(&conn->lll.ccm_tx.key[0], &conn->lll.ccm_rx.key[0], sizeof(conn->lll.ccm_tx.key));
-
-	/* Copy the IV */
-	memcpy(&conn->lll.ccm_tx.iv[0], &conn->lll.ccm_rx.iv[0], sizeof(conn->lll.ccm_tx.iv));
-
-	/* Reset CCM counter */
-	conn->lll.ccm_tx.counter = 0U;
-	conn->lll.ccm_rx.counter = 0U;
-
-	/* Set CCM direction:
-	 *	periph to central = 0,
-	 *	central to periph = 1
-	 */
-	if (role == BT_HCI_ROLE_PERIPHERAL) {
-		conn->lll.ccm_tx.direction = 0U;
-		conn->lll.ccm_rx.direction = 1U;
-	} else {
-		conn->lll.ccm_tx.direction = 1U;
-		conn->lll.ccm_rx.direction = 0U;
-	}
-}
-
 #if defined(CONFIG_BT_CENTRAL)
 /*
  * LLCP Local Procedure Encryption FSM
@@ -250,7 +213,8 @@ static void lp_enc_ntf(struct ll_conn *conn, struct proc_ctx *ctx)
 	}
 
 	/* Enqueue notification towards LL */
-	ll_rx_put_sched(ntf->hdr.link, ntf);
+	ll_rx_put(ntf->hdr.link, ntf);
+	ll_rx_sched();
 }
 
 static void lp_enc_complete(struct ll_conn *conn, struct proc_ctx *ctx, uint8_t evt, void *param)
@@ -328,13 +292,38 @@ static void lp_enc_send_pause_enc_rsp(struct ll_conn *conn, struct proc_ctx *ctx
 	}
 }
 
+static void lp_enc_setup_lll(struct ll_conn *conn, struct proc_ctx *ctx)
+{
+	/* TODO(thoh): Move LLL/CCM manipulation to ULL? */
+
+	/* Calculate the Session Key */
+	ecb_encrypt(&ctx->data.enc.ltk[0], &ctx->data.enc.skd[0], NULL, &conn->lll.ccm_rx.key[0]);
+
+	/* Copy the Session Key */
+	memcpy(&conn->lll.ccm_tx.key[0], &conn->lll.ccm_rx.key[0], sizeof(conn->lll.ccm_tx.key));
+
+	/* Copy the IV */
+	memcpy(&conn->lll.ccm_tx.iv[0], &conn->lll.ccm_rx.iv[0], sizeof(conn->lll.ccm_tx.iv));
+
+	/* Reset CCM counter */
+	conn->lll.ccm_tx.counter = 0U;
+	conn->lll.ccm_rx.counter = 0U;
+
+	/* Set CCM direction:
+	 *	periph to central = 0,
+	 *	central to periph = 1
+	 */
+	conn->lll.ccm_tx.direction = 1U;
+	conn->lll.ccm_rx.direction = 0U;
+}
+
 static void lp_enc_send_start_enc_rsp(struct ll_conn *conn, struct proc_ctx *ctx, uint8_t evt,
 				      void *param)
 {
 	if (!llcp_tx_alloc_peek(conn, ctx)) {
 		ctx->state = LP_ENC_STATE_WAIT_TX_START_ENC_RSP;
 	} else {
-		enc_setup_lll(conn, ctx, BT_HCI_ROLE_CENTRAL);
+		lp_enc_setup_lll(conn, ctx);
 		llcp_lp_enc_tx(conn, ctx, PDU_DATA_LLCTRL_TYPE_START_ENC_RSP);
 
 		/* Wait for LL_START_ENC_RSP */
@@ -767,7 +756,8 @@ static void rp_enc_ntf_ltk(struct ll_conn *conn, struct proc_ctx *ctx)
 	llcp_ntf_encode_enc_req(ctx, pdu);
 
 	/* Enqueue notification towards LL */
-	ll_rx_put_sched(ntf->hdr.link, ntf);
+	ll_rx_put(ntf->hdr.link, ntf);
+	ll_rx_sched();
 }
 
 static void rp_enc_ntf(struct ll_conn *conn, struct proc_ctx *ctx)
@@ -796,7 +786,8 @@ static void rp_enc_ntf(struct ll_conn *conn, struct proc_ctx *ctx)
 	}
 
 	/* Enqueue notification towards LL */
-	ll_rx_put_sched(ntf->hdr.link, ntf);
+	ll_rx_put(ntf->hdr.link, ntf);
+	ll_rx_sched();
 }
 
 static void rp_enc_send_start_enc_rsp(struct ll_conn *conn, struct proc_ctx *ctx, uint8_t evt,
@@ -848,13 +839,38 @@ static void rp_enc_send_enc_rsp(struct ll_conn *conn, struct proc_ctx *ctx, uint
 	}
 }
 
+static void rp_enc_setup_lll(struct ll_conn *conn, struct proc_ctx *ctx)
+{
+	/* TODO(thoh): Move LLL/CCM manipulation to ULL? */
+
+	/* Calculate the Session Key */
+	ecb_encrypt(&ctx->data.enc.ltk[0], &ctx->data.enc.skd[0], NULL, &conn->lll.ccm_rx.key[0]);
+
+	/* Copy the Session Key */
+	memcpy(&conn->lll.ccm_tx.key[0], &conn->lll.ccm_rx.key[0], sizeof(conn->lll.ccm_tx.key));
+
+	/* Copy the IV */
+	memcpy(&conn->lll.ccm_tx.iv[0], &conn->lll.ccm_rx.iv[0], sizeof(conn->lll.ccm_tx.iv));
+
+	/* Reset CCM counter */
+	conn->lll.ccm_tx.counter = 0U;
+	conn->lll.ccm_rx.counter = 0U;
+
+	/* Set CCM direction:
+	 *	periph to central = 0,
+	 *	central to periph = 1
+	 */
+	conn->lll.ccm_tx.direction = 0U;
+	conn->lll.ccm_rx.direction = 1U;
+}
+
 static void rp_enc_send_start_enc_req(struct ll_conn *conn, struct proc_ctx *ctx, uint8_t evt,
 				      void *param)
 {
 	if (!llcp_tx_alloc_peek(conn, ctx)) {
 		ctx->state = RP_ENC_STATE_WAIT_TX_START_ENC_REQ;
 	} else {
-		enc_setup_lll(conn, ctx, BT_HCI_ROLE_PERIPHERAL);
+		rp_enc_setup_lll(conn, ctx);
 		llcp_rp_enc_tx(conn, ctx, PDU_DATA_LLCTRL_TYPE_START_ENC_REQ);
 		/* Wait for the LL_START_ENC_RSP */
 		ctx->rx_opcode = PDU_DATA_LLCTRL_TYPE_START_ENC_RSP;

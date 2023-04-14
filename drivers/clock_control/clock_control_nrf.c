@@ -13,7 +13,6 @@
 #include <nrfx_clock.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/shell/shell.h>
-#include <zephyr/irq.h>
 
 LOG_MODULE_REGISTER(clock_control, CONFIG_CLOCK_CONTROL_LOG_LEVEL);
 
@@ -127,7 +126,7 @@ static enum clock_control_status get_status(const struct device *dev,
 static int set_off_state(uint32_t *flags, uint32_t ctx)
 {
 	int err = 0;
-	unsigned int key = irq_lock();
+	int key = irq_lock();
 	uint32_t current_ctx = GET_CTX(*flags);
 
 	if ((current_ctx != 0) && (current_ctx != ctx)) {
@@ -144,7 +143,7 @@ static int set_off_state(uint32_t *flags, uint32_t ctx)
 static int set_starting_state(uint32_t *flags, uint32_t ctx)
 {
 	int err = 0;
-	unsigned int key = irq_lock();
+	int key = irq_lock();
 	uint32_t current_ctx = GET_CTX(*flags);
 
 	if ((*flags & (STATUS_MASK)) == CLOCK_CONTROL_STATUS_OFF) {
@@ -162,7 +161,7 @@ static int set_starting_state(uint32_t *flags, uint32_t ctx)
 
 static void set_on_state(uint32_t *flags)
 {
-	unsigned int key = irq_lock();
+	int key = irq_lock();
 
 	*flags = CLOCK_CONTROL_STATUS_ON | GET_CTX(*flags);
 	irq_unlock(key);
@@ -267,7 +266,7 @@ static void generic_hfclk_start(void)
 {
 	nrf_clock_hfclk_t type;
 	bool already_started = false;
-	unsigned int key = irq_lock();
+	int key = irq_lock();
 
 	hfclk_users |= HF_USER_GENERIC;
 	if (hfclk_users & HF_USER_BT) {
@@ -295,21 +294,12 @@ static void generic_hfclk_start(void)
 
 static void generic_hfclk_stop(void)
 {
-	/* It's not enough to use only atomic_and() here for synchronization,
-	 * as the thread could be preempted right after that function but
-	 * before hfclk_stop() is called and the preempting code could request
-	 * the HFCLK again. Then, the HFCLK would be stopped inappropriately
-	 * and hfclk_user would be left with an incorrect value.
-	 */
-	unsigned int key = irq_lock();
-
-	hfclk_users &= ~HF_USER_GENERIC;
-	/* Skip stopping if BT is still requesting the clock. */
-	if (!(hfclk_users & HF_USER_BT)) {
-		hfclk_stop();
+	if (atomic_and(&hfclk_users, ~HF_USER_GENERIC) & HF_USER_BT) {
+		/* bt still requesting the clock. */
+		return;
 	}
 
-	irq_unlock(key);
+	hfclk_stop();
 }
 
 
@@ -325,18 +315,12 @@ void z_nrf_clock_bt_ctlr_hf_request(void)
 
 void z_nrf_clock_bt_ctlr_hf_release(void)
 {
-	/* It's not enough to use only atomic_and() here for synchronization,
-	 * see the explanation in generic_hfclk_stop().
-	 */
-	unsigned int key = irq_lock();
-
-	hfclk_users &= ~HF_USER_BT;
-	/* Skip stopping if generic is still requesting the clock. */
-	if (!(hfclk_users & HF_USER_GENERIC)) {
-		hfclk_stop();
+	if (atomic_and(&hfclk_users, ~HF_USER_BT) & HF_USER_GENERIC) {
+		/* generic still requesting the clock. */
+		return;
 	}
 
-	irq_unlock(key);
+	hfclk_stop();
 }
 
 static int stop(const struct device *dev, clock_control_subsys_t subsys,
@@ -747,7 +731,7 @@ static int cmd_status(const struct shell *shell, size_t argc, char **argv)
 				get_onoff_manager(CLOCK_DEVICE,
 						  CLOCK_CONTROL_NRF_TYPE_LFCLK);
 	uint32_t abs_start, abs_stop;
-	unsigned int key = irq_lock();
+	int key = irq_lock();
 	uint64_t now = k_uptime_get();
 
 	(void)nrfx_clock_is_running(NRF_CLOCK_DOMAIN_HFCLK, (void *)&hfclk_src);

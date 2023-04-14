@@ -124,10 +124,3 @@ set_property(TARGET bintools PROPERTY readelf_flag_outfile ">;" )
 #set_property(TARGET bintools PROPERTY readelf_flag_headers -E)
 #set_property(TARGET bintools PROPERTY readelf_flag_infile "")
 #set_property(TARGET bintools PROPERTY readelf_flag_outfile "-O file=" )
-
-
-set_property(TARGET bintools PROPERTY symbols_command ${CMAKE_NM})
-set_property(TARGET bintools PROPERTY symbols_flag "")
-set_property(TARGET bintools PROPERTY symbols_final "")
-set_property(TARGET bintools PROPERTY symbols_infile "")
-set_property(TARGET bintools PROPERTY symbols_outfile ">;" )

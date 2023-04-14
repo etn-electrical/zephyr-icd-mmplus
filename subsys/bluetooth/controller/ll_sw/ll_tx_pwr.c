@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <soc.h>
 #include <zephyr/bluetooth/hci.h>
 #include <zephyr/bluetooth/hci_vs.h>
@@ -19,8 +19,6 @@
 #include "util/mem.h"
 #include "util/dbuf.h"
 
-#include "pdu_df.h"
-#include "lll/pdu_vendor.h"
 #include "pdu.h"
 
 #include "lll.h"

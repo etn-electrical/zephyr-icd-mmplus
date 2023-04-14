@@ -6,11 +6,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 
 #include <errno.h>
-#include <zephyr/tc_util.h>
-#include <zephyr/ztest.h>
+#include <tc_util.h>
+#include <ztest.h>
 
 #include <zephyr/bluetooth/bluetooth.h>
 #include <zephyr/drivers/bluetooth/hci_driver.h>
@@ -42,12 +42,18 @@ static void driver_init(void)
 	bt_hci_driver_register(&drv);
 }
 
-ZTEST_SUITE(test_bluetooth, NULL, NULL, NULL, NULL, NULL);
-
-ZTEST(test_bluetooth, test_bluetooth_entry)
+void test_bluetooth_entry(void)
 {
 	driver_init();
 
 	zassert_true((bt_enable(NULL) == EXPECTED_ERROR),
 			"bt_enable failed");
+}
+
+/*test case main entry*/
+void test_main(void)
+{
+	ztest_test_suite(test_bluetooth,
+			ztest_unit_test(test_bluetooth_entry));
+	ztest_run_test_suite(test_bluetooth);
 }

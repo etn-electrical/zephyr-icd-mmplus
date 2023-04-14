@@ -5,6 +5,7 @@
  */
 
 #include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 
 #include "footprint.h"
 

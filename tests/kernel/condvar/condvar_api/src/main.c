@@ -5,9 +5,9 @@
  */
 
 
-#include <zephyr/ztest.h>
+#include <ztest.h>
 #include <zephyr/irq_offload.h>
-#include <zephyr/ztest_error_hook.h>
+#include <ztest_error_hook.h>
 
 #define STACK_SIZE     (512 + CONFIG_TEST_EXTRA_STACK_SIZE)
 
@@ -137,7 +137,7 @@ void condvar_wait_wake_task(void *p1, void *p2, void *p3)
 /**
  * @brief Test k_condvar_wait() and k_condvar_wake()
  */
-ZTEST_USER(condvar_tests, test_condvar_wait_forever_wake)
+void test_condvar_wait_forever_wake(void)
 {
 	woken = 1;
 	timeout = K_TICKS_FOREVER;
@@ -164,7 +164,7 @@ ZTEST_USER(condvar_tests, test_condvar_wait_forever_wake)
 }
 
 
-ZTEST_USER(condvar_tests, test_condvar_wait_timeout_wake)
+void test_condvar_wait_timeout_wake(void)
 {
 	woken = 1;
 	timeout = k_ms_to_ticks_ceil32(100);
@@ -191,7 +191,7 @@ ZTEST_USER(condvar_tests, test_condvar_wait_timeout_wake)
 	k_thread_abort(&condvar_tid);
 }
 
-ZTEST_USER(condvar_tests, test_condvar_wait_timeout)
+void test_condvar_wait_timeout(void)
 {
 	timeout = k_ms_to_ticks_ceil32(50);
 
@@ -209,7 +209,7 @@ ZTEST_USER(condvar_tests, test_condvar_wait_timeout)
 /**
  * @brief Test k_condvar_wait() forever
  */
-ZTEST_USER(condvar_tests, test_condvar_wait_forever)
+void test_condvar_wait_forever(void)
 {
 	timeout = K_TICKS_FOREVER;
 
@@ -225,7 +225,7 @@ ZTEST_USER(condvar_tests, test_condvar_wait_forever)
 }
 
 
-ZTEST_USER(condvar_tests, test_condvar_wait_nowait)
+void test_condvar_wait_nowait(void)
 {
 	timeout = 0;
 
@@ -240,7 +240,7 @@ ZTEST_USER(condvar_tests, test_condvar_wait_nowait)
 }
 
 
-ZTEST_USER(condvar_tests, test_condvar_wait_nowait_wake)
+void test_condvar_wait_nowait_wake(void)
 {
 	woken = 0;
 	timeout = 0;
@@ -266,7 +266,7 @@ ZTEST_USER(condvar_tests, test_condvar_wait_nowait_wake)
 }
 
 
-ZTEST(condvar_tests, test_condvar_wait_forever_wake_from_isr)
+void test_condvar_wait_forever_wake_from_isr(void)
 {
 	timeout = K_TICKS_FOREVER;
 
@@ -285,7 +285,7 @@ ZTEST(condvar_tests, test_condvar_wait_forever_wake_from_isr)
 	k_thread_abort(&condvar_tid);
 }
 
-ZTEST_USER(condvar_tests, test_condvar_multiple_threads_wait_wake)
+void test_condvar_multiple_threads_wait_wake(void)
 {
 	timeout = K_TICKS_FOREVER;
 	woken = TOTAL_THREADS_WAITING;
@@ -353,7 +353,7 @@ void condvar_multiple_wake_task(void *p1, void *p2, void *p3)
 		     ret_value, woken_num);
 }
 
-ZTEST_USER(condvar_tests, test_multiple_condvar_wait_wake)
+void test_multiple_condvar_wait_wake(void)
 {
 	woken = 1;
 	timeout = K_TICKS_FOREVER;
@@ -400,7 +400,7 @@ static void cond_init_null(void *p1, void *p2, void *p3)
 	ztest_test_fail();
 }
 
-ZTEST_USER(condvar_tests, test_condvar_init_null)
+void test_condvar_init_null(void)
 {
 	k_tid_t tid = k_thread_create(&condvar_tid, stack_1, STACK_SIZE,
 			(k_thread_entry_t)cond_init_null,
@@ -411,7 +411,7 @@ ZTEST_USER(condvar_tests, test_condvar_init_null)
 	k_thread_join(tid, K_FOREVER);
 }
 #else
-ZTEST_USER(condvar_tests, test_condvar_init_null)
+void test_condvar_init_null(void)
 {
 	ztest_test_skip();
 }
@@ -445,7 +445,7 @@ static void cond_wait_null(void *p1, void *p2, void *p3)
 	ztest_test_fail();
 }
 
-ZTEST_USER(condvar_tests, test_condvar_signal_null)
+void test_condvar_signal_null(void)
 {
 	k_tid_t tid = k_thread_create(&condvar_tid, stack_1, STACK_SIZE,
 			(k_thread_entry_t)cond_signal_null,
@@ -454,7 +454,7 @@ ZTEST_USER(condvar_tests, test_condvar_signal_null)
 			K_USER | K_INHERIT_PERMS, K_NO_WAIT);
 	k_thread_join(tid, K_FOREVER);
 }
-ZTEST_USER(condvar_tests, test_condvar_broadcast_null)
+void test_condvar_broadcast_null(void)
 {
 	k_tid_t tid = k_thread_create(&condvar_tid, stack_1, STACK_SIZE,
 			(k_thread_entry_t)cond_broadcast_null,
@@ -464,7 +464,7 @@ ZTEST_USER(condvar_tests, test_condvar_broadcast_null)
 
 	k_thread_join(tid, K_FOREVER);
 }
-ZTEST_USER(condvar_tests, test_condvar_wait_null)
+void test_condvar_wait_null(void)
 {
 	k_tid_t tid = k_thread_create(&condvar_tid, stack_1, STACK_SIZE,
 			(k_thread_entry_t)cond_wait_null,
@@ -475,15 +475,15 @@ ZTEST_USER(condvar_tests, test_condvar_wait_null)
 }
 
 #else
-ZTEST_USER(condvar_tests, test_condvar_signal_null)
+void test_condvar_signal_null(void)
 {
 	ztest_test_skip();
 }
-ZTEST_USER(condvar_tests, test_condvar_broadcast_null)
+void test_condvar_broadcast_null(void)
 {
 	ztest_test_skip();
 }
-ZTEST_USER(condvar_tests, test_condvar_wait_null)
+void test_condvar_wait_null(void)
 {
 	ztest_test_skip();
 }
@@ -559,18 +559,18 @@ void _condvar_usecase(long multi)
 
 }
 
-ZTEST_USER(condvar_tests, test_condvar_usecase_signal)
+void test_condvar_usecase_signal(void)
 {
 	_condvar_usecase(0);
 }
 
-ZTEST_USER(condvar_tests, test_condvar_usecase_broadcast)
+void test_condvar_usecase_broadcast(void)
 {
 	_condvar_usecase(1);
 }
 
 /*test case main entry*/
-static void *condvar_tests_setup(void)
+void test_main(void)
 {
 #ifdef CONFIG_USERSPACE
 	k_thread_access_grant(k_current_get(), &test_mutex, &condvar_tid, &condvar_wake_tid,
@@ -585,7 +585,24 @@ static void *condvar_tests_setup(void)
 				      &multiple_wake_stack[i]);
 	}
 #endif
-	return NULL;
-}
 
-ZTEST_SUITE(condvar_tests, NULL, condvar_tests_setup, NULL, NULL, NULL);
+	ztest_test_suite(test_condvar,
+			 ztest_user_unit_test(test_condvar_wait_forever_wake),
+			 ztest_user_unit_test(test_condvar_wait_timeout_wake),
+			 ztest_user_unit_test(test_condvar_wait_timeout),
+			 ztest_user_unit_test(test_condvar_wait_nowait_wake),
+			 ztest_unit_test(test_condvar_wait_forever_wake_from_isr),
+			 ztest_user_unit_test(test_condvar_multiple_threads_wait_wake),
+			 ztest_user_unit_test(test_multiple_condvar_wait_wake),
+			 ztest_user_unit_test(test_condvar_wait_forever),
+			 ztest_user_unit_test(test_condvar_wait_timeout),
+			 ztest_user_unit_test(test_condvar_wait_nowait),
+			 ztest_user_unit_test(test_condvar_init_null),
+			 ztest_user_unit_test(test_condvar_signal_null),
+			 ztest_user_unit_test(test_condvar_wait_null),
+			 ztest_user_unit_test(test_condvar_broadcast_null),
+			 ztest_user_unit_test(test_condvar_usecase_signal),
+			 ztest_user_unit_test(test_condvar_usecase_broadcast)
+			 );
+	ztest_run_test_suite(test_condvar);
+}

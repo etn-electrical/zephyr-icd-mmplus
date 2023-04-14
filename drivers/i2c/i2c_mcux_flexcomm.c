@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2016 Freescale Semiconductor, Inc.
- * Copyright (c) 2019, 2022 NXP
+ * Copyright (c) 2019 NXP
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -16,7 +16,6 @@
 #endif
 
 #include <zephyr/logging/log.h>
-#include <zephyr/irq.h>
 LOG_MODULE_REGISTER(mcux_flexcomm);
 
 #include "i2c-priv.h"
@@ -35,11 +34,10 @@ struct mcux_flexcomm_config {
 struct mcux_flexcomm_data {
 	i2c_master_handle_t handle;
 	struct k_sem device_sync_sem;
-	struct k_sem lock;
 	status_t callback_status;
-#ifdef CONFIG_I2C_TARGET
+#ifdef CONFIG_I2C_SLAVE
 	i2c_slave_handle_t target_handle;
-	struct i2c_target_config *target_cfg;
+	struct i2c_slave_config *target_cfg;
 	bool target_attached;
 	bool first_read;
 	bool first_write;
@@ -51,12 +49,11 @@ static int mcux_flexcomm_configure(const struct device *dev,
 				   uint32_t dev_config_raw)
 {
 	const struct mcux_flexcomm_config *config = dev->config;
-	struct mcux_flexcomm_data *data = dev->data;
 	I2C_Type *base = config->base;
 	uint32_t clock_freq;
 	uint32_t baudrate;
 
-	if (!(I2C_MODE_CONTROLLER & dev_config_raw)) {
+	if (!(I2C_MODE_MASTER & dev_config_raw)) {
 		return -EINVAL;
 	}
 
@@ -84,9 +81,7 @@ static int mcux_flexcomm_configure(const struct device *dev,
 		return -EINVAL;
 	}
 
-	k_sem_take(&data->lock, K_FOREVER);
 	I2C_MasterSetBaudRate(base, baudrate, clock_freq);
-	k_sem_give(&data->lock);
 
 	return 0;
 }
@@ -129,15 +124,11 @@ static int mcux_flexcomm_transfer(const struct device *dev,
 	I2C_Type *base = config->base;
 	i2c_master_transfer_t transfer;
 	status_t status;
-	int ret = 0;
-
-	k_sem_take(&data->lock, K_FOREVER);
 
 	/* Iterate over all the messages */
 	for (int i = 0; i < num_msgs; i++) {
 		if (I2C_MSG_ADDR_10_BITS & msgs->flags) {
-			ret = -ENOTSUP;
-			break;
+			return -ENOTSUP;
 		}
 
 		/* Initialize the transfer descriptor */
@@ -167,8 +158,7 @@ static int mcux_flexcomm_transfer(const struct device *dev,
 		 */
 		if (status != kStatus_Success) {
 			I2C_MasterTransferAbort(base, &data->handle);
-			ret = -EIO;
-			break;
+			return -EIO;
 		}
 
 		/* Wait for the transfer to complete */
@@ -179,25 +169,22 @@ static int mcux_flexcomm_transfer(const struct device *dev,
 		 */
 		if (data->callback_status != kStatus_Success) {
 			I2C_MasterTransferAbort(base, &data->handle);
-			ret = -EIO;
-			break;
+			return -EIO;
 		}
 
 		/* Move to the next message */
 		msgs++;
 	}
 
-	k_sem_give(&data->lock);
-
-	return ret;
+	return 0;
 }
 
-#if defined(CONFIG_I2C_TARGET)
+#if defined(CONFIG_I2C_SLAVE)
 static void i2c_target_transfer_callback(I2C_Type *base,
 		volatile i2c_slave_transfer_t *transfer, void *userData)
 {
 	struct mcux_flexcomm_data *data = userData;
-	const struct i2c_target_callbacks *target_cb = data->target_cfg->callbacks;
+	const struct i2c_slave_callbacks *target_cb = data->target_cfg->callbacks;
 	static uint8_t rxVal, txVal;
 
 	ARG_UNUSED(base);
@@ -252,7 +239,7 @@ static void i2c_target_transfer_callback(I2C_Type *base,
 }
 
 int mcux_flexcomm_target_register(const struct device *dev,
-			     struct i2c_target_config *target_config)
+			     struct i2c_slave_config *target_config)
 {
 	const struct mcux_flexcomm_config *config = dev->config;
 	struct mcux_flexcomm_data *data = dev->data;
@@ -295,7 +282,7 @@ int mcux_flexcomm_target_register(const struct device *dev,
 }
 
 int mcux_flexcomm_target_unregister(const struct device *dev,
-			       struct i2c_target_config *target_config)
+			       struct i2c_slave_config *target_config)
 {
 	const struct mcux_flexcomm_config *config = dev->config;
 	struct mcux_flexcomm_data *data = dev->data;
@@ -320,7 +307,7 @@ static void mcux_flexcomm_isr(const struct device *dev)
 	struct mcux_flexcomm_data *data = dev->data;
 	I2C_Type *base = config->base;
 
-#if defined(CONFIG_I2C_TARGET)
+#if defined(CONFIG_I2C_SLAVE)
 	if (data->target_attached) {
 		I2C_SlaveTransferHandleIRQ(base, &data->target_handle);
 		return;
@@ -346,13 +333,7 @@ static int mcux_flexcomm_init(const struct device *dev)
 	}
 #endif
 
-	k_sem_init(&data->lock, 1, 1);
 	k_sem_init(&data->device_sync_sem, 0, K_SEM_MAX_LIMIT);
-
-	if (!device_is_ready(config->clock_dev)) {
-		LOG_ERR("clock control device not ready");
-		return -ENODEV;
-	}
 
 	/* Get the clock frequency */
 	if (clock_control_get_rate(config->clock_dev, config->clock_subsys,
@@ -368,7 +349,7 @@ static int mcux_flexcomm_init(const struct device *dev)
 
 	bitrate_cfg = i2c_map_dt_bitrate(config->bitrate);
 
-	error = mcux_flexcomm_configure(dev, I2C_MODE_CONTROLLER | bitrate_cfg);
+	error = mcux_flexcomm_configure(dev, I2C_MODE_MASTER | bitrate_cfg);
 	if (error) {
 		return error;
 	}
@@ -381,9 +362,9 @@ static int mcux_flexcomm_init(const struct device *dev)
 static const struct i2c_driver_api mcux_flexcomm_driver_api = {
 	.configure = mcux_flexcomm_configure,
 	.transfer = mcux_flexcomm_transfer,
-#if defined(CONFIG_I2C_TARGET)
-	.target_register = mcux_flexcomm_target_register,
-	.target_unregister = mcux_flexcomm_target_unregister,
+#if defined(CONFIG_I2C_SLAVE)
+	.slave_register = mcux_flexcomm_target_register,
+	.slave_unregister = mcux_flexcomm_target_unregister,
 #endif
 };
 

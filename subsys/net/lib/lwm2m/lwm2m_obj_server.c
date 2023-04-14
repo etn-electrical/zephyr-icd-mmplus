@@ -16,7 +16,9 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 
 #include "lwm2m_object.h"
 #include "lwm2m_engine.h"
+#ifdef CONFIG_LWM2M_RD_CLIENT_SUPPORT
 #include "lwm2m_rd_client.h"
+#endif
 
 #define SERVER_VERSION_MAJOR 1
 #if defined(CONFIG_LWM2M_SERVER_OBJECT_VERSION_1_1)
@@ -139,15 +141,23 @@ static int disable_cb(uint16_t obj_inst_id, uint8_t *args, uint16_t args_len)
 static int update_trigger_cb(uint16_t obj_inst_id,
 			     uint8_t *args, uint16_t args_len)
 {
+#ifdef CONFIG_LWM2M_RD_CLIENT_SUPPORT
 	engine_trigger_update(false);
 	return 0;
+#else
+	return -EPERM;
+#endif
 }
 
 #if defined(CONFIG_LWM2M_SERVER_OBJECT_VERSION_1_1)
 static int bootstrap_trigger_cb(uint16_t obj_inst_id,
 			     uint8_t *args, uint16_t args_len)
 {
+#ifdef CONFIG_LWM2M_RD_CLIENT_SUPPORT
 	return engine_trigger_bootstrap();
+#else
+	return -EPERM;
+#endif
 }
 
 bool lwm2m_server_get_mute_send(uint16_t obj_inst_id)
@@ -177,8 +187,12 @@ static int lifetime_write_cb(uint16_t obj_inst_id, uint16_t res_id,
 	ARG_UNUSED(last_block);
 	ARG_UNUSED(total_size);
 
+#ifdef CONFIG_LWM2M_RD_CLIENT_SUPPORT
 	engine_trigger_update(false);
 	return 0;
+#else
+	return -EPERM;
+#endif
 }
 
 static int32_t server_get_instance_s32(uint16_t obj_inst_id, int32_t *data,
@@ -205,19 +219,6 @@ int32_t lwm2m_server_get_pmax(uint16_t obj_inst_id)
 {
 	return server_get_instance_s32(obj_inst_id, default_max_period,
 				       CONFIG_LWM2M_SERVER_DEFAULT_PMAX);
-}
-
-int lwm2m_server_get_ssid(uint16_t obj_inst_id)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(inst); i++) {
-		if (inst[i].obj && inst[i].obj_inst_id == obj_inst_id) {
-			return server_id[i];
-		}
-	}
-
-	return -ENOENT;
 }
 
 int lwm2m_server_short_id_to_inst(uint16_t short_id)

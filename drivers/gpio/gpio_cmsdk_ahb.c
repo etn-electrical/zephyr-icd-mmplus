@@ -14,10 +14,9 @@
 #include <zephyr/init.h>
 #include <soc.h>
 #include <zephyr/drivers/clock_control/arm_clock_control.h>
-#include <zephyr/drivers/gpio/gpio_cmsdk_ahb.h>
-#include <zephyr/irq.h>
 
-#include <zephyr/drivers/gpio/gpio_utils.h>
+#include "gpio_cmsdk_ahb.h"
+#include "gpio_utils.h"
 
 /**
  * @brief GPIO driver for ARM CMSDK AHB GPIO
@@ -239,11 +238,8 @@ static int gpio_cmsdk_ahb_init(const struct device *dev)
 
 #ifdef CONFIG_CLOCK_CONTROL
 	/* Enable clock for subsystem */
-	const struct device *const clk = DEVICE_DT_GET(DT_INST_CLOCKS_CTLR(0));
-
-	if (!device_is_ready(clk)) {
-		return -ENODEV;
-	}
+	const struct device *clk =
+		device_get_binding(CONFIG_ARM_CLOCK_CONTROL_DEV_NAME);
 
 #ifdef CONFIG_SOC_SERIES_BEETLE
 	clock_control_on(clk, (clock_control_subsys_t *) &cfg->gpio_cc_as);

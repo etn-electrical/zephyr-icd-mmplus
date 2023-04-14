@@ -33,7 +33,7 @@
 	_x;								\
 })
 
-#if defined(CONFIG_NET_TEST_PROTOCOL)
+#if IS_ENABLED(CONFIG_NET_TEST_PROTOCOL)
 #define tcp_malloc(_size) \
 	tp_malloc(_size, tp_basename(__FILE__), __LINE__, __func__)
 #define tcp_calloc(_nmemb, _size) \
@@ -98,7 +98,7 @@
 })
 
 
-#if defined(CONFIG_NET_TEST_PROTOCOL)
+#if IS_ENABLED(CONFIG_NET_TEST_PROTOCOL)
 #define conn_seq(_conn, _req) \
 	tp_seq_track(TP_SEQ, &(_conn)->seq, (_req), tp_basename(__FILE__), \
 			__LINE__, __func__)
@@ -110,12 +110,9 @@
 #define conn_ack(_conn, _req) (_conn)->ack += (_req)
 #endif
 
-#define NET_TCP_DEFAULT_MSS 536
-
-#define conn_mss(_conn)							\
-	MIN((_conn)->recv_options.mss_found ? (_conn)->recv_options.mss	\
-					    : NET_TCP_DEFAULT_MSS,	\
-	    net_tcp_get_supported_mss(_conn))
+#define conn_mss(_conn)					\
+	((_conn)->recv_options.mss_found ?		\
+	 (_conn)->recv_options.mss : (uint16_t)NET_IPV6_MTU)
 
 #define conn_state(_conn, _s)						\
 ({									\
@@ -150,10 +147,11 @@ struct tcphdr {
 	uint16_t th_dport;
 	uint32_t th_seq;
 	uint32_t th_ack;
-#ifdef CONFIG_LITTLE_ENDIAN
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 	uint8_t th_x2:4;	/* unused */
 	uint8_t th_off:4;	/* data offset, in units of 32-bit words */
-#else
+#endif
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 	uint8_t th_off:4;
 	uint8_t th_x2:4;
 #endif
@@ -245,7 +243,6 @@ struct tcp { /* TCP connection */
 	struct k_work_delayable send_data_timer;
 	struct k_work_delayable timewait_timer;
 	struct k_work_delayable persist_timer;
-	struct k_work_delayable ack_timer;
 
 	union {
 		/* Because FIN and establish timers are never happening
@@ -265,21 +262,12 @@ struct tcp { /* TCP connection */
 	enum tcp_data_mode data_mode;
 	uint32_t seq;
 	uint32_t ack;
-	uint16_t recv_win_max;
 	uint16_t recv_win;
 	uint16_t send_win;
-#ifdef CONFIG_NET_TCP_RANDOMIZED_RTO
-	uint16_t rto;
-#endif
 	uint8_t send_data_retries;
-#ifdef CONFIG_NET_TCP_FAST_RETRANSMIT
-	uint8_t dup_ack_cnt;
-#endif
-	uint8_t zwp_retries;
 	bool in_retransmission : 1;
 	bool in_connect : 1;
 	bool in_close : 1;
-	bool tcp_nodelay : 1;
 };
 
 #define _flags(_fl, _op, _mask, _cond)					\

@@ -9,7 +9,7 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(net_test, CONFIG_NET_DHCPV4_LOG_LEVEL);
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <zephyr/linker/sections.h>
 
 #include <zephyr/types.h>
@@ -30,8 +30,8 @@ LOG_MODULE_REGISTER(net_test, CONFIG_NET_DHCPV4_LOG_LEVEL);
 #include "ipv4.h"
 #include "udp_internal.h"
 
-#include <zephyr/tc_util.h>
-#include <zephyr/ztest.h>
+#include <tc_util.h>
+#include <ztest.h>
 
 #define NET_LOG_ENABLED 1
 #include "net_private.h"
@@ -408,7 +408,7 @@ static void receiver_cb(struct net_mgmt_event_callback *cb,
 	k_sem_give(&test_lock);
 }
 
-ZTEST(dhcpv4_tests, test_dhcp)
+void test_dhcp(void)
 {
 	struct net_if *iface;
 
@@ -446,4 +446,9 @@ ZTEST(dhcpv4_tests, test_dhcp)
 }
 
 /**test case main entry */
-ZTEST_SUITE(dhcpv4_tests, NULL, NULL, NULL, NULL, NULL);
+void test_main(void)
+{
+	ztest_test_suite(test_dhcpv4,
+			ztest_unit_test(test_dhcp));
+	ztest_run_test_suite(test_dhcpv4);
+}

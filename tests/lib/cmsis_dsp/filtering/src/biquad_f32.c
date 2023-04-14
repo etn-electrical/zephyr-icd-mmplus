@@ -5,8 +5,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
-#include <zephyr/kernel.h>
+#include <ztest.h>
+#include <zephyr/zephyr.h>
 #include <stdlib.h>
 #include <arm_math.h>
 #include "../../common/test_common.h"
@@ -16,7 +16,7 @@
 #define SNR_ERROR_THRESH	((float32_t)98)
 #define REL_ERROR_THRESH	(1.2e-3)
 
-ZTEST(filtering_biquad_f32, test_arm_biquad_cascade_df1_f32_default)
+static void test_arm_biquad_cascade_df1_f32_default(void)
 {
 	size_t index;
 	size_t length = ARRAY_SIZE(ref_default);
@@ -76,7 +76,7 @@ ZTEST(filtering_biquad_f32, test_arm_biquad_cascade_df1_f32_default)
 	free(output_buf);
 }
 
-ZTEST(filtering_biquad_f32, test_arm_biquad_cascade_df2t_f32_default)
+static void test_arm_biquad_cascade_df2t_f32_default(void)
 {
 	size_t index;
 	size_t length = ARRAY_SIZE(ref_default);
@@ -125,7 +125,7 @@ ZTEST(filtering_biquad_f32, test_arm_biquad_cascade_df2t_f32_default)
 	free(output_buf);
 }
 
-ZTEST(filtering_biquad_f32, test_arm_biquad_cascade_df1_f32_rand)
+static void test_arm_biquad_cascade_df1_f32_rand(void)
 {
 	size_t sample_index, stage_count, block_size;
 	size_t sample_count = ARRAY_SIZE(in_rand_config) / 2;
@@ -191,7 +191,7 @@ ZTEST(filtering_biquad_f32, test_arm_biquad_cascade_df1_f32_rand)
 	free(output_buf);
 }
 
-ZTEST(filtering_biquad_f32, test_arm_biquad_cascade_df2t_f32_rand)
+static void test_arm_biquad_cascade_df2t_f32_rand(void)
 {
 	size_t sample_index, stage_count, block_size;
 	size_t sample_count = ARRAY_SIZE(in_rand_config) / 2;
@@ -248,7 +248,7 @@ ZTEST(filtering_biquad_f32, test_arm_biquad_cascade_df2t_f32_rand)
 	free(output_buf);
 }
 
-ZTEST(filtering_biquad_f32, test_arm_biquad_cascade_stereo_df2t_f32_rand)
+static void test_arm_biquad_cascade_stereo_df2t_f32_rand(void)
 {
 	size_t sample_index, stage_count, block_size;
 	size_t sample_count = ARRAY_SIZE(in_rand_config) / 2;
@@ -304,4 +304,15 @@ ZTEST(filtering_biquad_f32, test_arm_biquad_cascade_stereo_df2t_f32_rand)
 	free(output_buf);
 }
 
-ZTEST_SUITE(filtering_biquad_f32, NULL, NULL, NULL, NULL, NULL);
+void test_filtering_biquad_f32(void)
+{
+	ztest_test_suite(filtering_biquad_f32,
+		ztest_unit_test(test_arm_biquad_cascade_df1_f32_default),
+		ztest_unit_test(test_arm_biquad_cascade_df2t_f32_default),
+		ztest_unit_test(test_arm_biquad_cascade_df1_f32_rand),
+		ztest_unit_test(test_arm_biquad_cascade_df2t_f32_rand),
+		ztest_unit_test(test_arm_biquad_cascade_stereo_df2t_f32_rand)
+		);
+
+	ztest_run_test_suite(filtering_biquad_f32);
+}

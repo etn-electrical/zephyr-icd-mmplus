@@ -4,11 +4,74 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/ztest.h>
+#include <zephyr/zephyr.h>
+#include <ztest.h>
 #include <zephyr/kernel_structs.h>
 #include <string.h>
 #include <stdlib.h>
+
+extern void test_permission_inheritance(void);
+extern void test_inherit_resource_pool(void);
+
+extern void test_mem_domain_setup(void);
+extern void test_mem_domain_valid_access(void);
+extern void test_mem_domain_invalid_access(void);
+extern void test_mem_domain_no_writes_to_ro(void);
+extern void test_mem_domain_remove_add_partition(void);
+extern void test_mem_domain_api_supervisor_only(void);
+extern void test_mem_domain_boot_threads(void);
+extern void test_mem_domain_migration(void);
+extern void test_mem_domain_init_fail(void);
+extern void test_mem_domain_remove_part_fail(void);
+extern void test_mem_part_add_error_null(void);
+extern void test_mem_part_add_error_zerosize(void);
+extern void test_mem_part_error_wraparound(void);
+extern void test_mem_part_remove_error_zerosize(void);
+
+extern void test_macros_obtain_names_data_bss(void);
+extern void test_mem_part_assign_bss_vars_zero(void);
+extern void test_mem_part_auto_determ_size(void);
+
+extern void test_kobject_access_grant(void);
+extern void test_syscall_invalid_kobject(void);
+extern void test_thread_without_kobject_permission(void);
+extern void test_kobject_revoke_access(void);
+extern void test_kobject_grant_access_kobj(void);
+extern void test_kobject_grant_access_kobj_invalid(void);
+extern void test_kobject_release_from_user(void);
+extern void test_kobject_access_all_grant(void);
+extern void test_thread_has_residual_permissions(void);
+extern void test_kobject_access_grant_to_invalid_thread(void);
+extern void test_kobject_access_invalid_kobject(void);
+extern void test_access_kobject_without_init_access(void);
+extern void test_access_kobject_without_init_with_access(void);
+extern void test_kobject_reinitialize_thread_kobj(void);
+extern void test_create_new_thread_from_user(void);
+extern void test_new_user_thread_with_in_use_stack_obj(void);
+extern void test_create_new_thread_from_user_no_access_stack(void);
+extern void test_create_new_thread_from_user_invalid_stacksize(void);
+extern void test_create_new_thread_from_user_huge_stacksize(void);
+extern void test_create_new_supervisor_thread_from_user(void);
+extern void test_create_new_essential_thread_from_user(void);
+extern void test_create_new_higher_prio_thread_from_user(void);
+extern void test_create_new_invalid_prio_thread_from_user(void);
+extern void test_mark_thread_exit_uninitialized(void);
+extern void test_krnl_obj_static_alloc_build_time(void);
+extern void test_mem_part_overlap(void);
+extern void test_mem_part_assert_add_overmax(void);
+extern void test_kobject_access_grant_error(void);
+extern void test_kobject_access_grant_error_user(void);
+extern void test_kobject_access_grant_error_user_null(void);
+extern void test_kobject_access_all_grant_error(void);
+extern void test_kobject_invalid(void);
+extern void test_kobject_free_error(void);
+extern void test_kobject_init_error(void);
+extern void test_kobj_create_out_of_memory(void);
+extern void test_thread_alloc_out_of_idx(void);
+extern void test_alloc_kobjects(void);
+extern void test_kobject_perm_error(void);
+extern void test_all_kobjects_str(void);
+
 
 /* Flag needed to figure out if the fault was expected or not. */
 extern volatile bool valid_fault;
@@ -62,11 +125,7 @@ static inline void set_fault_valid(bool valid)
 #elif defined(CONFIG_ARM)
 #define MEM_REGION_ALLOC (Z_THREAD_MIN_STACK_ALIGN)
 #elif defined(CONFIG_RISCV)
-#if defined(CONFIG_PMP_NO_TOR) && defined(CONFIG_PMP_NO_NA4)
-#define MEM_REGION_ALLOC (8)
-#else
 #define MEM_REGION_ALLOC (4)
-#endif
 #else
 #error "Test suite not compatible for the given architecture"
 #endif

@@ -53,9 +53,8 @@ __subsystem struct can_transceiver_driver_api {
  * @note The CAN transceiver is controlled by the CAN controller driver and
  *       should not normally be controlled by the application.
  *
- * @see can_start()
- *
  * @param dev Pointer to the device structure for the driver instance.
+ *
  * @retval 0 If successful.
  * @retval -EIO General input/output error, failed to enable device.
  */
@@ -75,9 +74,8 @@ static inline int can_transceiver_enable(const struct device *dev)
  * @note The CAN transceiver is controlled by the CAN controller driver and
  *       should not normally be controlled by the application.
  *
- * @see can_stop()
- *
  * @param dev Pointer to the device structure for the driver instance.
+ *
  * @retval 0 If successful.
  * @retval -EIO General input/output error, failed to disable device.
  */

@@ -40,6 +40,10 @@ target_include_directories(boot_stage2 PUBLIC
   ${ZEPHYR_BASE}/include
   )
 
+if(CONFIG_LEGACY_INCLUDE_PATH)
+  target_include_directories(boot_stage2 PUBLIC ${ZEPHYR_BASE}/include/zephyr)
+endif()
+
 target_link_options(boot_stage2 PRIVATE
   "-nostartfiles"
   "--specs=nosys.specs"
@@ -60,7 +64,7 @@ add_custom_command(TARGET boot_stage2
 # Checksums the binary, pads it, and generates an assembly file
 add_custom_command(TARGET boot_stage2
   POST_BUILD
-  BYPRODUCTS ${RP2_BOOTLOADER_BYPRODUCT}
+  BYPRODUCTS boot_stage2.S
   COMMAND ${PYTHON_EXECUTABLE} ${boot_stage_dir}/pad_checksum
-  -s 0xffffffff boot_stage2.bin ${RP2_BOOTLOADER_BYPRODUCT}
+  -s 0xffffffff boot_stage2.bin boot_stage2.S
   )

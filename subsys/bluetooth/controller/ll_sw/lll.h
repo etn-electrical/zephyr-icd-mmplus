@@ -24,12 +24,7 @@
 #define ADV_INT_UNIT_US      625U
 #define SCAN_INT_UNIT_US     625U
 #define CONN_INT_UNIT_US     1250U
-#define ISO_INT_UNIT_US      CONN_INT_UNIT_US
 #define PERIODIC_INT_UNIT_US 1250U
-
-/* Timeout for Host to accept/reject cis create request */
-/* See BTCore5.3, 4.E.6.7 - Default value 0x1f40 * 625us */
-#define DEFAULT_CONNECTION_ACCEPT_TIMEOUT_US (5 * USEC_PER_SEC)
 
 /* Intervals after which connection or sync establishment is considered lost */
 #define CONN_ESTAB_COUNTDOWN 6U
@@ -149,8 +144,6 @@ enum {
 #else /* !CONFIG_BT_MAX_CONN */
 #define BT_CTLR_ADV_ISO_STREAM_HANDLE_BASE 0
 #endif /* !CONFIG_BT_MAX_CONN */
-#define LL_BIS_ADV_HANDLE_FROM_IDX(stream_handle) \
-	((stream_handle) + (BT_CTLR_ADV_ISO_STREAM_HANDLE_BASE))
 #else /* !CONFIG_BT_CTLR_ADV_ISO */
 #define BT_CTLR_ADV_ISO_STREAM_MAX 0
 #endif /* CONFIG_BT_CTLR_ADV_ISO */
@@ -167,8 +160,6 @@ enum {
 #else /* !CONFIG_BT_MAX_CONN */
 #define BT_CTLR_SYNC_ISO_STREAM_HANDLE_BASE 0
 #endif /* !CONFIG_BT_MAX_CONN */
-#define LL_BIS_SYNC_HANDLE_FROM_IDX(stream_handle) \
-	((stream_handle) + (BT_CTLR_SYNC_ISO_STREAM_HANDLE_BASE))
 #else /* !CONFIG_BT_CTLR_SYNC_ISO */
 #define BT_CTLR_SYNC_ISO_STREAM_MAX 0
 #endif /* !CONFIG_BT_CTLR_SYNC_ISO */
@@ -308,14 +299,11 @@ enum node_rx_type {
 	NODE_RX_TYPE_SCAN_INDICATION,
 	NODE_RX_TYPE_CIS_REQUEST,
 	NODE_RX_TYPE_CIS_ESTABLISHED,
-	NODE_RX_TYPE_REQ_PEER_SCA_COMPLETE,
 	NODE_RX_TYPE_MESH_ADV_CPLT,
 	NODE_RX_TYPE_MESH_REPORT,
 	NODE_RX_TYPE_SYNC_IQ_SAMPLE_REPORT,
 	NODE_RX_TYPE_CONN_IQ_SAMPLE_REPORT,
 	NODE_RX_TYPE_DTM_IQ_SAMPLE_REPORT,
-	NODE_RX_TYPE_IQ_SAMPLE_REPORT_ULL_RELEASE,
-	NODE_RX_TYPE_IQ_SAMPLE_REPORT_LLL_RELEASE,
 
 #if defined(CONFIG_BT_CTLR_USER_EXT)
 	/* No entries shall be added after the NODE_RX_TYPE_USER_START/END */
@@ -496,31 +484,18 @@ struct event_done_extra {
 #endif /* CONFIG_BT_CTLR_JIT_SCHEDULING */
 	union {
 		struct {
-			union {
-#if defined(CONFIG_BT_CTLR_CONN_ISO)
-				uint32_t trx_performed_bitmask;
-#endif /* CONFIG_BT_CTLR_CONN_ISO */
-
-				struct {
-					uint16_t trx_cnt;
-					uint8_t  crc_valid:1;
+			uint16_t trx_cnt;
+			uint8_t  crc_valid:1;
 #if defined(CONFIG_BT_CTLR_SYNC_PERIODIC_CTE_TYPE_FILTERING) && \
 	defined(CONFIG_BT_CTLR_CTEINLINE_SUPPORT)
-					/* Used to inform ULL that periodic
-					 * advertising sync scan should be
-					 * terminated.
-					 */
-					uint8_t  sync_term:1;
-#endif /* CONFIG_BT_CTLR_SYNC_PERIODIC_CTE_TYPE_FILTERING && \
-	* CONFIG_BT_CTLR_CTEINLINE_SUPPORT
-	*/
-				};
-			};
-
+			/* Used to inform ULL that periodic advertising sync scan should be
+			 * terminated.
+			 */
+			uint8_t  sync_term:1;
+#endif /* CONFIG_BT_CTLR_SYNC_PERIODIC_CTE_TYPE_FILTERING && CONFIG_BT_CTLR_CTEINLINE_SUPPORT */
 #if defined(CONFIG_BT_CTLR_LE_ENC)
 			uint8_t  mic_state;
 #endif /* CONFIG_BT_CTLR_LE_ENC */
-
 #if defined(CONFIG_BT_PERIPHERAL) || defined(CONFIG_BT_CTLR_SYNC_PERIODIC)
 			union {
 				struct event_done_extra_drift drift;
@@ -562,7 +537,6 @@ struct node_tx_iso;
 void lll_done_score(void *param, uint8_t result);
 
 int lll_init(void);
-int lll_deinit(void);
 int lll_reset(void);
 void lll_resume(void *param);
 void lll_disable(void *param);
@@ -596,12 +570,10 @@ void ull_rx_put(memq_link_t *link, void *rx);
 void ull_rx_put_done(memq_link_t *link, void *done);
 void ull_rx_sched(void);
 void ull_rx_sched_done(void);
-void ull_rx_put_sched(memq_link_t *link, void *rx);
 void ull_iso_rx_put(memq_link_t *link, void *rx);
 void ull_iso_rx_sched(void);
 void *ull_iso_tx_ack_dequeue(void);
 void ull_iso_lll_ack_enqueue(uint16_t handle, struct node_tx_iso *tx);
-void ull_iso_lll_event_prepare(uint16_t handle, uint64_t event_count);
 struct event_done_extra *ull_event_done_extra_get(void);
 struct event_done_extra *ull_done_extra_type_set(uint8_t type);
 void *ull_event_done(void *param);

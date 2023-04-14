@@ -21,7 +21,6 @@
 /**
  * @brief Disk Driver Interface
  * @defgroup disk_driver_interface Disk Driver Interface
- * @ingroup io_interfaces
  * @{
  */
 

@@ -32,7 +32,6 @@ config BT_H5
 
 config BT_RPMSG
 	bool "HCI using RPMsg"
-	select BT_HAS_HCI_VS
 	select IPC_SERVICE
 	select MBOX
 	help
@@ -70,11 +69,6 @@ config BT_ESP32
 	bool "ESP32 HCI driver"
 	help
 	  Espressif HCI bluetooth interface
-
-config BT_B91
-	bool "Telink B91 HCI driver"
-	help
-	  Telink B91 HCI bluetooth interface
 
 config BT_NO_DRIVER
 	bool "No default HCI driver"
@@ -134,18 +128,3 @@ config BT_HCI_SETUP
 	  The user should generally avoid changing it via menuconfig or in
 	  configuration files. This option are enabled by the vendor-specific
 	  HCI extension, where the Setup function is implemented.
-
-config BT_DRV_TX_STACK_SIZE
-	int
-	default 256
-	help
-	  Stack size for the HCI driver's TX thread.
-
-config BT_DRV_RX_STACK_SIZE
-	int
-	default 512 if BT_SPI
-	default BT_RX_STACK_SIZE if (BT_H4 || BT_HCI_RAW_H4)
-	default BT_STM32_IPM_RX_STACK_SIZE if BT_STM32_IPM
-	default 256
-	help
-	  Stack size for the HCI driver's RX thread.

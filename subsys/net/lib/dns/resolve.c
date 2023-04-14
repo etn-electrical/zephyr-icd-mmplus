@@ -229,7 +229,7 @@ static int dns_resolve_init_locked(struct dns_resolve_context *ctx,
 
 			dns_postprocess_server(ctx, idx);
 
-			NET_DBG("[%d] %s%s%s", i, servers[i],
+			NET_DBG("[%d] %s%s%s", i, log_strdup(servers[i]),
 				IS_ENABLED(CONFIG_MDNS_RESOLVER) ?
 				(ctx->servers[i].is_mdns ? " mDNS" : "") : "",
 				IS_ENABLED(CONFIG_LLMNR_RESOLVER) ?
@@ -413,7 +413,7 @@ static inline void invoke_query_callback(int status,
 	/* Only notify if the slot is neither released nor in the process of
 	 * being released.
 	 */
-	if (pending_query->query != NULL && pending_query->cb != NULL)  {
+	if (pending_query->query != NULL)  {
 		pending_query->cb(status, info, pending_query->user_data);
 	}
 }
@@ -743,8 +743,7 @@ static int dns_read(struct dns_resolve_context *ctx,
 		goto finished;
 	}
 
-	if (ret < 0 || query_idx < 0 ||
-	    query_idx > CONFIG_DNS_NUM_CONCUR_QUERIES) {
+	if (ret < 0) {
 		goto quit;
 	}
 
@@ -993,7 +992,7 @@ static int dns_resolve_cancel_with_hash(struct dns_resolve_context *ctx,
 	}
 
 	NET_DBG("Cancelling DNS req %u (name %s type %d hash %u)", dns_id,
-		query_name, ctx->queries[i].query_type,
+		log_strdup(query_name), ctx->queries[i].query_type,
 		query_hash);
 
 	dns_resolve_cancel_slot(ctx, i);
@@ -1001,7 +1000,7 @@ static int dns_resolve_cancel_with_hash(struct dns_resolve_context *ctx,
 unlock:
 	k_mutex_unlock(&ctx->lock);
 
-	return ret;
+	return 0;
 }
 
 int dns_resolve_cancel_with_name(struct dns_resolve_context *ctx,
@@ -1501,10 +1500,5 @@ void dns_init_resolver(void)
 	if (ret < 0) {
 		NET_WARN("Cannot initialize DNS resolver (%d)", ret);
 	}
-#else
-	/* We must always call init even if there are no servers configured so
-	 * that DNS mutex gets initialized properly.
-	 */
-	(void)dns_resolve_init(dns_resolve_get_default(), NULL, NULL);
 #endif
 }

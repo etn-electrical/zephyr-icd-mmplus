@@ -705,7 +705,7 @@ def parse_args():
     """
     global args
 
-    parser = argparse.ArgumentParser(allow_abbrev=False)
+    parser = argparse.ArgumentParser()
 
     parser.add_argument("-k", "--kernel", required=True,
                         help="Zephyr ELF binary")

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <zephyr/sys/printk.h>
 #include <zephyr/drivers/sensor.h>
 
@@ -17,14 +17,15 @@
 
 void main(void)
 {
-	const struct device *const dev = DEVICE_DT_GET_ONE(maxim_max44009);
+	const struct device *dev;
 	struct sensor_value val;
 	uint32_t lum = 0U;
 
 	printk("MAX44009 light sensor application\n");
 
-	if (!device_is_ready(dev)) {
-		printk("Device %s is not ready\n", dev->name);
+	dev = device_get_binding("MAX44009");
+	if (!dev) {
+		printk("sensor: device not found.\n");
 		return;
 	}
 

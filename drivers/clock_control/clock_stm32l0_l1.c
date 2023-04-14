@@ -15,7 +15,7 @@
 #include <zephyr/drivers/clock_control/stm32_clock_control.h>
 #include "clock_stm32_ll_common.h"
 
-#if defined(STM32_PLL_ENABLED)
+#if STM32_SYSCLK_SRC_PLL
 
 /* Macros to fill up multiplication and division factors values */
 #define z_pll_mul(v) LL_RCC_PLL_MUL_ ## v
@@ -42,22 +42,6 @@ static uint32_t get_pll_source(void)
 }
 
 /**
- * @brief get the pll source frequency
- */
-__unused
-uint32_t get_pllsrc_frequency(void)
-{
-	if (IS_ENABLED(STM32_PLL_SRC_HSI)) {
-		return STM32_HSI_FREQ;
-	} else if (IS_ENABLED(STM32_PLL_SRC_HSE)) {
-		return STM32_HSE_FREQ;
-	}
-
-	__ASSERT(0, "Invalid source");
-	return 0;
-}
-
-/**
  * @brief Set up pll configuration
  */
 __unused
@@ -74,12 +58,12 @@ void config_pll_sysclock(void)
 __unused
 uint32_t get_pllout_frequency(void)
 {
-	return __LL_RCC_CALC_PLLCLK_FREQ(get_pllsrc_frequency(),
+	return __LL_RCC_CALC_PLLCLK_FREQ(get_pll_source(),
 					 pll_mul(STM32_PLL_MULTIPLIER),
 					 pll_div(STM32_PLL_DIVISOR));
 }
 
-#endif /* defined(STM32_PLL_ENABLED) */
+#endif /* STM32_SYSCLK_SRC_PLL */
 
 /**
  * @brief Activate default clocks

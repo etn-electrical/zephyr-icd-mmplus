@@ -11,19 +11,6 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(pm_device, CONFIG_PM_DEVICE_LOG_LEVEL);
 
-static const enum pm_device_state action_target_state[] = {
-	[PM_DEVICE_ACTION_SUSPEND] = PM_DEVICE_STATE_SUSPENDED,
-	[PM_DEVICE_ACTION_RESUME] = PM_DEVICE_STATE_ACTIVE,
-	[PM_DEVICE_ACTION_TURN_OFF] = PM_DEVICE_STATE_OFF,
-	[PM_DEVICE_ACTION_TURN_ON] = PM_DEVICE_STATE_SUSPENDED,
-};
-static const enum pm_device_state action_expected_state[] = {
-	[PM_DEVICE_ACTION_SUSPEND] = PM_DEVICE_STATE_ACTIVE,
-	[PM_DEVICE_ACTION_RESUME] = PM_DEVICE_STATE_SUSPENDED,
-	[PM_DEVICE_ACTION_TURN_OFF] = PM_DEVICE_STATE_SUSPENDED,
-	[PM_DEVICE_ACTION_TURN_ON] = PM_DEVICE_STATE_OFF,
-};
-
 const char *pm_device_state_str(enum pm_device_state state)
 {
 	switch (state) {
@@ -41,8 +28,9 @@ const char *pm_device_state_str(enum pm_device_state state)
 int pm_device_action_run(const struct device *dev,
 			 enum pm_device_action action)
 {
-	struct pm_device *pm = dev->pm;
 	int ret;
+	enum pm_device_state state;
+	struct pm_device *pm = dev->pm;
 
 	if (pm == NULL) {
 		return -ENOSYS;
@@ -52,11 +40,40 @@ int pm_device_action_run(const struct device *dev,
 		return -EPERM;
 	}
 
-	/* Validate action against current state */
-	if (pm->state == action_target_state[action]) {
-		return -EALREADY;
-	}
-	if (pm->state != action_expected_state[action]) {
+	switch (action) {
+	case PM_DEVICE_ACTION_FORCE_SUSPEND:
+		__fallthrough;
+	case PM_DEVICE_ACTION_SUSPEND:
+		if (pm->state == PM_DEVICE_STATE_SUSPENDED) {
+			return -EALREADY;
+		} else if (pm->state == PM_DEVICE_STATE_OFF) {
+			return -ENOTSUP;
+		}
+
+		state = PM_DEVICE_STATE_SUSPENDED;
+		break;
+	case PM_DEVICE_ACTION_RESUME:
+		if (pm->state == PM_DEVICE_STATE_ACTIVE) {
+			return -EALREADY;
+		}
+
+		state = PM_DEVICE_STATE_ACTIVE;
+		break;
+	case PM_DEVICE_ACTION_TURN_OFF:
+		if (pm->state == PM_DEVICE_STATE_OFF) {
+			return -EALREADY;
+		}
+
+		state = PM_DEVICE_STATE_OFF;
+		break;
+	case PM_DEVICE_ACTION_TURN_ON:
+		if (pm->state != PM_DEVICE_STATE_OFF) {
+			return -ENOTSUP;
+		}
+
+		state = PM_DEVICE_STATE_SUSPENDED;
+		break;
+	default:
 		return -ENOTSUP;
 	}
 
@@ -65,35 +82,21 @@ int pm_device_action_run(const struct device *dev,
 		/*
 		 * TURN_ON and TURN_OFF are actions triggered by a power domain
 		 * when it is resumed or suspended, which means that the energy
-		 * to the device will be removed or added. For this reason, if
-		 * the transition fails or the device does not handle these
-		 * actions its state still needs to updated to reflect its
-		 * physical behavior.
+		 * to the device will be removed or added. For this reason, even
+		 * if the device does not handle these actions its state needs to
+		 * updated to reflect its physical behavior.
 		 *
 		 * The function will still return the error code so the domain
 		 * can take whatever action is more appropriated.
 		 */
-		switch (action) {
-		case PM_DEVICE_ACTION_TURN_ON:
-			/* Store an error flag when the transition explicitly fails */
-			if (ret != -ENOTSUP) {
-				atomic_set_bit(&pm->flags, PM_DEVICE_FLAG_TURN_ON_FAILED);
-			}
-			__fallthrough;
-		case PM_DEVICE_ACTION_TURN_OFF:
-			pm->state = action_target_state[action];
-			break;
-		default:
-			break;
+		if ((ret == -ENOTSUP) && ((action == PM_DEVICE_ACTION_TURN_ON)
+				  || (action == PM_DEVICE_ACTION_TURN_OFF))) {
+			pm->state = state;
 		}
 		return ret;
 	}
 
-	pm->state = action_target_state[action];
-	/* Power up failure flag is no longer relevant */
-	if (action == PM_DEVICE_ACTION_TURN_OFF) {
-		atomic_clear_bit(&pm->flags, PM_DEVICE_FLAG_TURN_ON_FAILED);
-	}
+	pm->state = state;
 
 	return 0;
 }
@@ -174,36 +177,38 @@ int pm_device_power_domain_add(const struct device *dev,
 	return power_domain_add_or_remove(dev, domain, true);
 }
 
-struct pm_visitor_context {
-	pm_device_action_failed_cb_t failure_cb;
-	enum pm_device_action action;
-};
-
-static int pm_device_children_visitor(const struct device *dev, void *context)
-{
-	struct pm_visitor_context *visitor_context = context;
-	int rc;
-
-	rc = pm_device_action_run(dev, visitor_context->action);
-	if ((visitor_context->failure_cb != NULL) && (rc < 0)) {
-		/* Stop the iteration if the callback requests it */
-		if (!visitor_context->failure_cb(dev, rc)) {
-			return rc;
-		}
-	}
-	return 0;
-}
-
 void pm_device_children_action_run(const struct device *dev,
 				   enum pm_device_action action,
 				   pm_device_action_failed_cb_t failure_cb)
 {
-	struct pm_visitor_context visitor_context = {
-		.failure_cb = failure_cb,
-		.action = action
-	};
+	const device_handle_t *handles;
+	size_t handle_count = 0U;
+	int rc = 0;
 
-	(void)device_supported_foreach(dev, pm_device_children_visitor, &visitor_context);
+	/*
+	 * We don't use device_supported_foreach here because we don't want the
+	 * early exit behaviour of that function. Even if the N'th device fails
+	 * to PM_DEVICE_ACTION_TURN_ON for example, we still want to run the
+	 * action on the N+1'th device.
+	 */
+	handles = device_supported_handles_get(dev, &handle_count);
+
+	for (size_t i = 0U; i < handle_count; ++i) {
+		device_handle_t dh = handles[i];
+		const struct device *cdev = device_from_handle(dh);
+
+		if (cdev == NULL) {
+			continue;
+		}
+
+		rc = pm_device_action_run(cdev, action);
+		if ((failure_cb != NULL) && (rc < 0)) {
+			/* Stop the iteration if the callback requests it */
+			if (!failure_cb(cdev, rc)) {
+				break;
+			}
+		}
+	}
 }
 
 int pm_device_state_get(const struct device *dev,
@@ -365,21 +370,5 @@ bool pm_device_on_power_domain(const struct device *dev)
 	return pm->domain != NULL;
 #else
 	return false;
-#endif
-}
-
-bool pm_device_is_powered(const struct device *dev)
-{
-#ifdef CONFIG_PM_DEVICE_POWER_DOMAIN
-	struct pm_device *pm = dev->pm;
-
-	/* If a device doesn't support PM or is not under a PM domain,
-	 * assume it is always powered on.
-	 */
-	return (pm == NULL) ||
-	       (pm->domain == NULL) ||
-	       (pm->domain->pm->state == PM_DEVICE_STATE_ACTIVE);
-#else
-	return true;
 #endif
 }

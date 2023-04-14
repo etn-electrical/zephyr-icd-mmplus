@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <zephyr/sys/printk.h>
 
 uint32_t var_ext_sram_data = 10U;

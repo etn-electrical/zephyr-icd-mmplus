@@ -14,7 +14,7 @@
  */
 
 #include <errno.h>
-#include <zephyr/posix/fcntl.h>
+#include <fcntl.h>
 #include <zephyr/kernel.h>
 #include <zephyr/sys/fdtable.h>
 #include <zephyr/sys/speculation.h>
@@ -51,10 +51,6 @@ static struct fd_entry fdtable[CONFIG_POSIX_MAX_FDS] = {
 		/* STDERR */
 		.vtable = &stdinout_fd_op_vtable,
 		.refcount = ATOMIC_INIT(1)
-	},
-#else
-	{
-	0
 	},
 #endif
 };

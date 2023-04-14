@@ -5,11 +5,14 @@
 
 menuconfig IEEE802154_CC13XX_CC26XX
 	bool "TI CC13xx / CC26xx IEEE 802.15.4 driver support"
-	select CRC
-	default y
-	depends on DT_HAS_TI_CC13XX_CC26XX_IEEE802154_ENABLED
 
 if IEEE802154_CC13XX_CC26XX
+
+config IEEE802154_CC13XX_CC26XX_DRV_NAME
+	string "TI CC13xx / CC26xx IEEE 802.15.4 driver's name"
+	default "IEEE802154_0"
+	help
+	  This option sets the driver name.
 
 config IEEE802154_CC13XX_CC26XX_INIT_PRIO
 	int "TI CC13xx / CC26xx IEEE 802.15.4 initialization priority"
@@ -57,11 +60,15 @@ endif # IEEE802154_CC13XX_CC26XX
 
 menuconfig IEEE802154_CC13XX_CC26XX_SUB_GHZ
 	bool "TI CC13xx / CC26xx IEEE 802.15.4g driver support"
-	default y
-	depends on DT_HAS_TI_CC13XX_CC26XX_IEEE802154_SUBGHZ_ENABLED
 	select NET_L2_IEEE802154_SUB_GHZ if NET_L2_IEEE802154
 
 if IEEE802154_CC13XX_CC26XX_SUB_GHZ
+
+config IEEE802154_CC13XX_CC26XX_SUB_GHZ_DRV_NAME
+	string "TI CC13xx / CC26xx IEEE 802.15.4g driver's name"
+	default "IEEE802154_1"
+	help
+	  This option sets the driver name.
 
 config IEEE802154_CC13XX_CC26XX_SUB_GHZ_NUM_RX_BUF
 	int "TI CC13xx / CC26xx IEEE 802.15.4g receive buffer count"
@@ -91,20 +98,5 @@ config IEEE802154_CC13XX_CC26XX_SUB_GHZ_RADIO_TX_RETRIES
 	help
 	  Number of transmission attempts radio driver should do, before
 	  replying it could not send the packet.
-
-config IEEE802154_CC13XX_CC26XX_SUB_GHZ_CUSTOM_RADIO_SETUP
-	bool "Use custom radio setup structures (advanced)"
-	default n
-	help
-	  Imports the radio setup structure from an external module instead of using
-	  the default one.
-	  Allows overriding the RF modulation / protocol settings.
-
-config IEEE802154_CC13XX_CC26XX_SUB_GHZ_CUSTOM_POWER_TABLE
-	bool "Use custom power table structure (advanced)"
-	default n
-	help
-	  Imports the radio power table from an external module.
-	  Allows overriding the RF modulation settings.
 
 endif # IEEE802154_CC13XX_CC26XX_SUB_GHZ

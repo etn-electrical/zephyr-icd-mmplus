@@ -16,7 +16,6 @@
 
 #define LOG_LEVEL CONFIG_WDT_LOG_LEVEL
 #include <zephyr/logging/log.h>
-#include <zephyr/irq.h>
 LOG_MODULE_REGISTER(wdt_sifive);
 
 #define WDOGCFG_SCALE_MAX     0xf

@@ -41,7 +41,7 @@ Statistics group data request header:
     | ``0``  | ``2``        |  ``0``         |
     +--------+--------------+----------------+
 
-CBOR data of request:
+CBOR Payload of request:
 
 .. code-block:: none
 
@@ -72,7 +72,7 @@ Statistics group data response header:
     | ``1``  | ``2``        |  ``0``         |
     +--------+--------------+----------------+
 
-CBOR data of successful response:
+CBOR Payload of response:
 
 .. code-block:: none
 
@@ -82,13 +82,6 @@ CBOR data of successful response:
             (str)<entry_name> : (uint)
             ...
         }
-    }
-
-In case of error the CBOR data takes the form:
-
-.. code-block:: none
-
-    {
         (str)"rc"       : (int)
     }
 
@@ -109,7 +102,6 @@ where:
     |                       | to unsigned integer type, in a CBOR meaning       |
     +-----------------------+---------------------------------------------------+
     | "rc"                  | :ref:`mcumgr_smp_protocol_status_codes`           |
-    |                       | only appears if non-zero (error condition).       |
     +-----------------------+---------------------------------------------------+
 
 Statistics: list of groups
@@ -137,7 +129,7 @@ Statistics group list request header:
     | ``0``  | ``2``        |  ``1``         |
     +--------+--------------+----------------+
 
-The command sends an empty CBOR map as data.
+The command sends empty CBOR map as data.
 
 Statistics: list of groups response
 ===================================
@@ -153,7 +145,8 @@ Statistics group list request header:
     | ``1``  | ``2``        |  ``1``         |
     +--------+--------------+----------------+
 
-CBOR data of successful response:
+
+CBOR Payload of response:
 
 .. code-block:: none
 
@@ -161,13 +154,6 @@ CBOR data of successful response:
         (str)"stat_list" :  [
             (str)<stat_group_name>, ...
         ]
-    }
-
-In case of error the CBOR data takes the form:
-
-.. code-block:: none
-
-    {
         (str)"rc"       : (int)
     }
 
@@ -181,5 +167,4 @@ where:
     |                       | array may be empty if there are no groups         |
     +-----------------------+---------------------------------------------------+
     | "rc"                  | :ref:`mcumgr_smp_protocol_status_codes`           |
-    |                       | only appears if non-zero (error condition).       |
     +-----------------------+---------------------------------------------------+

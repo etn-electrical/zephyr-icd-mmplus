@@ -12,7 +12,6 @@
 #include <zephyr/bluetooth/conn.h>
 #include <zephyr/bluetooth/l2cap.h>
 #include <zephyr/bluetooth/hci.h>
-#include <zephyr/bluetooth/hci_vs.h>
 #include <zephyr/bluetooth/direction.h>
 
 #include "hci_core.h"
@@ -20,9 +19,9 @@
 #include "conn_internal.h"
 #include "direction_internal.h"
 
-#include <zephyr/logging/log.h>
-
-LOG_MODULE_REGISTER(bt_df, CONFIG_BT_DF_LOG_LEVEL);
+#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_DEBUG_DF)
+#define LOG_MODULE_NAME bt_df
+#include "common/log.h"
 
 /* @brief Antenna information for LE Direction Finding */
 struct bt_le_df_ant_info {
@@ -80,7 +79,7 @@ static uint8_t get_hci_cte_type(enum bt_df_cte_type type)
 	case BT_DF_CTE_TYPE_AOD_2US:
 		return BT_HCI_LE_AOD_CTE_2US;
 	default:
-		LOG_ERR("Wrong CTE type");
+		BT_ERR("Wrong CTE type");
 		return BT_HCI_LE_NO_CTE;
 	}
 }
@@ -176,13 +175,13 @@ static int hci_df_read_ant_info(uint8_t *switch_sample_rates,
 
 	err = bt_hci_cmd_send_sync(BT_HCI_OP_LE_READ_ANT_INFO, NULL, &rsp);
 	if (err) {
-		LOG_ERR("Failed to read antenna information");
+		BT_ERR("Failed to read antenna information");
 		return err;
 	}
 
 	rp = (void *)rsp->data;
 
-	LOG_DBG("DF: sw. sampl rates: %x ant num: %u , max sw. pattern len: %u,"
+	BT_DBG("DF: sw. sampl rates: %x ant num: %u , max sw. pattern len: %u,"
 	       "max CTE len %d", rp->switch_sample_rates, rp->num_ant,
 	       rp->max_switch_pattern_len, rp->max_cte_len);
 
@@ -324,7 +323,7 @@ prepare_cl_cte_rx_enable_cmd_params(struct net_buf **buf, struct bt_le_per_adv_s
 		}
 
 		cp->switch_pattern_len = switch_pattern_len;
-		dest_ant_ids = net_buf_add(*buf, cp->switch_pattern_len);
+		dest_ant_ids = net_buf_add(*buf, params->num_ant_ids);
 		memcpy(dest_ant_ids, ant_ids, cp->switch_pattern_len);
 	}
 
@@ -377,7 +376,7 @@ int hci_df_prepare_connectionless_iq_report(struct net_buf *buf,
 	struct bt_le_per_adv_sync *per_adv_sync;
 
 	if (buf->len < sizeof(*evt)) {
-		LOG_ERR("Unexpected end of buffer");
+		BT_ERR("Unexpected end of buffer");
 		return -EINVAL;
 	}
 
@@ -386,18 +385,18 @@ int hci_df_prepare_connectionless_iq_report(struct net_buf *buf,
 	per_adv_sync = bt_hci_get_per_adv_sync(sys_le16_to_cpu(evt->sync_handle));
 
 	if (!per_adv_sync) {
-		LOG_ERR("Unknown handle 0x%04X for iq samples report",
-			sys_le16_to_cpu(evt->sync_handle));
+		BT_ERR("Unknown handle 0x%04X for iq samples report",
+		       sys_le16_to_cpu(evt->sync_handle));
 		return -EINVAL;
 	}
 
 	if (!atomic_test_bit(per_adv_sync->flags, BT_PER_ADV_SYNC_CTE_ENABLED)) {
-		LOG_ERR("Received PA CTE report when CTE receive disabled");
+		BT_ERR("Received PA CTE report when CTE receive disabled");
 		return -EINVAL;
 	}
 
 	if (!(per_adv_sync->cte_types & BIT(evt->cte_type))) {
-		LOG_DBG("CTE filtered out by cte_type: %u", evt->cte_type);
+		BT_DBG("CTE filtered out by cte_type: %u", evt->cte_type);
 		return -EINVAL;
 	}
 
@@ -408,57 +407,8 @@ int hci_df_prepare_connectionless_iq_report(struct net_buf *buf,
 	report->packet_status = evt->packet_status;
 	report->slot_durations = evt->slot_durations;
 	report->per_evt_counter = sys_le16_to_cpu(evt->per_evt_counter);
-	report->sample_type = BT_DF_IQ_SAMPLE_8_BITS_INT;
 	report->sample_count = evt->sample_count;
 	report->sample = &evt->sample[0];
-
-	*per_adv_sync_to_report = per_adv_sync;
-
-	return 0;
-}
-
-int hci_df_vs_prepare_connectionless_iq_report(struct net_buf *buf,
-					       struct bt_df_per_adv_sync_iq_samples_report *report,
-					       struct bt_le_per_adv_sync **per_adv_sync_to_report)
-{
-	struct bt_hci_evt_vs_le_connectionless_iq_report *evt;
-	struct bt_le_per_adv_sync *per_adv_sync;
-
-	if (buf->len < sizeof(*evt)) {
-		LOG_ERR("Unexpected end of buffer");
-		return -EINVAL;
-	}
-
-	evt = net_buf_pull_mem(buf, sizeof(*evt));
-
-	per_adv_sync = bt_hci_get_per_adv_sync(sys_le16_to_cpu(evt->sync_handle));
-
-	if (!per_adv_sync) {
-		LOG_ERR("Unknown handle 0x%04X for iq samples report",
-			sys_le16_to_cpu(evt->sync_handle));
-		return -EINVAL;
-	}
-
-	if (!atomic_test_bit(per_adv_sync->flags, BT_PER_ADV_SYNC_CTE_ENABLED)) {
-		LOG_ERR("Received PA CTE report when CTE receive disabled");
-		return -EINVAL;
-	}
-
-	if (!(per_adv_sync->cte_types & BIT(evt->cte_type))) {
-		LOG_DBG("CTE filtered out by cte_type: %u", evt->cte_type);
-		return -EINVAL;
-	}
-
-	report->chan_idx = evt->chan_idx;
-	report->rssi = sys_le16_to_cpu(evt->rssi);
-	report->rssi_ant_id = evt->rssi_ant_id;
-	report->cte_type = BIT(evt->cte_type);
-	report->packet_status = evt->packet_status;
-	report->slot_durations = evt->slot_durations;
-	report->per_evt_counter = sys_le16_to_cpu(evt->per_evt_counter);
-	report->sample_count = evt->sample_count;
-	report->sample_type = BT_DF_IQ_SAMPLE_16_BITS_INT;
-	report->sample16 = &evt->sample[0];
 
 	*per_adv_sync_to_report = per_adv_sync;
 
@@ -674,7 +624,7 @@ int hci_df_prepare_connection_iq_report(struct net_buf *buf,
 	struct bt_conn *conn;
 
 	if (buf->len < sizeof(*evt)) {
-		LOG_ERR("Unexpected end of buffer");
+		BT_ERR("Unexpected end of buffer");
 		return -EINVAL;
 	}
 
@@ -682,18 +632,18 @@ int hci_df_prepare_connection_iq_report(struct net_buf *buf,
 
 	conn = bt_conn_lookup_handle(sys_le16_to_cpu(evt->conn_handle));
 	if (!conn) {
-		LOG_ERR("Unknown conn handle 0x%04X for iq samples report",
-			sys_le16_to_cpu(evt->conn_handle));
+		BT_ERR("Unknown conn handle 0x%04X for iq samples report",
+		       sys_le16_to_cpu(evt->conn_handle));
 		return -EINVAL;
 	}
 
 	if (!atomic_test_bit(conn->flags, BT_CONN_CTE_RX_ENABLED)) {
-		LOG_ERR("Received conn CTE report when CTE receive disabled");
+		BT_ERR("Received conn CTE report when CTE receive disabled");
 		return -EINVAL;
 	}
 
 	if (!(conn->cte_types & BIT(evt->cte_type))) {
-		LOG_DBG("CTE filtered out by cte_type: %u", evt->cte_type);
+		BT_DBG("CTE filtered out by cte_type: %u", evt->cte_type);
 		return -EINVAL;
 	}
 
@@ -707,7 +657,6 @@ int hci_df_prepare_connection_iq_report(struct net_buf *buf,
 	report->packet_status = evt->packet_status;
 	report->slot_durations = evt->slot_durations;
 	report->conn_evt_counter = sys_le16_to_cpu(evt->conn_evt_counter);
-	report->sample_type = BT_DF_IQ_SAMPLE_8_BITS_INT;
 	report->sample_count = evt->sample_count;
 	report->sample = evt->sample;
 
@@ -715,57 +664,6 @@ int hci_df_prepare_connection_iq_report(struct net_buf *buf,
 
 	return 0;
 }
-
-int hci_df_vs_prepare_connection_iq_report(struct net_buf *buf,
-					   struct bt_df_conn_iq_samples_report *report,
-					   struct bt_conn **conn_to_report)
-{
-	struct bt_hci_evt_vs_le_connection_iq_report *evt;
-	struct bt_conn *conn;
-
-	if (buf->len < sizeof(*evt)) {
-		LOG_ERR("Unexpected end of buffer");
-		return -EINVAL;
-	}
-
-	evt = net_buf_pull_mem(buf, sizeof(*evt));
-
-	conn = bt_conn_lookup_handle(sys_le16_to_cpu(evt->conn_handle));
-	if (!conn) {
-		LOG_ERR("Unknown conn handle 0x%04X for iq samples report",
-			sys_le16_to_cpu(evt->conn_handle));
-		return -EINVAL;
-	}
-
-	if (!atomic_test_bit(conn->flags, BT_CONN_CTE_RX_ENABLED)) {
-		LOG_ERR("Received conn CTE report when CTE receive disabled");
-		return -EINVAL;
-	}
-
-	if (!(conn->cte_types & BIT(evt->cte_type))) {
-		LOG_DBG("CTE filtered out by cte_type: %u", evt->cte_type);
-		return -EINVAL;
-	}
-
-	report->err = BT_DF_IQ_REPORT_ERR_SUCCESS;
-	report->chan_idx = evt->data_chan_idx;
-	report->rx_phy = evt->rx_phy;
-	report->chan_idx = evt->data_chan_idx;
-	report->rssi = evt->rssi;
-	report->rssi_ant_id = evt->rssi_ant_id;
-	report->cte_type = BIT(evt->cte_type);
-	report->packet_status = evt->packet_status;
-	report->slot_durations = evt->slot_durations;
-	report->conn_evt_counter = sys_le16_to_cpu(evt->conn_evt_counter);
-	report->sample_type = BT_DF_IQ_SAMPLE_16_BITS_INT;
-	report->sample_count = evt->sample_count;
-	report->sample16 = evt->sample;
-
-	*conn_to_report = conn;
-
-	return 0;
-}
-
 #endif /* CONFIG_BT_DF_CONNECTION_CTE_RX */
 
 #if defined(CONFIG_BT_DF_CONNECTION_CTE_REQ)
@@ -847,7 +745,7 @@ int hci_df_prepare_conn_cte_req_failed(struct net_buf *buf,
 	struct bt_conn *conn;
 
 	if (buf->len < sizeof(*evt)) {
-		LOG_ERR("Unexpected end of buffer");
+		BT_ERR("Unexpected end of buffer");
 		return -EINVAL;
 	}
 
@@ -855,13 +753,13 @@ int hci_df_prepare_conn_cte_req_failed(struct net_buf *buf,
 
 	conn = bt_conn_lookup_handle(sys_le16_to_cpu(evt->conn_handle));
 	if (!conn) {
-		LOG_ERR("Unknown conn handle 0x%04X for iq samples report",
-			sys_le16_to_cpu(evt->conn_handle));
+		BT_ERR("Unknown conn handle 0x%04X for iq samples report",
+		       sys_le16_to_cpu(evt->conn_handle));
 		return -EINVAL;
 	}
 
 	if (!atomic_test_bit(conn->flags, BT_CONN_CTE_REQ_ENABLED)) {
-		LOG_ERR("Received conn CTE request notification when CTE REQ disabled");
+		BT_ERR("Received conn CTE request notification when CTE REQ disabled");
 		return -EINVAL;
 	}
 
@@ -948,7 +846,7 @@ int le_df_init(void)
 	df_ant_info.max_cte_len = max_cte_len;
 	df_ant_info.num_ant = num_ant;
 
-	LOG_DBG("DF initialized.");
+	BT_DBG("DF initialized.");
 	return 0;
 }
 
@@ -1063,12 +961,12 @@ static int bt_df_set_conn_cte_rx_enable(struct bt_conn *conn, bool enable,
 					const struct bt_df_conn_cte_rx_param *params)
 {
 	if (!BT_FEAT_LE_RX_CTE(bt_dev.le.features)) {
-		LOG_WRN("Receiving Constant Tone Extensions is not supported");
+		BT_WARN("Receiving Constant Tone Extensions is not supported");
 		return -ENOTSUP;
 	}
 
 	if (conn->state != BT_CONN_CONNECTED) {
-		LOG_ERR("not connected!");
+		BT_ERR("not connected!");
 		return -ENOTCONN;
 	}
 
@@ -1110,12 +1008,12 @@ int bt_df_set_conn_cte_tx_param(struct bt_conn *conn, const struct bt_df_conn_ct
 	}
 
 	if (conn->state != BT_CONN_CONNECTED) {
-		LOG_ERR("not connected!");
+		BT_ERR("not connected!");
 		return -ENOTCONN;
 	}
 
 	if (atomic_test_bit(conn->flags, BT_CONN_CTE_RSP_ENABLED)) {
-		LOG_WRN("CTE response procedure is enabled");
+		BT_WARN("CTE response procedure is enabled");
 		return -EINVAL;
 	}
 
@@ -1129,17 +1027,17 @@ static int bt_df_set_conn_cte_req_enable(struct bt_conn *conn, bool enable,
 					 const struct bt_df_conn_cte_req_params *params)
 {
 	if (!BT_FEAT_LE_CONNECTION_CTE_REQ(bt_dev.le.features)) {
-		LOG_WRN("Constant Tone Extensions request procedure is not supported");
+		BT_WARN("Constant Tone Extensions request procedure is not supported");
 		return -ENOTSUP;
 	}
 
 	if (conn->state != BT_CONN_CONNECTED) {
-		LOG_ERR("not connected!");
+		BT_ERR("not connected!");
 		return -ENOTCONN;
 	}
 
 	if (!atomic_test_bit(conn->flags, BT_CONN_CTE_RX_PARAMS_SET)) {
-		LOG_ERR("Can't start CTE requres procedure before CTE RX params setup");
+		BT_ERR("Can't start CTE requres procedure before CTE RX params setup");
 		return -EINVAL;
 	}
 
@@ -1177,17 +1075,17 @@ static int bt_df_set_conn_cte_rsp_enable(struct bt_conn *conn, bool enable)
 	}
 
 	if (!BT_FEAT_LE_CONNECTION_CTE_RESP(bt_dev.le.features)) {
-		LOG_WRN("CTE response procedure is not supported");
+		BT_WARN("CTE response procedure is not supported");
 		return -ENOTSUP;
 	}
 
 	if (conn->state != BT_CONN_CONNECTED) {
-		LOG_ERR("not connected");
+		BT_ERR("not connected");
 		return -ENOTCONN;
 	}
 
 	if (!atomic_test_bit(conn->flags, BT_CONN_CTE_TX_PARAMS_SET)) {
-		LOG_ERR("Can't start CTE response procedure before CTE TX params setup");
+		BT_ERR("Can't start CTE response procedure before CTE TX params setup");
 		return -EINVAL;
 	}
 

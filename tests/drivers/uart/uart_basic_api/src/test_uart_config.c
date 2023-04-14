@@ -36,7 +36,7 @@ const struct uart_config uart_cfg = {
 
 static int test_configure(void)
 {
-	const struct device *const uart_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_console));
+	const struct device *uart_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_console));
 
 	if (!device_is_ready(uart_dev)) {
 		TC_PRINT("UART device not ready\n");
@@ -58,7 +58,7 @@ static int test_configure(void)
 /* test UART configure get (retrieve configuration) */
 static int test_config_get(void)
 {
-	const struct device *const uart_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_console));
+	const struct device *uart_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_console));
 
 	if (!device_is_ready(uart_dev)) {
 		TC_PRINT("UART device not ready\n");
@@ -91,24 +91,16 @@ static int test_config_get(void)
 	}
 }
 
-#if CONFIG_SHELL
 void test_uart_configure(void)
-#else
-ZTEST(uart_basic_api, test_uart_configure)
-#endif
 {
 	int ret = test_configure();
 
-	zassert_true((ret == TC_PASS) || (ret == TC_SKIP));
+	zassert_true((ret == TC_PASS) || (ret == TC_SKIP), NULL);
 }
 
-#if CONFIG_SHELL
 void test_uart_config_get(void)
-#else
-ZTEST(uart_basic_api, test_uart_config_get)
-#endif
 {
 	int ret = test_config_get();
 
-	zassert_true((ret == TC_PASS) || (ret == TC_SKIP));
+	zassert_true((ret == TC_PASS) || (ret == TC_SKIP), NULL);
 }

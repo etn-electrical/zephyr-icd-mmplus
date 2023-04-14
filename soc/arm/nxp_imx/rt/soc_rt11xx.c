@@ -16,34 +16,11 @@
 #include <fsl_dcdc.h>
 #include <zephyr/arch/cpu.h>
 #include <zephyr/arch/arm/aarch32/cortex_m/cmsis.h>
-#ifdef CONFIG_NXP_IMX_RT_BOOT_HEADER
 #include <fsl_flexspi_nor_boot.h>
-#endif
 #include <zephyr/dt-bindings/clock/imx_ccm_rev2.h>
-#if  defined(CONFIG_SECOND_CORE_MCUX) && defined(CONFIG_CPU_CORTEX_M7)
-#include <zephyr_image_info.h>
-/* Memcpy macro to copy segments from secondary core image stored in flash
- * to RAM section that secondary core boots from.
- * n is the segment number, as defined in zephyr_image_info.h
- */
-#define MEMCPY_SEGMENT(n, _)							\
-	memcpy((uint32_t *)((SEGMENT_LMA_ADDRESS_ ## n) - ADJUSTED_LMA),	\
-		(uint32_t *)(SEGMENT_LMA_ADDRESS_ ## n),			\
-		(SEGMENT_SIZE_ ## n))
-#endif
 #if CONFIG_USB_DC_NXP_EHCI
 #include "usb_phy.h"
-#include "usb.h"
-#endif
-
-#define DUAL_CORE_MU_ENABLED \
-	(CONFIG_SECOND_CORE_MCUX && CONFIG_IPM && CONFIG_IPM_IMX_REV2)
-
-#if DUAL_CORE_MU_ENABLED
-/* Dual core mode is enabled, and messaging unit is present */
-#include <fsl_mu.h>
-#define BOOT_FLAG 0x1U
-#define MU_BASE (MU_Type *)DT_REG_ADDR(DT_INST(0, nxp_imx_mu_rev2))
+#include "usb_dc_mcux.h"
 #endif
 
 #if CONFIG_USB_DC_NXP_EHCI /* USB PHY configuration */
@@ -391,7 +368,6 @@ static ALWAYS_INLINE void clock_init(void)
 
 
 #ifdef CONFIG_ETH_MCUX
-#if DT_NODE_HAS_STATUS(DT_NODELABEL(enet), okay)
 	/* 50 MHz ENET clock */
 	rootCfg.mux = kCLOCK_ENET1_ClockRoot_MuxSysPll1Div2;
 	rootCfg.div = 10;
@@ -399,19 +375,6 @@ static ALWAYS_INLINE void clock_init(void)
 	/* Set ENET_REF_CLK as an output driven by ENET1_CLK_ROOT */
 	IOMUXC_GPR->GPR4 |= (IOMUXC_GPR_GPR4_ENET_REF_CLK_DIR(0x01U) |
 		IOMUXC_GPR_GPR4_ENET_TX_CLK_SEL(0x1U));
-#endif
-#if DT_NODE_HAS_STATUS(DT_NODELABEL(enet1g), okay)
-	/*
-	 * 50 MHz clock for 10/100Mbit RMII PHY -
-	 * operate ENET1G just like ENET peripheral
-	 */
-	rootCfg.mux = kCLOCK_ENET2_ClockRoot_MuxSysPll1Div2;
-	rootCfg.div = 10;
-	CLOCK_SetRootClock(kCLOCK_Root_Enet2, &rootCfg);
-	/* Set ENET1G_REF_CLK as an output driven by ENET2_CLK_ROOT */
-	IOMUXC_GPR->GPR5 |= (IOMUXC_GPR_GPR5_ENET1G_REF_CLK_DIR(0x01U) |
-		IOMUXC_GPR_GPR5_ENET1G_TX_CLK_SEL(0x1U));
-#endif
 #endif
 
 #ifdef CONFIG_PTP_CLOCK_MCUX
@@ -443,15 +406,6 @@ static ALWAYS_INLINE void clock_init(void)
 #endif
 #endif
 
-#ifdef CONFIG_MCUX_ACMP
-#if DT_NODE_HAS_STATUS(DT_NODELABEL(acmp1), okay)
-	/* Configure ACMP1 using Osc48MDiv2*/
-	rootCfg.mux = kCLOCK_ACMP_ClockRoot_MuxOscRc48MDiv2;
-	rootCfg.div = 1;
-	CLOCK_SetRootClock(kCLOCK_Root_Acmp, &rootCfg);
-#endif
-#endif
-
 #ifdef CONFIG_DISPLAY_MCUX_ELCDIF
 	rootCfg.mux = kCLOCK_LCDIF_ClockRoot_MuxSysPll2Out;
 	rootCfg.div = 9;
@@ -480,22 +434,12 @@ static ALWAYS_INLINE void clock_init(void)
 	USB_EhciPhyInit(kUSB_ControllerEhci1, CPU_XTAL_CLK_HZ, &usbPhyConfig);
 #endif
 
-#if CONFIG_IMX_USDHC
-#if DT_NODE_HAS_STATUS(DT_NODELABEL(usdhc1), okay)
+#if DT_NODE_HAS_STATUS(DT_NODELABEL(usdhc1), okay) && CONFIG_IMX_USDHC
 	/* Configure USDHC1 using  SysPll2Pfd2*/
 	rootCfg.mux = kCLOCK_USDHC1_ClockRoot_MuxSysPll2Pfd2;
 	rootCfg.div = 2;
 	CLOCK_SetRootClock(kCLOCK_Root_Usdhc1, &rootCfg);
 	CLOCK_EnableClock(kCLOCK_Usdhc1);
-#endif
-
-#if DT_NODE_HAS_STATUS(DT_NODELABEL(usdhc2), okay)
-	/* Configure USDHC2 using  SysPll2Pfd2*/
-	rootCfg.mux = kCLOCK_USDHC2_ClockRoot_MuxSysPll2Pfd2;
-	rootCfg.div = 2;
-	CLOCK_SetRootClock(kCLOCK_Root_Usdhc2, &rootCfg);
-	CLOCK_EnableClock(kCLOCK_Usdhc2);
-#endif
 #endif
 
 #if !(defined(CONFIG_CODE_FLEXSPI) || defined(CONFIG_CODE_FLEXSPI2)) && \
@@ -617,7 +561,6 @@ void imxrt_post_init_display_interface(void)
  *
  * Initialize the interrupt controller device drivers.
  * Also initialize the timer device driver, if required.
- * If dual core operation is enabled, the second core image will be loaded to RAM
  *
  * @return 0
  */
@@ -631,43 +574,52 @@ static int imxrt_init(const struct device *arg)
 	/* disable interrupts */
 	oldLevel = irq_lock();
 
-
-#if  defined(CONFIG_SECOND_CORE_MCUX) && defined(CONFIG_CPU_CORTEX_M7)
-	/**
-	 * Copy CM4 core from flash to memory. Note that depending on where the
-	 * user decided to store CM4 code, this is likely going to read from the
-	 * flexspi while using XIP. Provided we DO NOT WRITE TO THE FLEXSPI,
-	 * this operation is safe.
-	 *
-	 * Note that this copy MUST occur before enabling the M7 caching to
-	 * ensure the data is written directly to RAM (since the M4 core will use it)
-	 */
-	LISTIFY(SEGMENT_NUM, MEMCPY_SEGMENT, (;));
-	/* Set the boot address for the second core */
-	uint32_t boot_address = (uint32_t)(DT_REG_ADDR(DT_CHOSEN(zephyr_cpu1_region)));
-	/* Set VTOR for the CM4 core */
-	IOMUXC_LPSR_GPR->GPR0 = IOMUXC_LPSR_GPR_GPR0_CM4_INIT_VTOR_LOW(boot_address >> 3u);
-	IOMUXC_LPSR_GPR->GPR1 = IOMUXC_LPSR_GPR_GPR1_CM4_INIT_VTOR_HIGH(boot_address >> 16u);
-#endif
-
-#if DUAL_CORE_MU_ENABLED && CONFIG_CPU_CORTEX_M4
-	/* Set boot flag in messaging unit to indicate boot to primary core */
-	MU_SetFlags(MU_BASE, BOOT_FLAG);
-#endif
-
+	/* Disable Systick which might be enabled by bootrom */
+	if ((SysTick->CTRL & SysTick_CTRL_ENABLE_Msk) != 0) {
+		SysTick->CTRL &= ~SysTick_CTRL_ENABLE_Msk;
+	}
 
 #if defined(CONFIG_SOC_MIMXRT1176_CM7) || defined(CONFIG_SOC_MIMXRT1166_CM7)
-#ifndef CONFIG_IMXRT1XXX_CODE_CACHE
-	/* SystemInit enables code cache, disable it here */
-	SCB_DisableICache();
+	if (SCB_CCR_IC_Msk != (SCB_CCR_IC_Msk & SCB->CCR)) {
+		SCB_EnableICache();
+	}
+	if (SCB_CCR_DC_Msk != (SCB_CCR_DC_Msk & SCB->CCR)) {
+		SCB_EnableDCache();
+	}
 #endif
 
-	if (IS_ENABLED(CONFIG_IMXRT1XXX_DATA_CACHE)) {
-		if ((SCB->CCR & SCB_CCR_DC_Msk) == 0) {
-			SCB_EnableDCache();
+#if defined(CONFIG_SOC_MIMXRT1176_CM4) || defined(CONFIG_SOC_MIMXRT1166_CM4)
+	/* Initialize Cache */
+	/* Enable Code Bus Cache */
+	if (0U == (LMEM->PCCCR & LMEM_PCCCR_ENCACHE_MASK)) {
+		/*
+		 * set command to invalidate all ways,
+		 * and write GO bit to initiate command
+		 */
+		LMEM->PCCCR |= LMEM_PCCCR_INVW1_MASK
+			| LMEM_PCCCR_INVW0_MASK | LMEM_PCCCR_GO_MASK;
+		/* Wait until the command completes */
+		while ((LMEM->PCCCR & LMEM_PCCCR_GO_MASK) != 0U) {
 		}
-	} else {
-		SCB_DisableDCache();
+		/* Enable cache, enable write buffer */
+		LMEM->PCCCR |= (LMEM_PCCCR_ENWRBUF_MASK
+				| LMEM_PCCCR_ENCACHE_MASK);
+	}
+
+	/* Enable System Bus Cache */
+	if (0U == (LMEM->PSCCR & LMEM_PSCCR_ENCACHE_MASK)) {
+		/*
+		 * set command to invalidate all ways,
+		 * and write GO bit to initiate command
+		 */
+		LMEM->PSCCR |= LMEM_PSCCR_INVW1_MASK
+			| LMEM_PSCCR_INVW0_MASK | LMEM_PSCCR_GO_MASK;
+		/* Wait until the command completes */
+		while ((LMEM->PSCCR & LMEM_PSCCR_GO_MASK) != 0U) {
+		}
+		/* Enable cache, enable write buffer */
+		LMEM->PSCCR |= (LMEM_PSCCR_ENWRBUF_MASK
+				| LMEM_PSCCR_ENCACHE_MASK);
 	}
 #endif
 
@@ -696,37 +648,7 @@ void z_arm_platform_init(void)
 	/* Zero BSS region */
 	memset(&__ocram_bss_start, 0, (&__ocram_bss_end - &__ocram_bss_start));
 #endif
-	SystemInit();
 }
 #endif
 
 SYS_INIT(imxrt_init, PRE_KERNEL_1, 0);
-
-#if  defined(CONFIG_SECOND_CORE_MCUX) && defined(CONFIG_CPU_CORTEX_M7)
-/**
- * @brief Kickoff secondary core.
- *
- * Kick the secondary core out of reset and wait for it to indicate boot. The
- * core image was already copied to RAM (and the boot address was set) in
- * imxrt_init()
- *
- * @return 0
- */
-static int second_core_boot(const struct device *arg)
-{
-	/* Kick CM4 core out of reset */
-	SRC->CTRL_M4CORE = SRC_CTRL_M4CORE_SW_RESET_MASK;
-	SRC->SCR |= SRC_SCR_BT_RELEASE_M4_MASK;
-#if DUAL_CORE_MU_ENABLED
-	/* Wait for the secondary core to start up and set boot flag in
-	 * imxrt_init
-	 */
-	while (MU_GetFlags(MU_BASE) != BOOT_FLAG) {
-		/* Wait for secondary core to set flag */
-	}
-#endif
-	return 0;
-}
-
-SYS_INIT(second_core_boot, PRE_KERNEL_2, CONFIG_KERNEL_INIT_PRIORITY_DEFAULT);
-#endif

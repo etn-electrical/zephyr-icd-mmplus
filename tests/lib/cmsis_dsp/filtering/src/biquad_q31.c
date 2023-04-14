@@ -5,8 +5,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
-#include <zephyr/kernel.h>
+#include <ztest.h>
+#include <zephyr/zephyr.h>
 #include <stdlib.h>
 #include <arm_math.h>
 #include "../../common/test_common.h"
@@ -19,7 +19,7 @@
 #define SNR_ERROR_THRESH_32x64		((float32_t)140)
 #define ABS_ERROR_THRESH_Q31_32x64	((q31_t)25)
 
-ZTEST(filtering_biquad_q31, test_arm_biquad_cascade_df1_q31)
+static void test_arm_biquad_cascade_df1_q31(void)
 {
 	size_t index;
 	size_t length = ARRAY_SIZE(ref_default);
@@ -67,7 +67,7 @@ ZTEST(filtering_biquad_q31, test_arm_biquad_cascade_df1_q31)
 	free(output_buf);
 }
 
-ZTEST(filtering_biquad_q31, test_arm_biquad_cascade_df1_32x64_q31)
+static void test_arm_biquad_cascade_df1_32x64_q31(void)
 {
 	size_t index;
 	size_t length = ARRAY_SIZE(ref_default);
@@ -117,4 +117,12 @@ ZTEST(filtering_biquad_q31, test_arm_biquad_cascade_df1_32x64_q31)
 	free(output_buf);
 }
 
-ZTEST_SUITE(filtering_biquad_q31, NULL, NULL, NULL, NULL, NULL);
+void test_filtering_biquad_q31(void)
+{
+	ztest_test_suite(filtering_biquad_q31,
+		ztest_unit_test(test_arm_biquad_cascade_df1_q31),
+		ztest_unit_test(test_arm_biquad_cascade_df1_32x64_q31)
+		);
+
+	ztest_run_test_suite(filtering_biquad_q31);
+}

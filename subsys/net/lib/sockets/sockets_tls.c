@@ -6,11 +6,7 @@
  */
 
 #include <stdbool.h>
-#ifdef CONFIG_ARCH_POSIX
 #include <fcntl.h>
-#else
-#include <zephyr/posix/fcntl.h>
-#endif
 
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(net_sock_tls, CONFIG_NET_SOCKETS_LOG_LEVEL);
@@ -49,16 +45,13 @@ LOG_MODULE_REGISTER(net_sock_tls, CONFIG_NET_SOCKETS_LOG_LEVEL);
 #include <mbedtls/ssl.h>
 #include <mbedtls/ssl_cookie.h>
 #include <mbedtls/error.h>
+#include <mbedtls/debug.h>
 #include <mbedtls/platform.h>
 #include <mbedtls/ssl_cache.h>
 #endif /* CONFIG_MBEDTLS */
 
 #include "sockets_internal.h"
 #include "tls_internal.h"
-
-#if defined(CONFIG_MBEDTLS_BUILTIN)
-#include <zephyr_mbedtls_priv.h>
-#endif
 
 #if defined(CONFIG_NET_SOCKETS_TLS_MAX_APP_PROTOCOLS)
 #define ALPN_MAX_PROTOCOLS (CONFIG_NET_SOCKETS_TLS_MAX_APP_PROTOCOLS + 1)
@@ -243,6 +236,30 @@ bool net_socket_is_tls(void *obj)
 	return PART_OF_ARRAY(tls_contexts, (struct tls_context *)obj);
 }
 
+#if defined(MBEDTLS_DEBUG_C) && (CONFIG_NET_SOCKETS_LOG_LEVEL >= LOG_LEVEL_DBG)
+static void tls_debug(void *ctx, int level, const char *file,
+		      int line, const char *str)
+{
+	const char *p, *basename;
+
+	ARG_UNUSED(ctx);
+
+	if (!file || !str) {
+		return;
+	}
+
+	/* Extract basename from file */
+	for (p = basename = file; *p != '\0'; p++) {
+		if (*p == '/' || *p == '\\') {
+			basename = p + 1;
+		}
+	}
+
+	NET_DBG("%s:%04d: |%d| %s", basename, line, level,
+		log_strdup(str));
+}
+#endif /* defined(MBEDTLS_DEBUG_C) && (CONFIG_NET_SOCKETS_LOG_LEVEL >= LOG_LEVEL_DBG) */
+
 static int tls_ctr_drbg_random(void *ctx, unsigned char *buf, size_t len)
 {
 	ARG_UNUSED(ctx);
@@ -316,6 +333,10 @@ static int tls_init(const struct device *unused)
 	(void)memset(client_cache, 0, sizeof(client_cache));
 
 	k_mutex_init(&context_lock);
+
+#if defined(MBEDTLS_DEBUG_C) && (CONFIG_NET_SOCKETS_LOG_LEVEL >= LOG_LEVEL_DBG)
+	mbedtls_debug_set_threshold(CONFIG_MBEDTLS_DEBUG_LEVEL);
+#endif
 
 #if defined(MBEDTLS_SSL_CACHE_C)
 	mbedtls_ssl_cache_init(&server_cache);
@@ -420,8 +441,8 @@ static struct tls_context *tls_alloc(void)
 		mbedtls_pk_init(&tls->priv_key);
 #endif
 
-#if defined(CONFIG_MBEDTLS_DEBUG)
-		mbedtls_ssl_conf_dbg(&tls->config, zephyr_mbedtls_debug, NULL);
+#if defined(MBEDTLS_DEBUG_C) && (CONFIG_NET_SOCKETS_LOG_LEVEL >= LOG_LEVEL_DBG)
+		mbedtls_ssl_conf_dbg(&tls->config, tls_debug, NULL);
 #endif
 	} else {
 		NET_WARN("Failed to allocate TLS context");
@@ -1734,7 +1755,7 @@ static int ztls_socket(int family, int type, int proto)
 	ret = protocol_check(family, type, &proto);
 	if (ret < 0) {
 		errno = -ret;
-		goto free_fd;
+		return -1;
 	}
 
 	ctx = tls_alloc();

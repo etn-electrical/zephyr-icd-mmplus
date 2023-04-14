@@ -23,7 +23,6 @@ LOG_MODULE_DECLARE(net_ipv6, CONFIG_NET_IPV6_LOG_LEVEL);
 #include <zephyr/net/net_stats.h>
 #include <zephyr/net/net_context.h>
 #include <zephyr/net/net_mgmt.h>
-#include <zephyr/net/dns_resolve.h>
 #include "net_private.h"
 #include "connection.h"
 #include "icmpv6.h"
@@ -245,10 +244,11 @@ void nbr_print(void)
 			net_ipv6_nbr_data(nbr)->pending,
 			nbr->iface, nbr->idx,
 			nbr->idx == NET_NBR_LLADDR_UNKNOWN ? "?" :
-			net_sprint_ll_addr(
+			log_strdup(net_sprint_ll_addr(
 				net_nbr_get_lladdr(nbr->idx)->addr,
-				net_nbr_get_lladdr(nbr->idx)->len),
-			net_sprint_ipv6_addr(&net_ipv6_nbr_data(nbr)->addr));
+				net_nbr_get_lladdr(nbr->idx)->len)),
+			log_strdup(net_sprint_ipv6_addr(
+					   &net_ipv6_nbr_data(nbr)->addr)));
 	}
 }
 #else
@@ -385,7 +385,8 @@ static void ipv6_ns_reply_timeout(struct k_work *work)
 
 		NET_DBG("NS nbr %p pending %p timeout to %s", nbr,
 			data->pending,
-			net_sprint_ipv6_addr(&NET_IPV6_HDR(data->pending)->dst));
+			log_strdup(net_sprint_ipv6_addr(
+					 &NET_IPV6_HDR(data->pending)->dst)));
 
 		/* To unref when pending variable was set */
 		net_pkt_unref(data->pending);
@@ -432,7 +433,7 @@ static struct net_nbr *nbr_new(struct net_if *iface,
 
 	NET_DBG("nbr %p iface %p/%d state %d IPv6 %s",
 		nbr, iface, net_if_get_by_iface(iface), state,
-		net_sprint_ipv6_addr(addr));
+		log_strdup(net_sprint_ipv6_addr(addr)));
 
 	return nbr;
 }
@@ -447,9 +448,10 @@ static void dbg_update_neighbor_lladdr(const struct net_linkaddr *new_lladdr,
 		 net_sprint_ll_addr(old_lladdr->addr, old_lladdr->len));
 
 	NET_DBG("Updating neighbor %s lladdr %s (was %s)",
-		net_sprint_ipv6_addr(addr),
-		net_sprint_ll_addr(new_lladdr->addr, new_lladdr->len),
-		out);
+		log_strdup(net_sprint_ipv6_addr(addr)),
+		log_strdup(net_sprint_ll_addr(new_lladdr->addr,
+					      new_lladdr->len)),
+		log_strdup(out));
 }
 
 static void dbg_update_neighbor_lladdr_raw(uint8_t *new_lladdr,
@@ -468,8 +470,8 @@ static void dbg_update_neighbor_lladdr_raw(uint8_t *new_lladdr,
 	do {								\
 		NET_DBG("%s %s from %s to %s iface %p/%d",		\
 			action, pkt_str,				\
-			net_sprint_ipv6_addr(src),		\
-			net_sprint_ipv6_addr(dst),		\
+			log_strdup(net_sprint_ipv6_addr(src)),		\
+			log_strdup(net_sprint_ipv6_addr(dst)),		\
 			net_pkt_iface(pkt),				\
 			net_if_get_by_iface(net_pkt_iface(pkt)));	\
 	} while (0)
@@ -485,9 +487,9 @@ static void dbg_update_neighbor_lladdr_raw(uint8_t *new_lladdr,
 		NET_DBG("%s %s from %s to %s, target %s iface %p/%d",	\
 			action,						\
 			pkt_str,                                        \
-			net_sprint_ipv6_addr(src),		\
-			net_sprint_ipv6_addr(dst),		\
-			net_sprint_ipv6_addr(target),	\
+			log_strdup(net_sprint_ipv6_addr(src)),		\
+			log_strdup(net_sprint_ipv6_addr(dst)),		\
+			log_strdup(net_sprint_ipv6_addr(target)),	\
 			net_pkt_iface(pkt),				\
 			net_if_get_by_iface(net_pkt_iface(pkt)));	\
 	} while (0)
@@ -592,12 +594,13 @@ struct net_nbr *net_ipv6_nbr_add(struct net_if *iface,
 	nbr = add_nbr(iface, addr, is_router, state);
 	if (!nbr) {
 		NET_ERR("Could not add router neighbor %s [%s]",
-			net_sprint_ipv6_addr(addr),
-			lladdr ? net_sprint_ll_addr(lladdr->addr, lladdr->len) : "unknown");
+			log_strdup(net_sprint_ipv6_addr(addr)),
+			log_strdup(net_sprint_ll_addr(lladdr->addr,
+						      lladdr->len)));
 		return NULL;
 	}
 
-	if (lladdr && net_nbr_link(nbr, iface, lladdr) == -EALREADY &&
+	if (net_nbr_link(nbr, iface, lladdr) == -EALREADY &&
 	    net_ipv6_nbr_data(nbr)->state != NET_IPV6_NBR_STATE_STATIC) {
 		/* Update the lladdr if the node was already known */
 		struct net_linkaddr_storage *cached_lladdr;
@@ -629,8 +632,8 @@ struct net_nbr *net_ipv6_nbr_add(struct net_if *iface,
 
 	NET_DBG("[%d] nbr %p state %d router %d IPv6 %s ll %s iface %p/%d",
 		nbr->idx, nbr, state, is_router,
-		net_sprint_ipv6_addr(addr),
-		lladdr ? net_sprint_ll_addr(lladdr->addr, lladdr->len) : "[unknown]",
+		log_strdup(net_sprint_ipv6_addr(addr)),
+		log_strdup(net_sprint_ll_addr(lladdr->addr, lladdr->len)),
 		nbr->iface, net_if_get_by_iface(nbr->iface));
 
 #if defined(CONFIG_NET_MGMT_EVENT_INFO)
@@ -727,7 +730,7 @@ static struct in6_addr *check_route(struct net_if *iface,
 
 		NET_DBG("Route %p nexthop %s iface %p/%d",
 			route,
-			nexthop ? net_sprint_ipv6_addr(nexthop) :
+			nexthop ? log_strdup(net_sprint_ipv6_addr(nexthop)) :
 			"<unknown>",
 			iface, net_if_get_by_iface(iface));
 
@@ -735,7 +738,7 @@ static struct in6_addr *check_route(struct net_if *iface,
 			net_route_del(route);
 
 			NET_DBG("No route to host %s",
-				net_sprint_ipv6_addr(dst));
+				log_strdup(net_sprint_ipv6_addr(dst)));
 
 			return NULL;
 		}
@@ -746,7 +749,7 @@ static struct in6_addr *check_route(struct net_if *iface,
 		router = net_if_ipv6_router_find_default(NULL, dst);
 		if (!router) {
 			NET_DBG("No default route to %s",
-				net_sprint_ipv6_addr(dst));
+				log_strdup(net_sprint_ipv6_addr(dst)));
 
 			/* Try to send the packet anyway */
 			nexthop = dst;
@@ -760,7 +763,7 @@ static struct in6_addr *check_route(struct net_if *iface,
 		nexthop = &router->address.in6_addr;
 
 		NET_DBG("Router %p nexthop %s", router,
-			net_sprint_ipv6_addr(nexthop));
+			log_strdup(net_sprint_ipv6_addr(nexthop)));
 	}
 
 	return nexthop;
@@ -901,7 +904,7 @@ try_send:
 	NET_DBG("Neighbor lookup %p (%d) iface %p/%d addr %s state %s", nbr,
 		nbr ? nbr->idx : NET_NBR_LLADDR_UNKNOWN,
 		iface, net_if_get_by_iface(iface),
-		net_sprint_ipv6_addr(nexthop),
+		log_strdup(net_sprint_ipv6_addr(nexthop)),
 		nbr ? net_ipv6_nbr_state2str(net_ipv6_nbr_data(nbr)->state) :
 		"-");
 
@@ -914,7 +917,8 @@ try_send:
 		net_pkt_lladdr_dst(pkt)->len = lladdr->len;
 
 		NET_DBG("Neighbor %p addr %s", nbr,
-			net_sprint_ll_addr(lladdr->addr, lladdr->len));
+			log_strdup(net_sprint_ll_addr(lladdr->addr,
+						      lladdr->len)));
 
 		/* Start the NUD if we are in STALE state.
 		 * See RFC 4861 ch 7.3.3 for details.
@@ -1105,7 +1109,6 @@ int net_ipv6_send_na(struct net_if *iface, const struct in6_addr *src,
 		goto drop;
 	}
 
-	net_stats_update_icmp_sent(net_pkt_iface(pkt));
 	net_stats_update_ipv6_nd_sent(iface);
 
 	return 0;
@@ -1128,13 +1131,13 @@ static void ns_routing_info(struct net_pkt *pkt,
 
 		if (net_ipv6_addr_cmp(nexthop, tgt)) {
 			NET_DBG("Routing to %s iface %p/%d",
-				out,
+				log_strdup(out),
 				net_pkt_iface(pkt),
 				net_if_get_by_iface(net_pkt_iface(pkt)));
 		} else {
 			NET_DBG("Routing to %s via %s iface %p/%d",
-				net_sprint_ipv6_addr(tgt),
-				out,
+				log_strdup(net_sprint_ipv6_addr(tgt)),
+				log_strdup(out),
 				net_pkt_iface(pkt),
 				net_if_get_by_iface(net_pkt_iface(pkt)));
 		}
@@ -1267,7 +1270,9 @@ static enum net_verdict handle_ns_input(struct net_pkt *pkt,
 				if (!na_src) {
 					NET_DBG("DROP: No interface address "
 						"for dst %s iface %p/%d",
-						net_sprint_ipv6_addr(&ip_hdr->src),
+						log_strdup(
+						  net_sprint_ipv6_addr(
+							  &ip_hdr->src)),
 						net_pkt_iface(pkt),
 						net_if_get_by_iface(
 							net_pkt_iface(pkt)));
@@ -1280,7 +1285,7 @@ static enum net_verdict handle_ns_input(struct net_pkt *pkt,
 		}
 
 		NET_DBG("DROP: No such interface address %s",
-			net_sprint_ipv6_addr(&ns_hdr->tgt));
+			log_strdup(net_sprint_ipv6_addr(&ns_hdr->tgt)));
 		goto drop;
 	} else {
 		tgt = &ifaddr->address.in6_addr;
@@ -1301,13 +1306,14 @@ nexthop_found:
 
 		if (!net_ipv6_is_addr_solicited_node((struct in6_addr *)ip_hdr->dst)) {
 			NET_DBG("DROP: Not solicited node addr %s",
-				net_sprint_ipv6_addr(&ip_hdr->dst));
+				log_strdup(net_sprint_ipv6_addr(&ip_hdr->dst)));
 			goto drop;
 		}
 
 		if (ifaddr->addr_state == NET_ADDR_TENTATIVE) {
 			NET_DBG("DROP: DAD failed for %s iface %p/%d",
-				net_sprint_ipv6_addr(&ifaddr->address.in6_addr),
+				log_strdup(net_sprint_ipv6_addr(
+						   &ifaddr->address.in6_addr)),
 				net_pkt_iface(pkt),
 				net_if_get_by_iface(net_pkt_iface(pkt)));
 
@@ -1333,7 +1339,7 @@ nexthop_found:
 
 	if (net_ipv6_is_my_addr((struct in6_addr *)ip_hdr->src)) {
 		NET_DBG("DROP: Duplicate IPv6 %s address",
-			net_sprint_ipv6_addr(&ip_hdr->src));
+			log_strdup(net_sprint_ipv6_addr(&ip_hdr->src)));
 		goto drop;
 	}
 
@@ -1478,14 +1484,14 @@ static void ipv6_nd_reachable_timeout(struct k_work *work)
 
 			NET_DBG("nbr %p moving %s state to STALE (%d)",
 				nbr,
-				net_sprint_ipv6_addr(&data->addr),
+				log_strdup(net_sprint_ipv6_addr(&data->addr)),
 				data->state);
 			break;
 
 		case NET_IPV6_NBR_STATE_STALE:
 			NET_DBG("nbr %p removing stale address %s",
 				nbr,
-				net_sprint_ipv6_addr(&data->addr));
+				log_strdup(net_sprint_ipv6_addr(&data->addr)));
 			net_ipv6_nbr_rm(nbr->iface, &data->addr);
 			break;
 
@@ -1495,7 +1501,7 @@ static void ipv6_nd_reachable_timeout(struct k_work *work)
 
 			NET_DBG("nbr %p moving %s state to PROBE (%d)",
 				nbr,
-				net_sprint_ipv6_addr(&data->addr),
+				log_strdup(net_sprint_ipv6_addr(&data->addr)),
 				data->state);
 
 			/* Intentionally continuing to probe state */
@@ -1557,7 +1563,7 @@ static inline bool handle_na_neighbor(struct net_pkt *pkt,
 
 	NET_DBG("Neighbor lookup %p iface %p/%d addr %s", nbr,
 		net_pkt_iface(pkt), net_if_get_by_iface(net_pkt_iface(pkt)),
-		net_sprint_ipv6_addr(&na_hdr->tgt));
+		log_strdup(net_sprint_ipv6_addr(&na_hdr->tgt)));
 
 	if (!nbr) {
 		nbr_print();
@@ -1595,8 +1601,9 @@ static inline bool handle_na_neighbor(struct net_pkt *pkt,
 
 		NET_DBG("[%d] nbr %p state %d IPv6 %s ll %s",
 			nbr->idx, nbr, net_ipv6_nbr_data(nbr)->state,
-			net_sprint_ipv6_addr(&na_hdr->tgt),
-			net_sprint_ll_addr(nbr_lladdr.addr, nbr_lladdr.len));
+			log_strdup(net_sprint_ipv6_addr(&na_hdr->tgt)),
+			log_strdup(net_sprint_ll_addr(nbr_lladdr.addr,
+						      nbr_lladdr.len)));
 	}
 
 	cached_lladdr = net_nbr_get_lladdr(nbr->idx);
@@ -1704,7 +1711,8 @@ send_pending:
 	pending = net_ipv6_nbr_data(nbr)->pending;
 	if (pending) {
 		NET_DBG("Sending pending %p to lladdr %s", pending,
-			net_sprint_ll_addr(cached_lladdr->addr, cached_lladdr->len));
+			log_strdup(net_sprint_ll_addr(cached_lladdr->addr,
+						      cached_lladdr->len)));
 
 		if (net_send_data(pending) < 0) {
 			nbr_clear_ns_pending(net_ipv6_nbr_data(nbr));
@@ -1801,7 +1809,7 @@ static enum net_verdict handle_na_input(struct net_pkt *pkt,
 		NET_DBG("Interface %p/%d already has address %s",
 			net_pkt_iface(pkt),
 			net_if_get_by_iface(net_pkt_iface(pkt)),
-			net_sprint_ipv6_addr(&na_hdr->tgt));
+			log_strdup(net_sprint_ipv6_addr(&na_hdr->tgt)));
 
 #if defined(CONFIG_NET_IPV6_DAD)
 		if (ifaddr->addr_state == NET_ADDR_TENTATIVE) {
@@ -1816,6 +1824,8 @@ static enum net_verdict handle_na_input(struct net_pkt *pkt,
 	if (!handle_na_neighbor(pkt, na_hdr, tllao_offset)) {
 		goto drop;
 	}
+
+	net_stats_update_ipv6_nd_sent(net_pkt_iface(pkt));
 
 	net_pkt_unref(pkt);
 
@@ -1860,7 +1870,7 @@ int net_ipv6_send_ns(struct net_if *iface,
 
 		if (net_ipv6_is_addr_unspecified(src)) {
 			NET_DBG("No source address for NS (tgt %s)",
-				net_sprint_ipv6_addr(tgt));
+				log_strdup(net_sprint_ipv6_addr(tgt)));
 			ret = -EINVAL;
 
 			goto drop;
@@ -1915,7 +1925,7 @@ int net_ipv6_send_ns(struct net_if *iface,
 		      NET_IPV6_NBR_STATE_INCOMPLETE);
 	if (!nbr) {
 		NET_DBG("Could not create new neighbor %s",
-			net_sprint_ipv6_addr(&ns_hdr->tgt));
+			log_strdup(net_sprint_ipv6_addr(&ns_hdr->tgt)));
 		goto drop;
 	}
 
@@ -1954,7 +1964,6 @@ int net_ipv6_send_ns(struct net_if *iface,
 		goto drop;
 	}
 
-	net_stats_update_icmp_sent(net_pkt_iface(pkt));
 	net_stats_update_ipv6_nd_sent(iface);
 
 	return 0;
@@ -2026,7 +2035,6 @@ int net_ipv6_send_rs(struct net_if *iface)
 		goto drop;
 	}
 
-	net_stats_update_icmp_sent(net_pkt_iface(pkt));
 	net_stats_update_ipv6_nd_sent(iface);
 
 	return 0;
@@ -2081,13 +2089,15 @@ static inline void handle_prefix_onlink(struct net_pkt *pkt,
 			NET_DBG("Interface %p/%d add prefix %s/%d lifetime %u",
 				net_pkt_iface(pkt),
 				net_if_get_by_iface(net_pkt_iface(pkt)),
-				net_sprint_ipv6_addr(&prefix_info->prefix),
+				log_strdup(net_sprint_ipv6_addr(
+						   &prefix_info->prefix)),
 				prefix_info->prefix_len,
 				prefix_info->valid_lifetime);
 		} else {
 			NET_ERR("Prefix %s/%d could not be added to "
 				"iface %p/%d",
-				net_sprint_ipv6_addr(&prefix_info->prefix),
+				log_strdup(net_sprint_ipv6_addr(
+						   &prefix_info->prefix)),
 				prefix_info->prefix_len,
 				net_pkt_iface(pkt),
 				net_if_get_by_iface(net_pkt_iface(pkt)));
@@ -2101,7 +2111,7 @@ static inline void handle_prefix_onlink(struct net_pkt *pkt,
 		NET_DBG("Interface %p/%d delete prefix %s/%d",
 			net_pkt_iface(pkt),
 			net_if_get_by_iface(net_pkt_iface(pkt)),
-			net_sprint_ipv6_addr(&prefix_info->prefix),
+			log_strdup(net_sprint_ipv6_addr(&prefix_info->prefix)),
 			prefix_info->prefix_len);
 
 		net_if_ipv6_prefix_rm(net_pkt_iface(pkt),
@@ -2113,7 +2123,7 @@ static inline void handle_prefix_onlink(struct net_pkt *pkt,
 		NET_DBG("Interface %p/%d prefix %s/%d infinite",
 			net_pkt_iface(pkt),
 			net_if_get_by_iface(net_pkt_iface(pkt)),
-			net_sprint_ipv6_addr(&prefix->prefix),
+			log_strdup(net_sprint_ipv6_addr(&prefix->prefix)),
 			prefix->len);
 
 		net_if_ipv6_prefix_set_lf(prefix, true);
@@ -2123,7 +2133,7 @@ static inline void handle_prefix_onlink(struct net_pkt *pkt,
 		NET_DBG("Interface %p/%d update prefix %s/%u lifetime %u",
 			net_pkt_iface(pkt),
 			net_if_get_by_iface(net_pkt_iface(pkt)),
-			net_sprint_ipv6_addr(&prefix_info->prefix),
+			log_strdup(net_sprint_ipv6_addr(&prefix_info->prefix)),
 			prefix_info->prefix_len, prefix_info->valid_lifetime);
 
 		net_if_ipv6_prefix_set_lf(prefix, false);
@@ -2168,7 +2178,7 @@ static inline void handle_prefix_autonomous(struct net_pkt *pkt,
 		     remaining_lifetime(ifaddr))) {
 			NET_DBG("Timer updating for address %s "
 				"long lifetime %u secs",
-				net_sprint_ipv6_addr(&addr),
+				log_strdup(net_sprint_ipv6_addr(&addr)),
 				prefix_info->valid_lifetime);
 
 			net_if_ipv6_addr_update_lifetime(
@@ -2176,7 +2186,7 @@ static inline void handle_prefix_autonomous(struct net_pkt *pkt,
 		} else {
 			NET_DBG("Timer updating for address %s "
 				"lifetime %u secs",
-				net_sprint_ipv6_addr(&addr),
+				log_strdup(net_sprint_ipv6_addr(&addr)),
 				TWO_HOURS);
 
 			net_if_ipv6_addr_update_lifetime(ifaddr, TWO_HOURS);
@@ -2328,63 +2338,6 @@ static inline bool handle_ra_route_info(struct net_pkt *pkt, uint8_t len)
 	return true;
 }
 
-#if defined(CONFIG_NET_IPV6_RA_RDNSS)
-static inline bool handle_ra_rdnss(struct net_pkt *pkt, uint8_t len)
-{
-	NET_PKT_DATA_ACCESS_DEFINE(rdnss_access, struct net_icmpv6_nd_opt_rdnss);
-	struct net_icmpv6_nd_opt_rdnss *rdnss;
-	struct dns_resolve_context *ctx;
-	struct sockaddr_in6 dns = {
-		.sin6_family = AF_INET6
-	};
-	const struct sockaddr *dns_servers[] = {
-		(struct sockaddr *)&dns, NULL
-	};
-	size_t rdnss_size;
-	int ret;
-
-	rdnss = (struct net_icmpv6_nd_opt_rdnss *) net_pkt_get_data(pkt, &rdnss_access);
-	if (!rdnss) {
-		return false;
-	}
-
-	ret = net_pkt_acknowledge_data(pkt, &rdnss_access);
-	if (ret < 0) {
-		return false;
-	}
-
-	rdnss_size = len * 8U - 2 - sizeof(struct net_icmpv6_nd_opt_rdnss);
-	if ((rdnss_size % NET_IPV6_ADDR_SIZE) != 0) {
-		return false;
-	}
-
-	/* Recursive DNS servers option may present 1 or more addresses,
-	 * each 16 bytes in length. DNS servers should be listed in order
-	 * of preference, choose the first and skip the rest.
-	 */
-	ret = net_pkt_read(pkt, dns.sin6_addr.s6_addr, NET_IPV6_ADDR_SIZE);
-	if (ret < 0) {
-		NET_ERR("Failed to read RDNSS address, %d", ret);
-		return false;
-	}
-
-	/* Skip the rest of the DNS servers. */
-	if (net_pkt_skip(pkt, rdnss_size - NET_IPV6_ADDR_SIZE)) {
-		NET_ERR("Failed to skip RDNSS address, %d", ret);
-		return false;
-	}
-
-	/* TODO: Handle lifetime. */
-	ctx = dns_resolve_get_default();
-	ret = dns_resolve_reconfigure(ctx, NULL, dns_servers);
-	if (ret < 0) {
-		NET_DBG("Failed to set RDNSS resolve address: %d", ret);
-	}
-
-	return true;
-}
-#endif
-
 static enum net_verdict handle_ra_input(struct net_pkt *pkt,
 					struct net_ipv6_hdr *ip_hdr,
 					struct net_icmp_hdr *icmp_hdr)
@@ -2452,19 +2405,11 @@ static enum net_verdict handle_ra_input(struct net_pkt *pkt,
 
 	nd_opt_hdr = (struct net_icmpv6_nd_opt_hdr *)
 				net_pkt_get_data(pkt, &nd_access);
-
-	/* Add neighbor cache entry using link local address, regardless of link layer address
-	 * presence in Router Advertisement.
-	 */
-	nbr = net_ipv6_nbr_add(net_pkt_iface(pkt), (struct in6_addr *)NET_IPV6_HDR(pkt)->src, NULL,
-				true, NET_IPV6_NBR_STATE_INCOMPLETE);
-
 	while (nd_opt_hdr) {
 		net_pkt_acknowledge_data(pkt, &nd_access);
 
 		switch (nd_opt_hdr->type) {
 		case NET_ICMPV6_ND_OPT_SLLAO:
-			/* Update existing neighbor cache entry with link layer address. */
 			nbr = handle_ra_neighbor(pkt, nd_opt_hdr->len);
 			if (!nbr) {
 				goto drop;
@@ -2535,10 +2480,8 @@ static enum net_verdict handle_ra_input(struct net_pkt *pkt,
 			break;
 #if defined(CONFIG_NET_IPV6_RA_RDNSS)
 		case NET_ICMPV6_ND_OPT_RDNSS:
-			if (!handle_ra_rdnss(pkt, nd_opt_hdr->len)) {
-				goto drop;
-			}
-			break;
+			NET_DBG("RDNSS option skipped");
+			goto skip;
 #endif
 
 		case NET_ICMPV6_ND_OPT_DNSSL:
@@ -2584,7 +2527,8 @@ static enum net_verdict handle_ra_input(struct net_pkt *pkt,
 	if (nbr && net_ipv6_nbr_data(nbr)->pending) {
 		NET_DBG("Sending pending pkt %p to %s",
 			net_ipv6_nbr_data(nbr)->pending,
-			net_sprint_ipv6_addr(&NET_IPV6_HDR(net_ipv6_nbr_data(nbr)->pending)->dst));
+			log_strdup(net_sprint_ipv6_addr(&NET_IPV6_HDR(
+				net_ipv6_nbr_data(nbr)->pending)->dst)));
 
 		if (net_send_data(net_ipv6_nbr_data(nbr)->pending) < 0) {
 			net_pkt_unref(net_ipv6_nbr_data(nbr)->pending);

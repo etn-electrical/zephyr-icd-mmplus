@@ -9,7 +9,7 @@
 #include <zephyr/drivers/lora.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/atomic.h>
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 
 /* LoRaMac-node specific includes */
 #include <radio.h>
@@ -163,12 +163,6 @@ static void sx12xx_ev_tx_done(void)
 	}
 }
 
-static void sx12xx_ev_tx_timed_out(void)
-{
-	/* Just release the modem */
-	modem_release(&dev_data);
-}
-
 int sx12xx_lora_send(const struct device *dev, uint8_t *data,
 		     uint32_t data_len)
 {
@@ -212,7 +206,7 @@ int sx12xx_lora_send(const struct device *dev, uint8_t *data,
 			k_poll(&evt, 1, K_FOREVER);
 		}
 	}
-	return ret;
+	return 0;
 }
 
 int sx12xx_lora_send_async(const struct device *dev, uint8_t *data,
@@ -322,16 +316,14 @@ int sx12xx_lora_config(const struct device *dev,
 		Radio.SetTxConfig(MODEM_LORA, config->tx_power, 0,
 				  config->bandwidth, config->datarate,
 				  config->coding_rate, config->preamble_len,
-				  false, true, 0, 0, config->iq_inverted, 4000);
+				  false, true, 0, 0, false, 4000);
 	} else {
 		/* TODO: Get symbol timeout value from config parameters */
 		Radio.SetRxConfig(MODEM_LORA, config->bandwidth,
 				  config->datarate, config->coding_rate,
 				  0, config->preamble_len, 10, false, 0,
-				  false, 0, 0, config->iq_inverted, true);
+				  false, 0, 0, false, true);
 	}
-
-	Radio.SetPublicNetwork(config->public_network);
 
 	modem_release(&dev_data);
 	return 0;
@@ -357,8 +349,6 @@ int sx12xx_init(const struct device *dev)
 	dev_data.dev = dev;
 	dev_data.events.TxDone = sx12xx_ev_tx_done;
 	dev_data.events.RxDone = sx12xx_ev_rx_done;
-	/* TX timeout event raises at the end of the test CW transmission */
-	dev_data.events.TxTimeout = sx12xx_ev_tx_timed_out;
 	Radio.Init(&dev_data.events);
 
 	/*

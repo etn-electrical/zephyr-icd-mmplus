@@ -10,7 +10,6 @@
  *
  */
 
-#include <zephyr/kernel.h>
 #include <zephyr/device.h>
 #include <aarch32/cortex_m/dwt.h>
 

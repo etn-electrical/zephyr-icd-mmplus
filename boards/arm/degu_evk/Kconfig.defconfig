@@ -21,16 +21,26 @@ config UART_LINE_CTRL
 
 endif # USB_DEVICE_STACK
 
-if LOG
+if DISK_DRIVER_FLASH
 
-# Logger cannot use itself to log
-config USB_CDC_ACM_LOG_LEVEL
-	default 0
+config DISK_FLASH_DEV_NAME
+	default "NRF_FLASH_DRV_NAME"
 
-# Set USB log level to error only
-config USB_DEVICE_LOG_LEVEL
-	default 1
+config DISK_FLASH_START
+	default 0xf8000
 
-endif # LOG
+config DISK_FLASH_MAX_RW_SIZE
+	default 4
+
+config DISK_ERASE_BLOCK_SIZE
+	default 0x1000
+
+config DISK_FLASH_ERASE_ALIGNMENT
+	default 0x1000
+
+config DISK_VOLUME_SIZE
+	default 0x8000
+
+endif # DISK_DRIVER_FLASH
 
 endif # BOARD_DEGU_EVK

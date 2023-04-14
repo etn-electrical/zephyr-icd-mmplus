@@ -8,7 +8,7 @@
 #include <zephyr/drivers/lora.h>
 #include <errno.h>
 #include <zephyr/sys/util.h>
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 
 #define DEFAULT_RADIO_NODE DT_ALIAS(lora0)
 BUILD_ASSERT(DT_NODE_HAS_STATUS(DEFAULT_RADIO_NODE, okay),
@@ -29,7 +29,7 @@ void lora_receive_cb(const struct device *dev, uint8_t *data, uint16_t size,
 	ARG_UNUSED(size);
 
 	LOG_INF("Received data: %s (RSSI:%ddBm, SNR:%ddBm)",
-		data, rssi, snr);
+		log_strdup(data), rssi, snr);
 
 	/* Stop receiving after 10 packets */
 	if (++cnt == 10) {
@@ -40,7 +40,7 @@ void lora_receive_cb(const struct device *dev, uint8_t *data, uint16_t size,
 
 void main(void)
 {
-	const struct device *const lora_dev = DEVICE_DT_GET(DEFAULT_RADIO_NODE);
+	const struct device *lora_dev = DEVICE_DT_GET(DEFAULT_RADIO_NODE);
 	struct lora_modem_config config;
 	int ret, len;
 	uint8_t data[MAX_DATA_LEN] = {0};
@@ -57,8 +57,6 @@ void main(void)
 	config.datarate = SF_10;
 	config.preamble_len = 8;
 	config.coding_rate = CR_4_5;
-	config.iq_inverted = false;
-	config.public_network = false;
 	config.tx_power = 14;
 	config.tx = false;
 
@@ -80,7 +78,7 @@ void main(void)
 		}
 
 		LOG_INF("Received data: %s (RSSI:%ddBm, SNR:%ddBm)",
-			data, rssi, snr);
+			log_strdup(data), rssi, snr);
 	}
 
 	/* Enable asynchronous reception */

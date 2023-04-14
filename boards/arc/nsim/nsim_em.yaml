@@ -1,12 +1,10 @@
 identifier: nsim_em
 name: EM Nsim simulator
-type: sim
+type: mcu
 simulation: nsim
-simulation_exec: nsimdrv
 arch: arc
 toolchain:
   - zephyr
-  - cross-compile
   - arcmwdt
 testing:
   ignore_tags:

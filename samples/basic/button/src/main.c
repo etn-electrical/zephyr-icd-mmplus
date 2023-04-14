@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/sys/util.h>
@@ -42,7 +42,7 @@ void main(void)
 {
 	int ret;
 
-	if (!gpio_is_ready_dt(&button)) {
+	if (!device_is_ready(button.port)) {
 		printk("Error: button device %s is not ready\n",
 		       button.port->name);
 		return;

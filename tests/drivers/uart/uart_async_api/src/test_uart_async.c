@@ -13,20 +13,19 @@ K_SEM_DEFINE(rx_buf_released, 0, 1);
 K_SEM_DEFINE(rx_disabled, 0, 1);
 
 ZTEST_BMEM volatile bool failed_in_isr;
-ZTEST_BMEM static const struct device *const uart_dev =
-	DEVICE_DT_GET(UART_DEVICE_DEV);
+ZTEST_BMEM static const struct device *uart_dev;
 
 static void read_abort_timeout(struct k_timer *timer);
 K_TIMER_DEFINE(read_abort_timer, read_abort_timeout, NULL);
 
 
-static void init_test(void)
+void init_test(void)
 {
-	__ASSERT_NO_MSG(device_is_ready(uart_dev));
+	uart_dev = device_get_binding(UART_DEVICE_NAME);
 }
 
 #ifdef CONFIG_USERSPACE
-static void set_permissions(void)
+void set_permissions(void)
 {
 	k_thread_access_grant(k_current_get(), &tx_done, &tx_aborted,
 			      &rx_rdy, &rx_buf_released, &rx_disabled,
@@ -34,21 +33,7 @@ static void set_permissions(void)
 }
 #endif
 
-static void uart_async_test_init(void)
-{
-	static bool initialized;
-
-	if (!initialized) {
-		init_test();
-		initialized = true;
-
-#ifdef CONFIG_USERSPACE
-		set_permissions();
-#endif
-	}
-}
-
-static void test_single_read_callback(const struct device *dev,
+void test_single_read_callback(const struct device *dev,
 			       struct uart_event *evt, void *user_data)
 {
 	ARG_UNUSED(dev);
@@ -77,18 +62,14 @@ static void test_single_read_callback(const struct device *dev,
 
 ZTEST_BMEM volatile uint32_t tx_aborted_count;
 
-static void *single_read_setup(void)
+void test_single_read_setup(void)
 {
-	uart_async_test_init();
-
 	uart_callback_set(uart_dev,
 			  test_single_read_callback,
 			  (void *) &tx_aborted_count);
-
-	return NULL;
 }
 
-ZTEST_USER(uart_async_single_read, test_single_read)
+void test_single_read(void)
 {
 	uint8_t rx_buf[10] = {0};
 
@@ -126,10 +107,8 @@ ZTEST_USER(uart_async_single_read, test_single_read)
 	zassert_equal(tx_aborted_count, 0, "TX aborted triggered");
 }
 
-static void *multiple_rx_enable_setup(void)
+void test_multiple_rx_enable_setup(void)
 {
-	uart_async_test_init();
-
 	tx_aborted_count = 0;
 
 	/* Reuse the callback from the single_read test case, as this test case
@@ -143,11 +122,9 @@ static void *multiple_rx_enable_setup(void)
 	k_sem_reset(&rx_buf_released);
 	k_sem_reset(&rx_disabled);
 	k_sem_reset(&tx_done);
-
-	return NULL;
 }
 
-ZTEST_USER(uart_async_multi_rx, test_multiple_rx_enable)
+void test_multiple_rx_enable(void)
 {
 	/* Check also if sending from read only memory (e.g. flash) works. */
 	static const uint8_t tx_buf[] = "test";
@@ -235,7 +212,7 @@ ZTEST_DMEM uint8_t buf_num = 1U;
 ZTEST_BMEM uint8_t *read_ptr;
 ZTEST_BMEM volatile size_t read_len;
 
-static void test_chained_read_callback(const struct device *uart_dev,
+void test_chained_read_callback(const struct device *uart_dev,
 				struct uart_event *evt, void *user_data)
 {
 	switch (evt->type) {
@@ -269,16 +246,12 @@ static void test_chained_read_callback(const struct device *uart_dev,
 
 }
 
-static void *chained_read_setup(void)
+void test_chained_read_setup(void)
 {
-	uart_async_test_init();
-
 	uart_callback_set(uart_dev, test_chained_read_callback, NULL);
-
-	return NULL;
 }
 
-ZTEST_USER(uart_async_chain_read, test_chained_read)
+void test_chained_read(void)
 {
 	uint8_t tx_buf[10];
 
@@ -309,7 +282,7 @@ ZTEST_USER(uart_async_chain_read, test_chained_read)
 ZTEST_BMEM uint8_t double_buffer[2][12];
 ZTEST_DMEM uint8_t *next_buf = double_buffer[1];
 
-static void test_double_buffer_callback(const struct device *uart_dev,
+void test_double_buffer_callback(const struct device *uart_dev,
 				 struct uart_event *evt, void *user_data)
 {
 	switch (evt->type) {
@@ -336,16 +309,12 @@ static void test_double_buffer_callback(const struct device *uart_dev,
 
 }
 
-static void *double_buffer_setup(void)
+void test_double_buffer_setup(void)
 {
-	uart_async_test_init();
-
 	uart_callback_set(uart_dev, test_double_buffer_callback, NULL);
-
-	return NULL;
 }
 
-ZTEST_USER(uart_async_double_buf, test_double_buffer)
+void test_double_buffer(void)
 {
 	uint8_t tx_buf[4];
 
@@ -372,7 +341,7 @@ ZTEST_USER(uart_async_double_buf, test_double_buffer)
 		      "RX_DISABLED timeout");
 }
 
-static void test_read_abort_callback(const struct device *dev,
+void test_read_abort_callback(const struct device *dev,
 			      struct uart_event *evt, void *user_data)
 {
 	int err;
@@ -409,10 +378,8 @@ static void read_abort_timeout(struct k_timer *timer)
 	zassert_equal(err, 0, "Unexpected err:%d", err);
 }
 
-static void *read_abort_setup(void)
+void test_read_abort_setup(void)
 {
-	uart_async_test_init();
-
 	failed_in_isr = false;
 	uart_callback_set(uart_dev, test_read_abort_callback, NULL);
 
@@ -420,11 +387,9 @@ static void *read_abort_setup(void)
 	k_sem_reset(&rx_buf_released);
 	k_sem_reset(&rx_disabled);
 	k_sem_reset(&tx_done);
-
-	return NULL;
 }
 
-ZTEST_USER(uart_async_read_abort, test_read_abort)
+void test_read_abort(void)
 {
 	uint8_t rx_buf[100];
 	uint8_t tx_buf[100];
@@ -455,16 +420,15 @@ ZTEST_USER(uart_async_read_abort, test_read_abort)
 	 * that may affect following test on RX
 	 */
 	uart_rx_enable(uart_dev, rx_buf, sizeof(rx_buf), 50 * USEC_PER_MSEC);
-	while (k_sem_take(&rx_rdy, K_MSEC(1000)) != -EAGAIN) {
+	while (k_sem_take(&rx_rdy, K_MSEC(1000)) != -EAGAIN)
 		;
-	}
 	uart_rx_disable(uart_dev);
 }
 
 ZTEST_BMEM volatile size_t sent;
 ZTEST_BMEM volatile size_t received;
 
-static void test_write_abort_callback(const struct device *dev,
+void test_write_abort_callback(const struct device *dev,
 			       struct uart_event *evt, void *user_data)
 {
 	ARG_UNUSED(dev);
@@ -492,16 +456,12 @@ static void test_write_abort_callback(const struct device *dev,
 	}
 }
 
-static void *write_abort_setup(void)
+void test_write_abort_setup(void)
 {
-	uart_async_test_init();
-
 	uart_callback_set(uart_dev, test_write_abort_callback, NULL);
-
-	return NULL;
 }
 
-ZTEST_USER(uart_async_write_abort, test_write_abort)
+void test_write_abort(void)
 {
 	uint8_t rx_buf[100];
 	uint8_t tx_buf[100];
@@ -534,7 +494,7 @@ ZTEST_USER(uart_async_write_abort, test_write_abort)
 }
 
 
-static void test_forever_timeout_callback(const struct device *dev,
+void test_forever_timeout_callback(const struct device *dev,
 				   struct uart_event *evt, void *user_data)
 {
 	ARG_UNUSED(dev);
@@ -562,16 +522,12 @@ static void test_forever_timeout_callback(const struct device *dev,
 	}
 }
 
-static void *forever_timeout_setup(void)
+void test_forever_timeout_setup(void)
 {
-	uart_async_test_init();
-
 	uart_callback_set(uart_dev, test_forever_timeout_callback, NULL);
-
-	return NULL;
 }
 
-ZTEST_USER(uart_async_timeout, test_forever_timeout)
+void test_forever_timeout(void)
 {
 	uint8_t rx_buf[100];
 	uint8_t tx_buf[100];
@@ -611,7 +567,7 @@ ZTEST_DMEM uint8_t chained_write_tx_bufs[2][10] = {"Message 1", "Message 2"};
 ZTEST_DMEM bool chained_write_next_buf = true;
 ZTEST_BMEM volatile uint8_t tx_sent;
 
-static void test_chained_write_callback(const struct device *uart_dev,
+void test_chained_write_callback(const struct device *uart_dev,
 				 struct uart_event *evt, void *user_data)
 {
 	switch (evt->type) {
@@ -642,16 +598,12 @@ static void test_chained_write_callback(const struct device *uart_dev,
 	}
 }
 
-static void *chained_write_setup(void)
+void test_chained_write_setup(void)
 {
-	uart_async_test_init();
-
 	uart_callback_set(uart_dev, test_chained_write_callback, NULL);
-
-	return NULL;
 }
 
-ZTEST_USER(uart_async_chain_write, test_chained_write)
+void test_chained_write(void)
 {
 	uint8_t rx_buf[20];
 
@@ -685,7 +637,7 @@ ZTEST_BMEM uint8_t long_tx_buf[1000];
 ZTEST_BMEM volatile uint8_t evt_num;
 ZTEST_BMEM size_t long_received[2];
 
-static void test_long_buffers_callback(const struct device *uart_dev,
+void test_long_buffers_callback(const struct device *uart_dev,
 				struct uart_event *evt, void *user_data)
 {
 	static bool next_buf = true;
@@ -721,16 +673,12 @@ static void test_long_buffers_callback(const struct device *uart_dev,
 	}
 }
 
-static void *long_buffers_setup(void)
+void test_long_buffers_setup(void)
 {
-	uart_async_test_init();
-
 	uart_callback_set(uart_dev, test_long_buffers_callback, NULL);
-
-	return NULL;
 }
 
-ZTEST_USER(uart_async_long_buf, test_long_buffers)
+void test_long_buffers(void)
 {
 	memset(long_rx_buf, 0, sizeof(long_rx_buf));
 	memset(long_tx_buf, 1, sizeof(long_tx_buf));
@@ -766,31 +714,3 @@ ZTEST_USER(uart_async_long_buf, test_long_buffers)
 	zassert_equal(k_sem_take(&rx_disabled, K_MSEC(100)), 0,
 		      "RX_DISABLED timeout");
 }
-
-
-ZTEST_SUITE(uart_async_single_read, NULL, single_read_setup,
-		NULL, NULL, NULL);
-
-ZTEST_SUITE(uart_async_multi_rx, NULL, multiple_rx_enable_setup,
-		NULL, NULL, NULL);
-
-ZTEST_SUITE(uart_async_chain_read, NULL, chained_read_setup,
-		NULL, NULL, NULL);
-
-ZTEST_SUITE(uart_async_double_buf, NULL, double_buffer_setup,
-		NULL, NULL, NULL);
-
-ZTEST_SUITE(uart_async_read_abort, NULL, read_abort_setup,
-		NULL, NULL, NULL);
-
-ZTEST_SUITE(uart_async_chain_write, NULL, chained_write_setup,
-		NULL, NULL, NULL);
-
-ZTEST_SUITE(uart_async_long_buf, NULL, long_buffers_setup,
-		NULL, NULL, NULL);
-
-ZTEST_SUITE(uart_async_write_abort, NULL, write_abort_setup,
-		NULL, NULL, NULL);
-
-ZTEST_SUITE(uart_async_timeout, NULL, forever_timeout_setup,
-		NULL, NULL, NULL);

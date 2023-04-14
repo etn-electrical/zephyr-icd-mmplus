@@ -41,7 +41,7 @@ Peripheral APIs (Hardware Related)
 
 When introducing an API (public header file with documentation) for a new
 peripheral or driver subsystem, review of the API is enforced and is driven by
-the Architecture working group consisting of representatives from different vendors.
+the API working group consisting of representatives from different vendors.
 
 The API shall be promoted to ``unstable`` when it has at least two
 implementations on different hardware platforms.
@@ -91,8 +91,8 @@ In order to declare an API ``stable``, the following steps need to be followed:
 #. An email must be sent to the ``devel`` mailing list announcing the API
    upgrade request
 #. The Pull Request must be submitted for discussion in the next
-   `Zephyr Architecture meeting`_ where, barring any objections, the Pull Request
-   will be merged
+   `Zephyr API meeting`_ where, barring any objections, the Pull Request will be
+   merged
 
 .. _stable_api_changes:
 
@@ -134,14 +134,13 @@ such a change is considered necessary in order to accept it in the project:
    Instead of a written description of the changes, the RFC issue may link to a
    Pull Request containing those changes in code form.
 #. The RFC issue must be labeled with the GitHub ``Stable API Change`` label
-#. The RFC issue must be submitted for discussion in the next `Zephyr
-   Architecture meeting`_
+#. The RFC issue must be submitted for discussion in the next `Zephyr API meeting`_
 #. An email must be sent to the ``devel`` mailing list with a subject identical
    to the RFC issue title and that links to the RFC issue
 
 The RFC will then receive feedback through issue comments and will also be
-discussed in the Zephyr Architecture meeting, where the stakeholders and the
-community at large will have a chance to discuss it in detail.
+discussed in the Zephyr API meeting, where the stakeholders and the community at
+large will have a chance to discuss it in detail.
 
 Finally, and if not done as part of the first step, a Pull Request must be
 opened on GitHub. It is left to the person proposing the change to decide
@@ -195,7 +194,7 @@ The following are the requirements for deprecating an existing API:
   The API needs to be marked as deprecated in at least two full releases.
   For example, if an API was first deprecated in release 1.14,
   it will be ready to be removed in 1.16 at the earliest.
-  There may be special circumstances, determined by the Architecture working group,
+  There may be special circumstances, determined by the API working group,
   where an API is deprecated sooner.
 - What is required when deprecating:
 
@@ -243,4 +242,4 @@ migration and update the roadmap with the aim to remove the API in the next
 release.
 
 .. _`Zephyr TSC meeting`: https://github.com/zephyrproject-rtos/zephyr/wiki/Zephyr-Committee-and-Working-Group-Meetings#technical-steering-committee-tsc
-.. _`Zephyr Architecture meeting`: https://github.com/zephyrproject-rtos/zephyr/wiki/Architecture-Working-Group
+.. _`Zephyr API meeting`: https://github.com/zephyrproject-rtos/zephyr/wiki/Zephyr-Committee-and-Working-Group-Meetings#zephyr-api-meeting

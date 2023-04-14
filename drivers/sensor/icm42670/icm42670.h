@@ -11,7 +11,6 @@
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/drivers/spi.h>
-#include <zephyr/kernel.h>
 
 struct icm42670_data {
 	int16_t accel_x;

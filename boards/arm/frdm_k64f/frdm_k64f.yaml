@@ -17,7 +17,6 @@ supported:
   - can
   - counter
   - dac
-  - dma
   - gpio
   - i2c
   - netif:eth
@@ -26,3 +25,5 @@ supported:
   - spi
   - usb_device
   - watchdog
+testing:
+  default: true

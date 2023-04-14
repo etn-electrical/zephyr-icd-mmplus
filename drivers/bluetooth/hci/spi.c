@@ -17,9 +17,9 @@
 #include <zephyr/bluetooth/hci.h>
 #include <zephyr/drivers/bluetooth/hci_driver.h>
 
-#define LOG_LEVEL CONFIG_BT_HCI_DRIVER_LOG_LEVEL
-#include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(bt_driver);
+#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_DEBUG_HCI_DRIVER)
+#define LOG_MODULE_NAME bt_driver
+#include "common/log.h"
 
 #define HCI_CMD			0x01
 #define HCI_ACL			0x02
@@ -68,10 +68,10 @@ static K_SEM_DEFINE(sem_initialised, 0, 1);
 static K_SEM_DEFINE(sem_request, 0, 1);
 static K_SEM_DEFINE(sem_busy, 1, 1);
 
-static K_KERNEL_STACK_DEFINE(spi_rx_stack, CONFIG_BT_DRV_RX_STACK_SIZE);
+static K_KERNEL_STACK_DEFINE(spi_rx_stack, 512);
 static struct k_thread spi_rx_thread_data;
 
-#if defined(CONFIG_BT_HCI_DRIVER_LOG_LEVEL_DBG)
+#if defined(CONFIG_BT_DEBUG_HCI_DRIVER)
 #include <zephyr/sys/printk.h>
 static inline void spi_dump_message(const uint8_t *pre, uint8_t *buf,
 				    uint8_t size)
@@ -163,15 +163,13 @@ static void bt_spi_isr(const struct device *unused1,
 		       struct gpio_callback *unused2,
 		       uint32_t unused3)
 {
-	LOG_DBG("");
+	BT_DBG("");
 
 	k_sem_give(&sem_request);
 }
 
-static bool bt_spi_handle_vendor_evt(uint8_t *rxmsg)
+static void bt_spi_handle_vendor_evt(uint8_t *rxmsg)
 {
-	bool handled = false;
-
 	switch (bt_spi_get_evt(rxmsg)) {
 	case EVT_BLUE_INITIALIZED:
 		k_sem_give(&sem_initialised);
@@ -179,11 +177,9 @@ static bool bt_spi_handle_vendor_evt(uint8_t *rxmsg)
 		/* force BlueNRG to be on controller mode */
 		bt_spi_send_aci_config_data_controller_mode();
 #endif
-		handled = true;
 	default:
 		break;
 	}
-	return handled;
 }
 
 #if defined(CONFIG_BT_SPI_BLUENRG)
@@ -218,7 +214,7 @@ static bool irq_pin_high(void)
 
 	pin_state = gpio_pin_get_dt(&irq_gpio);
 
-	LOG_DBG("IRQ Pin: %d", pin_state);
+	BT_DBG("IRQ Pin: %d", pin_state);
 
 	return pin_state > 0;
 }
@@ -293,7 +289,7 @@ static void bt_spi_rx_thread(void)
 		gpio_pin_interrupt_configure_dt(&irq_gpio, GPIO_INT_DISABLE);
 		k_sem_take(&sem_busy, K_FOREVER);
 
-		LOG_DBG("");
+		BT_DBG("");
 
 		do {
 			init_irq_high_loop();
@@ -321,7 +317,7 @@ static void bt_spi_rx_thread(void)
 
 			if (ret || size == 0) {
 				if (ret) {
-					LOG_ERR("Error %d", ret);
+					BT_ERR("Error %d", ret);
 				}
 				continue;
 			}
@@ -332,12 +328,9 @@ static void bt_spi_rx_thread(void)
 			case HCI_EVT:
 				switch (rxmsg[EVT_HEADER_EVENT]) {
 				case BT_HCI_EVT_VENDOR:
-					/* Run event through interface handler */
-					if (bt_spi_handle_vendor_evt(rxmsg)) {
-						continue;
-					};
-					/* Event has not yet been handled */
-					__fallthrough;
+					/* Vendor events are currently unsupported */
+					bt_spi_handle_vendor_evt(rxmsg);
+					continue;
 				default:
 					if (rxmsg[1] == BT_HCI_EVT_LE_META_EVENT &&
 					    (rxmsg[3] == BT_HCI_EVT_LE_ADVERTISING_REPORT)) {
@@ -348,15 +341,14 @@ static void bt_spi_rx_thread(void)
 					buf = bt_buf_get_evt(rxmsg[EVT_HEADER_EVENT],
 							     discardable, timeout);
 					if (!buf) {
-						LOG_DBG("Discard adv report due to insufficient "
-							"buf");
+						BT_DBG("Discard adv report due to insufficient buf");
 						continue;
 					}
 				}
 
 				len = sizeof(struct bt_hci_evt_hdr) + rxmsg[EVT_HEADER_SIZE];
 				if (len > net_buf_tailroom(buf)) {
-					LOG_ERR("Event too long: %d", len);
+					BT_ERR("Event too long: %d", len);
 					net_buf_unref(buf);
 					continue;
 				}
@@ -367,14 +359,14 @@ static void bt_spi_rx_thread(void)
 				memcpy(&acl_hdr, &rxmsg[1], sizeof(acl_hdr));
 				len = sizeof(acl_hdr) + sys_le16_to_cpu(acl_hdr.len);
 				if (len > net_buf_tailroom(buf)) {
-					LOG_ERR("ACL too long: %d", len);
+					BT_ERR("ACL too long: %d", len);
 					net_buf_unref(buf);
 					continue;
 				}
 				net_buf_add_mem(buf, &rxmsg[1], len);
 				break;
 			default:
-				LOG_ERR("Unknown BT buf type %d", rxmsg[0]);
+				BT_ERR("Unknown BT buf type %d", rxmsg[0]);
 				continue;
 			}
 
@@ -392,11 +384,11 @@ static int bt_spi_send(struct net_buf *buf)
 	int pending;
 	int ret;
 
-	LOG_DBG("");
+	BT_DBG("");
 
 	/* Buffer needs an additional byte for type */
 	if (buf->len >= SPI_MAX_MSG_LEN) {
-		LOG_ERR("Message too long");
+		BT_ERR("Message too long");
 		return -EINVAL;
 	}
 
@@ -419,7 +411,7 @@ static int bt_spi_send(struct net_buf *buf)
 		net_buf_push_u8(buf, HCI_CMD);
 		break;
 	default:
-		LOG_ERR("Unsupported type");
+		BT_ERR("Unsupported type");
 		k_sem_give(&sem_busy);
 		return -EINVAL;
 	}
@@ -437,6 +429,9 @@ static int bt_spi_send(struct net_buf *buf)
 	} while ((rxmsg[STATUS_HEADER_READY] != READY_NOW ||
 		  (rxmsg[1] | rxmsg[2] | rxmsg[3] | rxmsg[4]) == 0U) && !ret);
 
+
+	k_sem_give(&sem_busy);
+
 	if (!ret) {
 		/* Transmit the message */
 		do {
@@ -447,10 +442,8 @@ static int bt_spi_send(struct net_buf *buf)
 
 	release_cs();
 
-	k_sem_give(&sem_busy);
-
 	if (ret) {
-		LOG_ERR("Error %d", ret);
+		BT_ERR("Error %d", ret);
 		goto out;
 	}
 
@@ -498,7 +491,6 @@ static int bt_spi_open(void)
 			0, K_NO_WAIT);
 
 	/* Take BLE out of reset */
-	k_sleep(K_MSEC(DT_INST_PROP_OR(0, reset_assert_duration_ms, 0)));
 	gpio_pin_set_dt(&rst_gpio, 0);
 
 	/* Device will let us know when it's ready */
@@ -508,7 +500,7 @@ static int bt_spi_open(void)
 }
 
 static const struct bt_hci_driver drv = {
-	.name		= DEVICE_DT_NAME(DT_DRV_INST(0)),
+	.name		= DT_INST_LABEL(0),
 	.bus		= BT_HCI_DRIVER_BUS_SPI,
 #if defined(CONFIG_BT_BLUENRG_ACI)
 	.quirks		= BT_QUIRK_NO_RESET,
@@ -521,8 +513,8 @@ static int bt_spi_init(const struct device *unused)
 {
 	ARG_UNUSED(unused);
 
-	if (!spi_is_ready_dt(&bus)) {
-		LOG_ERR("SPI device not ready");
+	if (!spi_is_ready(&bus)) {
+		BT_ERR("SPI device not ready");
 		return -ENODEV;
 	}
 
@@ -531,19 +523,19 @@ static int bt_spi_init(const struct device *unused)
 	}
 
 	if (!device_is_ready(irq_gpio.port)) {
-		LOG_ERR("IRQ GPIO device not ready");
+		BT_ERR("IRQ GPIO device not ready");
 		return -ENODEV;
 	}
 
 	if (!device_is_ready(rst_gpio.port)) {
-		LOG_ERR("Reset GPIO device not ready");
+		BT_ERR("Reset GPIO device not ready");
 		return -ENODEV;
 	}
 
 	bt_hci_driver_register(&drv);
 
 
-	LOG_DBG("BT SPI initialized");
+	BT_DBG("BT SPI initialized");
 
 	return 0;
 }

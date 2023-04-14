@@ -37,15 +37,7 @@ struct settings_nvs {
 	struct settings_store cf_store;
 	struct nvs_fs cf_nvs;
 	uint16_t last_name_id;
-	const struct device *flash_dev;
-#if CONFIG_SETTINGS_NVS_NAME_CACHE
-	struct {
-		uint16_t name_hash;
-		uint16_t name_id;
-	} cache[CONFIG_SETTINGS_NVS_NAME_CACHE_SIZE];
-
-	uint16_t cache_next;
-#endif
+	const char *flash_dev_name;
 };
 
 /* register nvs to be a source of settings */

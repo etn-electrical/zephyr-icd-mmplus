@@ -17,10 +17,12 @@
 /* Internal macros used to initialize array members */
 #define BT_MESH_KEY_UNUSED_ELT_(IDX, _) BT_MESH_KEY_UNUSED
 #define BT_MESH_ADDR_UNASSIGNED_ELT_(IDX, _) BT_MESH_ADDR_UNASSIGNED
-#define BT_MESH_MODEL_KEYS_UNUSED(_keys)			\
-	{ LISTIFY(_keys, BT_MESH_KEY_UNUSED_ELT_, (,)) }
-#define BT_MESH_MODEL_GROUPS_UNASSIGNED(_grps)			\
-	{ LISTIFY(_grps, BT_MESH_ADDR_UNASSIGNED_ELT_, (,)) }
+#define BT_MESH_MODEL_KEYS_UNUSED			\
+	{ LISTIFY(CONFIG_BT_MESH_MODEL_KEY_COUNT,	\
+		  BT_MESH_KEY_UNUSED_ELT_, (,)) }
+#define BT_MESH_MODEL_GROUPS_UNASSIGNED			\
+	{ LISTIFY(CONFIG_BT_MESH_MODEL_GROUP_COUNT,	\
+		  BT_MESH_ADDR_UNASSIGNED_ELT_, (,)) }
 
 /**
  * @brief Access layer
@@ -48,7 +50,7 @@ extern "C" {
 
 #define BT_MESH_ADDR_IS_UNICAST(addr) ((addr) && (addr) < 0x8000)
 #define BT_MESH_ADDR_IS_GROUP(addr) ((addr) >= 0xc000 && (addr) < 0xff00)
-#define BT_MESH_ADDR_IS_FIXED_GROUP(addr) ((addr) >= 0xff00 && (addr) < 0xffff)
+#define BT_MESH_ADDR_IS_FIXED_GROUP(addr) ((addr) >= 0xfffc && (addr) < 0xffff)
 #define BT_MESH_ADDR_IS_VIRTUAL(addr) ((addr) >= 0x8000 && (addr) < 0xc000)
 #define BT_MESH_ADDR_IS_RFU(addr) ((addr) >= 0xff00 && (addr) <= 0xfffb)
 
@@ -226,63 +228,8 @@ struct bt_mesh_model_op {
 /** Helper to define an empty model array */
 #define BT_MESH_MODEL_NONE ((struct bt_mesh_model []){})
 
-/**
- *  @brief Composition data SIG model entry with callback functions
- *	   with specific number of keys & groups.
+/** @def BT_MESH_MODEL_CB
  *
- *  @param _id        Model ID.
- *  @param _op        Array of model opcode handlers.
- *  @param _pub       Model publish parameters.
- *  @param _user_data User data for the model.
- *  @param _keys      Number of keys that can be bound to the model.
- *		      Shall not exceed @kconfig{CONFIG_BT_MESH_MODEL_KEY_COUNT}.
- *  @param _grps      Number of addresses that the model can be subscribed to.
- *		      Shall not exceed @kconfig{CONFIG_BT_MESH_MODEL_GROUP_COUNT}.
- *  @param _cb        Callback structure, or NULL to keep no callbacks.
- */
-#define BT_MESH_MODEL_CNT_CB(_id, _op, _pub, _user_data, _keys, _grps, _cb)	\
-{										\
-	.id = (_id),								\
-	.pub = _pub,								\
-	.keys = (uint16_t []) BT_MESH_MODEL_KEYS_UNUSED(_keys),			\
-	.keys_cnt = _keys,							\
-	.groups = (uint16_t []) BT_MESH_MODEL_GROUPS_UNASSIGNED(_grps),		\
-	.groups_cnt = _grps,							\
-	.op = _op,								\
-	.cb = _cb,								\
-	.user_data = _user_data,						\
-}
-
-/**
- *  @brief Composition data vendor model entry with callback functions
- *	   with specific number of keys & groups.
- *
- *  @param _company   Company ID.
- *  @param _id        Model ID.
- *  @param _op        Array of model opcode handlers.
- *  @param _pub       Model publish parameters.
- *  @param _user_data User data for the model.
- *  @param _keys      Number of keys that can be bound to the model.
- *		      Shall not exceed @kconfig{CONFIG_BT_MESH_MODEL_KEY_COUNT}.
- *  @param _grps      Number of addresses that the model can be subscribed to.
- *		      Shall not exceed @kconfig{CONFIG_BT_MESH_MODEL_GROUP_COUNT}.
- *  @param _cb        Callback structure, or NULL to keep no callbacks.
- */
-#define BT_MESH_MODEL_CNT_VND_CB(_company, _id, _op, _pub, _user_data, _keys, _grps, _cb)	\
-{												\
-	.vnd.company = (_company),								\
-	.vnd.id = (_id),									\
-	.op = _op,										\
-	.pub = _pub,										\
-	.keys = (uint16_t []) BT_MESH_MODEL_KEYS_UNUSED(_keys),					\
-	.keys_cnt = _keys,									\
-	.groups = (uint16_t []) BT_MESH_MODEL_GROUPS_UNASSIGNED(_grps),				\
-	.groups_cnt = _grps,									\
-	.user_data = _user_data,								\
-	.cb = _cb,										\
-}
-
-/**
  *  @brief Composition data SIG model entry with callback functions.
  *
  *  @param _id        Model ID.
@@ -291,13 +238,19 @@ struct bt_mesh_model_op {
  *  @param _user_data User data for the model.
  *  @param _cb        Callback structure, or NULL to keep no callbacks.
  */
-#define BT_MESH_MODEL_CB(_id, _op, _pub, _user_data, _cb)	\
-	BT_MESH_MODEL_CNT_CB(_id, _op, _pub, _user_data,	\
-			     CONFIG_BT_MESH_MODEL_KEY_COUNT,	\
-			     CONFIG_BT_MESH_MODEL_GROUP_COUNT, _cb)
+#define BT_MESH_MODEL_CB(_id, _op, _pub, _user_data, _cb)                    \
+{                                                                            \
+	.id = (_id),                                                         \
+	.pub = _pub,                                                         \
+	.keys = BT_MESH_MODEL_KEYS_UNUSED,                                   \
+	.groups = BT_MESH_MODEL_GROUPS_UNASSIGNED,                           \
+	.op = _op,                                                           \
+	.cb = _cb,                                                           \
+	.user_data = _user_data,                                             \
+}
 
-
-/**
+/** @def BT_MESH_MODEL_VND_CB
+ *
  *  @brief Composition data vendor model entry with callback functions.
  *
  *  @param _company   Company ID.
@@ -307,12 +260,21 @@ struct bt_mesh_model_op {
  *  @param _user_data User data for the model.
  *  @param _cb        Callback structure, or NULL to keep no callbacks.
  */
-#define BT_MESH_MODEL_VND_CB(_company, _id, _op, _pub, _user_data, _cb)	\
-	BT_MESH_MODEL_CNT_VND_CB(_company, _id, _op, _pub, _user_data,	\
-				 CONFIG_BT_MESH_MODEL_KEY_COUNT,	\
-				 CONFIG_BT_MESH_MODEL_GROUP_COUNT, _cb)
+#define BT_MESH_MODEL_VND_CB(_company, _id, _op, _pub, _user_data, _cb)      \
+{                                                                            \
+	.vnd.company = (_company),                                           \
+	.vnd.id = (_id),                                                     \
+	.op = _op,                                                           \
+	.pub = _pub,                                                         \
+	.keys = BT_MESH_MODEL_KEYS_UNUSED,                                   \
+	.groups = BT_MESH_MODEL_GROUPS_UNASSIGNED,                           \
+	.user_data = _user_data,                                             \
+	.cb = _cb,                                                           \
+}
 
-/**
+
+/** @def BT_MESH_MODEL
+ *
  *  @brief Composition data SIG model entry.
  *
  *  @param _id        Model ID.
@@ -323,7 +285,8 @@ struct bt_mesh_model_op {
 #define BT_MESH_MODEL(_id, _op, _pub, _user_data)                              \
 	BT_MESH_MODEL_CB(_id, _op, _pub, _user_data, NULL)
 
-/**
+/** @def BT_MESH_MODEL_VND
+ *
  *  @brief Composition data vendor model entry.
  *
  *  @param _company   Company ID.
@@ -335,7 +298,8 @@ struct bt_mesh_model_op {
 #define BT_MESH_MODEL_VND(_company, _id, _op, _pub, _user_data)                \
 	BT_MESH_MODEL_VND_CB(_company, _id, _op, _pub, _user_data, NULL)
 
-/**
+/** @def BT_MESH_TRANSMIT
+ *
  *  @brief Encode transmission count & interval steps.
  *
  *  @param count   Number of retransmissions (first transmission is excluded).
@@ -347,7 +311,8 @@ struct bt_mesh_model_op {
  */
 #define BT_MESH_TRANSMIT(count, int_ms) ((count) | (((int_ms / 10) - 1) << 3))
 
-/**
+/** @def BT_MESH_TRANSMIT_COUNT
+ *
  *  @brief Decode transmit count from a transmit value.
  *
  *  @param transmit Encoded transmit count & interval value.
@@ -356,7 +321,8 @@ struct bt_mesh_model_op {
  */
 #define BT_MESH_TRANSMIT_COUNT(transmit) (((transmit) & (uint8_t)BIT_MASK(3)))
 
-/**
+/** @def BT_MESH_TRANSMIT_INT
+ *
  *  @brief Decode transmit interval from a transmit value.
  *
  *  @param transmit Encoded transmit count & interval value.
@@ -365,7 +331,8 @@ struct bt_mesh_model_op {
  */
 #define BT_MESH_TRANSMIT_INT(transmit) ((((transmit) >> 3) + 1) * 10)
 
-/**
+/** @def BT_MESH_PUB_TRANSMIT
+ *
  *  @brief Encode Publish Retransmit count & interval steps.
  *
  *  @param count  Number of retransmissions (first transmission is excluded).
@@ -378,7 +345,8 @@ struct bt_mesh_model_op {
 #define BT_MESH_PUB_TRANSMIT(count, int_ms) BT_MESH_TRANSMIT(count,           \
 							     (int_ms) / 5)
 
-/**
+/** @def BT_MESH_PUB_TRANSMIT_COUNT
+ *
  *  @brief Decode Publish Retransmit count from a given value.
  *
  *  @param transmit Encoded Publish Retransmit count & interval value.
@@ -387,7 +355,8 @@ struct bt_mesh_model_op {
  */
 #define BT_MESH_PUB_TRANSMIT_COUNT(transmit) BT_MESH_TRANSMIT_COUNT(transmit)
 
-/**
+/** @def BT_MESH_PUB_TRANSMIT_INT
+ *
  *  @brief Decode Publish Retransmit interval from a given value.
  *
  *  @param transmit Encoded Publish Retransmit count & interval value.
@@ -396,7 +365,8 @@ struct bt_mesh_model_op {
  */
 #define BT_MESH_PUB_TRANSMIT_INT(transmit) ((((transmit) >> 3) + 1) * 50)
 
-/**
+/** @def BT_MESH_PUB_MSG_TOTAL
+ *
  * @brief Get total number of messages within one publication interval including initial
  * publication.
  *
@@ -406,7 +376,8 @@ struct bt_mesh_model_op {
  */
 #define BT_MESH_PUB_MSG_TOTAL(pub) (BT_MESH_PUB_TRANSMIT_COUNT((pub)->retransmit) + 1)
 
-/**
+/** @def BT_MESH_PUB_MSG_NUM
+ *
  * @brief Get message number within one publication interval.
  *
  * Meant to be used inside @ref bt_mesh_model_pub.update.
@@ -474,7 +445,8 @@ struct bt_mesh_model_pub {
 	struct k_work_delayable timer;
 };
 
-/**
+/** @def BT_MESH_MODEL_PUB_DEFINE
+ *
  *  Define a model publication context.
  *
  *  @param _name Variable name given to the context.
@@ -574,12 +546,10 @@ struct bt_mesh_model {
 	struct bt_mesh_model_pub * const pub;
 
 	/** AppKey List */
-	uint16_t * const keys;
-	const uint16_t keys_cnt;
+	uint16_t keys[CONFIG_BT_MESH_MODEL_KEY_COUNT];
 
 	/** Subscription List (group or virtual addresses) */
-	uint16_t * const groups;
-	const uint16_t groups_cnt;
+	uint16_t groups[CONFIG_BT_MESH_MODEL_GROUP_COUNT];
 
 	/** Opcode handler list */
 	const struct bt_mesh_model_op * const op;

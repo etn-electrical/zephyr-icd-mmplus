@@ -11,9 +11,6 @@
 #include <zephyr/usb/usb_device.h>
 #include <zephyr/net/net_config.h>
 
-#ifdef CONFIG_NET_LOOPBACK_SIMULATE_PACKET_DROP
-#include <zephyr/net/loopback.h>
-#endif
 void main(void)
 {
 #if defined(CONFIG_USB_DEVICE_STACK)
@@ -26,7 +23,4 @@ void main(void)
 
 	(void)net_config_init_app(NULL, "Initializing network");
 #endif /* CONFIG_USB_DEVICE_STACK */
-#ifdef CONFIG_NET_LOOPBACK_SIMULATE_PACKET_DROP
-	loopback_set_packet_drop_ratio(1);
-#endif
 }

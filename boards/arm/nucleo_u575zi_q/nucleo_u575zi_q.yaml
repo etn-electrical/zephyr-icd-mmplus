@@ -6,18 +6,6 @@ toolchain:
   - zephyr
   - gnuarmemb
 supported:
-  - arduino_gpio
-  - arduino_i2c
-  - arduino_serial
-  - arduino_spi
-  - can
-  - dac
   - gpio
-  - i2c
-  - spi
-  - usart
-  - watchdog
-  - backup_sram
-  - dma
 ram: 786
 flash: 2048

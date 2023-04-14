@@ -15,6 +15,7 @@ LOG_MODULE_REGISTER(lora_shell, CONFIG_LORA_LOG_LEVEL);
 #define DEFAULT_RADIO_NODE DT_ALIAS(lora0)
 BUILD_ASSERT(DT_NODE_HAS_STATUS(DEFAULT_RADIO_NODE, okay),
 	     "No default LoRa radio specified in DT");
+#define DEFAULT_RADIO DT_LABEL(DEFAULT_RADIO_NODE)
 
 static struct lora_modem_config modem_config = {
 	.frequency = 0,
@@ -92,10 +93,9 @@ static const struct device *get_modem(const struct shell *shell)
 {
 	const struct device *dev;
 
-	dev = DEVICE_DT_GET(DEFAULT_RADIO_NODE);
-
-	if (!device_is_ready(dev)) {
-		shell_error(shell, "LORA Radio device not ready");
+	dev = device_get_binding(DEFAULT_RADIO);
+	if (!dev) {
+		shell_error(shell, "%s Device not found", DEFAULT_RADIO);
 		return NULL;
 	}
 
@@ -128,6 +128,7 @@ static const struct device *get_configured_modem(const struct shell *shell)
 
 static int lora_conf_dump(const struct shell *shell)
 {
+	shell_print(shell, DEFAULT_RADIO ":");
 	shell_print(shell, "  Frequency: %" PRIu32 " Hz",
 		    modem_config.frequency);
 	shell_print(shell, "  TX power: %" PRIi8 " dBm",

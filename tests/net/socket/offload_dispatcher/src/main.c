@@ -11,7 +11,7 @@
 #include <zephyr/net/socket.h>
 #include <sockets_internal.h>
 #include <zephyr/sys/fdtable.h>
-#include <zephyr/ztest.h>
+#include <ztest.h>
 
 
 LOG_MODULE_REGISTER(net_test, CONFIG_NET_SOCKETS_LOG_LEVEL);
@@ -436,21 +436,18 @@ static void test_result_reset(void)
 	k_sem_reset(&test_native_send_called);
 }
 
-static void test_socket_setup_udp(void *dummy)
+static void test_socket_setup_udp(void)
 {
-	ARG_UNUSED(dummy);
 	test_result_reset();
 
 	test_sock = zsock_socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-
 	zassert_true(test_sock >= 0, "Failed to create socket");
 	zassert_false(test_socket_ctx[OFFLOAD_1].socket_called,
 		      "Socket should'nt have been dispatched yet");
 }
 
-static void test_socket_setup_tls(void *dummy)
+static void test_socket_setup_tls(void)
 {
-	ARG_UNUSED(dummy);
 	test_result_reset();
 
 	test_sock = zsock_socket(AF_INET, SOCK_STREAM, IPPROTO_TLS_1_2);
@@ -459,10 +456,8 @@ static void test_socket_setup_tls(void *dummy)
 		      "Socket should'nt have been dispatched yet");
 }
 
-static void test_socket_teardown(void *dummy)
+static void test_socket_teardown(void)
 {
-	ARG_UNUSED(dummy);
-
 	int ret = zsock_close(test_sock);
 
 	test_sock = -1;
@@ -473,7 +468,7 @@ static void test_socket_teardown(void *dummy)
 /* Verify that socket is not dispatched when close() is called immediately after
  * creating dispatcher socket.
  */
-ZTEST(net_socket_offload_close, test_close_not_bound)
+static void test_close_not_bound(void)
 {
 	int ret =  zsock_close(test_sock);
 
@@ -489,7 +484,7 @@ ZTEST(net_socket_offload_close, test_close_not_bound)
 /* Verify that socket is automatically dispatched to a default socket
  * implementation on ioctl() call, if not bound.
  */
-ZTEST(net_socket_offload_udp, test_fcntl_not_bound)
+static void test_fcntl_not_bound(void)
 {
 	int ret;
 
@@ -504,8 +499,7 @@ ZTEST(net_socket_offload_udp, test_fcntl_not_bound)
 /* Verify that socket is automatically dispatched to a default socket
  * implementation on shutdown() call, if not bound.
  */
-
-ZTEST(net_socket_offload_udp, test_shutdown_not_bound)
+static void test_shutdown_not_bound(void)
 {
 	int ret;
 
@@ -520,7 +514,7 @@ ZTEST(net_socket_offload_udp, test_shutdown_not_bound)
 /* Verify that socket is automatically dispatched to a default socket
  * implementation on bind() call, if not bound.
  */
-ZTEST(net_socket_offload_udp, test_bind_not_bound)
+static void test_bind_not_bound(void)
 {
 	int ret;
 	struct sockaddr_in addr = {
@@ -538,7 +532,7 @@ ZTEST(net_socket_offload_udp, test_bind_not_bound)
 /* Verify that socket is automatically dispatched to a default socket
  * implementation on connect() call, if not bound.
  */
-ZTEST(net_socket_offload_udp, test_connect_not_bound)
+static void test_connect_not_bound(void)
 {
 	int ret;
 	struct sockaddr_in addr = test_peer_addr;
@@ -554,7 +548,7 @@ ZTEST(net_socket_offload_udp, test_connect_not_bound)
 /* Verify that socket is automatically dispatched to a default socket
  * implementation on listen() call, if not bound.
  */
-ZTEST(net_socket_offload_udp, test_listen_not_bound)
+static void test_listen_not_bound(void)
 {
 	int ret;
 
@@ -569,7 +563,7 @@ ZTEST(net_socket_offload_udp, test_listen_not_bound)
 /* Verify that socket is automatically dispatched to a default socket
  * implementation on accept() call, if not bound.
  */
-ZTEST(net_socket_offload_udp, test_accept_not_bound)
+static void test_accept_not_bound(void)
 {
 	int ret;
 	struct sockaddr_in addr;
@@ -586,7 +580,7 @@ ZTEST(net_socket_offload_udp, test_accept_not_bound)
 /* Verify that socket is automatically dispatched to a default socket
  * implementation on sendto() call, if not bound.
  */
-ZTEST(net_socket_offload_udp, test_sendto_not_bound)
+static void test_sendto_not_bound(void)
 {
 	int ret;
 	uint8_t dummy_data = 0;
@@ -604,7 +598,7 @@ ZTEST(net_socket_offload_udp, test_sendto_not_bound)
 /* Verify that socket is automatically dispatched to a default socket
  * implementation on recvfrom() call, if not bound.
  */
-ZTEST(net_socket_offload_udp, test_recvfrom_not_bound)
+static void test_recvfrom_not_bound(void)
 {
 	int ret;
 	uint8_t dummy_data = 0;
@@ -620,7 +614,7 @@ ZTEST(net_socket_offload_udp, test_recvfrom_not_bound)
 /* Verify that socket is automatically dispatched to a default socket
  * implementation on getsockopt() call, if not bound.
  */
-ZTEST(net_socket_offload_udp, test_getsockopt_not_bound)
+static void test_getsockopt_not_bound(void)
 {
 	int ret;
 	struct timeval optval = { 0 };
@@ -638,7 +632,7 @@ ZTEST(net_socket_offload_udp, test_getsockopt_not_bound)
 /* Verify that socket is automatically dispatched to a default socket
  * implementation on setsockopt() call, if not bound.
  */
-ZTEST(net_socket_offload_udp, test_setsockopt_not_bound)
+static void test_setsockopt_not_bound(void)
 {
 	int ret;
 	struct timeval optval = { 0 };
@@ -655,7 +649,7 @@ ZTEST(net_socket_offload_udp, test_setsockopt_not_bound)
 /* Verify that socket is automatically dispatched to a default socket
  * implementation on sendmsg() call, if not bound.
  */
-ZTEST(net_socket_offload_udp, test_sendmsg_not_bound)
+static void test_sendmsg_not_bound(void)
 {
 	int ret;
 	struct msghdr dummy_msg = { 0 };
@@ -671,7 +665,7 @@ ZTEST(net_socket_offload_udp, test_sendmsg_not_bound)
 /* Verify that socket is automatically dispatched to a default socket
  * implementation on getpeername() call, if not bound.
  */
-ZTEST(net_socket_offload_udp, test_getpeername_not_bound)
+static void test_getpeername_not_bound(void)
 {
 	int ret;
 	struct sockaddr_in addr;
@@ -688,7 +682,7 @@ ZTEST(net_socket_offload_udp, test_getpeername_not_bound)
 /* Verify that socket is automatically dispatched to a default socket
  * implementation on getsockname() call, if not bound.
  */
-ZTEST(net_socket_offload_udp, test_getsockname_not_bound)
+static void test_getsockname_not_bound(void)
 {
 	int ret;
 	struct sockaddr_in addr;
@@ -705,7 +699,7 @@ ZTEST(net_socket_offload_udp, test_getsockname_not_bound)
 /* Verify that socket is dispatched to a proper offloaded socket implementation
  * if the socket is bound to an offloaded interface.
  */
-ZTEST(net_socket_offload_udp, test_so_bindtodevice_iface_offloaded)
+static void test_so_bindtodevice_iface_offloaded(void)
 {
 	int ret;
 	uint8_t dummy_data = 0;
@@ -736,7 +730,7 @@ ZTEST(net_socket_offload_udp, test_so_bindtodevice_iface_offloaded)
 /* Verify that socket is dispatched to a native socket implementation
  * if the socket is bound to a native interface.
  */
-ZTEST(net_socket_offload_udp, test_so_bindtodevice_iface_native)
+static void test_so_bindtodevice_iface_native(void)
 {
 	int ret;
 	uint8_t dummy_data = 0;
@@ -747,7 +741,6 @@ ZTEST(net_socket_offload_udp, test_so_bindtodevice_iface_native)
 
 	ret = zsock_setsockopt(test_sock, SOL_SOCKET, SO_BINDTODEVICE,
 			       &ifreq, sizeof(ifreq));
-
 	zassert_equal(0, ret, "setsockopt() failed");
 	zassert_false(test_socket_ctx[OFFLOAD_1].socket_called,
 		     "Socket dispatched to wrong iface");
@@ -766,7 +759,7 @@ ZTEST(net_socket_offload_udp, test_so_bindtodevice_iface_native)
  * implementation if native TLS is used and the socket is bound to an offloaded
  * interface.
  */
-ZTEST(net_socket_offload_tls, test_tls_native_iface_offloaded)
+static void test_tls_native_iface_offloaded(void)
 {
 	int ret;
 	const struct fd_op_vtable *vtable;
@@ -809,7 +802,7 @@ ZTEST(net_socket_offload_tls, test_tls_native_iface_offloaded)
  * implementation if native TLS is used and the socket is bound to a native
  * interface.
  */
-ZTEST(net_socket_offload_tls, test_tls_native_iface_native)
+static void test_tls_native_iface_native(void)
 {
 	int ret;
 	const struct fd_op_vtable *vtable;
@@ -822,7 +815,6 @@ ZTEST(net_socket_offload_tls, test_tls_native_iface_native)
 
 	ret = zsock_setsockopt(test_sock, SOL_TLS, TLS_NATIVE,
 			       &tls_native, sizeof(tls_native));
-	zassert_equal(0, ret, "setsockopt() failed");
 	zassert_false(test_socket_ctx[OFFLOAD_1].socket_called,
 		     "TLS socket dispatched to wrong iface");
 	zassert_false(test_socket_ctx[OFFLOAD_2].socket_called,
@@ -849,9 +841,65 @@ ZTEST(net_socket_offload_tls, test_tls_native_iface_native)
 	zassert_equal(0, ret, "sendto() should've been dispatched to native iface");
 }
 
-ZTEST_SUITE(net_socket_offload_udp, NULL, NULL, test_socket_setup_udp,
-	    test_socket_teardown, NULL);
-ZTEST_SUITE(net_socket_offload_tls, NULL, NULL, test_socket_setup_tls,
-	    test_socket_teardown, NULL);
-ZTEST_SUITE(net_socket_offload_close, NULL, NULL, test_socket_setup_udp,
-	    NULL, NULL);
+void test_main(void)
+{
+	ztest_test_suite(
+		socket_offload_dispatcher,
+		ztest_unit_test_setup_teardown(test_close_not_bound,
+					       test_socket_setup_udp,
+					       unit_test_noop),
+		ztest_unit_test_setup_teardown(test_fcntl_not_bound,
+					       test_socket_setup_udp,
+					       test_socket_teardown),
+		ztest_unit_test_setup_teardown(test_shutdown_not_bound,
+					       test_socket_setup_udp,
+					       test_socket_teardown),
+		ztest_unit_test_setup_teardown(test_bind_not_bound,
+					       test_socket_setup_udp,
+					       test_socket_teardown),
+		ztest_unit_test_setup_teardown(test_connect_not_bound,
+					       test_socket_setup_udp,
+					       test_socket_teardown),
+		ztest_unit_test_setup_teardown(test_listen_not_bound,
+					       test_socket_setup_udp,
+					       test_socket_teardown),
+		ztest_unit_test_setup_teardown(test_accept_not_bound,
+					       test_socket_setup_udp,
+					       test_socket_teardown),
+		ztest_unit_test_setup_teardown(test_sendto_not_bound,
+					       test_socket_setup_udp,
+					       test_socket_teardown),
+		ztest_unit_test_setup_teardown(test_recvfrom_not_bound,
+					       test_socket_setup_udp,
+					       test_socket_teardown),
+		ztest_unit_test_setup_teardown(test_getsockopt_not_bound,
+					       test_socket_setup_udp,
+					       test_socket_teardown),
+		ztest_unit_test_setup_teardown(test_setsockopt_not_bound,
+					       test_socket_setup_udp,
+					       test_socket_teardown),
+		ztest_unit_test_setup_teardown(test_sendmsg_not_bound,
+					       test_socket_setup_udp,
+					       test_socket_teardown),
+		ztest_unit_test_setup_teardown(test_getpeername_not_bound,
+					       test_socket_setup_udp,
+					       test_socket_teardown),
+		ztest_unit_test_setup_teardown(test_getsockname_not_bound,
+					       test_socket_setup_udp,
+					       test_socket_teardown),
+		ztest_unit_test_setup_teardown(test_so_bindtodevice_iface_offloaded,
+					       test_socket_setup_udp,
+					       test_socket_teardown),
+		ztest_unit_test_setup_teardown(test_so_bindtodevice_iface_native,
+					       test_socket_setup_udp,
+					       test_socket_teardown),
+		ztest_unit_test_setup_teardown(test_tls_native_iface_offloaded,
+					       test_socket_setup_tls,
+					       test_socket_teardown),
+		ztest_unit_test_setup_teardown(test_tls_native_iface_native,
+					       test_socket_setup_tls,
+					       test_socket_teardown)
+	);
+
+	ztest_run_test_suite(socket_offload_dispatcher);
+}

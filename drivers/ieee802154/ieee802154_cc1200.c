@@ -466,8 +466,8 @@ static void cc1200_rx(void *arg)
 			goto flush;
 		}
 
-		pkt = net_pkt_rx_alloc_with_buffer(cc1200->iface, pkt_len,
-						   AF_UNSPEC, 0, K_NO_WAIT);
+		pkt = net_pkt_alloc_with_buffer(cc1200->iface, pkt_len,
+						AF_UNSPEC, 0, K_NO_WAIT);
 		if (!pkt) {
 			LOG_ERR("No free pkt available");
 			goto flush;
@@ -744,7 +744,7 @@ static int cc1200_init(const struct device *dev)
 	}
 	gpio_pin_configure_dt(&config->interrupt, GPIO_INPUT);
 
-	if (!spi_is_ready_dt(&config->bus)) {
+	if (!spi_is_ready(&config->bus)) {
 		LOG_ERR("SPI bus %s is not ready", config->bus.bus->name);
 		return -ENODEV;
 	}
@@ -801,7 +801,9 @@ static struct ieee802154_radio_api cc1200_radio_api = {
 	.get_subg_channel_count = cc1200_get_channel_count,
 };
 
-NET_DEVICE_DT_INST_DEFINE(0, cc1200_init, NULL, &cc1200_context_data,
-			  &cc1200_config, CONFIG_IEEE802154_CC1200_INIT_PRIO,
-			  &cc1200_radio_api, IEEE802154_L2,
-			  NET_L2_GET_CTX_TYPE(IEEE802154_L2), 125);
+NET_DEVICE_INIT(cc1200, CONFIG_IEEE802154_CC1200_DRV_NAME,
+		cc1200_init, NULL,
+		&cc1200_context_data, &cc1200_config,
+		CONFIG_IEEE802154_CC1200_INIT_PRIO,
+		&cc1200_radio_api, IEEE802154_L2,
+		NET_L2_GET_CTX_TYPE(IEEE802154_L2), 125);

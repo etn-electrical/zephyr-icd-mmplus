@@ -17,7 +17,6 @@
 
 #include <zephyr/arch/riscv/thread.h>
 #include <zephyr/arch/riscv/exp.h>
-#include <zephyr/arch/riscv/irq.h>
 #include <zephyr/arch/common/sys_bitops.h>
 #include <zephyr/arch/common/sys_io.h>
 #include <zephyr/arch/common/ffs.h>
@@ -43,16 +42,12 @@
  * configurable stack wiggle room to execute the fault handling code off of,
  * as well as some guard size to cover possible sudden stack pointer
  * displacement before the fault.
+ *
+ * The m-mode PMP set is not overly used so no need to force NAPOT.
  */
-#ifdef CONFIG_PMP_POWER_OF_TWO_ALIGNMENT
-#define Z_RISCV_STACK_GUARD_SIZE \
-	Z_POW2_CEIL(sizeof(z_arch_esf_t) + CONFIG_PMP_STACK_GUARD_MIN_SIZE)
-#define ARCH_KERNEL_STACK_OBJ_ALIGN Z_RISCV_STACK_GUARD_SIZE
-#else
 #define Z_RISCV_STACK_GUARD_SIZE \
 	ROUND_UP(sizeof(z_arch_esf_t) + CONFIG_PMP_STACK_GUARD_MIN_SIZE, \
 		 ARCH_STACK_PTR_ALIGN)
-#endif
 
 /* Kernel-only stacks have the following layout if a stack guard is enabled:
  *
@@ -72,7 +67,7 @@
 #define Z_RISCV_STACK_GUARD_SIZE 0
 #endif
 
-#ifdef CONFIG_PMP_POWER_OF_TWO_ALIGNMENT
+#ifdef CONFIG_MPU_REQUIRES_POWER_OF_TWO_ALIGNMENT
 /* The privilege elevation stack is located in another area of memory
  * generated at build time by gen_kobject_list.py
  *
@@ -115,7 +110,7 @@
 #define ARCH_THREAD_STACK_OBJ_ALIGN(size) \
 		ARCH_THREAD_STACK_SIZE_ADJUST(size)
 
-#else /* !CONFIG_PMP_POWER_OF_TWO_ALIGNMENT */
+#else /* !CONFIG_MPU_REQUIRES_POWER_OF_TWO_ALIGNMENT */
 
 /* The stack object will contain the PMP guard, the privilege stack, and then
  * the usermode stack buffer in that order:
@@ -136,7 +131,7 @@
 	ROUND_UP(Z_RISCV_STACK_GUARD_SIZE + CONFIG_PRIVILEGED_STACK_SIZE, \
 		 ARCH_STACK_PTR_ALIGN)
 
-#endif /* CONFIG_PMP_POWER_OF_TWO_ALIGNMENT */
+#endif /* CONFIG_MPU_REQUIRES_POWER_OF_TWO_ALIGNMENT */
 
 #ifdef CONFIG_64BIT
 #define RV_REGSIZE 8
@@ -153,11 +148,9 @@
 #define MSTATUS_IEN     (1UL << 3)
 #define MSTATUS_MPP_M   (3UL << 11)
 #define MSTATUS_MPIE_EN (1UL << 7)
+#define MSTATUS_FS_INIT (1UL << 13)
+#define MSTATUS_FS_MASK ((1UL << 13) | (1UL << 14))
 
-#define MSTATUS_FS_OFF   (0UL << 13)
-#define MSTATUS_FS_INIT  (1UL << 13)
-#define MSTATUS_FS_CLEAN (2UL << 13)
-#define MSTATUS_FS_DIRTY (3UL << 13)
 
 /* This comes from openisa_rv32m1, but doesn't seem to hurt on other
  * platforms:
@@ -174,10 +167,6 @@
 
 #ifdef __cplusplus
 extern "C" {
-#endif
-
-#ifdef CONFIG_IRQ_VECTOR_TABLE_JUMP_BY_CODE
-#define ARCH_IRQ_VECTOR_JUMP_CODE(v) "j " STRINGIFY(v)
 #endif
 
 /* Kernel macros for memory attribution
@@ -218,7 +207,31 @@ struct arch_mem_domain {
 	unsigned int pmp_update_nr;
 };
 
-extern void z_irq_spurious(const void *unused);
+void arch_irq_enable(unsigned int irq);
+void arch_irq_disable(unsigned int irq);
+int arch_irq_is_enabled(unsigned int irq);
+void arch_irq_priority_set(unsigned int irq, unsigned int prio);
+void z_irq_spurious(const void *unused);
+
+#if defined(CONFIG_RISCV_HAS_PLIC)
+#define ARCH_IRQ_CONNECT(irq_p, priority_p, isr_p, isr_param_p, flags_p) \
+{ \
+	Z_ISR_DECLARE(irq_p, 0, isr_p, isr_param_p); \
+	arch_irq_priority_set(irq_p, priority_p); \
+}
+#elif defined(CONFIG_NUCLEI_ECLIC)
+void nuclei_eclic_irq_priority_set(unsigned int irq, unsigned int prio, unsigned int flags);
+#define ARCH_IRQ_CONNECT(irq_p, priority_p, isr_p, isr_param_p, flags_p) \
+{ \
+	Z_ISR_DECLARE(irq_p, 0, isr_p, isr_param_p); \
+	nuclei_eclic_irq_priority_set(irq_p, priority_p, flags_p); \
+}
+#else
+#define ARCH_IRQ_CONNECT(irq_p, priority_p, isr_p, isr_param_p, flags_p) \
+{ \
+	Z_ISR_DECLARE(irq_p, 0, isr_p, isr_param_p); \
+}
+#endif
 
 /*
  * use atomic instruction csrrc to lock global irq
@@ -226,9 +239,6 @@ extern void z_irq_spurious(const void *unused);
  */
 static ALWAYS_INLINE unsigned int arch_irq_lock(void)
 {
-#ifdef CONFIG_RISCV_SOC_HAS_CUSTOM_IRQ_LOCK_OPS
-	return z_soc_irq_lock();
-#else
 	unsigned int key;
 
 	__asm__ volatile ("csrrc %0, mstatus, %1"
@@ -237,7 +247,6 @@ static ALWAYS_INLINE unsigned int arch_irq_lock(void)
 			  : "memory");
 
 	return key;
-#endif
 }
 
 /*
@@ -246,23 +255,15 @@ static ALWAYS_INLINE unsigned int arch_irq_lock(void)
  */
 static ALWAYS_INLINE void arch_irq_unlock(unsigned int key)
 {
-#ifdef CONFIG_RISCV_SOC_HAS_CUSTOM_IRQ_LOCK_OPS
-	z_soc_irq_unlock(key);
-#else
 	__asm__ volatile ("csrs mstatus, %0"
 			  :
 			  : "r" (key & MSTATUS_IEN)
 			  : "memory");
-#endif
 }
 
 static ALWAYS_INLINE bool arch_irq_unlocked(unsigned int key)
 {
-#ifdef CONFIG_RISCV_SOC_HAS_CUSTOM_IRQ_LOCK_OPS
-	return z_soc_irq_unlocked(key);
-#else
 	return (key & MSTATUS_IEN) != 0;
-#endif
 }
 
 static ALWAYS_INLINE void arch_nop(void)

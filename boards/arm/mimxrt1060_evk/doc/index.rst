@@ -15,7 +15,8 @@ ideal for real-time applications such as High-Speed GPIO, CAN-FD, and
 synchronous parallel NAND/NOR/PSRAM controller. The i.MX RT1060 runs on the
 Arm® Cortex-M7® core up to 600 MHz.
 
-.. image:: mimxrt1060_evk.jpg
+.. image:: ./mimxrt1060_evk.jpg
+   :width: 720px
    :align: center
    :alt: MIMXRT1060-EVK
 
@@ -83,12 +84,8 @@ these references:
 Supported Features
 ==================
 
-The mimxrt1060_evk board configuration supports the hardware features listed
-below.  For additional features not yet supported, please also refer to the
-:ref:`mimxrt1064_evk` , which is the superset board in NXP's i.MX RT10xx family.
-NXP prioritizes enabling the superset board with NXP's Full Platform Support for
-Zephyr.  Therefore, the mimxrt1064_evk board may have additional features
-already supported, which can also be re-used on this mimxrt1060_evk board:
+The mimxrt1060_evk board configuration supports the following hardware
+features:
 
 +-----------+------------+-------------------------------------+
 | Interface | Controller | Driver/Component                    |
@@ -127,10 +124,6 @@ already supported, which can also be re-used on this mimxrt1060_evk board:
 | SAI       | on-chip    | i2s                                 |
 +-----------+------------+-------------------------------------+
 | GPT       | on-chip    | gpt                                 |
-+-----------+------------+-------------------------------------+
-| TRNG      | on-chip    | entropy                             |
-+-----------+------------+-------------------------------------+
-| FLEXSPI   | on-chip    | flash programming                   |
 +-----------+------------+-------------------------------------+
 
 The default configuration can be found in the defconfig file:
@@ -284,14 +277,8 @@ The MIMXRT1060 SoC has five pairs of pinmux/gpio controllers.
 System Clock
 ============
 
-The MIMXRT1060 SoC is configured to use SysTick as the system clock source,
-running at 600MHz.
-
-When power management is enabled, the 32 KHz low frequency
-oscillator on the board will be used as a source for the GPT timer to
-generate a system clock. This clock enables lower power states, at the
-cost of reduced resolution
-
+The MIMXRT1060 SoC is configured to use the 32 KHz low frequency oscillator on
+the board as a source for the GPT timer to generate a system clock.
 
 Serial Port
 ===========
@@ -325,8 +312,8 @@ path.
 
 There are two options: the onboard debug circuit can be updated with Segger
 J-Link firmware, or :ref:`jlink-external-debug-probe` can be attached to the
-EVK. See `Using J-Link with MIMXRT1060-EVK or MIMXRT1064-EVK`_ or
-`Using J-Link with MIMXRT1060-EVKB`_ for more details.
+EVK. See `Using J-Link with MIMXRT1060-EVK or MIMXRT1064-EVK`_ for more
+details.
 
 Configuring a Console
 =====================
@@ -345,12 +332,6 @@ etc.):
 - Data: 8 bits
 - Parity: None
 - Stop bits: 1
-
-Using SWO
----------
-SWO can be used as a logging backend, by setting ``CONFIG_LOG_BACKEND_SWO=y``.
-Your SWO viewer should be configured with a CPU frequency of 132MHz, and
-SWO frequency of 7500KHz.
 
 Flashing
 ========
@@ -424,13 +405,13 @@ runners.jlink, confirm the J-Link debug probe is configured, powered, and
 connected to the EVK properly. See :ref:`Using J-Link RT1060` for more details.
 
 .. _MIMXRT1060-EVK Website:
-   https://www.nxp.com/design/development-boards/i-mx-evaluation-and-development-boards/i-mx-rt1060-evaluation-kit:MIMXRT1060-EVKB
+   https://www.nxp.com/support/developer-resources/software-development-tools/mcuxpresso-software-and-tools/mimxrt1060-evk-i.mx-rt1060-evaluation-kit:MIMXRT1060-EVK
 
 .. _MIMXRT1060-EVK User Guide:
-   https://www.nxp.com/webapp/Download?colCode=MIMXRT10601064EKBHUG
+   https://www.nxp.com/docs/en/data-sheet/MIMXRT10601064EKBHUG.pdf
 
 .. _MIMXRT1060-EVK Schematics:
-   https://www.nxp.com/webapp/Download?colCode=MIMXRT1060-EVK-DESIGNFILE-A3
+   https://www.nxp.com/webapp/Download?colCode=MIMXRT1060-EVK-DESIGN-FILE-A2
 
 .. _i.MX RT1060 Website:
    https://www.nxp.com/products/processors-and-microcontrollers/arm-based-processors-and-mcus/i.mx-applications-processors/i.mx-rt-series/i.mx-rt1060-crossover-processor-with-arm-cortex-m7-core:i.MX-RT1060
@@ -443,6 +424,3 @@ connected to the EVK properly. See :ref:`Using J-Link RT1060` for more details.
 
 .. _Using J-Link with MIMXRT1060-EVK or MIMXRT1064-EVK:
    https://community.nxp.com/t5/i-MX-RT-Knowledge-Base/Using-J-Link-with-MIMXRT1060-EVK-or-MIMXRT1064-EVK/ta-p/1281149
-
-.. _Using J-Link with MIMXRT1060-EVKB:
-   https://community.nxp.com/t5/i-MX-RT-Knowledge-Base/Using-J-Link-with-MIMXRT1060-EVKB/ta-p/1452717

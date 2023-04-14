@@ -18,7 +18,6 @@ acer	Acer Inc.
 acme	Acme Systems srl
 actions	Actions Semiconductor Co., Ltd.
 active-semi	Active-Semi International Inc
-actinius	Actinius B.V.
 ad	Avionic Design GmbH
 adafruit	Adafruit Industries, LLC
 adapteva	Adapteva, Inc.
@@ -90,7 +89,6 @@ beacon	Compass Electronics Group, LLC
 beagle	BeagleBoard.org Foundation
 bhf	Beckhoff Automation GmbH & Co. KG
 bitmain	Bitmain Technologies
-blues	Blues Wireless
 blutek	BluTek Power
 boe	BOE Technology Group Co., Ltd.
 bosch	Bosch Sensortec GmbH
@@ -262,7 +260,6 @@ hycon	Hycon Technology Corp.
 hydis	Hydis Technologies
 hynitron	Hynitron
 hyundai	Hyundai Technology
-hzgrow	Hangzhou Grow Technology Co., Ltd.
 i2se	I2SE GmbH
 ibm	International Business Machines (IBM)
 icplus	IC Plus Corp.
@@ -311,7 +308,6 @@ kobol	Kobol Innovations Pte. Ltd.
 koe	Kaohsiung Opto-Electronics Inc.
 kontron	Kontron S&T AG
 kosagi	Sutajio Ko-Usagi PTE Ltd.
-kvaser	Kvaser
 kvg	Kverneland Group
 kyo	Kyocera Corporation
 lacie	LaCie
@@ -342,7 +338,6 @@ logictechno	Logic Technologies Limited
 longcheer	Longcheer Technology (Shanghai) Co., Ltd.
 lontium	Lontium Semiconductor Corporation
 loongson	Loongson Technology Corporation Limited
-lowrisc	lowRISC Community Interest Company
 lsi	LSI Corp. (LSI Logic)
 lwn	Liebherr-Werk Nenzing GmbH
 lxa	Linux Automation GmbH
@@ -568,7 +563,6 @@ solidrun	SolidRun
 solomon	Solomon Systech Limited
 sony	Sony Corporation
 spansion	Spansion Inc.
-sparkfun	SparkFun Electronics
 sprd	Spreadtrum Communications Inc.
 sst	Silicon Storage Technology, Inc.
 sstar	Xiamen Xingchen(SigmaStar) Technology Co., Ltd. (formerly part of MStar Semiconductor, Inc.)
@@ -627,7 +621,6 @@ ucrobotics	uCRobotics
 ubnt	Ubiquiti Networks
 udoo	Udoo
 ugoos	Ugoos Industrial Co., Ltd.
-ultrachip	UltraChip Inc.
 uniwest	United Western Technologies Corp (UniWest)
 upisemi	uPI Semiconductor Corp.
 urt	United Radiant Technology Corporation
@@ -671,7 +664,6 @@ wobo	Wobo
 wolfson	Cirrus Logic, Inc. (formerly Wolfson Microelectronics plc)
 worldsemi	Worldsemi Co., Limited
 x-powers	X-Powers
-xen	Xen Hypervisor
 xes	Extreme Engineering Solutions (X-ES)
 xiaomi	Xiaomi Technology Co., Ltd.
 xillybus	Xillybus Ltd.

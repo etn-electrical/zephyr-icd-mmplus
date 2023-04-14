@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <zephyr/pm/pm.h>
 #include <em_emu.h>
 

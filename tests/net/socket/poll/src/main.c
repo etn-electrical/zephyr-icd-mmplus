@@ -8,7 +8,7 @@
 LOG_MODULE_REGISTER(net_test, CONFIG_NET_SOCKETS_LOG_LEVEL);
 
 #include <stdio.h>
-#include <zephyr/ztest_assert.h>
+#include <ztest_assert.h>
 
 #include <zephyr/net/socket.h>
 #include <zephyr/sys/fdtable.h>
@@ -20,8 +20,6 @@ LOG_MODULE_REGISTER(net_test, CONFIG_NET_SOCKETS_LOG_LEVEL);
 
 #define TEST_STR_SMALL "test"
 
-#define MY_IPV6_ADDR "::1"
-
 #define ANY_PORT 0
 #define SERVER_PORT 4242
 #define CLIENT_PORT 9898
@@ -29,7 +27,7 @@ LOG_MODULE_REGISTER(net_test, CONFIG_NET_SOCKETS_LOG_LEVEL);
 /* On QEMU, poll() which waits takes +10ms from the requested time. */
 #define FUZZ 10
 
-ZTEST(net_socket_poll, test_poll)
+void test_poll(void)
 {
 	int res;
 	int c_sock;
@@ -44,10 +42,14 @@ ZTEST(net_socket_poll, test_poll)
 	ssize_t len;
 	char buf[10];
 
-	prepare_sock_udp_v6(MY_IPV6_ADDR, CLIENT_PORT, &c_sock, &c_addr);
-	prepare_sock_udp_v6(MY_IPV6_ADDR, SERVER_PORT, &s_sock, &s_addr);
-	prepare_sock_tcp_v6(MY_IPV6_ADDR, CLIENT_PORT, &c_sock_tcp, &c_addr);
-	prepare_sock_tcp_v6(MY_IPV6_ADDR, SERVER_PORT, &s_sock_tcp, &s_addr);
+	prepare_sock_udp_v6(CONFIG_NET_CONFIG_MY_IPV6_ADDR, CLIENT_PORT,
+			    &c_sock, &c_addr);
+	prepare_sock_udp_v6(CONFIG_NET_CONFIG_MY_IPV6_ADDR, SERVER_PORT,
+			    &s_sock, &s_addr);
+	prepare_sock_tcp_v6(CONFIG_NET_CONFIG_MY_IPV6_ADDR, CLIENT_PORT,
+			    &c_sock_tcp, &c_addr);
+	prepare_sock_tcp_v6(CONFIG_NET_CONFIG_MY_IPV6_ADDR, SERVER_PORT,
+			    &s_sock_tcp, &s_addr);
 
 	res = bind(s_sock, (struct sockaddr *)&s_addr, sizeof(s_addr));
 	zassert_equal(res, 0, "bind failed");
@@ -175,7 +177,7 @@ ZTEST(net_socket_poll, test_poll)
 
 #define TEST_SNDBUF_SIZE CONFIG_NET_TCP_MAX_RECV_WINDOW_SIZE
 
-ZTEST(net_socket_poll, test_pollout_tcp)
+static void test_pollout_tcp(void)
 {
 	int res;
 	int c_sock;
@@ -186,8 +188,10 @@ ZTEST(net_socket_poll, test_pollout_tcp)
 	struct pollfd pollout[1];
 	char buf[TEST_SNDBUF_SIZE] = { };
 
-	prepare_sock_tcp_v6(MY_IPV6_ADDR, CLIENT_PORT, &c_sock, &c_addr);
-	prepare_sock_tcp_v6(MY_IPV6_ADDR, SERVER_PORT, &s_sock, &s_addr);
+	prepare_sock_tcp_v6(CONFIG_NET_CONFIG_MY_IPV6_ADDR, CLIENT_PORT,
+			    &c_sock, &c_addr);
+	prepare_sock_tcp_v6(CONFIG_NET_CONFIG_MY_IPV6_ADDR, SERVER_PORT,
+			    &s_sock, &s_addr);
 
 	res = bind(s_sock, (struct sockaddr *)&s_addr, sizeof(s_addr));
 	zassert_equal(res, 0, "");
@@ -248,4 +252,11 @@ ZTEST(net_socket_poll, test_pollout_tcp)
 	zassert_equal(res, 0, "close failed");
 }
 
-ZTEST_SUITE(net_socket_poll, NULL, NULL, NULL, NULL, NULL);
+void test_main(void)
+{
+	ztest_test_suite(socket_poll,
+			 ztest_unit_test(test_poll),
+			 ztest_unit_test(test_pollout_tcp));
+
+	ztest_run_test_suite(socket_poll);
+}

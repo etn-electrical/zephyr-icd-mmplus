@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <zephyr/sys/printk.h>
 #include <zephyr/debug/coredump.h>
 
@@ -13,14 +13,9 @@ void func_3(uint32_t *addr)
 #if defined(CONFIG_BOARD_M2GL025_MIV) || \
 	defined(CONFIG_BOARD_HIFIVE1) || \
 	defined(CONFIG_BOARD_LONGAN_NANO) || \
-	defined(CONFIG_BOARD_LONGAN_NANO_LITE) || \
-	defined(CONFIG_SOC_FAMILY_INTEL_ADSP)
+	defined(CONFIG_BOARD_LONGAN_NANO_LITE)
 	ARG_UNUSED(addr);
-	/* Call k_panic() directly so Renode doesn't pause execution.
-	 * Needed on ADSP as well, since null pointer derefence doesn't
-	 * fault as the lowest memory region is writable. SOF uses k_panic
-	 * a lot, so it's good to check that it causes a coredump.
-	 */
+	/* Call k_panic() directly so Renode doesn't pause execution */
 	k_panic();
 #elif !defined(CONFIG_CPU_CORTEX_M)
 	/* For null pointer reference */

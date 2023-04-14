@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
+#include <ztest.h>
 #include <zephyr/arch/cpu.h>
 #include <zephyr/arch/arm/aarch32/cortex_m/cmsis.h>
 
@@ -17,7 +17,7 @@ void arm_zero_latency_isr_handler(const void *args)
 	test_flag = 1;
 }
 
-ZTEST(arm_irq_advanced_features, test_arm_zero_latency_irqs)
+void test_arm_zero_latency_irqs(void)
 {
 
 	if (!IS_ENABLED(CONFIG_ZERO_LATENCY_IRQS)) {

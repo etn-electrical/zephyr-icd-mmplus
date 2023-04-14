@@ -16,7 +16,7 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(ws2812_spi);
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/spi.h>
 #include <zephyr/sys/math_extras.h>
@@ -33,9 +33,7 @@ LOG_MODULE_REGISTER(ws2812_spi);
  * - no shenanigans (don't hold CS, don't hold the device lock, this
  *   isn't an EEPROM)
  */
-#define SPI_OPER(idx) (SPI_OP_MODE_MASTER | SPI_TRANSFER_MSB | \
-		  COND_CODE_1(DT_INST_PROP(idx, spi_cpol), (SPI_MODE_CPOL), (0)) | \
-		  COND_CODE_1(DT_INST_PROP(idx, spi_cpha), (SPI_MODE_CPHA), (0)) | \
+#define SPI_OPER (SPI_OP_MODE_MASTER | SPI_TRANSFER_MSB | \
 		  SPI_WORD_SET(SPI_FRAME_BITS))
 
 struct ws2812_spi_cfg {
@@ -167,7 +165,7 @@ static int ws2812_spi_init(const struct device *dev)
 	const struct ws2812_spi_cfg *cfg = dev_cfg(dev);
 	uint8_t i;
 
-	if (!spi_is_ready_dt(&cfg->bus)) {
+	if (!spi_is_ready(&cfg->bus)) {
 		LOG_ERR("SPI device %s not ready", cfg->bus.bus->name);
 		return -ENODEV;
 	}
@@ -226,7 +224,7 @@ static const struct led_strip_driver_api ws2812_spi_api = {
 	WS2812_COLOR_MAPPING(idx);					 \
 									 \
 	static const struct ws2812_spi_cfg ws2812_spi_##idx##_cfg = {	 \
-		.bus = SPI_DT_SPEC_INST_GET(idx, SPI_OPER(idx), 0),	 \
+		.bus = SPI_DT_SPEC_INST_GET(idx, SPI_OPER, 0),		 \
 		.px_buf = ws2812_spi_##idx##_px_buf,			 \
 		.px_buf_size = WS2812_SPI_BUFSZ(idx),			 \
 		.one_frame = WS2812_SPI_ONE_FRAME(idx),			 \

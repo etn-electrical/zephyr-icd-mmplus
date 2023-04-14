@@ -11,11 +11,12 @@
 #include <stdio.h>
 #include <pmp.h>
 
-#ifdef CONFIG_USERSPACE
+#if defined(CONFIG_USERSPACE) && !defined(CONFIG_SMP)
 /*
- * Per-thread (TLS) variable indicating whether execution is in user mode.
+ * Glogal variable used to know the current mode running.
+ * Is not boolean because it must match the PMP granularity of the arch.
  */
-__thread uint8_t is_user_mode;
+uint32_t is_user_mode;
 #endif
 
 void arch_new_thread(struct k_thread *thread, k_thread_stack_t *stack,
@@ -35,10 +36,14 @@ void arch_new_thread(struct k_thread *thread, k_thread_stack_t *stack,
 				);
 
 	/* Setup the initial stack frame */
-	stack_init->a0 = (unsigned long)entry;
-	stack_init->a1 = (unsigned long)p1;
-	stack_init->a2 = (unsigned long)p2;
-	stack_init->a3 = (unsigned long)p3;
+	stack_init->a0 = (ulong_t)entry;
+	stack_init->a1 = (ulong_t)p1;
+	stack_init->a2 = (ulong_t)p2;
+	stack_init->a3 = (ulong_t)p3;
+
+#ifdef CONFIG_THREAD_LOCAL_STORAGE
+	thread->callee_saved.tp = (ulong_t)thread->tls;
+#endif
 
 	/*
 	 * Following the RISC-V architecture,
@@ -65,9 +70,12 @@ void arch_new_thread(struct k_thread *thread, k_thread_stack_t *stack,
 	 */
 	stack_init->mstatus = MSTATUS_DEF_RESTORE;
 
-#if defined(CONFIG_FPU_SHARING)
-	/* thread birth happens through the exception return path */
-	thread->arch.exception_depth = 1;
+#if defined(CONFIG_FPU) && defined(CONFIG_FPU_SHARING)
+	/* Shared FP mode: enable FPU of threads with K_FP_REGS. */
+	if ((thread->base.user_options & K_FP_REGS) != 0) {
+		stack_init->mstatus |= MSTATUS_FS_INIT;
+	}
+	thread->callee_saved.fcsr = 0;
 #elif defined(CONFIG_FPU)
 	/* Unshared FP mode: enable FPU of each thread. */
 	stack_init->mstatus |= MSTATUS_FS_INIT;
@@ -77,17 +85,25 @@ void arch_new_thread(struct k_thread *thread, k_thread_stack_t *stack,
 	/* Clear user thread context */
 	z_riscv_pmp_usermode_init(thread);
 	thread->arch.priv_stack_start = 0;
+
+	/* the unwound stack pointer upon exiting exception */
+	stack_init->sp = (ulong_t)(stack_init + 1);
 #endif /* CONFIG_USERSPACE */
+
+#if defined(CONFIG_THREAD_LOCAL_STORAGE)
+	stack_init->tp = thread->tls;
+	thread->callee_saved.tp = thread->tls;
+#endif
 
 	/* Assign thread entry point and mstatus.MPRV mode. */
 	if (IS_ENABLED(CONFIG_USERSPACE)
 	    && (thread->base.user_options & K_USER)) {
 		/* User thread */
-		stack_init->mepc = (unsigned long)k_thread_user_mode_enter;
+		stack_init->mepc = (ulong_t)k_thread_user_mode_enter;
 
 	} else {
 		/* Supervisor thread */
-		stack_init->mepc = (unsigned long)z_thread_entry;
+		stack_init->mepc = (ulong_t)z_thread_entry;
 
 #if defined(CONFIG_PMP_STACK_GUARD)
 		/* Enable PMP in mstatus.MPRV mode for RISC-V machine mode
@@ -106,14 +122,80 @@ void arch_new_thread(struct k_thread *thread, k_thread_stack_t *stack,
 	stack_init->soc_context = soc_esf_init;
 #endif
 
-	thread->callee_saved.sp = (unsigned long)stack_init;
+	thread->callee_saved.sp = (ulong_t)stack_init;
 
 	/* where to go when returning from z_riscv_switch() */
-	thread->callee_saved.ra = (unsigned long)z_riscv_thread_start;
+	thread->callee_saved.ra = (ulong_t)z_riscv_thread_start;
 
 	/* our switch handle is the thread pointer itself */
 	thread->switch_handle = thread;
 }
+
+#if defined(CONFIG_FPU) && defined(CONFIG_FPU_SHARING)
+int arch_float_disable(struct k_thread *thread)
+{
+	unsigned int key;
+
+	if (thread != _current) {
+		return -EINVAL;
+	}
+
+	if (arch_is_in_isr()) {
+		return -EINVAL;
+	}
+
+	/* Ensure a preemptive context switch does not occur */
+	key = irq_lock();
+
+	/* Disable all floating point capabilities for the thread */
+	thread->base.user_options &= ~K_FP_REGS;
+
+	/* Clear the FS bits to disable the FPU. */
+	__asm__ volatile (
+		"mv t0, %0\n"
+		"csrrc x0, mstatus, t0\n"
+		:
+		: "r" (MSTATUS_FS_MASK)
+		);
+
+	irq_unlock(key);
+
+	return 0;
+}
+
+
+int arch_float_enable(struct k_thread *thread, unsigned int options)
+{
+	unsigned int key;
+
+	if (thread != _current) {
+		return -EINVAL;
+	}
+
+	if (arch_is_in_isr()) {
+		return -EINVAL;
+	}
+
+	/* Ensure a preemptive context switch does not occur */
+	key = irq_lock();
+
+	/* Enable all floating point capabilities for the thread. */
+	thread->base.user_options |= K_FP_REGS;
+
+	/* Set the FS bits to Initial and clear the fcsr to enable the FPU. */
+	__asm__ volatile (
+		"mv t0, %0\n"
+		"csrrs x0, mstatus, t0\n"
+		"fscsr x0, x0\n"
+		:
+		: "r" (MSTATUS_FS_INIT)
+		);
+
+	irq_unlock(key);
+
+	return 0;
+}
+#endif /* CONFIG_FPU && CONFIG_FPU_SHARING */
 
 #ifdef CONFIG_USERSPACE
 
@@ -127,18 +209,18 @@ void arch_new_thread(struct k_thread *thread, k_thread_stack_t *stack,
 FUNC_NORETURN void arch_user_mode_enter(k_thread_entry_t user_entry,
 					void *p1, void *p2, void *p3)
 {
-	unsigned long top_of_user_stack, top_of_priv_stack;
-	unsigned long status;
+	ulong_t top_of_user_stack, top_of_priv_stack;
+	ulong_t status;
 
 	/* Set up privileged stack */
 #ifdef CONFIG_GEN_PRIV_STACKS
 	_current->arch.priv_stack_start =
-			(unsigned long)z_priv_stack_find(_current->stack_obj);
+			(ulong_t)z_priv_stack_find(_current->stack_obj);
 	/* remove the stack guard from the main stack */
 	_current->stack_info.start -= K_THREAD_STACK_RESERVED;
 	_current->stack_info.size += K_THREAD_STACK_RESERVED;
 #else
-	_current->arch.priv_stack_start = (unsigned long)_current->stack_obj;
+	_current->arch.priv_stack_start = (ulong_t)_current->stack_obj;
 #endif /* CONFIG_GEN_PRIV_STACKS */
 	top_of_priv_stack = Z_STACK_PTR_ALIGN(_current->arch.priv_stack_start +
 					      K_KERNEL_STACK_RESERVED +
@@ -170,10 +252,12 @@ FUNC_NORETURN void arch_user_mode_enter(k_thread_entry_t user_entry,
 	z_riscv_pmp_usermode_prepare(_current);
 	z_riscv_pmp_usermode_enable(_current);
 
-	/* preserve stack pointer for next exception entry */
-	arch_curr_cpu()->arch.user_exc_sp = top_of_priv_stack;
+	/* exception stack has to be in mscratch */
+	csr_write(mscratch, top_of_priv_stack);
 
+#if !defined(CONFIG_SMP)
 	is_user_mode = true;
+#endif
 
 	register void *a0 __asm__("a0") = user_entry;
 	register void *a1 __asm__("a1") = p1;

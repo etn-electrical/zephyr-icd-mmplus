@@ -14,7 +14,6 @@
 #include <fsl_dma.h>
 #include <fsl_inputmux.h>
 #include <zephyr/logging/log.h>
-#include <zephyr/irq.h>
 
 #define DT_DRV_COMPAT nxp_lpc_dma
 

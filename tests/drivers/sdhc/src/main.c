@@ -4,30 +4,31 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <zephyr/drivers/sdhc.h>
 #include <zephyr/device.h>
-#include <zephyr/ztest.h>
+#include <ztest.h>
 
-static const struct device *const sdhc_dev = DEVICE_DT_GET(DT_ALIAS(sdhc0));
+static const struct device *sdhc_dev;
 static struct sdhc_host_props props;
 static struct sdhc_io io;
 
 #define SDHC_FREQUENCY_SLIP 10000000
 
 /* Resets SD host controller, verifies API */
-ZTEST(sdhc, test_reset)
+static void test_reset(void)
 {
+	sdhc_dev = device_get_binding(CONFIG_SDHC_LABEL);
 	int ret;
 
-	zassert_true(device_is_ready(sdhc_dev), "SDHC device is not ready");
+	zassert_not_null(sdhc_dev, "Could not get SDHC device");
 
 	ret = sdhc_hw_reset(sdhc_dev);
 	zassert_equal(ret, 0, "SDHC HW reset failed");
 }
 
 /* Gets host properties, verifies all properties are set */
-ZTEST(sdhc, test_host_props)
+static void test_host_props(void)
 {
 	int ret;
 
@@ -50,7 +51,7 @@ ZTEST(sdhc, test_host_props)
 }
 
 /* Verify that driver rejects frequencies outside of claimed range */
-ZTEST(sdhc, test_set_io)
+static void test_set_io(void)
 {
 	int ret;
 
@@ -75,7 +76,7 @@ ZTEST(sdhc, test_set_io)
 
 
 /* Verify that the driver can detect a present SD card */
-ZTEST(sdhc, test_card_presence)
+static void test_card_presence(void)
 {
 	int ret;
 
@@ -92,7 +93,7 @@ ZTEST(sdhc, test_card_presence)
  * condition. This follows the first part of the SD initialization defined in
  * the SD specification.
  */
-ZTEST(sdhc, test_card_if_cond)
+static void test_card_if_cond(void)
 {
 	struct sdhc_command cmd;
 	int ret, resp;
@@ -144,4 +145,16 @@ ZTEST(sdhc, test_card_if_cond)
 	}
 }
 
-ZTEST_SUITE(sdhc, NULL, NULL, NULL, NULL, NULL);
+
+void test_main(void)
+{
+	ztest_test_suite(sdhc_api_test,
+		ztest_unit_test(test_reset),
+		ztest_unit_test(test_host_props),
+		ztest_unit_test(test_set_io),
+		ztest_unit_test(test_card_presence),
+		ztest_unit_test(test_card_if_cond)
+	);
+
+	ztest_run_test_suite(sdhc_api_test);
+}

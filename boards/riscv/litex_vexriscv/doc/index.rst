@@ -16,11 +16,11 @@ vendor-specific and open-source tools, including the
 
 The ``litex_vexriscv`` board configuration in Zephyr is meant for the
 LiteX VexRiscv SoC implementation generated for the
-`Digilent Arty A7-35T or A7-100T Development Boards
-<https://store.digilentinc.com/arty-a7-artix-7-fpga-development-board-for-makers-and-hobbyists>`_
-or `SDI-MIPI Video Converter <https://github.com/antmicro/sdi-mipi-video-converter>`_.
+`Digilent Arty A7-35T Development Board
+<https://store.digilentinc.com/arty-a7-artix-7-fpga-development-board-for-makers-and-hobbyists>`_.
 
 .. image:: img/litex_vexriscv.jpg
+   :width: 650px
    :align: center
    :alt: LiteX VexRiscv on Digilent Arty 35T Board
 
@@ -43,8 +43,11 @@ The implementation is optimized for FPGA chips.
 More information about the project can be found on
 `VexRiscv's website <https://github.com/SpinalHDL/VexRiscv>`_.
 
+LiteX VexRiscv
+##############
+
 To run the ZephyrOS on the VexRiscv CPU, it is necessary to prepare the
-bitstream for the FPGA on a Digilent Arty A7-35 Board or SDI-MIPI Video Converter. This can be achieved
+bitstream for the FPGA on a Digilent Arty A7-35 Board. This can be achieved
 using the
 `Zephyr on LiteX VexRiscv <https://github.com/litex-hub/zephyr-on-litex-vexriscv>`_
 reference platform. You can also use the official LiteX SoC Builder.
@@ -56,7 +59,7 @@ Zephyr on LiteX VexRiscv
 ========================
 Using this platform ensures that all registers addresses are in the proper place.
 All drivers were tested using this platform.
-In order to generate the bitstream,
+In order to generate the bitstream for the Digilent Arty A7-35 Board,
 proceed with the following instruction:
 
 1. Clone the repository and update all submodules:
@@ -67,12 +70,8 @@ proceed with the following instruction:
       cd zephyr-on-litex-vexriscv
       git submodule update --init --recursive
 
-   Generating the bitstream for the Digilent Arty A7-35 Board requires F4PGA toolchain installation. It can be done by following instructions in
+   First, you have to install the F4PGA toolchain. It can be done by following instructions in
    `this tutorial <https://f4pga-examples.readthedocs.io/en/latest/getting.html>`_.
-
-   In order to generate the bitstream for the SDI-MIPI Video Converter, install
-   oxide (yosys+nextpnr) toolchain by following
-   `these instructions <https://github.com/gatecat/prjoxide#getting-started---complete-flow>`_.
 
 #. Next, get all required packages and run the install script:
 
@@ -81,39 +80,18 @@ proceed with the following instruction:
       apt-get install build-essential bzip2 python3 python3-dev python3-pip
       ./install.sh
 
-#. Add LiteX to path:
+#. Generate the bitstream:
 
    .. code-block:: bash
 
       source ./init
-
-#. Set up the F4PGA environment (for the Digilent Arty A7-35 Board):
-
-   .. code-block:: bash
-
-      export F4PGA_INSTALL_DIR=~/opt/f4pga
-      export FPGA_FAM="xc7"
-      export PATH="$F4PGA_INSTALL_DIR/$FPGA_FAM/install/bin:$PATH";
-      source "$F4PGA_INSTALL_DIR/$FPGA_FAM/conda/etc/profile.d/conda.sh"
+      export INSTALL_DIR="path/to/f4pga"
+      FPGA_FAM="xc7"
+      export PATH="$INSTALL_DIR/$FPGA_FAM/install/bin:$PATH";
+      source "$INSTALL_DIR/$FPGA_FAM/conda/etc/profile.d/conda.sh"
       conda activate $FPGA_FAM
+      ./make.py --board=arty --build --toolchain=symbiflow
 
-#. Generate the bitstream for the Arty 35T:
-
-   .. code-block:: bash
-
-      ./make.py --board=arty --variant=a7-35 --build --toolchain=symbiflow
-
-#. Generate the bitstream for the Arty 100T:
-
-   .. code-block:: bash
-
-      ./make.py --board=arty --variant=a7-100 --build --toolchain=symbiflow
-
-#. Generate the bitstream for the SDI-MIPI Video Converter:
-
-   .. code-block:: bash
-
-      ./make.py --board=sdi_mipi_bridge --build --toolchain=oxide
 
 Official LiteX SoC builder
 ==========================
@@ -167,22 +145,11 @@ If you were generating bitstream with the official LiteX SoC builder you need to
 Booting
 =======
 
-To upload the bitstream to Digilent Arty A7-35 you can use `xc3sprog <https://github.com/matrix-io/xc3sprog>`_ or
-`openFPGALoader <https://github.com/trabucayre/openFPGALoader>`_:
+To upload bitstream you can use `xc3sprog <https://github.com/matrix-io/xc3sprog>`_:
 
 .. code-block:: bash
 
    xc3sprog -c nexys4 digilent_arty.bit
-
-.. code-block:: bash
-
-   openFPGALoader -b arty_a7_100t digilent_arty.bit
-
-Use `ecpprog <https://github.com/gregdavill/ecpprog>`_ to upload the bitstream to SDI-MIPI Video Converter:
-
-.. code-block:: bash
-
-   ecpprog -S antmicro_sdi_mipi_video_converter.bit
 
 You can boot from a serial port using litex_term (replace `ttyUSBX` with your device) , e.g.:
 

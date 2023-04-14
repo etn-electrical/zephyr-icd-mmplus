@@ -12,7 +12,7 @@
 #include <zephyr/init.h>
 #include <soc.h>
 #include <string.h>
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 
 #define PRBS_STATUS     DT_INST_REG_ADDR(0)
 #define PRBS_WIDTH      DT_INST_REG_SIZE(0)

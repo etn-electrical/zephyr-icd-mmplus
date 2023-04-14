@@ -44,11 +44,11 @@
 #include <tinycrypt/cmac_mode.h>
 #include <tinycrypt/constants.h>
 #include <tinycrypt/aes.h>
-#include <zephyr/test_utils.h>
+#include <test_utils.h>
 
 #include <stdio.h>
 #include <string.h>
-#include <zephyr/ztest.h>
+#include <ztest.h>
 
 #define BUF_LEN 16
 
@@ -251,7 +251,7 @@ static uint32_t verify_cmac_512_bit_msg(TCCmacState_t s)
  * Main task to test CMAC
  */
 
-ZTEST(tinycrypt, test_cmac_mode)
+void test_cmac_mode(void)
 {
 
 	uint32_t result = TC_PASS;

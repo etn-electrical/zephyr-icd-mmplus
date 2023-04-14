@@ -9,9 +9,9 @@
  * x86-specific tests for MMU features and page tables
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/ztest.h>
-#include <zephyr/tc_util.h>
+#include <zephyr/zephyr.h>
+#include <ztest.h>
+#include <tc_util.h>
 #include <zephyr/arch/x86/mmustructs.h>
 #include <x86_mmu.h>
 #include <zephyr/linker/linker-defs.h>
@@ -54,12 +54,6 @@ extern char __gcov_bss_start[];
 extern char __gcov_bss_size[];
 #endif
 
-#include <zephyr/sys/libc-hooks.h>
-#ifdef Z_LIBC_PARTITION_EXISTS
-extern char z_data_smem_z_libc_partition_part_start[];
-extern char z_data_smem_z_libc_partition_part_size[];
-#endif
-
 static pentry_t get_entry(pentry_t *flags, void *addr)
 {
 	int level;
@@ -80,7 +74,7 @@ static pentry_t get_entry(pentry_t *flags, void *addr)
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST(x86_pagetables, test_ram_perms)
+void test_ram_perms(void)
 {
 	uint8_t *pos;
 
@@ -111,11 +105,6 @@ ZTEST(x86_pagetables, test_ram_perms)
 		} else if (IN_REGION(__gcov_bss, pos)) {
 			expected = MMU_P | MMU_RW | MMU_US | MMU_XD;
 #endif
-#if defined(CONFIG_LINKER_USE_PINNED_SECTION) && \
-	!defined(CONFIG_LINKER_GENERIC_SECTIONS_PRESENT_AT_BOOT)
-		} else if (IN_REGION(_app_smem_pinned, pos)) {
-			expected = MMU_P | MMU_RW | MMU_US | MMU_XD;
-#endif
 #if !defined(CONFIG_X86_KPTI) && !defined(CONFIG_X86_COMMON_PAGE_TABLE) && \
 				  defined(CONFIG_USERSPACE)
 		} else if (IN_REGION(_app_smem, pos)) {
@@ -144,10 +133,6 @@ ZTEST(x86_pagetables, test_ram_perms)
 			expected = MMU_P | MMU_US;
 		} else if (IN_REGION(lnkr_pinned_rodata, pos)) {
 			expected = MMU_P | MMU_US | MMU_XD;
-#endif
-#ifdef Z_LIBC_PARTITION_EXISTS
-		} else if (IN_REGION(z_data_smem_z_libc_partition_part, pos)) {
-			expected = MMU_P | MMU_RW | MMU_XD;
 #endif
 		} else {
 			/* We forced CONFIG_HW_STACK_PROTECTION off otherwise
@@ -215,7 +200,7 @@ ZTEST(x86_pagetables, test_ram_perms)
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST(x86_pagetables, test_null_map)
+void test_null_map(void)
 {
 	int level;
 	pentry_t entry;
@@ -241,7 +226,14 @@ void z_vrfy_dump_my_ptables(void)
 #include <syscalls/dump_my_ptables_mrsh.c>
 #endif /* CONFIG_USERSPACE */
 
-void dump_pagetables(void)
+/**
+ * Dump kernel's page tables to console
+ *
+ * We don't verify any specific output, but this shouldn't crash
+ *
+ * @ingroup kernel_memprotect_tests
+ */
+void test_dump_ptables(void)
 {
 #if CONFIG_SRAM_SIZE > (32 << 10)
 	/*
@@ -254,21 +246,13 @@ void dump_pagetables(void)
 #endif
 }
 
-/**
- * Dump kernel's page tables to console
- *
- * We don't verify any specific output, but this shouldn't crash
- *
- * @ingroup kernel_memprotect_tests
- */
-ZTEST_USER(x86_pagetables, test_dump_ptables_user)
+void test_main(void)
 {
-	dump_pagetables();
+	ztest_test_suite(x86_pagetables,
+			 ztest_unit_test(test_ram_perms),
+			 ztest_unit_test(test_null_map),
+			 ztest_unit_test(test_dump_ptables),
+			 ztest_user_unit_test(test_dump_ptables)
+			 );
+	ztest_run_test_suite(x86_pagetables);
 }
-
-ZTEST(x86_pagetables, test_dump_ptables)
-{
-	dump_pagetables();
-}
-
-ZTEST_SUITE(x86_pagetables, NULL, NULL, NULL, NULL, NULL);

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
+#include <ztest.h>
 #include <zephyr/kernel.h>
 #include <cmsis_os2.h>
 
@@ -51,7 +51,7 @@ static void thread1(void *argument)
 
 	/* This thread starts off at a high priority (same as thread2) */
 	(*args->yield_check)++;
-	zassert_equal(*args->yield_check, 1);
+	zassert_equal(*args->yield_check, 1, NULL);
 
 	/* Yield to thread2 which is of same priority */
 	status = osThreadYield();
@@ -60,7 +60,7 @@ static void thread1(void *argument)
 	/* thread_yield_check should now be 2 as it was incremented
 	 * in thread2.
 	 */
-	zassert_equal(*args->yield_check, 2);
+	zassert_equal(*args->yield_check, 2, NULL);
 
 	osThreadExit();
 }
@@ -136,13 +136,13 @@ static void thread_apis_common(int *yield_check,
 	} while (*yield_check != 2);
 }
 
-ZTEST(cmsis_thread_apis, test_thread_apis_dynamic)
+void test_thread_apis_dynamic(void)
 {
 	thread_apis_common(&thread_yield_check_dynamic, "ZephyrThread",
 			   NULL, NULL);
 }
 
-ZTEST(cmsis_thread_apis, test_thread_apis)
+void test_thread_apis(void)
 {
 	thread_apis_common(&thread_yield_check, thread1_attr.name,
 			   &thread1_attr, &thread2_attr);
@@ -236,12 +236,12 @@ static void thread_prior_common(int *state, osThreadAttr_t *attr)
 	*state = 0;
 }
 
-ZTEST(cmsis_thread_apis, test_thread_prio_dynamic)
+void test_thread_prio_dynamic(void)
 {
 	thread_prior_common(&thread3_state_dynamic, NULL);
 }
 
-ZTEST(cmsis_thread_apis, test_thread_prio)
+void test_thread_prio(void)
 {
 	thread_prior_common(&thread3_state, &thread3_attr);
 }
@@ -267,7 +267,7 @@ static void thread4(void *argument)
 	printk(" + Thread A joining...\n");
 }
 
-ZTEST(cmsis_thread_apis, test_thread_join)
+void test_thread_join(void)
 {
 	osThreadAttr_t attr = { 0 };
 	int64_t time_stamp;
@@ -310,7 +310,7 @@ ZTEST(cmsis_thread_apis, test_thread_join)
 	}
 }
 
-ZTEST(cmsis_thread_apis, test_thread_detached)
+void test_thread_detached(void)
 {
 	osThreadId_t thread;
 	osStatus_t status;
@@ -337,7 +337,7 @@ void thread6(void *argument)
 		      "Incorrect status returned from osThreadJoin!");
 }
 
-ZTEST(cmsis_thread_apis, test_thread_joinable_detach)
+void test_thread_joinable_detach(void)
 {
 	osThreadAttr_t attr = { 0 };
 	osThreadId_t tA, tB;
@@ -359,7 +359,7 @@ ZTEST(cmsis_thread_apis, test_thread_joinable_detach)
 	osDelay(k_ms_to_ticks_ceil32(DELTA_MS));
 }
 
-ZTEST(cmsis_thread_apis, test_thread_joinable_terminate)
+void test_thread_joinable_terminate(void)
 {
 	osThreadAttr_t attr = { 0 };
 	osThreadId_t tA, tB;
@@ -380,4 +380,3 @@ ZTEST(cmsis_thread_apis, test_thread_joinable_terminate)
 
 	osDelay(k_ms_to_ticks_ceil32(DELTA_MS));
 }
-ZTEST_SUITE(cmsis_thread_apis, NULL, NULL, NULL, NULL, NULL);

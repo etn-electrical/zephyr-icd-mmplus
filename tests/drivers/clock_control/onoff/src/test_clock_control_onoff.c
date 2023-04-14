@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#include <zephyr/ztest.h>
+#include <ztest.h>
 #include <zephyr/drivers/clock_control.h>
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(test);
@@ -17,9 +17,8 @@ static struct onoff_manager *get_mgr(void)
 
 static bool clock_is_off(void)
 {
-	const struct device *const clk = DEVICE_DT_GET_ONE(nordic_nrf_clock);
-
-	zassert_true(device_is_ready(clk), "Device is not ready");
+	const struct device *clk =
+		device_get_binding(DT_LABEL(DT_INST(0, nordic_nrf_clock)));
 
 	return clock_control_get_status(clk, CLOCK_CONTROL_NRF_SUBSYS_HF) ==
 			CLOCK_CONTROL_STATUS_OFF;
@@ -35,7 +34,7 @@ static void clock_off(void)
 	} while (!clock_is_off());
 }
 
-ZTEST(clock_control_onoff, test_clock_blocking_on)
+void test_clock_blocking_on(void)
 {
 	struct onoff_client cli;
 	struct onoff_manager *mgr = get_mgr();
@@ -58,7 +57,7 @@ ZTEST(clock_control_onoff, test_clock_blocking_on)
 	zassert_true(err >= 0, "");
 }
 
-ZTEST(clock_control_onoff, test_clock_spinwait_release_before_start)
+void test_clock_spinwait_release_before_start(void)
 {
 	struct onoff_client cli;
 	struct onoff_manager *mgr = get_mgr();
@@ -93,7 +92,7 @@ static void request_cb(struct onoff_manager *mgr, struct onoff_client *cli,
  * it is started it is the best to do that release from the callback to avoid
  * waiting until clock is started in the release context.
  */
-ZTEST(clock_control_onoff, test_clock_release_from_callback)
+void test_clock_release_from_callback(void)
 {
 	struct onoff_client cli;
 	struct onoff_manager *mgr = get_mgr();
@@ -111,4 +110,14 @@ ZTEST(clock_control_onoff, test_clock_release_from_callback)
 	/* clock should be turned off in the started callback */
 	zassert_true(clock_is_off(), "clock should be off");
 }
-ZTEST_SUITE(clock_control_onoff, NULL, NULL, NULL, NULL, NULL);
+
+
+void test_main(void)
+{
+	ztest_test_suite(test_clock_control_onoff,
+		ztest_unit_test(test_clock_blocking_on),
+		ztest_unit_test(test_clock_spinwait_release_before_start),
+		ztest_unit_test(test_clock_release_from_callback)
+			 );
+	ztest_run_test_suite(test_clock_control_onoff);
+}

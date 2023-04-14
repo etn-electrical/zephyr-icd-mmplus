@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <zephyr/sys/printk.h>
 #include <zephyr/drivers/gpio.h>
 #include <soc.h>
@@ -15,7 +15,9 @@
 
 LOG_MODULE_REGISTER(main);
 
-const struct device *const kscan_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_keyboard_scan));
+#define KSCAN_NODE DT_ALIAS(kscan0)
+
+const struct device *kscan_dev = DEVICE_DT_GET(KSCAN_NODE);
 static struct k_timer typematic_timer;
 static struct k_timer block_matrix_timer;
 

@@ -13,7 +13,7 @@ The GD32F450IK features a single-core ARM Cortex-M4F MCU which can run up
 to 200 MHz with flash accesses zero wait states, 3072kiB of Flash, 256kiB of
 SRAM and 140 GPIOs.
 
-.. image:: img/gd32f450i_eval.jpg
+.. image:: img/gd32f450i_eval.png
      :align: center
      :alt: gd32f450i_eval
 
@@ -86,9 +86,6 @@ The board configuration supports the following hardware features:
    * - EEPROM
      - :kconfig:option:`CONFIG_EEPROM`
      - :dtcompatible:`atmel,at24`
-   * - ADC
-     - :kconfig:option:`CONFIG_ADC`
-     - :dtcompatible:`gd,gd32-adc`
 
 Serial Port
 ===========

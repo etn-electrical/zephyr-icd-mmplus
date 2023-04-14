@@ -685,9 +685,8 @@ int iis2iclx_shub_get_idx(const struct device *dev, enum sensor_channel type)
 	for (n = 0; n < data->num_ext_dev; n++) {
 		sp = &iis2iclx_shub_slist[data->shub_ext[n]];
 
-		if (sp->type == type) {
+		if (sp->type == type)
 			return n;
-		}
 	}
 
 	return -ENOTSUP;
@@ -730,9 +729,8 @@ int iis2iclx_shub_config(const struct device *dev, enum sensor_channel chan,
 	for (n = 0; n < data->num_ext_dev; n++) {
 		sp = &iis2iclx_shub_slist[data->shub_ext[n]];
 
-		if (sp->type == chan) {
+		if (sp->type == chan)
 			break;
-		}
 	}
 
 	if (n == data->num_ext_dev) {
@@ -757,9 +755,8 @@ int iis2iclx_shub_init(const struct device *dev)
 
 	LOG_INF("shub: start sensorhub for %s", dev->name);
 	for (n = 0; n < ARRAY_SIZE(iis2iclx_shub_slist); n++) {
-		if (data->num_ext_dev >= IIS2ICLX_SHUB_MAX_NUM_SLVS) {
+		if (data->num_ext_dev >= IIS2ICLX_SHUB_MAX_NUM_SLVS)
 			break;
-		}
 
 		chip_id = 0;
 		sp = &iis2iclx_shub_slist[n];

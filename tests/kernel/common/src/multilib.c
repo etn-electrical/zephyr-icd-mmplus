@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <errno.h>
-#include <zephyr/tc_util.h>
-#include <zephyr/ztest.h>
+#include <tc_util.h>
+#include <ztest.h>
 /**
  * @addtogroup kernel_common_tests
  * @{
@@ -17,7 +17,7 @@
  * @brief Test if correct multilib is selected
  *
  */
-ZTEST(multilib, test_multilib)
+void test_multilib(void)
 {
 	volatile long long a = 100;
 	volatile long long b = 3;

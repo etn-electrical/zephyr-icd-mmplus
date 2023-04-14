@@ -4,14 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
+#include <ztest.h>
 #include <soc.h>
 #include <zephyr/drivers/clock_control.h>
 #include <zephyr/drivers/clock_control/stm32_clock_control.h>
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(test);
 
-ZTEST(stm32_syclck_config, test_hclk_freq)
+static void test_hclk_freq(void)
 {
 	uint32_t soc_hclk_freq;
 
@@ -22,26 +22,26 @@ ZTEST(stm32_syclck_config, test_hclk_freq)
 			CONFIG_SYS_CLOCK_HW_CYCLES_PER_SEC, soc_hclk_freq);
 }
 
-ZTEST(stm32_syclck_config, test_sysclk_src)
+static void test_sysclk_src(void)
 {
 	int sys_clk_src = __HAL_RCC_GET_SYSCLK_SOURCE();
 
 #if STM32_SYSCLK_SRC_PLL
 	zassert_equal(RCC_SYSCLKSOURCE_STATUS_PLLCLK, sys_clk_src,
-			"Expected sysclk src: PLL1 (0x%x). Actual: 0x%x",
-			RCC_SYSCLKSOURCE_STATUS_PLLCLK, sys_clk_src);
+			"Expected sysclk src: PLL1. Actual sysclk src: %d",
+			sys_clk_src);
 #elif STM32_SYSCLK_SRC_HSE
 	zassert_equal(RCC_SYSCLKSOURCE_STATUS_HSE, sys_clk_src,
-			"Expected sysclk src: HSE (0x%x). Actual: 0x%x",
-			RCC_SYSCLKSOURCE_STATUS_HSE, sys_clk_src);
+			"Expected sysclk src: HSE. Actual sysclk src: %d",
+			sys_clk_src);
 #elif STM32_SYSCLK_SRC_HSI
 	zassert_equal(RCC_SYSCLKSOURCE_STATUS_HSI, sys_clk_src,
-			"Expected sysclk src: HSI (0x%x). Actual: 0x%x",
-			RCC_SYSCLKSOURCE_STATUS_HSI, sys_clk_src);
+			"Expected sysclk src: HSI. Actual sysclk src: %d",
+			sys_clk_src);
 #elif STM32_SYSCLK_SRC_MSIS
 	zassert_equal(RCC_SYSCLKSOURCE_STATUS_MSI, sys_clk_src,
-			"Expected sysclk src: MSI (0x%x). Actual: 0x%x",
-			RCC_SYSCLKSOURCE_STATUS_MSI, sys_clk_src);
+			"Expected sysclk src: MSI. Actual sysclk src: %d",
+			sys_clk_src);
 #else
 	/* Case not expected */
 	zassert_true((STM32_SYSCLK_SRC_PLL ||
@@ -53,7 +53,7 @@ ZTEST(stm32_syclck_config, test_sysclk_src)
 
 }
 
-ZTEST(stm32_syclck_config, test_pll_src)
+static void test_pll_src(void)
 {
 	uint32_t pll_src = __HAL_RCC_GET_PLL_OSCSOURCE();
 
@@ -76,4 +76,13 @@ ZTEST(stm32_syclck_config, test_pll_src)
 #endif
 
 }
-ZTEST_SUITE(stm32_syclck_config, NULL, NULL, NULL, NULL, NULL);
+
+void test_main(void)
+{
+	ztest_test_suite(test_stm32_syclck_config,
+		ztest_unit_test(test_hclk_freq),
+		ztest_unit_test(test_sysclk_src),
+		ztest_unit_test(test_pll_src)
+			 );
+	ztest_run_test_suite(test_stm32_syclck_config);
+}

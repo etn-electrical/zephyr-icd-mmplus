@@ -6,14 +6,13 @@
 
 #include <errno.h>
 #include <zephyr/drivers/gpio.h>
-#include <zephyr/irq.h>
 
 /* pico-sdk includes */
 #include <hardware/gpio.h>
 #include <hardware/regs/intctrl.h>
 #include <hardware/structs/iobank0.h>
 
-#include <zephyr/drivers/gpio/gpio_utils.h>
+#include "gpio_utils.h"
 
 #define DT_DRV_COMPAT raspberrypi_pico_gpio
 
@@ -29,52 +28,32 @@ struct gpio_rpi_data {
 	struct gpio_driver_data common;
 	sys_slist_t callbacks;
 	uint32_t int_enabled_mask;
-	uint32_t single_ended_mask;
-	uint32_t open_drain_mask;
 };
 
 static int gpio_rpi_configure(const struct device *dev,
 				gpio_pin_t pin,
 				gpio_flags_t flags)
 {
-	struct gpio_rpi_data *data = dev->data;
-
-	gpio_set_pulls(pin,
-		(flags & GPIO_PULL_UP) != 0U,
-		(flags & GPIO_PULL_DOWN) != 0U);
+	if (flags & GPIO_SINGLE_ENDED) {
+		return -ENOTSUP;
+	}
 
 	/* Avoid gpio_init, since that also clears previously set direction/high/low */
 	gpio_set_function(pin, GPIO_FUNC_SIO);
 
 	if (flags & GPIO_OUTPUT) {
-		if (flags & GPIO_SINGLE_ENDED) {
-			data->single_ended_mask |= BIT(pin);
+		gpio_set_dir(pin, GPIO_OUT);
 
-			/* Setting the initial state of output data, and output enable.
-			 * The output data will not change from here on, only output
-			 * enable will. If none of the GPIO_OUTPUT_INIT_* flags have
-			 * been set then fall back to the non-agressive input mode.
-			 */
-			if (flags & GPIO_LINE_OPEN_DRAIN) {
-				data->open_drain_mask |= BIT(pin);
-				gpio_put(pin, 0);
-				gpio_set_dir(pin, flags & GPIO_OUTPUT_INIT_LOW);
-			} else {
-				data->open_drain_mask &= ~(BIT(pin));
-				gpio_put(pin, 1);
-				gpio_set_dir(pin, flags & GPIO_OUTPUT_INIT_HIGH);
-			}
-		} else {
-			data->single_ended_mask &= ~(BIT(pin));
-			if (flags & GPIO_OUTPUT_INIT_HIGH) {
-				gpio_put(pin, 1);
-			} else if (flags & GPIO_OUTPUT_INIT_LOW) {
-				gpio_put(pin, 0);
-			}
-			gpio_set_dir(pin, GPIO_OUT);
+		if (flags & GPIO_OUTPUT_INIT_HIGH) {
+			gpio_put(pin, 1);
+		} else if (flags & GPIO_OUTPUT_INIT_LOW) {
+			gpio_put(pin, 0);
 		}
 	} else if (flags & GPIO_INPUT) {
 		gpio_set_dir(pin, GPIO_IN);
+		gpio_set_pulls(pin,
+			(flags & GPIO_PULL_UP) != 0U,
+			(flags & GPIO_PULL_DOWN) != 0U);
 	}
 
 	return 0;
@@ -89,53 +68,28 @@ static int gpio_rpi_port_get_raw(const struct device *dev, uint32_t *value)
 static int gpio_rpi_port_set_masked_raw(const struct device *port,
 					uint32_t mask, uint32_t value)
 {
-	struct gpio_rpi_data *data = port->data;
-	/* First handle push-pull pins: */
-	gpio_put_masked(mask & ~data->single_ended_mask, value);
-	/* Then handle open-drain pins: */
-	gpio_set_dir_masked(mask & data->single_ended_mask & data->open_drain_mask, ~value);
-	/* Then handle open-source pins: */
-	gpio_set_dir_masked(mask & data->single_ended_mask & ~data->open_drain_mask, value);
+	gpio_put_masked(mask, value);
 	return 0;
 }
 
 static int gpio_rpi_port_set_bits_raw(const struct device *port,
 					uint32_t pins)
 {
-	struct gpio_rpi_data *data = port->data;
-	/* First handle push-pull pins: */
-	gpio_set_mask(pins & ~data->single_ended_mask);
-	/* Then handle open-drain pins: */
-	gpio_set_dir_in_masked(pins & data->single_ended_mask & data->open_drain_mask);
-	/* Then handle open-source pins: */
-	gpio_set_dir_out_masked(pins & data->single_ended_mask & ~data->open_drain_mask);
+	gpio_set_mask(pins);
 	return 0;
 }
 
 static int gpio_rpi_port_clear_bits_raw(const struct device *port,
 					uint32_t pins)
 {
-	struct gpio_rpi_data *data = port->data;
-	/* First handle push-pull pins: */
-	gpio_clr_mask(pins & ~data->single_ended_mask);
-	/* Then handle open-drain pins: */
-	gpio_set_dir_out_masked(pins & data->single_ended_mask & data->open_drain_mask);
-	/* Then handle open-source pins: */
-	gpio_set_dir_in_masked(pins & data->single_ended_mask & ~data->open_drain_mask);
+	gpio_clr_mask(pins);
 	return 0;
 }
 
 static int gpio_rpi_port_toggle_bits(const struct device *port,
 					uint32_t pins)
 {
-	struct gpio_rpi_data *data = port->data;
-	/* First handle push-pull pins: */
-	gpio_xor_mask(pins & ~data->single_ended_mask);
-	/* Then handle single-ended pins: */
-	/* (unfortunately there's no pico-sdk api call that can be used for this,
-	 * but it's possible by accessing the registers directly)
-	 */
-	sio_hw->gpio_oe_togl = (pins & data->single_ended_mask);
+	gpio_xor_mask(pins);
 	return 0;
 }
 

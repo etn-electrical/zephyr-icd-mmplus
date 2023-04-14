@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <string.h>
 #include <zephyr/display/cfb.h>
 
@@ -316,13 +316,6 @@ int cfb_get_font_size(const struct device *dev, uint8_t idx, uint8_t *width,
 	return 0;
 }
 
-int cfb_set_kerning(const struct device *dev, int8_t kerning)
-{
-	char_fb.kerning = kerning;
-
-	return 0;
-}
-
 int cfb_get_numof_fonts(const struct device *dev)
 {
 	const struct char_framebuffer *fb = &char_fb;
@@ -350,6 +343,7 @@ int cfb_framebuffer_init(const struct device *dev)
 	fb->pixel_format = cfg.current_pixel_format;
 	fb->screen_info = cfg.screen_info;
 	fb->buf = NULL;
+	fb->font_idx = 0U;
 	fb->kerning = 0;
 	fb->inverted = false;
 

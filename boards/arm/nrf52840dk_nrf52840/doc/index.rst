@@ -26,6 +26,7 @@ Nordic Semiconductor nRF52840 ARM Cortex-M4F CPU and the following devices:
 * :abbr:`WDT (Watchdog Timer)`
 
 .. figure:: img/nrf52840dk_nrf52840.jpg
+     :width: 442px
      :align: center
      :alt: nRF52840 DK
 
@@ -164,25 +165,25 @@ You can build and flash the examples to make sure Zephyr is running correctly on
 your board. The button and LED definitions can be found in
 :zephyr_file:`boards/arm/nrf52840dk_nrf52840/nrf52840dk_nrf52840.dts`.
 
-Changing UART1 pins
-*******************
+Using UART1
+***********
 
-The following approach can be used when an application needs to use another set
-of pins for UART1:
+The following approach can be used when an application needs to use
+more than one UART for connecting peripheral devices:
 
 1. Add devicetree overlay file to the main directory of your application:
 
    .. code-block:: devicetree
 
       &pinctrl {
-         uart1_default_alt: uart1_default_alt {
+         uart1_default: uart1_default {
             group1 {
                psels = <NRF_PSEL(UART_TX, 0, 14)>,
                        <NRF_PSEL(UART_RX, 0, 16)>;
             };
          };
          /* required if CONFIG_PM_DEVICE=y */
-         uart1_sleep_alt: uart1_sleep_alt {
+         uart1_sleep: uart1_sleep {
             group1 {
                psels = <NRF_PSEL(UART_TX, 0, 14)>,
                        <NRF_PSEL(UART_RX, 0, 16)>;
@@ -192,15 +193,17 @@ of pins for UART1:
       };
 
       &uart1 {
-        pinctrl-0 = <&uart1_default_alt>;
-        /* if sleep state is not used, use /delete-property/ pinctrl-1; and
-         * skip the "sleep" entry.
-         */
-        pinctrl-1 = <&uart1_sleep_alt>;
+        compatible = "nordic,nrf-uarte";
+        current-speed = <115200>;
+        status = "okay";
+        pinctrl-0 = <&uart1_default>;
+        pinctrl-1 = <&uart1_sleep>;
         pinctrl-names = "default", "sleep";
       };
 
    In the overlay file above, pin P0.16 is used for RX and P0.14 is used for TX
+
+2. Use the UART1 as ``DEVICE_DT_GET(DT_NODELABEL(uart1))``
 
 See :ref:`set-devicetree-overlays` for further details.
 

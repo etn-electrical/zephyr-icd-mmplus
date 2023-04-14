@@ -8,7 +8,5 @@ Protocols
    :maxdepth: 1
 
    coap
-   http
    lwm2m
    mqtt
-   mqtt_sn

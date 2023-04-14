@@ -12,7 +12,6 @@
 
 #include <zephyr/drivers/i2c.h>
 #include <zephyr/drivers/clock_control.h>
-#include <zephyr/irq.h>
 #include <fsl_lpi2c.h>
 #include <zephyr/logging/log.h>
 #ifdef CONFIG_PINCTRL
@@ -51,7 +50,7 @@ static int rv32m1_lpi2c_configure(const struct device *dev,
 	uint32_t clk_freq;
 	int err;
 
-	if (!(I2C_MODE_CONTROLLER & dev_config)) {
+	if (!(I2C_MODE_MASTER & dev_config)) {
 		/* Slave mode not supported - yet */
 		LOG_ERR("Slave mode not supported");
 		return -ENOTSUP;
@@ -218,11 +217,6 @@ static int rv32m1_lpi2c_init(const struct device *dev)
 
 	CLOCK_SetIpSrc(config->clock_ip_name, config->clock_ip_src);
 
-	if (!device_is_ready(config->clock_dev)) {
-		LOG_ERR("clock control device not ready");
-		return -ENODEV;
-	}
-
 	err = clock_control_on(config->clock_dev, config->clock_subsys);
 	if (err) {
 		LOG_ERR("Could not turn on clock (err %d)", err);
@@ -242,7 +236,7 @@ static int rv32m1_lpi2c_init(const struct device *dev)
 					 data);
 
 	dev_cfg = i2c_map_dt_bitrate(config->bitrate);
-	err = rv32m1_lpi2c_configure(dev, dev_cfg | I2C_MODE_CONTROLLER);
+	err = rv32m1_lpi2c_configure(dev, dev_cfg | I2C_MODE_MASTER);
 	if (err) {
 		LOG_ERR("Could not configure controller (err %d)", err);
 		return err;

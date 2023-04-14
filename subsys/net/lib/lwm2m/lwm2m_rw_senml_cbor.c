@@ -14,10 +14,8 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <string.h>
 #include <inttypes.h>
 #include <ctype.h>
-#include <time.h>
 #include <zephyr/sys/util.h>
 #include <zephyr/kernel.h>
 
@@ -33,27 +31,15 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 #include "lwm2m_senml_cbor_types.h"
 #include "lwm2m_util.h"
 
-#define SENML_MAX_NAME_SIZE sizeof("/65535/65535/")
-
 struct cbor_out_fmt_data {
 	/* Data */
 	struct lwm2m_senml input;
 
-	/* Storage for basenames and names ~ sizeof("/65535/65535/") */
+	/* Storage for basenames and names ~ sizeof("/65535/999/") */
 	struct {
-		char names[CONFIG_LWM2M_RW_SENML_CBOR_RECORDS][SENML_MAX_NAME_SIZE];
+		char names[CONFIG_LWM2M_RW_SENML_CBOR_RECORDS][sizeof("/65535/999/")];
 		size_t name_sz; /* Name buff size */
 		uint8_t name_cnt;
-	};
-
-	/* Basetime for Cached data timestamp */
-	time_t basetime;
-
-	/* Storage for object links */
-	struct {
-		char objlnk[CONFIG_LWM2M_RW_SENML_CBOR_RECORDS][sizeof("65535:65535")];
-		size_t objlnk_sz; /* Object link buff size */
-		uint8_t objlnk_cnt;
 	};
 };
 
@@ -95,9 +81,7 @@ static void setup_out_fmt_data(struct lwm2m_message *msg)
 
 	(void)memset(fd, 0, sizeof(*fd));
 	engine_set_out_user_data(&msg->out, fd);
-	fd->name_sz = SENML_MAX_NAME_SIZE;
-	fd->basetime = 0;
-	fd->objlnk_sz = sizeof("65535:65535");
+	fd->name_sz = sizeof("/65535/999/");
 }
 
 static void clear_out_fmt_data(struct lwm2m_message *msg)
@@ -127,7 +111,6 @@ static void clear_in_fmt_data(struct lwm2m_message *msg)
 static int fmt_range_check(struct cbor_out_fmt_data *fd)
 {
 	if (fd->name_cnt >= CONFIG_LWM2M_RW_SENML_CBOR_RECORDS ||
-	    fd->objlnk_cnt >= CONFIG_LWM2M_RW_SENML_CBOR_RECORDS ||
 	    fd->input._lwm2m_senml__record_count >= CONFIG_LWM2M_RW_SENML_CBOR_RECORDS) {
 		LOG_ERR("CONFIG_LWM2M_RW_SENML_CBOR_RECORDS too small");
 		return -ENOMEM;
@@ -162,7 +145,7 @@ static int put_basename(struct lwm2m_output_context *out, struct lwm2m_obj_path 
 	record->_record_bn._record_bn.len = len;
 	record->_record_bn_present = 1;
 
-	if ((len < sizeof("/0/0") - 1) || (len >= SENML_MAX_NAME_SIZE)) {
+	if ((len < sizeof("0/0") - 1) || (len >= sizeof("65535/999"))) {
 		__ASSERT_NO_MSG(false);
 		return -EINVAL;
 	}
@@ -269,33 +252,6 @@ static int put_begin_r(struct lwm2m_output_context *out, struct lwm2m_obj_path *
 	return 0;
 }
 
-static int put_data_timestamp(struct lwm2m_output_context *out, time_t value)
-{
-	struct record *out_record;
-	struct cbor_out_fmt_data *fd = LWM2M_OFD_CBOR(out);
-	int ret;
-
-	ret = fmt_range_check(fd);
-	if (ret < 0) {
-		return ret;
-	}
-
-	/* Tell CBOR encoder where to find the name */
-	out_record = GET_CBOR_FD_REC(fd);
-
-	if (fd->basetime) {
-		out_record->_record_t._record_t = value - fd->basetime;
-		out_record->_record_t_present = 1;
-	} else {
-		fd->basetime = value;
-		out_record->_record_bt._record_bt = value;
-		out_record->_record_bt_present = 1;
-	}
-
-	return 0;
-
-}
-
 static int put_begin_ri(struct lwm2m_output_context *out, struct lwm2m_obj_path *path)
 {
 	struct cbor_out_fmt_data *fd = LWM2M_OFD_CBOR(out);
@@ -309,7 +265,7 @@ static int put_begin_ri(struct lwm2m_output_context *out, struct lwm2m_obj_path 
 	}
 
 	/* Forms name from resource id and resource instance id */
-	int len = snprintk(name, SENML_MAX_NAME_SIZE,
+	int len = snprintk(name, sizeof("65535/999"),
 			   "%" PRIu16 "/%" PRIu16 "",
 			   path->res_id, path->res_inst_id);
 
@@ -344,15 +300,10 @@ static int put_begin_ri(struct lwm2m_output_context *out, struct lwm2m_obj_path 
 static int put_name_nth_ri(struct lwm2m_output_context *out, struct lwm2m_obj_path *path)
 {
 	int ret = 0;
-	struct cbor_out_fmt_data *fd = LWM2M_OFD_CBOR(out);
-	struct record *record = GET_CBOR_FD_REC(fd);
 
-	/* With the first ri the resource name (and ri name) are already in place*/
+	/* With the first ri the resource name (and ri name) are already in place */
 	if (path->res_inst_id > 0) {
 		ret = put_begin_ri(out, path);
-	} else if (record && record->_record_t_present) {
-		/* Name need to be add for each time serialized record */
-		ret = put_begin_r(out, path);
 	}
 
 	return ret;
@@ -396,7 +347,7 @@ static int put_s64(struct lwm2m_output_context *out, struct lwm2m_obj_path *path
 	return put_value(out, path, value);
 }
 
-static int put_time(struct lwm2m_output_context *out, struct lwm2m_obj_path *path, time_t value)
+static int put_time(struct lwm2m_output_context *out, struct lwm2m_obj_path *path, int64_t value)
 {
 	int ret = put_name_nth_ri(out, path);
 
@@ -408,7 +359,7 @@ static int put_time(struct lwm2m_output_context *out, struct lwm2m_obj_path *pat
 
 	/* Write the value */
 	record->_record_union._record_union_choice = _union_vi;
-	record->_record_union._union_vi = (int64_t)value;
+	record->_record_union._union_vi = value;
 	record->_record_union_present = 1;
 
 	return 0;
@@ -493,40 +444,9 @@ static int put_opaque(struct lwm2m_output_context *out, struct lwm2m_obj_path *p
 static int put_objlnk(struct lwm2m_output_context *out, struct lwm2m_obj_path *path,
 		      struct lwm2m_objlnk *value)
 {
-	int ret = 0;
-	struct cbor_out_fmt_data *fd = LWM2M_OFD_CBOR(out);
+	int32_t value_s32 = (value->obj_id << 16) | value->obj_inst;
 
-	ret = fmt_range_check(fd);
-	if (ret < 0) {
-		return ret;
-	}
-
-	/* Format object link */
-	int objlnk_idx = fd->objlnk_cnt;
-	char *objlink_buf = fd->objlnk[objlnk_idx];
-	int objlnk_len =
-		snprintk(objlink_buf, fd->objlnk_sz, "%u:%u", value->obj_id, value->obj_inst);
-	if (objlnk_len < 0) {
-		return -EINVAL;
-	}
-
-	ret = put_name_nth_ri(out, path);
-
-	if (ret < 0) {
-		return ret;
-	}
-
-	struct record *record = CONSUME_CBOR_FD_REC(LWM2M_OFD_CBOR(out));
-
-	/* Write the value */
-	record->_record_union._record_union_choice = _union_vlo;
-	record->_record_union._union_vlo.value = objlink_buf;
-	record->_record_union._union_vlo.len = objlnk_len;
-	record->_record_union_present = 1;
-
-	fd->objlnk_cnt++;
-
-	return 0;
+	return put_s32(out, path, value_s32);
 }
 
 static int get_opaque(struct lwm2m_input_context *in,
@@ -535,7 +455,6 @@ static int get_opaque(struct lwm2m_input_context *in,
 			 bool *last_block)
 {
 	struct cbor_in_fmt_data *fd;
-	uint8_t *dest = NULL;
 
 	/* Get the CBOR header only on first read. */
 	if (opaque->remaining == 0) {
@@ -545,21 +464,21 @@ static int get_opaque(struct lwm2m_input_context *in,
 			return -EINVAL;
 		}
 
+		/* TODO: get the opaque data and it's length -
+		 * now plain zero
+		 */
+
 		opaque->len = fd->current->_record_union._union_vd.len;
+		opaque->remaining = fd->current->_record_union._union_vd.len;
 
-		if (buflen < opaque->len) {
-			LOG_DBG("Write opaque failed, no buffer space");
-			return -ENOMEM;
-		}
-
-		dest = memcpy(value, fd->current->_record_union._union_vd.value, opaque->len);
-		*last_block = true;
-	} else {
-		LOG_DBG("Blockwise transfer not supported with SenML CBOR");
-		__ASSERT_NO_MSG(false);
+		fd->current = NULL;
+		goto not_supported;
 	}
 
-	return dest ? opaque->len : -EINVAL;
+	return lwm2m_engine_get_opaque_more(in, value, buflen,
+					    opaque, last_block);
+not_supported:
+	return -ENOTSUP;
 }
 
 static int get_s32(struct lwm2m_input_context *in, int32_t *value)
@@ -590,17 +509,6 @@ static int get_s64(struct lwm2m_input_context *in, int64_t *value)
 	fd->current = NULL;
 
 	return 0;
-}
-
-static int get_time(struct lwm2m_input_context *in, time_t *value)
-{
-	int64_t temp64;
-	int ret;
-
-	ret = get_s64(in, &temp64);
-	*value = (time_t)temp64;
-
-	return ret;
 }
 
 static int get_float(struct lwm2m_input_context *in, double *value)
@@ -661,7 +569,7 @@ static int get_objlnk(struct lwm2m_input_context *in,
 		errno = 0;
 		id = strtoul(idp, &end, 10);
 
-		idp = end + 1;
+		idp = end;
 
 		if ((id == 0 && errno == ERANGE) || id > 65535) {
 			LOG_WRN("decoded id %lu out of range[0..65535]", id);
@@ -711,12 +619,9 @@ static int do_write_op_item(struct lwm2m_message *msg, struct record *rec)
 	uint8_t created = 0U;
 	struct cbor_in_fmt_data *fd;
 	/* Composite op - name with basename */
-	char name[SENML_MAX_NAME_SIZE] = { 0 }; /* Null terminated name */
+	char name[sizeof("65535/999")] = { 0 }; /* Null terminated name */
 	int len = 0;
-	/* Compiler requires reserving space for full length basename and name even though those two
-	 * combined do not exceed MAX_RESOURCE_LEN
-	 */
-	char fqn[MAX_RESOURCE_LEN + SENML_MAX_NAME_SIZE + 1] = {0};
+	char fqn[MAX_RESOURCE_LEN + 1] = {0};
 
 	fd = engine_get_in_user_data(&msg->in);
 	if (!fd) {
@@ -753,25 +658,10 @@ static int do_write_op_item(struct lwm2m_message *msg, struct record *rec)
 
 	ret = lwm2m_engine_get_create_res_inst(&msg->path, &res, &res_inst);
 	if (ret < 0) {
-		/* if OPTIONAL and BOOTSTRAP-WRITE or CREATE use ENOTSUP */
-		if ((msg->ctx->bootstrap_mode ||
-		     msg->operation == LWM2M_OP_CREATE) &&
-		    LWM2M_HAS_PERM(obj_field, BIT(LWM2M_FLAG_OPTIONAL))) {
-			ret = -ENOTSUP;
-			return ret;
-		}
-
-		ret = -ENOENT;
-		return ret;
+		return -ENOENT;
 	}
 
-	ret = lwm2m_write_handler(obj_inst, res, res_inst, obj_field, msg);
-	if (ret == -EACCES || ret == -ENOENT) {
-		/* if read-only or non-existent data buffer move on */
-		ret = 0;
-	}
-
-	return ret;
+	return lwm2m_write_handler(obj_inst, res, res_inst, obj_field, msg);
 }
 
 const struct lwm2m_writer senml_cbor_writer = {
@@ -789,13 +679,12 @@ const struct lwm2m_writer senml_cbor_writer = {
 	.put_bool = put_bool,
 	.put_opaque = put_opaque,
 	.put_objlnk = put_objlnk,
-	.put_data_timestamp = put_data_timestamp,
 };
 
 const struct lwm2m_reader senml_cbor_reader = {
 	.get_s32 = get_s32,
 	.get_s64 = get_s64,
-	.get_time = get_time,
+	.get_time = get_s64,
 	.get_string = get_string,
 	.get_float = get_float,
 	.get_bool = get_bool,
@@ -822,14 +711,11 @@ static uint8_t parse_composite_read_paths(struct lwm2m_message *msg,
 {
 	char basename[MAX_RESOURCE_LEN + 1] = {0}; /* to include terminating null */
 	char name[MAX_RESOURCE_LEN + 1] = {0}; /* to include terminating null */
-	/* Compiler requires reserving space for full length basename and name even though those two
-	 * combined do not exceed MAX_RESOURCE_LEN
-	 */
-	char fqn[2 * MAX_RESOURCE_LEN + 1] = {0};
+	char fqn[MAX_RESOURCE_LEN + 1] = {0};
 	struct lwm2m_obj_path path;
 	struct cbor_in_fmt_data *fd;
 	uint8_t paths = 0;
-	size_t isize;
+	uint32_t isize;
 	uint_fast8_t dret;
 	int len;
 	int ret;
@@ -898,23 +784,10 @@ out:
 	return paths;
 }
 
-int do_composite_read_op_for_parsed_path_senml_cbor(struct lwm2m_message *msg,
-						    sys_slist_t *lwm_path_list)
-{
-	int ret;
-
-	setup_out_fmt_data(msg);
-
-	ret = lwm2m_perform_composite_read_op(msg, LWM2M_FORMAT_APP_SENML_CBOR, lwm_path_list);
-
-	clear_out_fmt_data(msg);
-
-	return ret;
-}
-
 
 int do_composite_read_op_senml_cbor(struct lwm2m_message *msg)
 {
+	int ret;
 	struct lwm2m_obj_path_list lwm2m_path_list_buf[CONFIG_LWM2M_COMPOSITE_PATH_LIST_SIZE];
 	sys_slist_t lwm_path_list;
 	sys_slist_t lwm_path_free_list;
@@ -934,7 +807,13 @@ int do_composite_read_op_senml_cbor(struct lwm2m_message *msg)
 
 	lwm2m_engine_clear_duplicate_path(&lwm_path_list, &lwm_path_free_list);
 
-	return do_composite_read_op_for_parsed_path_senml_cbor(msg, &lwm_path_list);
+	setup_out_fmt_data(msg);
+
+	ret = lwm2m_perform_composite_read_op(msg, LWM2M_FORMAT_APP_SENML_CBOR, &lwm_path_list);
+
+	clear_out_fmt_data(msg);
+
+	return ret;
 }
 
 
@@ -942,7 +821,7 @@ int do_write_op_senml_cbor(struct lwm2m_message *msg)
 {
 	uint_fast8_t dret;
 	int ret = 0;
-	size_t decoded_sz;
+	uint32_t decoded_sz;
 	struct cbor_in_fmt_data *fd;
 
 	/* With block-wise transfer consecutive blocks will not carry the content header -
@@ -1003,23 +882,16 @@ int do_write_op_senml_cbor(struct lwm2m_message *msg)
 write:
 		ret = do_write_op_item(msg, rec);
 
-		/*
-		 * ignore errors for CREATE op
-		 * for OP_CREATE and BOOTSTRAP WRITE: errors on
-		 * optional resources are ignored (ENOTSUP)
-		 */
-		if (ret < 0 && !((ret == -ENOTSUP) &&
-				 (msg->ctx->bootstrap_mode || msg->operation == LWM2M_OP_CREATE))) {
-			goto error;
+		/* Write isn't supposed to fail */
+		if (ret < 0) {
+			break;
 		}
 	}
-
-	ret = 0;
 
 error:
 	clear_in_fmt_data(msg);
 
-	return ret;
+	return ret < 0 ?  ret : decoded_sz;
 }
 
 int do_composite_observe_parse_path_senml_cbor(struct lwm2m_message *msg,

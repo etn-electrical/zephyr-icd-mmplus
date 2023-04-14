@@ -65,9 +65,6 @@ fcb_append(struct fcb *fcb, uint16_t len, struct fcb_entry *append_loc)
 	int rc;
 	uint8_t tmp_str[MAX(8, fcb->f_align)];
 
-	/* Ensure defined value of padding bytes */
-	memset(tmp_str, fcb->f_erase_value, sizeof(tmp_str));
-
 	cnt = fcb_put_len(fcb, tmp_str, len);
 	if (cnt < 0) {
 		return cnt;
@@ -121,18 +118,18 @@ int
 fcb_append_finish(struct fcb *fcb, struct fcb_entry *loc)
 {
 	int rc;
-	uint8_t em[fcb->f_align];
+	uint8_t crc8[fcb->f_align];
 	off_t off;
 
-	(void)memset(em, 0xFF, sizeof(em));
+	(void)memset(crc8, 0xFF, sizeof(crc8));
 
-	rc = fcb_elem_endmarker(fcb, loc, &em[0]);
+	rc = fcb_elem_crc8(fcb, loc, &crc8[0]);
 	if (rc) {
 		return rc;
 	}
 	off = loc->fe_data_off + fcb_len_in_flash(fcb, loc->fe_data_len);
 
-	rc = fcb_flash_write(fcb, loc->fe_sector, off, em, fcb->f_align);
+	rc = fcb_flash_write(fcb, loc->fe_sector, off, crc8, fcb->f_align);
 	if (rc) {
 		return -EIO;
 	}

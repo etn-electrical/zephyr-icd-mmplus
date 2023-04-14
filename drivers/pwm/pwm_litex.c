@@ -10,8 +10,6 @@
 #include <zephyr/drivers/pwm.h>
 #include <zephyr/types.h>
 
-#include <soc.h>
-
 #define REG_EN_ENABLE             0x1
 #define REG_EN_DISABLE            0x0
 

@@ -9,7 +9,7 @@
 #include <stdio.h>
 #include <malloc.h>
 #include <zephyr/sys/__assert.h>
-#include <zephyr/posix/sys/stat.h>
+#include <sys/stat.h>
 #include <zephyr/linker/linker-defs.h>
 #include <zephyr/sys/util.h>
 #include <zephyr/sys/errno_private.h>
@@ -134,7 +134,7 @@ static int malloc_prepare(const struct device *unused)
 	return 0;
 }
 
-SYS_INIT(malloc_prepare, POST_KERNEL, CONFIG_KERNEL_INIT_PRIORITY_DEFAULT);
+SYS_INIT(malloc_prepare, APPLICATION, CONFIG_KERNEL_INIT_PRIORITY_DEFAULT);
 
 /* Current offset from HEAP_BASE of unused memory */
 LIBC_BSS static size_t heap_sz;
@@ -305,10 +305,6 @@ void *_sbrk(intptr_t count)
 __weak FUNC_ALIAS(_sbrk, sbrk, void *);
 
 #ifdef CONFIG_MULTITHREADING
-
-/* Make sure _RETARGETABLE_LOCKING is enabled in toolchain */
-BUILD_ASSERT(IS_ENABLED(_RETARGETABLE_LOCKING), "Retargetable locking must be enabled");
-
 /*
  * Newlib Retargetable Locking Interface Implementation
  *
@@ -561,7 +557,7 @@ void *_sbrk_r(struct _reent *r, int count)
 
 int _gettimeofday(struct timeval *__tp, void *__tzp)
 {
-#ifdef CONFIG_POSIX_CLOCK
+#ifdef CONFIG_POSIX_API
 	return gettimeofday(__tp, __tzp);
 #else
 	/* Non-posix systems should not call gettimeofday() here as it will

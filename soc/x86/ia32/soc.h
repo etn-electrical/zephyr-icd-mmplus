@@ -22,6 +22,11 @@
 #include <zephyr/random/rand32.h>
 #endif
 
+/*
+ * UART
+ */
+#define UART_NS16550_ACCESS_IOPORT 0x3f8
+
 /* PCI definitions */
 #define PCI_BUS_NUMBERS 1
 

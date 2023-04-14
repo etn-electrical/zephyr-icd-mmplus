@@ -88,18 +88,6 @@ static int test_lsdir(const char *path)
 	return res;
 }
 
-static void after_fn(void *unused)
-{
-	ARG_UNUSED(unused);
-
-	unlink(TEST_DIR_FILE);
-	unlink(TEST_DIR);
-}
-
-/* FIXME: restructure tests as per #46897 */
-ZTEST_SUITE(posix_fs_dir_test, NULL, test_mount, NULL, after_fn,
-	    test_unmount);
-
 /**
  * @brief Test for POSIX mkdir API
  *
@@ -107,10 +95,9 @@ ZTEST_SUITE(posix_fs_dir_test, NULL, test_mount, NULL, after_fn,
  * mkdir API and open a new file under the directory and
  * writes some data into the file.
  */
-ZTEST(posix_fs_dir_test, test_fs_mkdir)
+void test_fs_mkdir(void)
 {
-	/* FIXME: restructure tests as per #46897 */
-	zassert_true(test_mkdir() == TC_PASS);
+	zassert_true(test_mkdir() == TC_PASS, NULL);
 }
 
 /**
@@ -120,9 +107,7 @@ ZTEST(posix_fs_dir_test, test_fs_mkdir)
  * opendir API, reads the contents of the directory through
  * readdir API and closes it through closedir API.
  */
-ZTEST(posix_fs_dir_test, test_fs_readdir)
+void test_fs_readdir(void)
 {
-	/* FIXME: restructure tests as per #46897 */
-	zassert_true(test_mkdir() == TC_PASS);
-	zassert_true(test_lsdir(TEST_DIR) == TC_PASS);
+	zassert_true(test_lsdir(TEST_DIR) == TC_PASS, NULL);
 }

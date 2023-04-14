@@ -5,8 +5,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
-#include <zephyr/kernel.h>
+#include <ztest.h>
+#include <zephyr/zephyr.h>
 #include <stdlib.h>
 #include <arm_math.h>
 #include "../../common/test_common.h"
@@ -17,7 +17,7 @@
 #define ABS_ERROR_THRESH_Q15		((q15_t)5)
 #define STATE_BUF_LEN			(16 + 768 - 1)
 
-ZTEST(filtering_decim_q15, test_arm_fir_decimate_q15)
+static void test_arm_fir_decimate_q15(void)
 {
 	uint32_t decim_factor, tap_count;
 	size_t sample_index, block_size, ref_size;
@@ -81,7 +81,7 @@ ZTEST(filtering_decim_q15, test_arm_fir_decimate_q15)
 	free(output_buf);
 }
 
-ZTEST(filtering_decim_q15, test_arm_fir_interpolate_q15)
+static void test_arm_fir_interpolate_q15(void)
 {
 	uint32_t filter_length, tap_count;
 	size_t sample_index, block_size, ref_size;
@@ -145,4 +145,12 @@ ZTEST(filtering_decim_q15, test_arm_fir_interpolate_q15)
 	free(output_buf);
 }
 
-ZTEST_SUITE(filtering_decim_q15, NULL, NULL, NULL, NULL, NULL);
+void test_filtering_decim_q15(void)
+{
+	ztest_test_suite(filtering_decim_q15,
+		ztest_unit_test(test_arm_fir_decimate_q15),
+		ztest_unit_test(test_arm_fir_interpolate_q15)
+		);
+
+	ztest_run_test_suite(filtering_decim_q15);
+}

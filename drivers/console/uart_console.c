@@ -31,13 +31,11 @@
 #include <zephyr/linker/sections.h>
 #include <zephyr/sys/atomic.h>
 #include <zephyr/sys/printk.h>
-#include <zephyr/pm/device_runtime.h>
 #ifdef CONFIG_UART_CONSOLE_MCUMGR
-#include <zephyr/mgmt/mcumgr/transport/serial.h>
+#include <zephyr/mgmt/mcumgr/serial.h>
 #endif
 
-static const struct device *const uart_console_dev =
-	DEVICE_DT_GET(DT_CHOSEN(zephyr_console));
+static const struct device *uart_console_dev;
 
 #ifdef CONFIG_UART_CONSOLE_DEBUG_SERVER_HOOKS
 
@@ -87,24 +85,10 @@ static int console_out(int c)
 
 #endif  /* CONFIG_UART_CONSOLE_DEBUG_SERVER_HOOKS */
 
-	if (pm_device_runtime_is_enabled(uart_console_dev)) {
-		if (pm_device_runtime_get(uart_console_dev) < 0) {
-			/* Enabling the UART instance has failed but this
-			 * function MUST return the byte output.
-			 */
-			return c;
-		}
-	}
-
 	if ('\n' == c) {
 		uart_poll_out(uart_console_dev, '\r');
 	}
 	uart_poll_out(uart_console_dev, c);
-
-	if (pm_device_runtime_is_enabled(uart_console_dev)) {
-		/* As errors cannot be returned, ignore the return value */
-		(void)pm_device_runtime_put(uart_console_dev);
-	}
 
 	return c;
 }
@@ -112,11 +96,11 @@ static int console_out(int c)
 #endif
 
 #if defined(CONFIG_STDOUT_CONSOLE)
-extern void __stdout_hook_install(int (*hook)(int c));
+extern void __stdout_hook_install(int (*hook)(int));
 #endif
 
 #if defined(CONFIG_PRINTK)
-extern void __printk_hook_install(int (*fn)(int c));
+extern void __printk_hook_install(int (*fn)(int));
 #endif
 
 #if defined(CONFIG_CONSOLE_HANDLER)
@@ -605,6 +589,8 @@ static int uart_console_init(const struct device *arg)
 
 	ARG_UNUSED(arg);
 
+	/* Claim console device */
+	uart_console_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_console));
 	if (!device_is_ready(uart_console_dev)) {
 		return -ENODEV;
 	}

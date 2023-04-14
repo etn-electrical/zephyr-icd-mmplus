@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <zephyr/canbus/isotp.h>
 
 
@@ -16,22 +16,22 @@ const struct isotp_fc_opts fc_opts_0_5 = {.bs = 0, .stmin = 5};
 
 const struct isotp_msg_id rx_addr_8_0 = {
 	.std_id = 0x80,
-	.ide = 0,
+	.id_type = CAN_STANDARD_IDENTIFIER,
 	.use_ext_addr = 0
 };
 const struct isotp_msg_id tx_addr_8_0 = {
 	.std_id = 0x180,
-	.ide = 0,
+	.id_type = CAN_STANDARD_IDENTIFIER,
 	.use_ext_addr = 0
 };
 const struct isotp_msg_id rx_addr_0_5 = {
 	.std_id = 0x01,
-	.ide = 0,
+	.id_type = CAN_STANDARD_IDENTIFIER,
 	.use_ext_addr = 0
 };
 const struct isotp_msg_id tx_addr_0_5 = {
 	.std_id = 0x101,
-	.ide = 0,
+	.id_type = CAN_STANDARD_IDENTIFIER,
 	.use_ext_addr = 0
 };
 
@@ -151,20 +151,6 @@ void main(void)
 	can_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_canbus));
 	if (!device_is_ready(can_dev)) {
 		printk("CAN: Device driver not ready.\n");
-		return;
-	}
-
-#ifdef CONFIG_SAMPLE_LOOPBACK_MODE
-	ret = can_set_mode(can_dev, CAN_MODE_LOOPBACK);
-	if (ret != 0) {
-		printk("CAN: Failed to set loopback mode [%d]", ret);
-		return;
-	}
-#endif /* CONFIG_SAMPLE_LOOPBACK_MODE */
-
-	ret = can_start(can_dev);
-	if (ret != 0) {
-		printk("CAN: Failed to start device [%d]\n", ret);
 		return;
 	}
 

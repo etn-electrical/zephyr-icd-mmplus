@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/ztest.h>
-#include <zephyr/tc_util.h>
+#include <zephyr/zephyr.h>
+#include <ztest.h>
+#include <tc_util.h>
 #include <zephyr/kernel_structs.h>
 #include <zephyr/irq_offload.h>
 #include <kswap.h>
@@ -52,20 +52,17 @@ void k_sys_fatal_error_handler(unsigned int reason, const z_arch_esf_t *pEsf)
 
 	if (expected_reason == -1) {
 		printk("Was not expecting a crash\n");
-		printk("PROJECT EXECUTION FAILED\n");
 		k_fatal_halt(reason);
 	}
 
 	if (k_current_get() != &alt_thread) {
 		printk("Wrong thread crashed\n");
-		printk("PROJECT EXECUTION FAILED\n");
 		k_fatal_halt(reason);
 	}
 
 	if (reason != expected_reason) {
 		printk("Wrong crash type got %d expected %d\n", reason,
 		       expected_reason);
-		printk("PROJECT EXECUTION FAILED\n");
 		k_fatal_halt(reason);
 	}
 
@@ -82,12 +79,9 @@ void entry_cpu_exception(void *p1, void *p2, void *p3)
 	__asm__ volatile ("trap");
 #elif defined(CONFIG_ARC)
 	__asm__ volatile ("swi");
-#elif defined(CONFIG_RISCV)
-	/* Illegal instruction on RISCV. */
-	__asm__ volatile (".word 0x77777777");
 #else
-	/* Triggers usage fault on ARM, illegal instruction on
-	 * xtensa, TLB exception (instruction fetch) on MIPS.
+	/* Triggers usage fault on ARM, illegal instruction on RISCV
+	 * and xtensa, TLB exception (instruction fetch) on MIPS.
 	 */
 	{
 		volatile long illegal = 0;
@@ -187,21 +181,10 @@ __no_optimization void blow_up_stack(void)
 #else
 /* stack sentinel doesn't catch it in time before it trashes the entire kernel
  */
-
-#if defined(__GNUC__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpragmas"
-#pragma GCC diagnostic ignored "-Winfinite-recursion"
-#endif
-
 __no_optimization int stack_smasher(int val)
 {
 	return stack_smasher(val * 2) + stack_smasher(val * 3);
 }
-
-#if defined(__GNUC__)
-#pragma GCC diagnostic pop
-#endif
 
 void blow_up_stack(void)
 {
@@ -301,7 +284,7 @@ void check_stack_overflow(k_thread_entry_t handler, uint32_t flags)
  *
  * @ingroup kernel_common_tests
  */
-ZTEST(fatal_exception, test_fatal)
+void test_fatal(void)
 {
 	rv = TC_PASS;
 
@@ -443,7 +426,8 @@ ZTEST(fatal_exception, test_fatal)
 #endif /* !CONFIG_ARCH_POSIX */
 }
 
-static void *fatal_setup(void)
+/*test case main entry*/
+void test_main(void)
 {
 #if defined(CONFIG_DEMAND_PAGING) && \
 	!defined(CONFIG_LINKER_GENERIC_SECTIONS_PRESENT_AT_BOOT)
@@ -493,7 +477,7 @@ static void *fatal_setup(void)
 	* && !CONFIG_LINKER_GENERIC_SECTIONS_PRESENT_AT_BOOT
 	*/
 
-	return NULL;
+	ztest_test_suite(fatal,
+			ztest_unit_test(test_fatal));
+	ztest_run_test_suite(fatal);
 }
-
-ZTEST_SUITE(fatal_exception, NULL, fatal_setup, NULL, NULL, NULL);

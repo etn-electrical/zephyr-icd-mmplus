@@ -452,7 +452,6 @@ struct net_stats_eth {
 	net_stats_t tx_dropped;
 	net_stats_t tx_timeout_count;
 	net_stats_t tx_restart_queue;
-	net_stats_t unknown_protocol;
 #ifdef CONFIG_NET_STATISTICS_ETHERNET_VENDOR
 	/** Array is terminated with an entry containing a NULL key */
 	struct net_stats_eth_vendor *vendor;
@@ -471,29 +470,6 @@ struct net_stats_ppp {
 
 	/** Number of received PPP frames with a bad checksum. */
 	net_stats_t chkerr;
-};
-
-/**
- * @brief All Wi-Fi management statistics
- */
-struct net_stats_sta_mgmt {
-	/** Number of received beacons */
-	net_stats_t beacons_rx;
-
-	/** Number of missed beacons */
-	net_stats_t beacons_miss;
-};
-
-/**
- * @brief All Wi-Fi specific statistics
- */
-struct net_stats_wifi {
-	struct net_stats_sta_mgmt sta_mgmt;
-	struct net_stats_bytes bytes;
-	struct net_stats_pkts pkts;
-	struct net_stats_pkts broadcast;
-	struct net_stats_pkts multicast;
-	struct net_stats_pkts errors;
 };
 
 #if defined(CONFIG_NET_STATISTICS_USER_API)
@@ -517,8 +493,7 @@ enum net_request_stats_cmd {
 	NET_REQUEST_STATS_CMD_GET_TCP,
 	NET_REQUEST_STATS_CMD_GET_ETHERNET,
 	NET_REQUEST_STATS_CMD_GET_PPP,
-	NET_REQUEST_STATS_CMD_GET_PM,
-	NET_REQUEST_STATS_CMD_GET_WIFI,
+	NET_REQUEST_STATS_CMD_GET_PM
 };
 
 #define NET_REQUEST_STATS_GET_ALL				\
@@ -605,13 +580,6 @@ NET_MGMT_DEFINE_REQUEST_HANDLER(NET_REQUEST_STATS_GET_PPP);
 
 NET_MGMT_DEFINE_REQUEST_HANDLER(NET_REQUEST_STATS_GET_PM);
 #endif /* CONFIG_NET_STATISTICS_POWER_MANAGEMENT */
-
-#if defined(CONFIG_NET_STATISTICS_WIFI)
-#define NET_REQUEST_STATS_GET_WIFI				\
-	(_NET_STATS_BASE | NET_REQUEST_STATS_CMD_GET_WIFI)
-
-NET_MGMT_DEFINE_REQUEST_HANDLER(NET_REQUEST_STATS_GET_WIFI);
-#endif /* CONFIG_NET_STATISTICS_WIFI */
 
 /**
  * @}

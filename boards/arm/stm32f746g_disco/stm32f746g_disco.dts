@@ -21,7 +21,6 @@
 		zephyr,dtcm = &dtcm;
 		zephyr,flash-controller = &n25q128a1;
 		zephyr,display = &ltdc;
-		zephyr,keyboard-scan = &touch_controller;
 	};
 
 	leds {
@@ -45,19 +44,13 @@
 		device_type = "memory";
 		reg = <0xc0000000 DT_SIZE_M(16)>;
 		zephyr,memory-region = "SDRAM1";
-		zephyr,memory-region-mpu = "RAM";
 	};
 
 	aliases {
 		led0 = &green_led_1;
 		sw0 = &user_button;
 		kscan0 = &touch_controller;
-		spi-flash0 = &n25q128a1;
 	};
-};
-
-&clk_lsi {
-	status = "okay";
 };
 
 &clk_hse {
@@ -98,6 +91,7 @@
 	touch_controller: ft5336@38 {
 		compatible = "focaltech,ft5336";
 		reg = <0x38>;
+		label = "FT5336";
 		int-gpios = <&gpioi 13 0>;
 	};
 };
@@ -141,13 +135,7 @@ zephyr_udc0: &usbotg_fs {
 };
 
 &rtc {
-	clocks = <&rcc STM32_CLOCK_BUS_APB1 0x10000000>,
-		 <&rcc STM32_SRC_LSI RTC_SEL(2)>;
 	status = "okay";
-
-	backup_regs {
-		status = "okay";
-	};
 };
 
 &sdmmc1 {
@@ -182,6 +170,7 @@ zephyr_udc0: &usbotg_fs {
 
 	n25q128a1: qspi-nor-flash@0 {
 		compatible = "st,stm32-qspi-nor";
+		label = "N25Q128A1";
 		reg = <0>;
 		qspi-max-frequency = <72000000>;
 		size = <DT_SIZE_M(16*8)>;

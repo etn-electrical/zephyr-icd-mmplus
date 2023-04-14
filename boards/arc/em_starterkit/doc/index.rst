@@ -12,7 +12,8 @@ for the ARC EM Family of processors. The EM Family includes the EM4, EM6,
 EM5D, EM7D, EM9D, and EM11D cores. The Zephyr RTOS can be used with the
 EM Starter Kit.
 
-.. image:: em_starterkit.jpg
+.. image:: ./em_starterkit.jpg
+   :width: 442px
    :align: center
    :alt: DesignWare(R) ARC(R) EM Starter Kit (synopsys.com)
 
@@ -113,9 +114,6 @@ be found on which architectures:
 
 The board has 3 (debounced and interrupting) buttons for use with GPIO, 4 dip
 switches, 9 LEDs, SDCard on SPI, and a 16MB SPI-Flash memory.
-
-The SPI-FLASH driver is supported with sample, which can be found in
-``samples/drivers/spi_flash``.
 
 The SPI-Flash also holds 3 (or 4) separate FPGA CPU bit files, selectable via
 dip switch.
@@ -313,8 +311,8 @@ Release Notes
 
 The following is a list of TODO items:
 
-* ``GH-2647``: Zephyr needs i-cache API (all targets)
-* ``GH-2230``: Zephyr ARC port doesn't yet support nested regular interrupts.
+* :jira:`GH-2647`: Zephyr needs i-cache API (all targets)
+* :jira:`GH-2230`: Zephyr ARC port doesn't yet support nested regular interrupts.
 * pinmux driver: Possibly it can be written to configure PMods too.
 
 References

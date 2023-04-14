@@ -32,9 +32,6 @@ extern "C" {
  * Currently empty.
  */
 struct gna_config {
-#ifdef __cplusplus
-	char no_empty_structs; /* technically a gcc C extension */
-#endif
 };
 
 /**

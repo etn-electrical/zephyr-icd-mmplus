@@ -56,7 +56,7 @@
 extern "C" {
 #endif
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 
 /**
  * @brief Function pointer that implements a portion of a state

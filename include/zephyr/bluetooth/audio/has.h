@@ -45,9 +45,9 @@ struct bt_has;
 
 /** Hearing Aid device type */
 enum bt_has_hearing_aid_type {
-	BT_HAS_HEARING_AID_TYPE_BINAURAL = 0x00,
-	BT_HAS_HEARING_AID_TYPE_MONAURAL = 0x01,
-	BT_HAS_HEARING_AID_TYPE_BANDED = 0x02,
+	BT_HAS_HEARING_AID_TYPE_BINAURAL,
+	BT_HAS_HEARING_AID_TYPE_MONAURAL,
+	BT_HAS_HEARING_AID_TYPE_BANDED,
 };
 
 /** Preset Properties values */
@@ -65,28 +65,6 @@ enum bt_has_properties {
 /** Hearing Aid device capablilities */
 enum bt_has_capabilities {
 	BT_HAS_PRESET_SUPPORT = BIT(0),
-};
-
-/** @brief Structure for registering a Hearing Access Service instance. */
-struct bt_has_register_param {
-	/** Hearing Aid Type value */
-	enum bt_has_hearing_aid_type type;
-
-	/**
-	 * @brief Preset Synchronization Support.
-	 *
-	 * Only applicable if @p type is @ref BT_HAS_HEARING_AID_TYPE_BINAURAL
-	 * and @kconfig{CONFIG_BT_HAS_PRESET_COUNT} is non-zero.
-	 */
-	bool preset_sync_support;
-
-	/**
-	 * @brief Independent Presets.
-	 *
-	 * Only applicable if @p type is @ref BT_HAS_HEARING_AID_TYPE_BINAURAL
-	 * and @kconfig{CONFIG_BT_HAS_PRESET_COUNT} is non-zero.
-	 */
-	bool independent_presets;
 };
 
 /** @brief Preset record definition */
@@ -120,17 +98,15 @@ struct bt_has_client_cb {
 	/**
 	 * @brief Callback function for Hearing Access Service active preset changes.
 	 *
-	 * Optional callback called when the active preset is changed by the remote server when the
-	 * preset switch procedure is complete. The callback must be set to receive active preset
-	 * changes and enable support for switching presets. If the callback is not set, the Active
-	 * Index and Control Point characteristics will not be discovered by
-	 * @ref bt_has_client_discover.
+	 * Optional callback called when the value is changed by the remote server.
+	 * The callback must be set to receive active preset changes and enable support
+	 * for switching presets. If the callback is not set, the Active Index and
+	 * Control Point characteristics will not be discovered by @ref bt_has_client_discover.
 	 *
 	 * @param has Pointer to the Hearing Access Service object.
-	 * @param err 0 on success, ATT error or negative errno otherwise.
 	 * @param index Active preset index.
 	 */
-	void (*preset_switch)(struct bt_has *has, int err, uint8_t index);
+	void (*preset_switch)(struct bt_has *has, uint8_t index);
 
 	/**
 	 * @brief Callback function for presets read operation.
@@ -237,76 +213,6 @@ int bt_has_client_conn_get(const struct bt_has *has, struct bt_conn **conn);
  */
 int bt_has_client_presets_read(struct bt_has *has, uint8_t index, uint8_t max_count);
 
-/**
- * @brief Set Active Preset.
- *
- * Client procedure to set preset identified by @p index as active.
- * The status is returned in the @ref bt_has_client_cb.preset_switch callback.
- *
- * @param has Pointer to the Hearing Access Service object.
- * @param index Preset index to activate.
- * @param sync Request active preset synchronization in set.
- *
- * @return 0 in case of success or negative value in case of error.
- */
-int bt_has_client_preset_set(struct bt_has *has, uint8_t index, bool sync);
-
-/**
- * @brief Activate Next Preset.
- *
- * Client procedure to set next available preset as active.
- * The status is returned in the @ref bt_has_client_cb.preset_switch callback.
- *
- * @param has Pointer to the Hearing Access Service object.
- * @param sync Request active preset synchronization in set.
- *
- * @return 0 in case of success or negative value in case of error.
- */
-int bt_has_client_preset_next(struct bt_has *has, bool sync);
-
-/**
- * @brief Activate Previous Preset.
- *
- * Client procedure to set previous available preset as active.
- * The status is returned in the @ref bt_has_client_cb.preset_switch callback.
- *
- * @param has Pointer to the Hearing Access Service object.
- * @param sync Request active preset synchronization in set.
- *
- * @return 0 in case of success or negative value in case of error.
- */
-int bt_has_client_preset_prev(struct bt_has *has, bool sync);
-
-/** @brief Preset operations structure. */
-struct bt_has_preset_ops {
-	/**
-	 * @brief Preset select callback.
-	 *
-	 * This callback is called when the client requests to select preset identified by
-	 * @p index.
-	 *
-	 * @param index Preset index requested to activate.
-	 * @param sync Whether the server must relay this change to the other member of the
-	 *             Binaural Hearing Aid Set.
-	 *
-	 * @return 0 in case of success or negative value in case of error.
-	 * @return -EBUSY if operation cannot be performed at the time.
-	 * @return -EINPROGRESS in case where user has to confirm once the requested preset
-	 *                      becomes active by calling @ref bt_has_preset_active_set.
-	 */
-	int (*select)(uint8_t index, bool sync);
-
-	/**
-	 * @brief Preset name changed callback
-	 *
-	 * This callback is called when the name of the preset identified by @p index has changed.
-	 *
-	 * @param index Preset index that name has been changed.
-	 * @param name Preset current name.
-	 */
-	void (*name_changed)(uint8_t index, const char *name);
-};
-
 /** @brief Register structure for preset. */
 struct bt_has_preset_register_param {
 	/**
@@ -332,19 +238,7 @@ struct bt_has_preset_register_param {
 	 * @ref BT_HAS_PRESET_NAME_MAX, the name will be truncated.
 	 */
 	const char *name;
-
-	/** Preset operations structure. */
-	const struct bt_has_preset_ops *ops;
 };
-
-/**
- * @brief Register the Hearing Access Service instance.
- *
- * @param param     Hearing Access Service register parameters.
- *
- * @return 0 if success, errno on failure.
- */
-int bt_has_register(const struct bt_has_register_param *param);
 
 /**
  * @brief Register preset.
@@ -423,51 +317,6 @@ typedef uint8_t (*bt_has_preset_func_t)(uint8_t index, enum bt_has_properties pr
  * @param user_data Data to pass to the callback.
  */
 void bt_has_preset_foreach(uint8_t index, bt_has_preset_func_t func, void *user_data);
-
-/**
- * @brief Set active preset.
- *
- * Function used to set the preset identified by the @p index as the active preset.
- * The preset index will be notified to peer devices.
- *
- * @param index Preset index.
- *
- * @return 0 in case of success or negative value in case of error.
- */
-int bt_has_preset_active_set(uint8_t index);
-
-/**
- * @brief Get active preset.
- *
- * Function used to get the currently active preset index.
- *
- * @return Active preset index.
- */
-uint8_t bt_has_preset_active_get(void);
-
-/**
- * @brief Clear out active preset.
- *
- * Used by server to deactivate currently active preset.
- *
- * @return 0 in case of success or negative value in case of error.
- */
-static inline int bt_has_preset_active_clear(void)
-{
-	return bt_has_preset_active_set(BT_HAS_PRESET_INDEX_NONE);
-}
-
-/**
- * @brief Change the Preset Name.
- *
- * Change the name of the preset identified by @p index.
- *
- * @param index The index of the preset to change the name of.
- * @param name Name to write.
- *
- * @return 0 in case of success or negative value in case of error.
- */
-int bt_has_preset_name_change(uint8_t index, const char *name);
 
 #ifdef __cplusplus
 }

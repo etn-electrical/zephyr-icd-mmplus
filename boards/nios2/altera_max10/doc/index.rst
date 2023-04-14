@@ -11,6 +11,7 @@ The Zephyr kernel is supported on the Altera MAX10 Rev C development kit, using
 the Nios II Gen 2 soft CPU.
 
 .. figure:: img/altera_max10.jpg
+   :width: 442px
    :align: center
    :alt: Altera's MAX* 10
 
@@ -32,6 +33,7 @@ importance is SW2:
 * Switch 4 (HSMC_BYPASSN) should be OFF (up)
 
 .. image:: img/Altera_MAX10_switches.jpg
+   :width: 442px
    :align: center
    :alt: Altera's MAX* 10 Switches
 
@@ -329,4 +331,4 @@ References
 * `Quartus II Scripting Reference Manual <https://www.altera.com/content/dam/altera-www/global/en_US/pdfs/literature/manual/tclscriptrefmnl.pdf>`_
 
 
-.. _Altera Lite Distribution: https://www.intel.com/content/www/us/en/collections/products/fpga/software/downloads.html
+.. _Altera Lite Distribution: http://dl.altera.com/?edition=lite

@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
-zephyr_get(XTENSA_TOOLCHAIN_PATH)
+set_ifndef(XTENSA_TOOLCHAIN_PATH "$ENV{XTENSA_TOOLCHAIN_PATH}")
+set(       XTENSA_TOOLCHAIN_PATH ${XTENSA_TOOLCHAIN_PATH} CACHE PATH "xtensa tools install directory")
 assert(    XTENSA_TOOLCHAIN_PATH "XTENSA_TOOLCHAIN_PATH is not set")
 
 if(NOT EXISTS ${XTENSA_TOOLCHAIN_PATH})

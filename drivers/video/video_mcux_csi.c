@@ -6,7 +6,7 @@
 
 #define DT_DRV_COMPAT nxp_imx_csi
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 
 #include <fsl_csi.h>
 
@@ -16,16 +16,16 @@
 
 #include <zephyr/drivers/video.h>
 #include <zephyr/drivers/pinctrl.h>
-#include <zephyr/irq.h>
 
 struct video_mcux_csi_config {
 	CSI_Type *base;
-	const struct device *sensor_dev;
+	char *sensor_label;
 	const struct pinctrl_dev_config *pincfg;
 };
 
 struct video_mcux_csi_data {
 	const struct device *dev;
+	const struct device *sensor_dev;
 	csi_config_t csi_config;
 	csi_handle_t csi_handle;
 	struct k_fifo fifo_in;
@@ -149,7 +149,7 @@ static int video_mcux_csi_set_fmt(const struct device *dev,
 		return -EIO;
 	}
 
-	if (config->sensor_dev && video_set_format(config->sensor_dev, ep, fmt)) {
+	if (data->sensor_dev && video_set_format(data->sensor_dev, ep, fmt)) {
 		return -EIO;
 	}
 
@@ -161,13 +161,12 @@ static int video_mcux_csi_get_fmt(const struct device *dev,
 				  struct video_format *fmt)
 {
 	struct video_mcux_csi_data *data = dev->data;
-	const struct video_mcux_csi_config *config = dev->config;
 
 	if (fmt == NULL || ep != VIDEO_EP_OUT) {
 		return -EINVAL;
 	}
 
-	if (config->sensor_dev && !video_get_format(config->sensor_dev, ep, fmt)) {
+	if (data->sensor_dev && !video_get_format(data->sensor_dev, ep, fmt)) {
 		/* align CSI with sensor fmt */
 		return video_mcux_csi_set_fmt(dev, ep, fmt);
 	}
@@ -191,7 +190,7 @@ static int video_mcux_csi_stream_start(const struct device *dev)
 		return -EIO;
 	}
 
-	if (config->sensor_dev && video_stream_start(config->sensor_dev)) {
+	if (data->sensor_dev && video_stream_start(data->sensor_dev)) {
 		return -EIO;
 	}
 
@@ -204,7 +203,7 @@ static int video_mcux_csi_stream_stop(const struct device *dev)
 	struct video_mcux_csi_data *data = dev->data;
 	status_t ret;
 
-	if (config->sensor_dev && video_stream_stop(config->sensor_dev)) {
+	if (data->sensor_dev && video_stream_stop(data->sensor_dev)) {
 		return -EIO;
 	}
 
@@ -302,12 +301,12 @@ static inline int video_mcux_csi_set_ctrl(const struct device *dev,
 					  unsigned int cid,
 					  void *value)
 {
-	const struct video_mcux_csi_config *config = dev->config;
+	struct video_mcux_csi_data *data = dev->data;
 	int ret = -ENOTSUP;
 
 	/* Forward to sensor dev if any */
-	if (config->sensor_dev) {
-		ret = video_set_ctrl(config->sensor_dev, cid, value);
+	if (data->sensor_dev) {
+		ret = video_set_ctrl(data->sensor_dev, cid, value);
 	}
 
 	return ret;
@@ -317,12 +316,12 @@ static inline int video_mcux_csi_get_ctrl(const struct device *dev,
 					  unsigned int cid,
 					  void *value)
 {
-	const struct video_mcux_csi_config *config = dev->config;
+	struct video_mcux_csi_data *data = dev->data;
 	int ret = -ENOTSUP;
 
 	/* Forward to sensor dev if any */
-	if (config->sensor_dev) {
-		ret = video_get_ctrl(config->sensor_dev, cid, value);
+	if (data->sensor_dev) {
+		ret = video_get_ctrl(data->sensor_dev, cid, value);
 	}
 
 	return ret;
@@ -332,7 +331,7 @@ static int video_mcux_csi_get_caps(const struct device *dev,
 				   enum video_endpoint_id ep,
 				   struct video_caps *caps)
 {
-	const struct video_mcux_csi_config *config = dev->config;
+	struct video_mcux_csi_data *data = dev->data;
 	int err = -ENODEV;
 
 	if (ep != VIDEO_EP_OUT) {
@@ -340,8 +339,8 @@ static int video_mcux_csi_get_caps(const struct device *dev,
 	}
 
 	/* Just forward to sensor dev for now */
-	if (config->sensor_dev) {
-		err = video_get_caps(config->sensor_dev, ep, caps);
+	if (data->sensor_dev) {
+		err = video_get_caps(data->sensor_dev, ep, caps);
 	}
 
 	/* NXP MCUX CSI request at least 2 buffer before starting */
@@ -370,8 +369,11 @@ static int video_mcux_csi_init(const struct device *dev)
 	CSI_GetDefaultConfig(&data->csi_config);
 
 	/* check if there is any sensor device (video ctrl device) */
-	if (!device_is_ready(config->sensor_dev)) {
-		return -ENODEV;
+	if (config->sensor_label) {
+		data->sensor_dev = device_get_binding(config->sensor_label);
+		if (data->sensor_dev == NULL) {
+			return -ENODEV;
+		}
 	}
 
 	err = pinctrl_apply_state(config->pincfg, PINCTRL_STATE_DEFAULT);
@@ -420,7 +422,7 @@ PINCTRL_DT_INST_DEFINE(0);
 
 static const struct video_mcux_csi_config video_mcux_csi_config_0 = {
 	.base = (CSI_Type *)DT_INST_REG_ADDR(0),
-	.sensor_dev = DEVICE_DT_GET(DT_INST_PHANDLE(0, sensor)),
+	.sensor_label = DT_INST_PROP(0, sensor_label),
 	.pincfg = PINCTRL_DT_INST_DEV_CONFIG_GET(0),
 };
 

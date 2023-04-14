@@ -7,11 +7,6 @@
 #ifndef ZEPHYR_INCLUDE_ARCH_ARM64_ARM_MMU_H_
 #define ZEPHYR_INCLUDE_ARCH_ARM64_ARM_MMU_H_
 
-#ifndef _ASMLANGUAGE
-#include <stdint.h>
-#include <stdlib.h>
-#endif
-
 /* Following Memory types supported through MAIR encodings can be passed
  * by user through "attrs"(attributes) field of specified memory region.
  * As MAIR supports such 8 encodings, we will reserve attrs[2:0];
@@ -44,7 +39,6 @@
  * attrs[6] : Execute Permissions unprivileged mode (UXN)
  * attrs[7] : Mirror RO/RW permissions to EL0
  * attrs[8] : Overwrite existing mapping if any
- * attrs[9] : non-Global mapping (nG)
  *
  */
 #define MT_PERM_SHIFT		3U
@@ -53,7 +47,6 @@
 #define MT_U_EXECUTE_SHIFT	6U
 #define MT_RW_AP_SHIFT		7U
 #define MT_NO_OVERWRITE_SHIFT	8U
-#define MT_NON_GLOBAL_SHIFT	9U
 
 #define MT_RO			(0U << MT_PERM_SHIFT)
 #define MT_RW			(1U << MT_PERM_SHIFT)
@@ -72,9 +65,6 @@
 
 #define MT_NO_OVERWRITE		(1U << MT_NO_OVERWRITE_SHIFT)
 
-#define MT_G			(0U << MT_NON_GLOBAL_SHIFT)
-#define MT_NG			(1U << MT_NON_GLOBAL_SHIFT)
-
 #define MT_P_RW_U_RW		(MT_RW | MT_RW_AP_ELx | MT_P_EXECUTE_NEVER | MT_U_EXECUTE_NEVER)
 #define MT_P_RW_U_NA		(MT_RW | MT_RW_AP_EL_HIGHER  | MT_P_EXECUTE_NEVER | MT_U_EXECUTE_NEVER)
 #define MT_P_RO_U_RO		(MT_RO | MT_RW_AP_ELx | MT_P_EXECUTE_NEVER | MT_U_EXECUTE_NEVER)
@@ -88,13 +78,6 @@
 #else
 #define MT_DEFAULT_SECURE_STATE	MT_SECURE
 #endif
-
-/*
- * ARM guarantees at least 8 ASID bits.
- * We may have more available, but do not make use of them for the time being.
- */
-#define VM_ASID_BITS 8
-#define TTBR_ASID_SHIFT 48
 
 /*
  * PTE descriptor can be Block descriptor or Table descriptor
@@ -150,9 +133,6 @@
 #define TCR_TG0_64K		(1ULL << 14)
 #define TCR_TG0_16K		(2ULL << 14)
 #define TCR_EPD1_DISABLE	(1ULL << 23)
-#define TCR_TG1_16K		(1ULL << 30)
-#define TCR_TG1_4K		(2ULL << 30)
-#define TCR_TG1_64K		(3ULL << 30)
 
 #define TCR_PS_BITS_4GB		0x0ULL
 #define TCR_PS_BITS_64GB	0x1ULL
@@ -187,7 +167,6 @@ struct arm_mmu_config {
 
 struct arm_mmu_ptables {
 	uint64_t *base_xlat_table;
-	uint64_t ttbr0;
 };
 
 /* Convenience macros to represent the ARMv8-A-specific

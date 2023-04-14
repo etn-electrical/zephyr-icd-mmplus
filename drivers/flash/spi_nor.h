@@ -15,6 +15,9 @@
 #define SPI_NOR_WIP_BIT         BIT(0)  /* Write in progress */
 #define SPI_NOR_WEL_BIT         BIT(1)  /* Write enable latch */
 
+/* Control register bits */
+#define SPI_NOR_4BYTE_BIT       BIT(5)  /* 4B addressing */
+
 /* Flash opcodes */
 #define SPI_NOR_CMD_WRSR        0x01    /* Write status register */
 #define SPI_NOR_CMD_RDSR        0x05    /* Read status register */
@@ -23,15 +26,12 @@
 #define SPI_NOR_CMD_RDSR3       0x15    /* Read status register 3 */
 #define SPI_NOR_CMD_WRSR3       0x11    /* Write status register 3 */
 #define SPI_NOR_CMD_READ        0x03    /* Read data */
-#define SPI_NOR_CMD_READ_FAST   0x0B    /* Read data */
 #define SPI_NOR_CMD_DREAD       0x3B    /* Read data (1-1-2) */
-#define SPI_NOR_CMD_2READ       0xBB    /* Read data (1-2-2) */
 #define SPI_NOR_CMD_QREAD       0x6B    /* Read data (1-1-4) */
 #define SPI_NOR_CMD_4READ       0xEB    /* Read data (1-4-4) */
 #define SPI_NOR_CMD_WREN        0x06    /* Write enable */
 #define SPI_NOR_CMD_WRDI        0x04    /* Write disable */
 #define SPI_NOR_CMD_PP          0x02    /* Page program */
-#define SPI_NOR_CMD_PP_1_1_2    0xA2    /* Dual Page program (1-1-2) */
 #define SPI_NOR_CMD_PP_1_1_4    0x32    /* Quad Page program (1-1-4) */
 #define SPI_NOR_CMD_PP_1_4_4    0x38    /* Quad Page program (1-4-4) */
 #define SPI_NOR_CMD_RDCR        0x15    /* Read control register */
@@ -49,15 +49,8 @@
 #define SPI_NOR_CMD_RESET_EN    0x66    /* Reset Enable */
 #define SPI_NOR_CMD_RESET_MEM   0x99    /* Reset Memory */
 #define SPI_NOR_CMD_BULKE       0x60    /* Bulk Erase */
-#define SPI_NOR_CMD_READ_4B      0x13  /* Read data 4 Byte Address */
-#define SPI_NOR_CMD_READ_FAST_4B 0x0C  /* Fast Read 4 Byte Address */
-#define SPI_NOR_CMD_DREAD_4B     0x3C  /* Read data (1-1-2) 4 Byte Address */
-#define SPI_NOR_CMD_2READ_4B     0xBC  /* Read data (1-2-2) 4 Byte Address */
-#define SPI_NOR_CMD_QREAD_4B     0x6C  /* Read data (1-1-4) 4 Byte Address */
-#define SPI_NOR_CMD_4READ_4B     0xEC  /* Read data (1-4-4) 4 Byte Address */
-#define SPI_NOR_CMD_PP_4B        0x12  /* Page Program 4 Byte Address */
-#define SPI_NOR_CMD_PP_1_1_4_4B  0x34  /* Quad Page program (1-1-4) 4 Byte Address */
-#define SPI_NOR_CMD_PP_1_4_4_4B  0x3e  /* Quad Page program (1-4-4) 4 Byte Address */
+#define SPI_NOR_CMD_PP_4B       0x12    /* Page Program 4 Byte Address */
+#define SPI_NOR_CMD_READ_FAST_4B  0x0C  /* Fast Read 4 Byte Address */
 
 /* Flash octal opcodes */
 #define SPI_NOR_OCMD_SE         0x21DE  /* Octal Sector erase */
@@ -65,7 +58,7 @@
 #define SPI_NOR_OCMD_RDSR       0x05FA  /* Octal Read status register */
 #define SPI_NOR_OCMD_DTR_RD     0xEE11  /* Octal IO DTR read command */
 #define SPI_NOR_OCMD_RD         0xEC13  /* Octal IO read command */
-#define SPI_NOR_OCMD_PAGE_PRG   0x12ED  /* Octal Page Prog */
+#define SPI_NOR_OCMD_PAGE_PRG   0x12ED  /* Octal Page Prog*/
 #define SPI_NOR_OCMD_WREN       0x06F9  /* Octal Write enable */
 #define SPI_NOR_OCMD_NOP        0x00FF  /* Octal No operation */
 #define SPI_NOR_OCMD_RESET_EN   0x6699  /* Octal Reset Enable */

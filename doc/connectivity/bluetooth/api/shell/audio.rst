@@ -16,7 +16,10 @@ Commands
 
    audio --help
    Subcommands:
-      init
+      init                 :
+      discover             :[type: sink, source]
+      preset               :[preset]
+      config               :<direction: sink, source> <index> [codec] [preset]
       select_broadcast     :<stream>
       create_broadcast     :[codec] [preset]
       start_broadcast      :
@@ -27,20 +30,16 @@ Commands
       sync_broadcast       :0x<bis_bitfield>
       stop_broadcast_sink  :Stops broadcast sink
       term_broadcast_sink  :
-      discover             :[type: sink, source]
-      preset               :[preset]
-      config               :<direction: sink, source> <index> [codec] [preset]
-      qos                  :[preset] [interval] [framing] [latency] [pd] [sdu] [phy]
-                            [rtn]
-      enable
+      qos                  :[preset] [interval] [framing] [latency] [pd] [sdu] [phy] [rtn]
+      enable               :
       metadata             :[context]
-      start
-      disable
-      stop
-      release
-      list
-      connect              :<direction: sink, source> <index>  [codec] [preset]
+      start                :
+      disable              :
+      stop                 :
+      release              :
+      list                 :
       select_unicast       :<stream>
+      connect              :<direction: sink, source> <index>  [codec] [preset]
       send                 :Send to Audio Stream [data]
 
 .. csv-table:: State Machine Transitions

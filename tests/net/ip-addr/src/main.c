@@ -18,7 +18,7 @@ LOG_MODULE_REGISTER(net_test, CONFIG_NET_IPV6_LOG_LEVEL);
 #include <zephyr/linker/sections.h>
 #include <zephyr/random/rand32.h>
 
-#include <zephyr/ztest.h>
+#include <ztest.h>
 
 #include <zephyr/net/net_core.h>
 #include <zephyr/net/net_pkt.h>
@@ -169,7 +169,7 @@ NET_DEVICE_INIT_INSTANCE(net_addr_test2, "net_addr_test2", iface2,
 			 &net_test_if_api, _ETH_L2_LAYER, _ETH_L2_CTX_TYPE,
 			 127);
 
-ZTEST(ip_addr_fn, test_ip_addresses)
+static void test_ip_addresses(void)
 {
 	TEST_BYTE_1(0xde, "DE");
 	TEST_BYTE_1(0x09, "09");
@@ -207,7 +207,7 @@ ZTEST(ip_addr_fn, test_ip_addresses)
 	TEST_IPV4(127, 0, 0, 1, "127.0.0.1");
 }
 
-ZTEST(ip_addr_fn, test_ipv6_addresses)
+static void test_ipv6_addresses(void)
 {
 	struct in6_addr loopback = IN6ADDR_LOOPBACK_INIT;
 	struct in6_addr any = IN6ADDR_ANY_INIT;
@@ -368,7 +368,7 @@ ZTEST(ip_addr_fn, test_ipv6_addresses)
 		     "IPv6 removing address failed\n");
 }
 
-ZTEST(ip_addr_fn, test_ipv4_addresses)
+static void test_ipv4_addresses(void)
 {
 	const struct in_addr *out;
 	struct net_if_addr *ifaddr1;
@@ -548,7 +548,7 @@ ZTEST(ip_addr_fn, test_ipv4_addresses)
 	zassert_true(ret, "IPv4 address 3 is not broadcast address");
 }
 
-ZTEST(ip_addr_fn, test_ipv6_mesh_addresses)
+static void test_ipv6_mesh_addresses(void)
 {
 	struct net_if_addr *ifaddr;
 	const struct in6_addr *out;
@@ -600,11 +600,16 @@ ZTEST(ip_addr_fn, test_ipv6_mesh_addresses)
 		     "IPv6 removing address failed\n");
 }
 
-void *test_setup(void)
+void test_main(void)
 {
 	default_iface = net_if_get_first_by_type(&NET_L2_GET_NAME(DUMMY));
 
-	return NULL;
-}
+	ztest_test_suite(test_ip_addr_fn,
+			 ztest_unit_test(test_ip_addresses),
+			 ztest_unit_test(test_ipv6_addresses),
+			 ztest_unit_test(test_ipv4_addresses),
+			 ztest_unit_test(test_ipv6_mesh_addresses)
+		);
 
-ZTEST_SUITE(ip_addr_fn, NULL, test_setup, NULL, NULL, NULL);
+	ztest_run_test_suite(test_ip_addr_fn);
+}

@@ -62,9 +62,6 @@ def main():
         check_assigned_sym_values(kconf)
         check_assigned_choice_values(kconf)
 
-    if kconf.syms['WARN_DEPRECATED'].tri_value == 2:
-        check_deprecated(kconf)
-
     if kconf.syms['WARN_EXPERIMENTAL'].tri_value == 2:
         check_experimental(kconf)
 
@@ -208,17 +205,6 @@ Practices sections of the manual might be helpful too.\
 """
 
 
-def check_deprecated(kconf):
-    deprecated = kconf.syms['DEPRECATED']
-    dep_expr = deprecated.rev_dep
-
-    if dep_expr is not kconf.n:
-        selectors = [s for s in split_expr(dep_expr, OR) if expr_value(s) == 2]
-        for selector in selectors:
-            selector_name = split_expr(selector, AND)[0].name
-            warn(f'Deprecated symbol {selector_name} is enabled.')
-
-
 def check_experimental(kconf):
     experimental = kconf.syms['EXPERIMENTAL']
     dep_expr = experimental.rev_dep
@@ -250,7 +236,7 @@ def write_kconfig_filenames(kconf, kconfig_list_path):
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(allow_abbrev=False)
+    parser = argparse.ArgumentParser()
 
     parser.add_argument("--handwritten-input-configs",
                         action="store_true",

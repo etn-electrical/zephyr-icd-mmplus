@@ -9,5 +9,4 @@ toolchain:
   - gnuarmemb
 supported:
   - ble
-  - netif:openthread
-  - gpio
+  - ieee802154

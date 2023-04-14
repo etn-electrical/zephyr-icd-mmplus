@@ -7,7 +7,7 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(net_mqtt_publisher_sample, LOG_LEVEL_DBG);
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <zephyr/net/socket.h>
 #include <zephyr/net/mqtt.h>
 #include <zephyr/random/rand32.h>
@@ -501,7 +501,7 @@ static int start_app(void)
 #if defined(CONFIG_USERSPACE)
 #define STACK_SIZE 2048
 
-#if defined(CONFIG_NET_TC_THREAD_COOPERATIVE)
+#if IS_ENABLED(CONFIG_NET_TC_THREAD_COOPERATIVE)
 #define THREAD_PRIORITY K_PRIO_COOP(CONFIG_NUM_COOP_PRIORITIES - 1)
 #else
 #define THREAD_PRIORITY K_PRIO_PREEMPT(8)

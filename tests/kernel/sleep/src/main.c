@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/tc_util.h>
-#include <zephyr/ztest.h>
+#include <tc_util.h>
+#include <ztest.h>
 #include <zephyr/arch/cpu.h>
 #include <zephyr/sys/util.h>
 #include <zephyr/irq_offload.h>
@@ -191,7 +191,7 @@ static void helper_thread(int arg1, int arg2)
  *
  * @see k_sleep(), k_wakeup(), k_uptime_get_32()
  */
-ZTEST(sleep, test_sleep)
+void test_sleep(void)
 {
 	int status = TC_FAIL;
 	uint32_t start_tick;
@@ -244,6 +244,8 @@ ZTEST(sleep, test_sleep)
 	status = TC_PASS;
 }
 
+extern void test_usleep(void);
+
 static void forever_thread_entry(void *p1, void *p2, void *p3)
 {
 	int32_t ret;
@@ -253,7 +255,7 @@ static void forever_thread_entry(void *p1, void *p2, void *p3)
 	k_sem_give(&test_thread_sem);
 }
 
-ZTEST(sleep, test_sleep_forever)
+void test_sleep_forever(void)
 {
 	test_objects_init();
 
@@ -272,12 +274,13 @@ ZTEST(sleep, test_sleep_forever)
 }
 
 /*test case main entry*/
-static void *sleep_setup(void)
+void test_main(void)
 {
 	k_thread_access_grant(k_current_get(), &test_thread_sem);
 
-	return NULL;
+	ztest_test_suite(sleep,
+			 ztest_1cpu_unit_test(test_sleep),
+			 ztest_1cpu_user_unit_test(test_usleep),
+			 ztest_1cpu_unit_test(test_sleep_forever));
+	ztest_run_test_suite(sleep);
 }
-
-ZTEST_SUITE(sleep, NULL, sleep_setup,
-		ztest_simple_1cpu_before, ztest_simple_1cpu_after, NULL);

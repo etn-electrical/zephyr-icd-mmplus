@@ -8,10 +8,9 @@
 
 #include <zephyr/drivers/adc.h>
 #include <zephyr/device.h>
-#include <zephyr/devicetree.h>
 #include <math.h>
 #include <zephyr/drivers/sensor.h>
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <zephyr/logging/log.h>
 
 LOG_MODULE_REGISTER(grove_temp, CONFIG_SENSOR_LOG_LEVEL);
@@ -115,19 +114,15 @@ static int gts_init(const struct device *dev)
 	return 0;
 }
 
-#define GTS_DEFINE(inst)							\
-	static struct gts_data gts_data_##inst;					\
-										\
-	static const struct gts_config gts_cfg_##inst = {			\
-		.adc = DEVICE_DT_GET(DT_INST_IO_CHANNELS_CTLR(inst)),		\
-		.b_const = (IS_ENABLED(DT_INST_PROP(inst, v1p0))		\
-			? 3975							\
-			: 4250),						\
-		.adc_channel = DT_INST_IO_CHANNELS_INPUT(inst),			\
-	};									\
-										\
-	SENSOR_DEVICE_DT_INST_DEFINE(inst, &gts_init, NULL,			\
-			      &gts_data_##inst, &gts_cfg_##inst, POST_KERNEL,	\
-			      CONFIG_SENSOR_INIT_PRIORITY, &gts_api);		\
+static struct gts_data gts_data;
+static const struct gts_config gts_cfg = {
+	.adc = DEVICE_DT_GET(DT_INST_IO_CHANNELS_CTLR(0)),
+	.b_const = (IS_ENABLED(DT_INST_PROP(0, v1p0))
+		    ? 3975
+		    : 4250),
+	.adc_channel = DT_INST_IO_CHANNELS_INPUT(0),
+};
 
-DT_INST_FOREACH_STATUS_OKAY(GTS_DEFINE)
+DEVICE_DT_INST_DEFINE(0, &gts_init, NULL,
+		&gts_data, &gts_cfg, POST_KERNEL, CONFIG_SENSOR_INIT_PRIORITY,
+		&gts_api);

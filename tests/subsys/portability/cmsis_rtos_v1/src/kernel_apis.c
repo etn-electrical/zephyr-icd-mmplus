@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
+#include <ztest.h>
 #include <zephyr/kernel.h>
 #include <cmsis_os.h>
 
@@ -31,7 +31,7 @@
  * @see osKernelInitialize(), osKernelStart(),
  * osKernelRunning()
  */
-ZTEST(kernel_apis, test_kernel_start)
+void test_kernel_start(void)
 {
 	if (osFeature_MainThread) {
 		/* When osFeature_MainThread is 1 the kernel offers to start
@@ -43,7 +43,7 @@ ZTEST(kernel_apis, test_kernel_start)
 		/* When osFeature_MainThread is 0 the kernel requires
 		 * explicit start with osKernelStart.
 		 */
-		zassert_false(osKernelRunning());
+		zassert_false(osKernelRunning(), NULL);
 	}
 }
 
@@ -52,7 +52,7 @@ ZTEST(kernel_apis, test_kernel_start)
  *
  * @see osKernelSysTick()
  */
-ZTEST(kernel_apis, test_kernel_systick)
+void test_kernel_systick(void)
 {
 	uint32_t start_time, stop_time, diff, max, min;
 
@@ -70,4 +70,3 @@ ZTEST(kernel_apis, test_kernel_systick)
 		     "start %d stop %d (diff %d) wait %d\n",
 		     start_time, stop_time, diff, WAIT_TIME_US);
 }
-ZTEST_SUITE(kernel_apis, NULL, NULL, NULL, NULL, NULL);

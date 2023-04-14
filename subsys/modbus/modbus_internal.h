@@ -23,7 +23,7 @@
 #ifndef ZEPHYR_INCLUDE_MODBUS_INTERNAL_H_
 #define ZEPHYR_INCLUDE_MODBUS_INTERNAL_H_
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/modbus/modbus.h>
 
@@ -81,6 +81,8 @@
 #define MODBUS_ADU_PROTO_ID			0x0000
 
 struct modbus_serial_config {
+	/* UART device name */
+	const char *dev_name;
 	/* UART device */
 	const struct device *dev;
 	/* RTU timeout (maximum inter-frame delay) */
@@ -108,7 +110,7 @@ struct modbus_context {
 		/* Serial line configuration */
 		struct modbus_serial_config *cfg;
 		/* RAW TX callback */
-		struct modbus_raw_cb rawcb;
+		modbus_raw_cb_t raw_tx_cb;
 	};
 	/* MODBUS mode */
 	enum modbus_mode mode;

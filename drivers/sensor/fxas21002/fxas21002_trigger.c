@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define DT_DRV_COMPAT nxp_fxas21002
-
 #include <zephyr/logging/log.h>
 
 #include "fxas21002.h"
@@ -18,13 +16,13 @@ static void fxas21002_gpio_callback(const struct device *dev,
 {
 	struct fxas21002_data *data =
 		CONTAINER_OF(cb, struct fxas21002_data, gpio_cb);
-	const struct fxas21002_config *config = data->dev->config;
 
-	if ((pin_mask & BIT(config->int_gpio.pin)) == 0U) {
+	if ((pin_mask & BIT(data->gpio_pin)) == 0U) {
 		return;
 	}
 
-	gpio_pin_interrupt_configure_dt(&config->int_gpio, GPIO_INT_DISABLE);
+	gpio_pin_interrupt_configure(data->gpio, data->gpio_pin,
+				     GPIO_INT_DISABLE);
 
 #if defined(CONFIG_FXAS21002_TRIGGER_OWN_THREAD)
 	k_sem_give(&data->trig_sem);
@@ -57,8 +55,9 @@ static void fxas21002_handle_int(const struct device *dev)
 
 	k_sem_take(&data->sem, K_FOREVER);
 
-	if (config->ops->byte_read(dev, FXAS21002_REG_INT_SOURCE,
-				   &int_source)) {
+	if (i2c_reg_read_byte(data->i2c, config->i2c_address,
+			      FXAS21002_REG_INT_SOURCE,
+			      &int_source)) {
 		LOG_ERR("Could not read interrupt source");
 		int_source = 0U;
 	}
@@ -69,7 +68,8 @@ static void fxas21002_handle_int(const struct device *dev)
 		fxas21002_handle_drdy_int(dev);
 	}
 
-	gpio_pin_interrupt_configure_dt(&config->int_gpio, GPIO_INT_EDGE_TO_ACTIVE);
+	gpio_pin_interrupt_configure(data->gpio, config->gpio_pin,
+				     GPIO_INT_EDGE_TO_ACTIVE);
 }
 
 #ifdef CONFIG_FXAS21002_TRIGGER_OWN_THREAD
@@ -103,10 +103,6 @@ int fxas21002_trigger_set(const struct device *dev,
 	uint8_t mask;
 	int ret = 0;
 
-	if (!config->int_gpio.port) {
-		return -ENOTSUP;
-	}
-
 	k_sem_take(&data->sem, K_FOREVER);
 
 	switch (trig->type) {
@@ -138,8 +134,10 @@ int fxas21002_trigger_set(const struct device *dev,
 	}
 
 	/* Configure the sensor interrupt */
-	if (config->ops->reg_field_update(dev, FXAS21002_REG_CTRLREG2, mask,
-					  handler ? mask : 0)) {
+	if (i2c_reg_update_byte(data->i2c, config->i2c_address,
+				FXAS21002_REG_CTRLREG2,
+				mask,
+				handler ? mask : 0)) {
 		LOG_ERR("Could not configure interrupt");
 		ret = -EIO;
 		goto exit;
@@ -190,31 +188,37 @@ int fxas21002_trigger_init(const struct device *dev)
 	ctrl_reg2 |= FXAS21002_CTRLREG2_CFG_DRDY_MASK;
 #endif
 
-	if (config->ops->byte_write(dev, FXAS21002_REG_CTRLREG2,
-				    ctrl_reg2)) {
+	if (i2c_reg_write_byte(data->i2c, config->i2c_address,
+			       FXAS21002_REG_CTRLREG2, ctrl_reg2)) {
 		LOG_ERR("Could not configure interrupt pin routing");
 		return -EIO;
 	}
 
-	if (!device_is_ready(config->int_gpio.port)) {
-		LOG_ERR("GPIO device not ready");
-		return -ENODEV;
+	/* Get the GPIO device */
+	data->gpio = device_get_binding(config->gpio_name);
+	if (data->gpio == NULL) {
+		LOG_ERR("Could not find GPIO device");
+		return -EINVAL;
 	}
 
-	ret = gpio_pin_configure_dt(&config->int_gpio, GPIO_INPUT);
+	data->gpio_pin = config->gpio_pin;
+
+	ret = gpio_pin_configure(data->gpio, config->gpio_pin,
+				 GPIO_INPUT | config->gpio_flags);
 	if (ret < 0) {
 		return ret;
 	}
 
 	gpio_init_callback(&data->gpio_cb, fxas21002_gpio_callback,
-			   BIT(config->int_gpio.pin));
+			   BIT(config->gpio_pin));
 
-	ret = gpio_add_callback(config->int_gpio.port, &data->gpio_cb);
+	ret = gpio_add_callback(data->gpio, &data->gpio_cb);
 	if (ret < 0) {
 		return ret;
 	}
 
-	ret = gpio_pin_interrupt_configure_dt(&config->int_gpio, GPIO_INT_EDGE_TO_ACTIVE);
+	ret = gpio_pin_interrupt_configure(data->gpio, config->gpio_pin,
+					   GPIO_INT_EDGE_TO_ACTIVE);
 	if (ret < 0) {
 		return ret;
 	}

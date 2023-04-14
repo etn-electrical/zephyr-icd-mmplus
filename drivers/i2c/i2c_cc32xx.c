@@ -22,7 +22,6 @@
 
 #define LOG_LEVEL CONFIG_I2C_LOG_LEVEL
 #include <zephyr/logging/log.h>
-#include <zephyr/irq.h>
 LOG_MODULE_REGISTER(i2c_cc32xx);
 
 #include "i2c-priv.h"
@@ -85,7 +84,7 @@ static int i2c_cc32xx_configure(const struct device *dev,
 	uint32_t base = DEV_BASE(dev);
 	uint32_t bitrate_id;
 
-	if (!(dev_config_raw & I2C_MODE_CONTROLLER)) {
+	if (!(dev_config_raw & I2C_MODE_MASTER)) {
 		return -EINVAL;
 	}
 
@@ -348,7 +347,7 @@ static int i2c_cc32xx_init(const struct device *dev)
 
 	/* Set to default configuration: */
 	bitrate_cfg = i2c_map_dt_bitrate(config->bitrate);
-	error = i2c_cc32xx_configure(dev, I2C_MODE_CONTROLLER | bitrate_cfg);
+	error = i2c_cc32xx_configure(dev, I2C_MODE_MASTER | bitrate_cfg);
 	if (error) {
 		return error;
 	}

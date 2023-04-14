@@ -1174,7 +1174,7 @@
  * @brief Trace FIFO Queue peek head entry
  * @param fifo FIFO object
  */
-#define sys_port_trace_k_fifo_peek_head_enter(fifo)
+#define sys_port_trace_k_fifo_peek_head_entry(fifo)
 
 /**
  * @brief Trace FIFO Queue peek head exit
@@ -1187,7 +1187,7 @@
  * @brief Trace FIFO Queue peek tail entry
  * @param fifo FIFO object
  */
-#define sys_port_trace_k_fifo_peek_tail_enter(fifo)
+#define sys_port_trace_k_fifo_peek_tail_entry(fifo)
 
 /**
  * @brief Trace FIFO Queue peek tail exit
@@ -1823,10 +1823,8 @@
 /**
  * @brief Trace Timer start
  * @param timer Timer object
- * @param duration Timer duration
- * @param period Timer period
  */
-#define sys_port_trace_k_timer_start(timer, duration, period)
+#define sys_port_trace_k_timer_start(timer)
 
 /**
  * @brief Trace Timer stop
@@ -1872,17 +1870,17 @@
  * @brief Trace posting of an Event call entry
  * @param event Event object
  * @param events Set of posted events
- * @param events_mask Mask to apply against posted events
+ * @param accumulate True if events accumulate, false otherwise
  */
-#define sys_port_trace_k_event_post_enter(event, events, events_mask)
+#define sys_port_trace_k_event_post_enter(event, events, accumulate)
 
 /**
  * @brief Trace posting of an Event call exit
  * @param event Event object
  * @param events Set of posted events
- * @param events_mask Mask to apply against posted events
+ * @param accumulate True if events accumulate, false otherwise
  */
-#define sys_port_trace_k_event_post_exit(event, events, events_mask)
+#define sys_port_trace_k_event_post_exit(event, events, accumulate)
 
 /**
  * @brief Trace waiting of an Event call entry

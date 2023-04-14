@@ -29,7 +29,6 @@
 #define LOG_DOMAIN dev_i2s_mcux
 #define LOG_LEVEL CONFIG_I2S_LOG_LEVEL
 #include <zephyr/logging/log.h>
-#include <zephyr/irq.h>
 
 LOG_MODULE_REGISTER(LOG_DOMAIN);
 
@@ -453,7 +452,7 @@ static void get_mclk_rate(const struct device *dev, uint32_t *mclk)
 	clock_control_subsys_t clk_sub_sys = dev_cfg->clk_sub_sys;
 	uint32_t rate = 0;
 
-	if (device_is_ready(ccm_dev)) {
+	if (ccm_dev != NULL) {
 		clock_control_get_rate(ccm_dev, clk_sub_sys, &rate);
 	} else {
 		LOG_ERR("CCM driver is not installed");

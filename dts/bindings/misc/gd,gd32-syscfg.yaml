@@ -11,5 +11,10 @@ properties:
   reg:
     required: true
 
-  clocks:
+  label:
+    required: true
+
+  rcu-periph-clock:
+    type: int
+    description: Reset Control Unit Peripheral Clock ID
     required: true

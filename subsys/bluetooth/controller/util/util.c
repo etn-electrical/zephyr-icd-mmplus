@@ -6,19 +6,15 @@
  */
 #include <string.h>
 
-#include <zephyr/arch/cpu.h>
 #include <zephyr/types.h>
 #include <zephyr/sys/byteorder.h>
 #include <zephyr/drivers/entropy.h>
 
 #include "util.h"
 #include "util/memq.h"
+#include "lll.h"
 
-#include "ll_sw/lll.h"
-
-#include "ll_sw/pdu_df.h"
-#include "lll/pdu_vendor.h"
-#include "ll_sw/pdu.h"
+#include "pdu.h"
 
 /**
  * @brief Population count: Count the number of bits set to 1
@@ -222,21 +218,16 @@ again:
 }
 
 #if defined(CONFIG_BT_CTLR_ADV_ISO)
-int util_saa_le32(uint8_t *dst, uint8_t handle)
+void util_saa_le32(uint8_t *dst, uint8_t handle)
 {
 	/* Refer to Bluetooth Core Specification Version 5.2 Vol 6, Part B,
 	 * section 2.1.2 Access Address
 	 */
 	uint32_t saa, saa_15, saa_16;
 	uint8_t bits;
-	int err;
 
-	/* Get access address */
-	err = util_aa_le32(dst);
-	if (err) {
-		return err;
-	}
-
+	/* Get random number */
+	lll_csrand_get(dst, sizeof(uint32_t));
 	saa = sys_get_le32(dst);
 
 	/* SAA_19 = SAA_15 */
@@ -272,8 +263,6 @@ int util_saa_le32(uint8_t *dst, uint8_t handle)
 	saa |= (handle * 0x03);
 
 	sys_put_le32(saa, dst);
-
-	return 0;
 }
 #endif /* CONFIG_BT_CTLR_ADV_ISO */
 

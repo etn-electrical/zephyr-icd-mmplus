@@ -4,11 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <zephyr/init.h>
 #include <zephyr/logging/log.h>
 
 #include <soc.h>
+#include <soc_secure.h>
 
 LOG_MODULE_REGISTER(nrf5340dk_nrf5340_cpuapp, CONFIG_LOG_DEFAULT_LEVEL);
 

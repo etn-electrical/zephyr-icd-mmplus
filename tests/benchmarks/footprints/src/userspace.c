@@ -10,6 +10,7 @@
  *
  */
 #include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <ksched.h>
 #include <zephyr/syscall_handler.h>
 #include <zephyr/app_memory/app_memdomain.h>

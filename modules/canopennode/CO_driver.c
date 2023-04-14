@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <zephyr/drivers/can.h>
 #include <zephyr/init.h>
 #include <zephyr/sys/util.h>
@@ -78,31 +78,22 @@ static void canopen_detach_all_rx_filters(CO_CANmodule_t *CANmodule)
 	}
 }
 
-static void canopen_rx_callback(const struct device *dev, struct can_frame *frame, void *user_data)
+static void canopen_rx_callback(const struct device *dev, struct zcan_frame *msg, void *arg)
 {
-	CO_CANmodule_t *CANmodule = (CO_CANmodule_t *)user_data;
+	CO_CANrx_t *buffer = (CO_CANrx_t *)arg;
 	CO_CANrxMsg_t rxMsg;
-	CO_CANrx_t *buffer;
-	int i;
 
 	ARG_UNUSED(dev);
 
-	/* Loop through registered rx buffers in priority order */
-	for (i = 0; i < CANmodule->rx_size; i++) {
-		buffer = &CANmodule->rx_array[i];
-
-		if (buffer->filter_id == -ENOSPC || buffer->pFunct == NULL) {
-			continue;
-		}
-
-		if (((frame->id ^ buffer->ident) & buffer->mask) == 0U) {
-			rxMsg.ident = frame->id;
-			rxMsg.DLC = frame->dlc;
-			memcpy(rxMsg.data, frame->data, frame->dlc);
-			buffer->pFunct(buffer->object, &rxMsg);
-			break;
-		}
+	if (!buffer || !buffer->pFunct) {
+		LOG_ERR("failed to process CAN rx callback");
+		return;
 	}
+
+	rxMsg.ident = msg->id;
+	rxMsg.DLC = msg->dlc;
+	memcpy(rxMsg.data, msg->data, msg->dlc);
+	buffer->pFunct(buffer->object, &rxMsg);
 }
 
 static void canopen_tx_callback(const struct device *dev, int error, void *arg)
@@ -128,24 +119,23 @@ static void canopen_tx_retry(struct k_work *item)
 	struct canopen_tx_work_container *container =
 		CONTAINER_OF(item, struct canopen_tx_work_container, work);
 	CO_CANmodule_t *CANmodule = container->CANmodule;
-	struct can_frame frame;
+	struct zcan_frame msg;
 	CO_CANtx_t *buffer;
 	int err;
 	uint16_t i;
-
-	memset(&frame, 0, sizeof(frame));
 
 	CO_LOCK_CAN_SEND();
 
 	for (i = 0; i < CANmodule->tx_size; i++) {
 		buffer = &CANmodule->tx_array[i];
 		if (buffer->bufferFull) {
-			frame.id = buffer->ident;
-			frame.dlc = buffer->DLC;
-			frame.flags |= (buffer->rtr ? CAN_FRAME_RTR : 0);
-			memcpy(frame.data, buffer->data, buffer->DLC);
+			msg.id_type = CAN_STANDARD_IDENTIFIER;
+			msg.id = buffer->ident;
+			msg.dlc = buffer->DLC;
+			msg.rtr = (buffer->rtr ? 1 : 0);
+			memcpy(msg.data, buffer->data, buffer->DLC);
 
-			err = can_send(CANmodule->dev, &frame, K_NO_WAIT,
+			err = can_send(CANmodule->dev, &msg, K_NO_WAIT,
 				       canopen_tx_callback, CANmodule);
 			if (err == -EAGAIN) {
 				break;
@@ -167,25 +157,11 @@ static void canopen_tx_retry(struct k_work *item)
 
 void CO_CANsetConfigurationMode(void *CANdriverState)
 {
-	struct canopen_context *ctx = (struct canopen_context *)CANdriverState;
-	int err;
-
-	err = can_stop(ctx->dev);
-	if (err != 0 && err != -EALREADY) {
-		LOG_ERR("failed to stop CAN interface (err %d)", err);
-	}
+	/* No operation */
 }
 
 void CO_CANsetNormalMode(CO_CANmodule_t *CANmodule)
 {
-	int err;
-
-	err = can_start(CANmodule->dev);
-	if (err != 0 && err != -EALREADY) {
-		LOG_ERR("failed to start CAN interface (err %d)", err);
-		return;
-	}
-
 	CANmodule->CANnormal = true;
 }
 
@@ -207,7 +183,7 @@ CO_ReturnError_t CO_CANmodule_init(CO_CANmodule_t *CANmodule,
 		return CO_ERROR_ILLEGAL_ARGUMENT;
 	}
 
-	max_filters = can_get_max_filters(ctx->dev, false);
+	max_filters = can_get_max_filters(ctx->dev, CAN_STANDARD_IDENTIFIER);
 	if (max_filters != -ENOSYS) {
 		if (max_filters < 0) {
 			LOG_ERR("unable to determine number of CAN RX filters");
@@ -274,8 +250,8 @@ void CO_CANmodule_disable(CO_CANmodule_t *CANmodule)
 
 	canopen_detach_all_rx_filters(CANmodule);
 
-	err = can_stop(CANmodule->dev);
-	if (err != 0 && err != -EALREADY) {
+	err = can_set_mode(CANmodule->dev, CAN_MODE_LISTENONLY);
+	if (err) {
 		LOG_ERR("failed to disable CAN interface (err %d)", err);
 	}
 }
@@ -290,7 +266,7 @@ CO_ReturnError_t CO_CANrxBufferInit(CO_CANmodule_t *CANmodule, uint16_t index,
 				void *object,
 				CO_CANrxBufferCallback_t pFunct)
 {
-	struct can_filter filter;
+	struct zcan_filter filter;
 	CO_CANrx_t *buffer;
 
 	if (CANmodule == NULL) {
@@ -307,12 +283,12 @@ CO_ReturnError_t CO_CANrxBufferInit(CO_CANmodule_t *CANmodule, uint16_t index,
 	buffer = &CANmodule->rx_array[index];
 	buffer->object = object;
 	buffer->pFunct = pFunct;
-	buffer->ident = ident;
-	buffer->mask = mask;
 
-	filter.flags = (rtr ? CAN_FILTER_RTR : CAN_FILTER_DATA);
+	filter.id_type = CAN_STANDARD_IDENTIFIER;
 	filter.id = ident;
-	filter.mask = mask;
+	filter.id_mask = mask;
+	filter.rtr = (rtr ? 1 : 0);
+	filter.rtr_mask = 1;
 
 	if (buffer->filter_id != -ENOSPC) {
 		can_remove_rx_filter(CANmodule->dev, buffer->filter_id);
@@ -320,7 +296,7 @@ CO_ReturnError_t CO_CANrxBufferInit(CO_CANmodule_t *CANmodule, uint16_t index,
 
 	buffer->filter_id = can_add_rx_filter(CANmodule->dev,
 					      canopen_rx_callback,
-					      CANmodule, &filter);
+					      buffer, &filter);
 	if (buffer->filter_id == -ENOSPC) {
 		LOG_ERR("failed to add CAN rx callback, no free filter");
 		CO_errorReport(CANmodule->em, CO_EM_MEMORY_ALLOCATION_ERROR,
@@ -361,14 +337,12 @@ CO_CANtx_t *CO_CANtxBufferInit(CO_CANmodule_t *CANmodule, uint16_t index,
 CO_ReturnError_t CO_CANsend(CO_CANmodule_t *CANmodule, CO_CANtx_t *buffer)
 {
 	CO_ReturnError_t ret = CO_ERROR_NO;
-	struct can_frame frame;
+	struct zcan_frame msg;
 	int err;
 
 	if (!CANmodule || !CANmodule->dev || !buffer) {
 		return CO_ERROR_ILLEGAL_ARGUMENT;
 	}
-
-	memset(&frame, 0, sizeof(frame));
 
 	CO_LOCK_CAN_SEND();
 
@@ -381,12 +355,13 @@ CO_ReturnError_t CO_CANsend(CO_CANmodule_t *CANmodule, CO_CANtx_t *buffer)
 		ret = CO_ERROR_TX_OVERFLOW;
 	}
 
-	frame.id = buffer->ident;
-	frame.dlc = buffer->DLC;
-	frame.flags = (buffer->rtr ? CAN_FRAME_RTR : 0);
-	memcpy(frame.data, buffer->data, buffer->DLC);
+	msg.id_type = CAN_STANDARD_IDENTIFIER;
+	msg.id = buffer->ident;
+	msg.dlc = buffer->DLC;
+	msg.rtr = (buffer->rtr ? 1 : 0);
+	memcpy(msg.data, buffer->data, buffer->DLC);
 
-	err = can_send(CANmodule->dev, &frame, K_NO_WAIT, canopen_tx_callback,
+	err = can_send(CANmodule->dev, &msg, K_NO_WAIT, canopen_tx_callback,
 		       CANmodule);
 	if (err == -EAGAIN) {
 		buffer->bufferFull = true;
@@ -458,7 +433,7 @@ void CO_CANverifyErrors(CO_CANmodule_t *CANmodule)
 	if (errors != CANmodule->errors) {
 		CANmodule->errors = errors;
 
-		if (state == CAN_STATE_BUS_OFF) {
+		if (state == CAN_BUS_OFF) {
 			/* Bus off */
 			CO_errorReport(em, CO_EM_CAN_TX_BUS_OFF,
 				       CO_EMC_BUS_OFF_RECOVERED, errors);

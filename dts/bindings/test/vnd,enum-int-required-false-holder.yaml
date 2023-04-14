@@ -10,6 +10,7 @@ include: [base.yaml]
 properties:
   val:
     type: int
+    required: false
     enum:
       - 5
       - 6

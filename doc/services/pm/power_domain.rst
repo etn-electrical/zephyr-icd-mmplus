@@ -1,5 +1,3 @@
-.. _pm-power-domain:
-
 Power Domain
 ############
 

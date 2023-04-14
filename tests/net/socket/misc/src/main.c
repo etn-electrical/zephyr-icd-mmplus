@@ -8,7 +8,7 @@
 LOG_MODULE_REGISTER(net_test, CONFIG_NET_SOCKETS_LOG_LEVEL);
 
 #include <stdio.h>
-#include <zephyr/ztest_assert.h>
+#include <ztest_assert.h>
 #include <zephyr/sys/sem.h>
 
 #include <zephyr/net/socket.h>
@@ -16,7 +16,7 @@ LOG_MODULE_REGISTER(net_test, CONFIG_NET_SOCKETS_LOG_LEVEL);
 
 #include "../../socket_helpers.h"
 
-ZTEST_USER(socket_misc_test_suite, test_gethostname)
+void test_gethostname(void)
 {
 	static ZTEST_BMEM char buf[80];
 	int res;
@@ -27,7 +27,7 @@ ZTEST_USER(socket_misc_test_suite, test_gethostname)
 	zassert_equal(strcmp(buf, "ztest_hostname"), 0, "");
 }
 
-ZTEST_USER(socket_misc_test_suite, test_inet_pton)
+void test_inet_pton(void)
 {
 	int res;
 	uint8_t buf[32];
@@ -50,11 +50,6 @@ ZTEST_USER(socket_misc_test_suite, test_inet_pton)
 	res = inet_pton(AF_INET6, "a:b:c:d:0:1:2:3z", buf);
 	zassert_equal(res, 0, "");
 }
-
-#define TEST_MY_IPV4_ADDR "192.0.2.1"
-#define TEST_PEER_IPV4_ADDR "192.0.2.2"
-#define TEST_MY_IPV6_ADDR "2001:db8::1"
-#define TEST_PEER_IPV6_ADDR "2001:db8::2"
 
 static struct in6_addr my_ipv6_addr1 = { { { 0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0,
 					     0, 0, 0, 0, 0, 0, 0, 0x1 } } };
@@ -96,7 +91,7 @@ static int dummy_send(const struct device *dev, struct net_pkt *pkt)
 	ARG_UNUSED(dev);
 	ARG_UNUSED(pkt);
 
-	NET_DBG("Sending data (%zd bytes) to iface %d\n",
+	NET_DBG("Sending data (%d bytes) to iface %d\n",
 		net_pkt_get_len(pkt), net_if_get_by_iface(net_pkt_iface(pkt)));
 
 	current_dev = dev;
@@ -302,7 +297,7 @@ void test_ipv4_so_bindtodevice(void)
 
 	peer_addr.sin_family = AF_INET;
 	peer_addr.sin_port = htons(DST_PORT);
-	ret = inet_pton(AF_INET, TEST_PEER_IPV4_ADDR,
+	ret = inet_pton(AF_INET, CONFIG_NET_CONFIG_PEER_IPV4_ADDR,
 			&peer_addr.sin_addr);
 	zassert_equal(ret, 1, "inet_pton failed");
 
@@ -330,7 +325,7 @@ void test_ipv6_so_bindtodevice(void)
 
 	peer_addr.sin6_family = AF_INET6;
 	peer_addr.sin6_port = htons(DST_PORT);
-	ret = inet_pton(AF_INET6, TEST_PEER_IPV6_ADDR,
+	ret = inet_pton(AF_INET6, CONFIG_NET_CONFIG_PEER_IPV6_ADDR,
 			&peer_addr.sin6_addr);
 	zassert_equal(ret, 1, "inet_pton failed");
 
@@ -355,11 +350,11 @@ void test_getpeername(int family)
 	srv_addr.sa_family = family;
 	if (family == AF_INET) {
 		net_sin(&srv_addr)->sin_port = htons(DST_PORT);
-		ret = inet_pton(AF_INET, TEST_MY_IPV4_ADDR,
+		ret = inet_pton(AF_INET, CONFIG_NET_CONFIG_MY_IPV4_ADDR,
 				&net_sin(&srv_addr)->sin_addr);
 	} else {
 		net_sin6(&srv_addr)->sin6_port = htons(DST_PORT);
-		ret = inet_pton(AF_INET6, TEST_MY_IPV6_ADDR,
+		ret = inet_pton(AF_INET6, CONFIG_NET_CONFIG_MY_IPV6_ADDR,
 				&net_sin6(&srv_addr)->sin6_addr);
 	}
 	zassert_equal(ret, 1, "inet_pton failed");
@@ -430,23 +425,17 @@ void test_ipv6_getpeername(void)
 	test_getpeername(AF_INET6);
 }
 
-static void *setup(void)
+void test_main(void)
 {
 	k_thread_system_pool_assign(k_current_get());
-	return NULL;
+
+	ztest_test_suite(socket_misc,
+			 ztest_user_unit_test(test_gethostname),
+			 ztest_user_unit_test(test_inet_pton),
+			 ztest_user_unit_test(test_ipv4_so_bindtodevice),
+			 ztest_user_unit_test(test_ipv6_so_bindtodevice),
+			 ztest_user_unit_test(test_ipv4_getpeername),
+			 ztest_user_unit_test(test_ipv6_getpeername));
+
+	ztest_run_test_suite(socket_misc);
 }
-
-
-ZTEST_USER(socket_misc_test_suite, test_ipv4)
-{
-	test_ipv4_so_bindtodevice();
-	test_ipv4_getpeername();
-}
-
-ZTEST_USER(socket_misc_test_suite, test_ipv6)
-{
-	test_ipv6_so_bindtodevice();
-	test_ipv6_getpeername();
-}
-
-ZTEST_SUITE(socket_misc_test_suite, NULL, setup, NULL, NULL, NULL);

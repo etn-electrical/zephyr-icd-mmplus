@@ -17,28 +17,28 @@
  * @{
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <zephyr/net/buf.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-struct bt_mesh_model;
-
 /** Length of a short Mesh MIC. */
 #define BT_MESH_MIC_SHORT 4
 /** Length of a long Mesh MIC. */
 #define BT_MESH_MIC_LONG 8
 
-/**
+/** @def BT_MESH_MODEL_OP_LEN
+ *
  *  @brief Helper to determine the length of an opcode.
  *
  *  @param _op Opcode.
  */
 #define BT_MESH_MODEL_OP_LEN(_op) ((_op) <= 0xff ? 1 : (_op) <= 0xffff ? 2 : 3)
 
-/**
+/** @def BT_MESH_MODEL_BUF_LEN
+ *
  *  @brief Helper for model message buffer length.
  *
  *  Returns the length of a Mesh model message buffer, including the opcode
@@ -50,7 +50,8 @@ struct bt_mesh_model;
 #define BT_MESH_MODEL_BUF_LEN(_op, _payload_len)                               \
 	(BT_MESH_MODEL_OP_LEN(_op) + (_payload_len) + BT_MESH_MIC_SHORT)
 
-/**
+/** @def BT_MESH_MODEL_BUF_LEN_LONG_MIC
+ *
  *  @brief Helper for model message buffer length.
  *
  *  Returns the length of a Mesh model message buffer, including the opcode
@@ -62,7 +63,8 @@ struct bt_mesh_model;
 #define BT_MESH_MODEL_BUF_LEN_LONG_MIC(_op, _payload_len)                      \
 	(BT_MESH_MODEL_OP_LEN(_op) + (_payload_len) + BT_MESH_MIC_LONG)
 
-/**
+/** @def BT_MESH_MODEL_BUF_DEFINE
+ *
  *  @brief Define a Mesh model message buffer using @ref NET_BUF_SIMPLE_DEFINE.
  *
  *  @param _buf         Buffer name.
@@ -98,50 +100,6 @@ struct bt_mesh_msg_ctx {
 	/** TTL, or BT_MESH_TTL_DEFAULT for default TTL. */
 	uint8_t  send_ttl;
 };
-
-/**
- * @brief Helper for bt_mesh_msg_ctx structure initialization.
- *
- * @param net_key_idx NetKey Index of the subnet to send the message on. Only used if
- * @c app_key_idx points to devkey.
- * @param app_key_idx AppKey Index to encrypt the message with.
- * @param dst Remote addr.
- * @param ttl Time To Live.
- */
-#define BT_MESH_MSG_CTX_INIT(net_key_idx, app_key_idx, dst, ttl) \
-	{ \
-		.net_idx = (net_key_idx), \
-		.app_idx = (app_key_idx), \
-		.addr = (dst), \
-		.send_ttl = (ttl), \
-	}
-
-/**
- * @brief Helper for bt_mesh_msg_ctx structure initialization secured with Application Key.
- *
- * @param app_key_idx AppKey Index to encrypt the message with.
- * @param dst Remote addr.
- */
-#define BT_MESH_MSG_CTX_INIT_APP(app_key_idx, dst) \
-	BT_MESH_MSG_CTX_INIT(0, app_key_idx, dst, BT_MESH_TTL_DEFAULT)
-
-/**
- * @brief Helper for bt_mesh_msg_ctx structure initialization secured with Device Key of a remote
- * device.
- *
- * @param net_key_idx NetKey Index of the subnet to send the message on.
- * @param dst Remote addr.
- */
-#define BT_MESH_MSG_CTX_INIT_DEV(net_key_idx, dst) \
-	BT_MESH_MSG_CTX_INIT(net_key_idx, BT_MESH_KEY_DEV_REMOTE, dst, BT_MESH_TTL_DEFAULT)
-
-/**
- * @brief Helper for bt_mesh_msg_ctx structure initialization using Model Publication context.
- *
- * @param pub Pointer to a model publication context.
- */
-#define BT_MESH_MSG_CTX_INIT_PUB(pub) \
-	BT_MESH_MSG_CTX_INIT(0, (pub)->key, (pub)->addr, (pub)->ttl)
 
 /** @brief Initialize a model message.
  *

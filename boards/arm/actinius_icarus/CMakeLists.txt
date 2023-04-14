@@ -1,8 +1,7 @@
 #
-# Copyright (c) 2019-2022 Actinius
+# Copyright (c) 2019 Actinius
 #
 # SPDX-License-Identifier: Apache-2.0
 
 zephyr_library()
-
-add_subdirectory(${ZEPHYR_BASE}/boards/common/actinius actinius_common)
+zephyr_library_sources(board.c)

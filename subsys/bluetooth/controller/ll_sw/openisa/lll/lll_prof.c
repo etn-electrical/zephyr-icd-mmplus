@@ -12,7 +12,6 @@
 
 #include "util/memq.h"
 
-#include "pdu_vendor.h"
 #include "pdu.h"
 
 #include "lll.h"
@@ -134,7 +133,8 @@ void lll_prof_send(void)
 			p->min = cputime_min;
 			p->max = cputime_max;
 
-			ull_rx_put_sched(rx->hdr.link, rx);
+			ull_rx_put(rx->hdr.link, rx);
+			ull_rx_sched();
 		}
 	}
 }

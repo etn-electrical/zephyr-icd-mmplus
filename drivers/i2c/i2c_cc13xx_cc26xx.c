@@ -21,7 +21,6 @@ LOG_MODULE_REGISTER(i2c_cc13xx_cc26xx);
 
 #include <ti/drivers/Power.h>
 #include <ti/drivers/power/PowerCC26X2.h>
-#include <zephyr/irq.h>
 
 #include "i2c-priv.h"
 
@@ -246,7 +245,7 @@ static int i2c_cc13xx_cc26xx_configure(const struct device *dev,
 	}
 
 	/* Support for slave mode has not been implemented */
-	if (!(dev_config & I2C_MODE_CONTROLLER)) {
+	if (!(dev_config & I2C_MODE_MASTER)) {
 		LOG_ERR("Slave mode is not supported");
 		return -EIO;
 	}
@@ -390,7 +389,7 @@ static int i2c_cc13xx_cc26xx_init(const struct device *dev)
 	}
 
 	/* I2C should not be accessed until power domain is on. */
-	while (PRCMPowerDomainsAllOn(PRCM_DOMAIN_SERIAL) !=
+	while (PRCMPowerDomainStatus(PRCM_DOMAIN_SERIAL) !=
 	       PRCM_DOMAIN_POWER_ON) {
 		continue;
 	}
@@ -408,7 +407,7 @@ static int i2c_cc13xx_cc26xx_init(const struct device *dev)
 	}
 
 	cfg = i2c_map_dt_bitrate(DT_INST_PROP(0, clock_frequency));
-	err = i2c_cc13xx_cc26xx_configure(dev, cfg | I2C_MODE_CONTROLLER);
+	err = i2c_cc13xx_cc26xx_configure(dev, cfg | I2C_MODE_MASTER);
 	if (err) {
 		LOG_ERR("Failed to configure");
 		return err;

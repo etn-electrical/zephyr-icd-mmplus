@@ -22,7 +22,7 @@ struct ll_scan_set {
 	struct {
 		uint8_t sid;
 
-		uint8_t adv_addr_type:2;
+		uint8_t adv_addr_type:1;
 		uint8_t filter_policy:1;
 		uint8_t cancelled:1;
 		uint8_t state:2;
@@ -43,7 +43,7 @@ struct ll_scan_aux_set {
 	struct lll_scan_aux lll;
 
 	/* lll_scan or lll_sync */
-	void *volatile parent;
+	void *parent;
 
 	struct node_rx_hdr *rx_head;
 	struct node_rx_hdr *rx_last;

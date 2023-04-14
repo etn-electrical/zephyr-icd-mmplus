@@ -146,8 +146,8 @@ struct isotp_msg_id {
 	};
 	/** ISO-TP extended address (if used) */
 	uint8_t ext_addr;
-	/** Indicates the CAN identifier type (0 for standard or 1 for extended) */
-	uint8_t ide : 1;
+	/** Indicates the CAN identifier type (standard or extended) */
+	uint8_t id_type : 1;
 	/** Indicates if ISO-TP extended addressing is used */
 	uint8_t use_ext_addr : 1;
 	/** Indicates if ISO-TP fixed addressing (acc. to SAE J1939) is used */
@@ -228,7 +228,7 @@ void isotp_unbind(struct isotp_recv_ctx *ctx);
  * @param timeout Timeout for incoming data.
  *
  * @retval Number of bytes copied on success
- * @retval ISOTP_RECV_TIMEOUT when "timeout" timed out
+ * @retval ISOTP_WAIT_TIMEOUT when "timeout" timed out
  * @retval ISOTP_N_* on error
  */
 int isotp_recv(struct isotp_recv_ctx *ctx, uint8_t *data, size_t len,
@@ -249,7 +249,7 @@ int isotp_recv(struct isotp_recv_ctx *ctx, uint8_t *data, size_t len,
  * @param timeout Timeout for incoming data.
  *
  * @retval Remaining data length for this transfer if BS > 0, 0 for BS = 0
- * @retval ISOTP_RECV_TIMEOUT when "timeout" timed out
+ * @retval ISOTP_WAIT_TIMEOUT when "timeout" timed out
  * @retval ISOTP_N_* on error
  */
 int isotp_recv_net(struct isotp_recv_ctx *ctx, struct net_buf **buffer,

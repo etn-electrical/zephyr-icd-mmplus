@@ -5,8 +5,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/ztest.h>
+#include <zephyr/zephyr.h>
+#include <ztest.h>
 #include <zephyr/drivers/i2s.h>
 #include "i2s_api_test.h"
 
@@ -18,7 +18,7 @@
 static ZTEST_DMEM const struct device *dev_i2s;
 static ZTEST_DMEM bool dir_both_supported;
 
-ZTEST_USER(i2s_dir_both_states, test_i2s_dir_both_transfer_configure_1)
+void test_i2s_dir_both_transfer_configure_1(void)
 {
 	int ret;
 
@@ -26,7 +26,7 @@ ZTEST_USER(i2s_dir_both_states, test_i2s_dir_both_transfer_configure_1)
 	zassert_not_null(dev_i2s, "device " I2S_DEV_NAME_RX " not found");
 
 	ret = configure_stream(dev_i2s, I2S_DIR_BOTH);
-	zassert_equal(ret, TC_PASS);
+	zassert_equal(ret, TC_PASS, NULL);
 
 	/* Check if the tested driver supports the I2S_DIR_BOTH value.
 	 * Use the DROP trigger for this, as in the current state of the driver
@@ -47,7 +47,7 @@ ZTEST_USER(i2s_dir_both_states, test_i2s_dir_both_transfer_configure_1)
  *
  * - Sending START, PREPARE trigger in RUNNING state returns failure.
  */
-ZTEST_USER(i2s_dir_both_states, test_i2s_dir_both_state_running_neg)
+void test_i2s_dir_both_state_running_neg(void)
 {
 	if (!dir_both_supported) {
 		TC_PRINT("I2S_DIR_BOTH value is not supported.\n");
@@ -59,23 +59,23 @@ ZTEST_USER(i2s_dir_both_states, test_i2s_dir_both_state_running_neg)
 
 	/* Prefill TX queue */
 	ret = tx_block_write(dev_i2s, 0, 0);
-	zassert_equal(ret, TC_PASS);
+	zassert_equal(ret, TC_PASS, NULL);
 
 	ret = i2s_trigger(dev_i2s, I2S_DIR_BOTH, I2S_TRIGGER_START);
 	zassert_equal(ret, 0, "RX/TX START trigger failed\n");
 
 	for (int i = 0; i < TEST_I2S_STATE_RUNNING_NEG_REPEAT_COUNT; i++) {
 		ret = tx_block_write(dev_i2s, 0, 0);
-		zassert_equal(ret, TC_PASS);
+		zassert_equal(ret, TC_PASS, NULL);
 
 		ret = rx_block_read(dev_i2s, 0);
-		zassert_equal(ret, TC_PASS);
+		zassert_equal(ret, TC_PASS, NULL);
 
 		/* Send invalid triggers, expect failure */
 		ret = i2s_trigger(dev_i2s, I2S_DIR_BOTH, I2S_TRIGGER_START);
-		zassert_equal(ret, -EIO);
+		zassert_equal(ret, -EIO, NULL);
 		ret = i2s_trigger(dev_i2s, I2S_DIR_BOTH, I2S_TRIGGER_PREPARE);
-		zassert_equal(ret, -EIO);
+		zassert_equal(ret, -EIO, NULL);
 	}
 
 	/* All data written, drain TX queue and stop both streams. */
@@ -83,7 +83,7 @@ ZTEST_USER(i2s_dir_both_states, test_i2s_dir_both_state_running_neg)
 	zassert_equal(ret, 0, "RX/TX DRAIN trigger failed");
 
 	ret = rx_block_read(dev_i2s, 0);
-	zassert_equal(ret, TC_PASS);
+	zassert_equal(ret, TC_PASS, NULL);
 }
 
 /** @brief Verify all failure cases in STOPPING state.
@@ -91,7 +91,7 @@ ZTEST_USER(i2s_dir_both_states, test_i2s_dir_both_state_running_neg)
  * - Sending START, STOP, DRAIN, PREPARE trigger in STOPPING state returns
  *   failure.
  */
-ZTEST_USER(i2s_dir_both_states, test_i2s_dir_both_state_stopping_neg)
+void test_i2s_dir_both_state_stopping_neg(void)
 {
 	if (!dir_both_supported) {
 		TC_PRINT("I2S_DIR_BOTH value is not supported.\n");
@@ -103,16 +103,16 @@ ZTEST_USER(i2s_dir_both_states, test_i2s_dir_both_state_stopping_neg)
 
 	/* Prefill TX queue */
 	ret = tx_block_write(dev_i2s, 0, 0);
-	zassert_equal(ret, TC_PASS);
+	zassert_equal(ret, TC_PASS, NULL);
 
 	ret = i2s_trigger(dev_i2s, I2S_DIR_BOTH, I2S_TRIGGER_START);
 	zassert_equal(ret, 0, "RX/TX START trigger failed\n");
 
 	ret = tx_block_write(dev_i2s, 0, 0);
-	zassert_equal(ret, TC_PASS);
+	zassert_equal(ret, TC_PASS, NULL);
 
 	ret = rx_block_read(dev_i2s, 0);
-	zassert_equal(ret, TC_PASS);
+	zassert_equal(ret, TC_PASS, NULL);
 
 	/* All data written, all but one data block read, flush TX queue and
 	 * stop both streams.
@@ -122,16 +122,16 @@ ZTEST_USER(i2s_dir_both_states, test_i2s_dir_both_state_stopping_neg)
 
 	/* Send invalid triggers, expect failure */
 	ret = i2s_trigger(dev_i2s, I2S_DIR_BOTH, I2S_TRIGGER_START);
-	zassert_equal(ret, -EIO);
+	zassert_equal(ret, -EIO, NULL);
 	ret = i2s_trigger(dev_i2s, I2S_DIR_BOTH, I2S_TRIGGER_STOP);
-	zassert_equal(ret, -EIO);
+	zassert_equal(ret, -EIO, NULL);
 	ret = i2s_trigger(dev_i2s, I2S_DIR_BOTH, I2S_TRIGGER_DRAIN);
-	zassert_equal(ret, -EIO);
+	zassert_equal(ret, -EIO, NULL);
 	ret = i2s_trigger(dev_i2s, I2S_DIR_BOTH, I2S_TRIGGER_PREPARE);
-	zassert_equal(ret, -EIO);
+	zassert_equal(ret, -EIO, NULL);
 
 	ret = rx_block_read(dev_i2s, 0);
-	zassert_equal(ret, TC_PASS);
+	zassert_equal(ret, TC_PASS, NULL);
 
 	/* This is incase the RX channel is stuck in STOPPING state.
 	 * Clear out the state before running the next test.
@@ -144,7 +144,7 @@ ZTEST_USER(i2s_dir_both_states, test_i2s_dir_both_state_stopping_neg)
  *
  * - Sending START, STOP, DRAIN trigger in ERROR state returns failure.
  */
-ZTEST_USER(i2s_dir_both_states, test_i2s_dir_both_state_error_neg)
+void test_i2s_dir_both_state_error_neg(void)
 {
 	if (!dir_both_supported) {
 		TC_PRINT("I2S_DIR_BOTH value is not supported.\n");
@@ -158,14 +158,14 @@ ZTEST_USER(i2s_dir_both_states, test_i2s_dir_both_state_error_neg)
 
 	/* Prefill TX queue */
 	ret = tx_block_write(dev_i2s, 0, 0);
-	zassert_equal(ret, TC_PASS);
+	zassert_equal(ret, TC_PASS, NULL);
 
 	ret = i2s_trigger(dev_i2s, I2S_DIR_BOTH, I2S_TRIGGER_START);
 	zassert_equal(ret, 0, "RX/TX START trigger failed\n");
 
 	for (int i = 0; i < NUM_RX_BLOCKS; i++) {
 		ret = tx_block_write(dev_i2s, 0, 0);
-		zassert_equal(ret, TC_PASS);
+		zassert_equal(ret, TC_PASS, NULL);
 	}
 
 	/* Wait for transmission to finish */
@@ -175,7 +175,7 @@ ZTEST_USER(i2s_dir_both_states, test_i2s_dir_both_state_error_neg)
 	 * the error state.
 	 */
 	ret = rx_block_read(dev_i2s, 0);
-	zassert_equal(ret, TC_PASS);
+	zassert_equal(ret, TC_PASS, NULL);
 
 	/* Attempt to read more data blocks than are available in the RX queue */
 	for (int i = 0; i < NUM_RX_BLOCKS; i++) {
@@ -188,15 +188,15 @@ ZTEST_USER(i2s_dir_both_states, test_i2s_dir_both_state_error_neg)
 
 	/* Write one more TX data block, expect an error */
 	ret = tx_block_write(dev_i2s, 2, -EIO);
-	zassert_equal(ret, TC_PASS);
+	zassert_equal(ret, TC_PASS, NULL);
 
 	/* Send invalid triggers, expect failure */
 	ret = i2s_trigger(dev_i2s, I2S_DIR_BOTH, I2S_TRIGGER_START);
-	zassert_equal(ret, -EIO);
+	zassert_equal(ret, -EIO, NULL);
 	ret = i2s_trigger(dev_i2s, I2S_DIR_BOTH, I2S_TRIGGER_STOP);
-	zassert_equal(ret, -EIO);
+	zassert_equal(ret, -EIO, NULL);
 	ret = i2s_trigger(dev_i2s, I2S_DIR_BOTH, I2S_TRIGGER_DRAIN);
-	zassert_equal(ret, -EIO);
+	zassert_equal(ret, -EIO, NULL);
 
 	/* Recover from ERROR state */
 	ret = i2s_trigger(dev_i2s, I2S_DIR_BOTH, I2S_TRIGGER_PREPARE);
@@ -204,13 +204,13 @@ ZTEST_USER(i2s_dir_both_states, test_i2s_dir_both_state_error_neg)
 
 	/* Transmit and receive one more data block */
 	ret = tx_block_write(dev_i2s, 0, 0);
-	zassert_equal(ret, TC_PASS);
+	zassert_equal(ret, TC_PASS, NULL);
 	ret = i2s_trigger(dev_i2s, I2S_DIR_BOTH, I2S_TRIGGER_START);
 	zassert_equal(ret, 0, "RX/TX START trigger failed");
 	ret = i2s_trigger(dev_i2s, I2S_DIR_BOTH, I2S_TRIGGER_DRAIN);
 	zassert_equal(ret, 0, "RX/TX DRAIN trigger failed");
 	ret = rx_block_read(dev_i2s, 0);
-	zassert_equal(ret, TC_PASS);
+	zassert_equal(ret, TC_PASS, NULL);
 
 	k_sleep(K_MSEC(200));
 }

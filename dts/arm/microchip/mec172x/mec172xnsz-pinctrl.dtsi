@@ -189,6 +189,10 @@
 		pinmux = < MCHP_XEC_PINMUX(025, MCHP_AF1) >;
 	};
 
+	/omit-if-no-ref/ nsmi_gpio107: nsmi_gpio107 {
+		pinmux = < MCHP_XEC_PINMUX(0107, MCHP_AF1) >;
+	};
+
 	/* I2C ports */
 	/omit-if-no-ref/ i2c00_scl_gpio004: i2c00_scl_gpio004 {
 		pinmux = < MCHP_XEC_PINMUX(04, MCHP_AF1) >;
@@ -637,24 +641,6 @@
 		pinmux = < MCHP_XEC_PINMUX(076, MCHP_GPIO) >;
 	};
 
-	/* EEPROM */
-	/omit-if-no-ref/ eeprom_cs_gpio116: eeprom_cs_gpio116 {
-		pinmux = < MCHP_XEC_PINMUX(0116, MCHP_AF2) >;
-	};
-
-	/omit-if-no-ref/ eeprom_clk_gpio117: eeprom_clk_gpio117 {
-		pinmux = < MCHP_XEC_PINMUX(0117, MCHP_AF2) >;
-	};
-
-	/omit-if-no-ref/ eeprom_mosi_gpio074: eeprom_mosi_gpio074 {
-		pinmux = < MCHP_XEC_PINMUX(074, MCHP_AF2) >;
-	};
-
-	/omit-if-no-ref/ eeprom_miso_gpio075: eeprom_miso_gpio075 {
-		pinmux = < MCHP_XEC_PINMUX(075, MCHP_AF2) >;
-	};
-
-
 	/* PECI */
 	/omit-if-no-ref/ peci_dat_gpio042: peci_dat_gpio042 {
 		pinmux = < MCHP_XEC_PINMUX(042, MCHP_AF1) >;
@@ -707,10 +693,6 @@
 
 	/omit-if-no-ref/ clk_32khz_out_alt_gpio022: clk_32khz_out_alt_gpio022 {
 		pinmux = < MCHP_XEC_PINMUX(022, MCHP_AF4) >;
-	};
-
-	/omit-if-no-ref/ tst_clk_out_gpio060: tst_clk_out_gpio060 {
-		pinmux = < MCHP_XEC_PINMUX(060, MCHP_AF2) >;
 	};
 
 	/* PROCHOT */
@@ -1070,27 +1052,6 @@
 
 	/omit-if-no-ref/ cmp_vref1_gpio106: cmp_vref1_gpio106 {
 		pinmux = < MCHP_XEC_PINMUX(0106, MCHP_AF2) >;
-	};
-
-};
-
-/* Add Sleep Pin Control */
-&pinctrl {
-	adc00_gpio200_sleep: adc00_gpio200_sleep {
-		pinmux = < MCHP_XEC_PINMUX(0200, MCHP_AF1) >;
-		low-power-enable;
-	};
-	adc03_gpio203_sleep: adc03_gpio203_sleep {
-		pinmux = < MCHP_XEC_PINMUX(0203, MCHP_AF1) >;
-		low-power-enable;
-	};
-	adc04_gpio204_sleep: adc04_gpio204_sleep {
-		pinmux = < MCHP_XEC_PINMUX(0204, MCHP_AF1) >;
-		low-power-enable;
-	};
-	adc05_gpio205_sleep: adc05_gpio205_sleep {
-		pinmux = < MCHP_XEC_PINMUX(0205, MCHP_AF1) >;
-		low-power-enable;
 	};
 
 };

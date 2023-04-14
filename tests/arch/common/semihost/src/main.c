@@ -5,10 +5,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
+#include <ztest.h>
 #include <zephyr/arch/common/semihost.h>
 
-ZTEST(semihost, test_file_ops)
+static void test_file_ops(void)
 {
 	const char *test_file = "./test.bin";
 	uint8_t w_buffer[16] = { 1, 2, 3, 4, 5 };
@@ -68,4 +68,9 @@ ZTEST(semihost, test_file_ops)
 	zassert_equal(semihost_close(fd), 0, "Close failed");
 }
 
-ZTEST_SUITE(semihost, NULL, NULL, NULL, NULL, NULL);
+void test_main(void)
+{
+	ztest_test_suite(semihost,
+			 ztest_unit_test(test_file_ops));
+	ztest_run_test_suite(semihost);
+}

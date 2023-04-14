@@ -8,3 +8,4 @@
 
 KEEP(*(.exc_vector_table))
 KEEP(*(".exc_vector_table.*"))
+KEEP(*(_IRQ_VECTOR_TABLE_SECTION_SYMS))

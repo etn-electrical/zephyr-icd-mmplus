@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/sys/reboot.h>
 #include <zephyr/settings/settings.h>
@@ -86,7 +86,7 @@ static void config_leds(CO_NMT_t *nmt)
 					    GPIO_OUTPUT_INACTIVE);
 		if (err) {
 			LOG_ERR("failed to configure Red LED gpio: %d", err);
-			led_red_gpio.port = NULL;
+			led_green_gpio.port = NULL;
 		}
 	}
 

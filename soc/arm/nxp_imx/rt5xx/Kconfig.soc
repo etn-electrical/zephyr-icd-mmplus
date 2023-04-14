@@ -30,6 +30,7 @@ config SOC_MIMXRT595S_CM33
 	select HAS_MCUX_USDHC1
 	select HAS_MCUX_USDHC2
 	select HAS_MCUX_USB_LPCIP3511
+	select USB_DEDICATED_MEMORY if USB_DEVICE_DRIVER
 	select HAS_MCUX_CTIMER
 endchoice
 
@@ -76,15 +77,6 @@ menuconfig NXP_IMX_RT5XX_BOOT_HEADER
 
 if NXP_IMX_RT5XX_BOOT_HEADER
 
-choice BOOT_DEVICE
-	prompt "Boot device selection"
-	default BOOT_FLEXSPI_NOR
-
-config BOOT_FLEXSPI_NOR
-	bool "FlexSPI serial NOR"
-
-endchoice
-
 config FLASH_CONFIG_OFFSET
 	hex "Flash config data offset"
 	default 0x400
@@ -102,12 +94,5 @@ config IMAGE_VECTOR_TABLE_OFFSET
 	  ROM requires a fixed IVT offset for each type of boot device.
 
 endif # NXP_IMX_RT5XX_BOOT_HEADER
-
-config IMXRT5XX_CODE_CACHE
-	bool "Code cache"
-	default y
-	help
-	  Enable code cache for FlexSPI region at boot. If this Kconfig is
-	  cleared, the CACHE64 controller will be disabled during SOC init
 
 endif # SOC_SERIES_IMX_RT5XX

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
+#include <ztest.h>
 #include <zephyr/sys/mem_manage.h>
 #include <zephyr/timing/timing.h>
 #include <mmu.h>
@@ -72,7 +72,6 @@ void k_sys_fatal_error_handler(unsigned int reason, const z_arch_esf_t *pEsf)
 		ztest_test_pass();
 	} else {
 		printk("Unexpected fault during test");
-		printk("PROJECT EXECUTION FAILED\n");
 		k_fatal_halt(reason);
 	}
 }
@@ -84,7 +83,7 @@ void k_sys_fatal_error_handler(unsigned int reason, const z_arch_esf_t *pEsf)
 #define HALF_BYTES	(HALF_PAGES * CONFIG_MMU_PAGE_SIZE)
 static const char *nums = "0123456789";
 
-ZTEST(demand_paging, test_map_anon_pages)
+void test_map_anon_pages(void)
 {
 	arena_size = k_mem_free_get() + HALF_BYTES;
 	arena = k_mem_map(arena_size, K_MEM_PERM_RW);
@@ -95,7 +94,7 @@ ZTEST(demand_paging, test_map_anon_pages)
 	z_page_frames_dump();
 }
 
-static void print_paging_stats(struct k_mem_paging_stats_t *stats, const char *scope)
+void print_paging_stats(struct k_mem_paging_stats_t *stats, const char *scope)
 {
 	printk("* Page Faults (%s):\n", scope);
 	printk("    - Total: %lu\n", stats->pagefaults.cnt);
@@ -114,7 +113,7 @@ static void print_paging_stats(struct k_mem_paging_stats_t *stats, const char *s
 	       stats->eviction.dirty);
 }
 
-ZTEST(demand_paging, test_touch_anon_pages)
+void test_touch_anon_pages(void)
 {
 	unsigned long faults;
 	struct k_mem_paging_stats_t stats;
@@ -191,7 +190,7 @@ ZTEST(demand_paging, test_touch_anon_pages)
 	}
 }
 
-static void test_k_mem_page_out(void)
+void test_k_mem_page_out(void)
 {
 	unsigned long faults;
 	int key, ret;
@@ -220,7 +219,7 @@ static void test_k_mem_page_out(void)
 
 }
 
-ZTEST(demand_paging_api, test_k_mem_page_in)
+void test_k_mem_page_in(void)
 {
 	unsigned long faults;
 	int key, ret;
@@ -247,10 +246,10 @@ ZTEST(demand_paging_api, test_k_mem_page_in)
 		      faults);
 }
 
-ZTEST(demand_paging_api, test_k_mem_pin)
+void test_k_mem_pin(void)
 {
 	unsigned long faults;
-	unsigned int key;
+	int key;
 
 	k_mem_pin(arena, HALF_BYTES);
 
@@ -275,7 +274,7 @@ ZTEST(demand_paging_api, test_k_mem_pin)
 	k_mem_unpin(arena, HALF_BYTES);
 }
 
-ZTEST(demand_paging_api, test_k_mem_unpin)
+void test_k_mem_unpin(void)
 {
 	/* Pin the memory (which we know works from prior test) */
 	k_mem_pin(arena, HALF_BYTES);
@@ -291,10 +290,10 @@ ZTEST(demand_paging_api, test_k_mem_unpin)
  * store, we can still handle pagefaults.
  * This eats up memory so should be last in the suite.
  */
-ZTEST(demand_paging_stat, test_backing_store_capacity)
+void test_backing_store_capacity(void)
 {
 	char *mem, *ret;
-	unsigned int key;
+	int key;
 	unsigned long faults;
 	size_t size = (((CONFIG_BACKING_STORE_RAM_PAGES - 1) - HALF_PAGES) *
 		       CONFIG_MMU_PAGE_SIZE);
@@ -323,7 +322,7 @@ ZTEST(demand_paging_stat, test_backing_store_capacity)
 }
 
 /* Test if we can get paging statistics under usermode */
-ZTEST_USER(demand_paging_stat, test_user_get_stats)
+void test_user_get_stats(void)
 {
 	struct k_mem_paging_stats_t stats;
 	k_tid_t tid = k_current_get();
@@ -355,7 +354,7 @@ ZTEST_USER(demand_paging_stat, test_user_get_stats)
 /* Print the histogram and return true if histogram has non-zero values
  * in one of its bins.
  */
-static bool print_histogram(struct k_mem_paging_histogram_t *hist)
+bool print_histogram(struct k_mem_paging_histogram_t *hist)
 {
 	bool has_non_zero;
 	uint64_t time_ns;
@@ -381,7 +380,7 @@ static bool print_histogram(struct k_mem_paging_histogram_t *hist)
 }
 
 /* Test if we can get paging timing histograms */
-ZTEST_USER(demand_paging_stat, test_user_get_hist)
+void test_user_get_hist(void)
 {
 	struct k_mem_paging_histogram_t hist;
 
@@ -404,16 +403,19 @@ ZTEST_USER(demand_paging_stat, test_user_get_hist)
 	printk("\n");
 }
 
-void *demand_paging_api_setup(void)
+/* ztest main entry*/
+void test_main(void)
 {
-	test_k_mem_page_out();
+	ztest_test_suite(test_demand_paging,
+			ztest_unit_test(test_map_anon_pages),
+			ztest_unit_test(test_touch_anon_pages),
+			ztest_unit_test(test_k_mem_page_out),
+			ztest_unit_test(test_k_mem_page_in),
+			ztest_unit_test(test_k_mem_pin),
+			ztest_unit_test(test_k_mem_unpin),
+			ztest_unit_test(test_backing_store_capacity),
+			ztest_user_unit_test(test_user_get_stats),
+			ztest_user_unit_test(test_user_get_hist));
 
-	return NULL;
+	ztest_run_test_suite(test_demand_paging);
 }
-
-ZTEST_SUITE(demand_paging, NULL, NULL, NULL, NULL, NULL);
-
-ZTEST_SUITE(demand_paging_api, NULL, demand_paging_api_setup,
-		NULL, NULL, NULL);
-
-ZTEST_SUITE(demand_paging_stat, NULL, NULL, NULL, NULL, NULL);

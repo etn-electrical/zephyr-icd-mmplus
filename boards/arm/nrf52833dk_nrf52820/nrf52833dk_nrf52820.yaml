@@ -14,4 +14,3 @@ supported:
   - gpio
   - watchdog
   - counter
-  - netif:openthread

@@ -6,7 +6,7 @@
  */
 
 #include <inttypes.h>
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <string.h>
 #include <zephyr/sys/printk.h>
 #include <zephyr/logging/log.h>

@@ -38,7 +38,7 @@ FUNC_NORETURN void z_mips_fatal_error(unsigned int reason,
 	CODE_UNREACHABLE;
 }
 
-static char *cause_str(unsigned long cause)
+static char *cause_str(ulong_t cause)
 {
 	switch (cause) {
 	case 0:
@@ -86,7 +86,7 @@ static char *cause_str(unsigned long cause)
 
 void _Fault(z_arch_esf_t *esf)
 {
-	unsigned long cause;
+	ulong_t cause;
 
 	cause = (read_c0_cause() & CAUSE_EXP_MASK) >> CAUSE_EXP_SHIFT;
 

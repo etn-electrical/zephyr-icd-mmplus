@@ -13,23 +13,23 @@
 
 MEMORY
 {
+	ROM_INIT (rx)  : ORIGIN = DT_REG_ADDR(DT_CHOSEN(zephyr_flash)), LENGTH = DT_REG_SIZE(DT_CHOSEN(zephyr_flash))
 	RAM_ILM  (rwx) : ORIGIN = DT_REG_ADDR(DT_NODELABEL(ram_ilm)), LENGTH = DT_REG_SIZE(DT_NODELABEL(ram_ilm))
+}
+
+SECTIONS
+{
+	SECTION_PROLOGUE(vector,,)
+	{
+		. = ALIGN(4);
+		KEEP(*(.init.*))
+	} GROUP_LINK_IN(ROM_INIT)
 }
 
 #include <zephyr/arch/riscv/common/linker.ld>
 
 SECTIONS
 {
-	SECTION_DATA_PROLOGUE(aes_data,,)
-	{
-		. = ALIGN(8);
-		*(.aes_data)
-		*(".aes_data.*")
-
-		PROVIDE (_AES_DATA_VMA_END = .);
-		PROVIDE (_AES_DATA_VMA_START = ADDR(aes_data));
-	} GROUP_DATA_LINK_IN(RAM_ILM, ROMABLE_REGION)
-
 	SECTION_DATA_PROLOGUE(retention_data,,)
 	{
 		. = ALIGN(8);

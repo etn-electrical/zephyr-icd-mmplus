@@ -7,8 +7,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/ztest.h>
+#include <zephyr/zephyr.h>
+#include <ztest.h>
 #include <zephyr/kernel_structs.h>
 #include <string.h>
 #include <stdlib.h>
@@ -86,7 +86,7 @@ static void execute_from_buffer(uint8_t *dst)
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST(protection, test_write_ro)
+static void test_write_ro(void)
 {
 	volatile uint32_t *ptr = (volatile uint32_t *)&rodata_var;
 
@@ -115,7 +115,7 @@ ZTEST(protection, test_write_ro)
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST(protection, test_write_text)
+static void test_write_text(void)
 {
 	void *src = FUNC_TO_PTR(add_one);
 	void *dst = FUNC_TO_PTR(overwrite_target);
@@ -146,7 +146,7 @@ ZTEST(protection, test_write_text)
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST(protection, test_exec_data)
+static void test_exec_data(void)
 {
 #ifdef SKIP_EXECUTE_TESTS
 	ztest_test_skip();
@@ -161,7 +161,7 @@ ZTEST(protection, test_exec_data)
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST(protection, test_exec_stack)
+static void test_exec_stack(void)
 {
 #ifdef SKIP_EXECUTE_TESTS
 	ztest_test_skip();
@@ -178,17 +178,30 @@ ZTEST(protection, test_exec_stack)
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST(protection, test_exec_heap)
-{
 #if (CONFIG_HEAP_MEM_POOL_SIZE > 0) && !defined(SKIP_EXECUTE_TESTS)
+static void test_exec_heap(void)
+{
 	uint8_t *heap_buf = k_malloc(BUF_SIZE);
 
 	execute_from_buffer(heap_buf);
 	k_free(heap_buf);
 	zassert_unreachable("Execute from heap did not fault");
-#else
-	ztest_test_skip();
-#endif
 }
+#else
+static void test_exec_heap(void)
+{
+	ztest_test_skip();
+}
+#endif
 
-ZTEST_SUITE(protection, NULL, NULL, NULL, NULL, NULL);
+void test_main(void)
+{
+	ztest_test_suite(protection,
+			 ztest_unit_test(test_exec_data),
+			 ztest_unit_test(test_exec_stack),
+			 ztest_unit_test(test_exec_heap),
+			 ztest_unit_test(test_write_ro),
+			 ztest_unit_test(test_write_text)
+		);
+	ztest_run_test_suite(protection);
+}

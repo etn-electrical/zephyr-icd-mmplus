@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/arch/xtensa/irq.h>
 #include <zephyr/device.h>
 #include <xtensa/xtruntime.h>
 #include <zephyr/irq_nextlevel.h>

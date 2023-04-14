@@ -1,14 +1,11 @@
 /*
- * Copyright (c) 2018-2023 O.S.Systems
+ * Copyright (c) 2018-2020 O.S.Systems
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+#include "updatehub_device.h"
 
 #include <string.h>
-
-#include <zephyr/drivers/hwinfo.h>
-
-#include "updatehub_device.h"
 
 bool updatehub_get_device_identity(char *id, int id_max_len)
 {
@@ -21,7 +18,7 @@ bool updatehub_get_device_identity(char *id, int id_max_len)
 	}
 
 	memset(id, 0, id_max_len);
-	length = bin2hex(hwinfo_id, (size_t)length, id, id_max_len);
+	length = bin2hex(hwinfo_id, (size_t)length, id, id_max_len - 1);
 
 	return length > 0;
 }

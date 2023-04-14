@@ -51,8 +51,6 @@
 		led0 = &green_led_1;
 		led1 = &yellow_led_2;
 		sw0 = &user_button;
-		sdhc0 = &sdhc0;
-		watchdog0 = &iwdg;
 	};
 };
 
@@ -73,7 +71,6 @@
 	ahb-prescaler = <1>;
 	apb1-prescaler = <2>;
 	apb2-prescaler = <1>;
-	/* usbpre not set: USB clock = 72 / 1.5: 48MHz */
 };
 
 uext_i2c: &i2c2 {};
@@ -131,10 +128,12 @@ uext_serial: &usart1 {};
 		compatible = "zephyr,sdhc-spi-slot";
 		reg = <0>;
 		status = "okay";
+		label = "SDHC_0";
 		spi-max-frequency = <24000000>;
 		mmc {
 			compatible = "zephyr,sdmmc-disk";
 			status = "okay";
+			label = "SDMMC_0";
 		};
 	};
 };
@@ -152,7 +151,7 @@ zephyr_udc0: &usb {
 
 	pwm1: pwm {
 		status = "okay";
-		pinctrl-0 = <&tim1_ch1_pwm_out_pa8>;
+		pinctrl-0 = <&tim1_ch1_pwm_pa8>;
 		pinctrl-names = "default";
 	};
 };

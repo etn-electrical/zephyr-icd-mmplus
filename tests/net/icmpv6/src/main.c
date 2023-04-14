@@ -16,12 +16,12 @@ LOG_MODULE_REGISTER(net_test, CONFIG_NET_ICMPV6_LOG_LEVEL);
 #include <zephyr/sys/printk.h>
 #include <zephyr/linker/sections.h>
 
-#include <zephyr/tc_util.h>
+#include <tc_util.h>
 
 #include <zephyr/net/buf.h>
 
 #include "icmpv6.h"
-#include <zephyr/ztest.h>
+#include <ztest.h>
 
 static int handler_called;
 static int handler_status;
@@ -89,7 +89,7 @@ static struct net_icmpv6_handler test_handler2 = {
 	.handler = handle_test_msg,
 };
 
-ZTEST(icmpv6_fn, test_icmpv6)
+void test_icmpv6(void)
 {
 	if (IS_ENABLED(CONFIG_NET_TC_THREAD_COOPERATIVE)) {
 		k_thread_priority_set(k_current_get(),
@@ -166,4 +166,9 @@ ZTEST(icmpv6_fn, test_icmpv6)
 }
 
 /**test case main entry*/
-ZTEST_SUITE(icmpv6_fn, NULL, NULL, NULL, NULL, NULL);
+void test_main(void)
+{
+	ztest_test_suite(test_icmpv6_fn,
+		ztest_unit_test(test_icmpv6));
+	ztest_run_test_suite(test_icmpv6_fn);
+}

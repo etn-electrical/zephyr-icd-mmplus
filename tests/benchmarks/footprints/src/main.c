@@ -11,6 +11,7 @@
  *
  */
 #include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <ksched.h>
 #include <zephyr/sys/libc-hooks.h>
 #include "footprint.h"

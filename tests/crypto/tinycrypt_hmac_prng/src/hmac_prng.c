@@ -44,9 +44,9 @@
 #include <tinycrypt/constants.h>
 
 #include <stdio.h>
-#include <zephyr/tc_util.h>
-#include <zephyr/test_utils.h>
-#include <zephyr/ztest.h>
+#include <tc_util.h>
+#include <test_utils.h>
+#include <ztest.h>
 
 struct hmac_prng_test_vector {
 	uint8_t entropyinputlen;
@@ -7544,7 +7544,7 @@ unsigned int test_120(void)
 }
 
 
-ZTEST(hmac_prng_fn, test_hmac_prng)
+void test_hmac_prng(void)
 {
 	unsigned int result = TC_PASS;
 
@@ -7913,5 +7913,3 @@ ZTEST(hmac_prng_fn, test_hmac_prng)
 	TC_PRINT("\n");
 	TC_PRINT("All HMAC-PRNG tests succeeded!\n");
 }
-
-ZTEST_SUITE(hmac_prng_fn, NULL, NULL, NULL, NULL, NULL);

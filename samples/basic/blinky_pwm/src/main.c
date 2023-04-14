@@ -9,7 +9,7 @@
  * @file Sample app to demonstrate PWM.
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <zephyr/sys/printk.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/pwm.h>
@@ -53,7 +53,7 @@ void main(void)
 		}
 	}
 
-	printk("Done calibrating; maximum/minimum periods %u/%lu nsec\n",
+	printk("Done calibrating; maximum/minimum periods %u/%lu usec\n",
 	       max_period, MIN_PERIOD);
 
 	period = max_period;

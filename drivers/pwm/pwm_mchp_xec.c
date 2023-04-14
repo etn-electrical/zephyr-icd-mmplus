@@ -8,11 +8,8 @@
 #define DT_DRV_COMPAT microchip_xec_pwm
 
 #include <errno.h>
-#include <stdlib.h>
-#include <stdint.h>
 
 #include <zephyr/device.h>
-#include <zephyr/drivers/pwm.h>
 #ifdef CONFIG_SOC_SERIES_MEC172X
 #include <zephyr/drivers/clock_control/mchp_xec_clock_control.h>
 #include <zephyr/drivers/interrupt_controller/intc_mchp_xec_ecia.h>
@@ -20,10 +17,14 @@
 #ifdef CONFIG_PINCTRL
 #include <zephyr/drivers/pinctrl.h>
 #endif
-#include <zephyr/logging/log.h>
-
+#include <zephyr/drivers/pwm.h>
+#include <errno.h>
+#include <zephyr/kernel.h>
+#include <zephyr/init.h>
 #include <soc.h>
+#include <stdlib.h>
 
+#include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(pwm_mchp_xec, CONFIG_PWM_LOG_LEVEL);
 
 /* Minimal on/off are 1 & 1 both are incremented, so 4.
@@ -84,7 +85,7 @@ static const uint32_t max_freq_high_on_div[NUM_DIV_ELEMS] = {
 	3692307,
 	3428571,
 	3200000,
-	3000000,
+	3000000
 };
 
 static const uint32_t max_freq_low_on_div[NUM_DIV_ELEMS] = {
@@ -103,7 +104,7 @@ static const uint32_t max_freq_low_on_div[NUM_DIV_ELEMS] = {
 	7692,
 	7142,
 	6666,
-	6250,
+	6250
 };
 
 static uint32_t xec_compute_frequency(uint32_t clk, uint32_t on, uint32_t off)
@@ -299,14 +300,13 @@ done:
 
 	params = xec_compare_params(target_freq, &hc_params, &lc_params);
 	if (params == &hc_params) {
-		cfgval &= ~MCHP_PWM_CFG_CLK_SEL_100K;
+		cfgval |= MCHP_PWM_CFG_CLK_SEL_48M;
 	} else {
 		cfgval |= MCHP_PWM_CFG_CLK_SEL_100K;
 	}
 
 	regs->COUNT_ON = params->on;
 	regs->COUNT_OFF = params->off;
-	cfgval &= ~MCHP_PWM_CFG_CLK_PRE_DIV(0xF);
 	cfgval |= MCHP_PWM_CFG_CLK_PRE_DIV(params->div);
 	cfgval |= MCHP_PWM_CFG_ENABLE;
 
@@ -326,8 +326,10 @@ static int pwm_xec_set_cycles(const struct device *dev, uint32_t channel,
 		return -EIO;
 	}
 
-	if (flags & PWM_POLARITY_INVERTED)
-		regs->CONFIG |= MCHP_PWM_CFG_ON_POL_LO;
+	if (flags) {
+		/* PWM polarity not supported (yet?) */
+		return -ENOTSUP;
+	}
 
 	on = pulse_cycles;
 	off = period_cycles - pulse_cycles;
@@ -424,7 +426,7 @@ static int pwm_xec_init(const struct device *dev)
 			      NULL,					\
 			      NULL,					\
 			      &pwm_xec_config_##index, POST_KERNEL,	\
-			      CONFIG_PWM_INIT_PRIORITY,			\
+			      CONFIG_KERNEL_INIT_PRIORITY_DEVICE,	\
 			      &pwm_xec_driver_api);
 
 DT_INST_FOREACH_STATUS_OKAY(XEC_PWM_DEVICE_INIT)

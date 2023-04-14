@@ -3,10 +3,12 @@
 # Copyright (c) 2019 Intel Corp.
 # SPDX-License-Identifier: Apache-2.0
 
+DT_COMPAT_NXP_OS_TIMER := nxp,os-timer
+
 config MCUX_OS_TIMER
 	bool "MCUX OS Event timer"
-	default y
-	depends on DT_HAS_NXP_OS_TIMER_ENABLED
+	depends on HAS_MCUX_OS_TIMER
+	default $(dt_compat_enabled,$(DT_COMPAT_NXP_OS_TIMER))
 	select TICKLESS_CAPABLE
 	help
 	  This module implements a kernel device driver for the NXP OS

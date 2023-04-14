@@ -6,8 +6,8 @@
 
 
 #include <zephyr/drivers/dac.h>
-#include <zephyr/kernel.h>
-#include <zephyr/ztest.h>
+#include <zephyr/zephyr.h>
+#include <ztest.h>
 
 #if defined(CONFIG_BOARD_NUCLEO_F091RC) || \
 	defined(CONFIG_BOARD_NUCLEO_F207ZG) || \
@@ -27,25 +27,25 @@
 	defined(CONFIG_BOARD_NUCLEO_WL55JC) || \
 	defined(CONFIG_BOARD_RONOTH_LODEV)
 
-#define DAC_DEVICE_NODE		DT_NODELABEL(dac1)
+#define DAC_DEVICE_NAME		DT_LABEL(DT_NODELABEL(dac1))
 #define DAC_CHANNEL_ID		1
 #define DAC_RESOLUTION		12
 
 #elif defined(CONFIG_BOARD_TWR_KE18F)
 
-#define DAC_DEVICE_NODE		DT_NODELABEL(dac0)
+#define DAC_DEVICE_NAME		DT_LABEL(DT_NODELABEL(dac0))
 #define DAC_RESOLUTION		12
 #define DAC_CHANNEL_ID		0
 
 #elif defined(CONFIG_BOARD_FRDM_K64F)
 
-#define DAC_DEVICE_NODE		DT_NODELABEL(dac0)
+#define DAC_DEVICE_NAME		DT_LABEL(DT_NODELABEL(dac0))
 #define DAC_RESOLUTION		12
 #define DAC_CHANNEL_ID		0
 
 #elif defined(CONFIG_BOARD_FRDM_K22F)
 
-#define DAC_DEVICE_NODE		DT_NODELABEL(dac0)
+#define DAC_DEVICE_NAME		DT_LABEL(DT_NODELABEL(dac0))
 #define DAC_RESOLUTION		12
 #define DAC_CHANNEL_ID		0
 
@@ -56,14 +56,7 @@
  /* Note external DAC MCP4725 is not populated on BL652_DVK, BL653_DVK and
   * BL654_DVK at factory
   */
-#define DAC_DEVICE_NODE		DT_NODELABEL(dac0)
-#define DAC_RESOLUTION		12
-#define DAC_CHANNEL_ID		0
-
-#elif defined(CONFIG_BOARD_ESP32) || \
-	defined(CONFIG_BOARD_ESP32S2_SAOLA)
-
-#define DAC_DEVICE_NODE		DT_NODELABEL(dac)
+#define DAC_DEVICE_NAME		DT_LABEL(DT_NODELABEL(dac0))
 #define DAC_RESOLUTION		12
 #define DAC_CHANNEL_ID		0
 
@@ -78,15 +71,15 @@ static const struct dac_channel_cfg dac_ch_cfg = {
 
 const struct device *get_dac_device(void)
 {
-	return DEVICE_DT_GET(DAC_DEVICE_NODE);
+	return device_get_binding(DAC_DEVICE_NAME);
 }
 
 static const struct device *init_dac(void)
 {
 	int ret;
-	const struct device *const dac_dev = DEVICE_DT_GET(DAC_DEVICE_NODE);
+	const struct device *dac_dev = device_get_binding(DAC_DEVICE_NAME);
 
-	zassert_true(device_is_ready(dac_dev), "DAC device is not ready");
+	zassert_not_null(dac_dev, "Cannot get DAC device");
 
 	ret = dac_channel_setup(dac_dev, &dac_ch_cfg);
 	zassert_equal(ret, 0,
@@ -98,23 +91,25 @@ static const struct device *init_dac(void)
 /*
  * test_dac_write_value
  */
-ZTEST(dac, test_task_write_value)
+static int test_task_write_value(void)
 {
 	int ret;
 
 	const struct device *dac_dev = init_dac();
 
+	if (!dac_dev) {
+		return TC_FAIL;
+	}
+
 	/* write a value of half the full scale resolution */
 	ret = dac_write_value(dac_dev, DAC_CHANNEL_ID,
 						(1U << DAC_RESOLUTION) / 2);
 	zassert_equal(ret, 0, "dac_write_value() failed with code %d", ret);
+
+	return TC_PASS;
 }
 
-static void *dac_setup(void)
+void test_dac_write_value(void)
 {
-	k_object_access_grant(get_dac_device(), k_current_get());
-
-	return NULL;
+	zassert_true(test_task_write_value() == TC_PASS, NULL);
 }
-
-ZTEST_SUITE(dac, NULL, dac_setup, NULL, NULL, NULL);

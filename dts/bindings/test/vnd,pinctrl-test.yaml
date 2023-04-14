@@ -6,7 +6,14 @@ description: |
 
 compatible: "vnd,pinctrl-test"
 
-include: base.yaml
+include:
+    - name: base.yaml
+    - name: pincfg-node-group.yaml
+      child-binding:
+        child-binding:
+          property-allowlist:
+            - bias-pull-down
+            - bias-pull-up
 
 child-binding:
   description: |
@@ -41,12 +48,6 @@ child-binding:
 
       - bias-pull-up: Enable pull-up resistor.
       - bias-pull-down: Enable pull-down resistor.
-
-    include:
-      - name: pincfg-node.yaml
-        property-allowlist:
-          - bias-pull-down
-          - bias-pull-up
 
     properties:
       pins:

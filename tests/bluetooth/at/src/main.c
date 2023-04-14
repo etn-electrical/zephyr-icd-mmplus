@@ -12,7 +12,7 @@
 
 #include "subsys/bluetooth/host/at.h"
 
-#include <zephyr/ztest.h>
+#include <ztest.h>
 
 static struct at_client at;
 static char buffer[140];
@@ -61,7 +61,8 @@ ZTEST(at_tests, test_at)
 
 	zassert_true(net_buf_tailroom(buf) >= len,
 		    "Allocated buffer is too small");
-	net_buf_add_mem(buf, example_data, len);
+	strncpy((char *)buf->data, example_data, len);
+	net_buf_add(buf, len);
 
 	zassert_equal(at_parse_input(&at, buf), 0, "Parsing failed");
 }

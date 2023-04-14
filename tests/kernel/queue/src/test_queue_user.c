@@ -30,9 +30,9 @@ void child_thread_get(void *p1, void *p2, void *p3)
 	struct k_queue *q = p1;
 	struct k_sem *sem = p2;
 
-	zassert_false(k_queue_is_empty(q));
+	zassert_false(k_queue_is_empty(q), NULL);
 	qd = k_queue_peek_head(q);
-	zassert_equal(qd->data, 0);
+	zassert_equal(qd->data, 0, NULL);
 	qd = k_queue_peek_tail(q);
 	zassert_equal(qd->data, (LIST_LEN * 2) - 1,
 		      "got %d expected %d", qd->data, (LIST_LEN * 2) - 1);
@@ -40,7 +40,7 @@ void child_thread_get(void *p1, void *p2, void *p3)
 	for (int i = 0; i < (LIST_LEN * 2); i++) {
 		qd = k_queue_get(q, K_FOREVER);
 
-		zassert_equal(qd->data, i);
+		zassert_equal(qd->data, i, NULL);
 		if (qd->allocated) {
 			/* snode should never have been touched */
 			zassert_is_null(qd->snode.next, NULL);
@@ -48,7 +48,7 @@ void child_thread_get(void *p1, void *p2, void *p3)
 	}
 
 
-	zassert_true(k_queue_is_empty(q));
+	zassert_true(k_queue_is_empty(q), NULL);
 
 	/* This one gets canceled */
 	qd = k_queue_get(q, K_FOREVER);
@@ -70,7 +70,7 @@ void child_thread_get(void *p1, void *p2, void *p3)
  * @see k_queue_append(), k_queue_alloc_append(),
  * k_queue_init(), k_queue_cancel_wait()
  */
-ZTEST(queue_api_1cpu, test_queue_supv_to_user)
+void test_queue_supv_to_user(void)
 {
 	/* Supervisor mode will add a bunch of data, some with alloc
 	 * and some not
@@ -78,10 +78,6 @@ ZTEST(queue_api_1cpu, test_queue_supv_to_user)
 
 	struct k_queue *q;
 	struct k_sem *sem;
-
-	if (!(IS_ENABLED(CONFIG_USERSPACE))) {
-		ztest_test_skip();
-	}
 
 	q = k_object_alloc(K_OBJ_QUEUE);
 	zassert_not_null(q, "no memory for allocated queue object");
@@ -104,7 +100,7 @@ ZTEST(queue_api_1cpu, test_queue_supv_to_user)
 		qdata[i + 1].data = i + 1;
 		qdata[i + 1].allocated = true;
 		qdata[i + 1].snode.next = NULL;
-		zassert_false(k_queue_alloc_append(q, &qdata[i + 1]));
+		zassert_false(k_queue_alloc_append(q, &qdata[i + 1]), NULL);
 	}
 
 	k_thread_create(&child_thread, child_stack, STACK_SIZE,
@@ -130,7 +126,7 @@ ZTEST(queue_api_1cpu, test_queue_supv_to_user)
  *
  * @see k_queue_alloc_prepend()
  */
-ZTEST_USER(queue_api, test_queue_alloc_prepend_user)
+void test_queue_alloc_prepend_user(void)
 {
 	struct k_queue *q;
 
@@ -140,15 +136,15 @@ ZTEST_USER(queue_api, test_queue_alloc_prepend_user)
 
 	for (int i = 0; i < LIST_LEN * 2; i++) {
 		qdata[i].data = i;
-		zassert_false(k_queue_alloc_prepend(q, &qdata[i]));
+		zassert_false(k_queue_alloc_prepend(q, &qdata[i]), NULL);
 	}
 
 	for (int i = (LIST_LEN * 2) - 1; i >= 0; i--) {
 		struct qdata *qd;
 
 		qd = k_queue_get(q, K_NO_WAIT);
-		zassert_true(qd != NULL);
-		zassert_equal(qd->data, i);
+		zassert_true(qd != NULL, NULL);
+		zassert_equal(qd->data, i, NULL);
 	}
 }
 
@@ -164,7 +160,7 @@ ZTEST_USER(queue_api, test_queue_alloc_prepend_user)
  *
  * @see k_queue_init(), k_queue_alloc_append()
  */
-ZTEST_USER(queue_api, test_queue_alloc_append_user)
+void test_queue_alloc_append_user(void)
 {
 	struct k_queue *q;
 
@@ -174,15 +170,15 @@ ZTEST_USER(queue_api, test_queue_alloc_append_user)
 
 	for (int i = 0; i < LIST_LEN * 2; i++) {
 		qdata[i].data = i;
-		zassert_false(k_queue_alloc_append(q, &qdata[i]));
+		zassert_false(k_queue_alloc_append(q, &qdata[i]), NULL);
 	}
 
 	for (int i = 0; i < LIST_LEN * 2; i++) {
 		struct qdata *qd;
 
 		qd = k_queue_get(q, K_NO_WAIT);
-		zassert_true(qd != NULL);
-		zassert_equal(qd->data, i);
+		zassert_true(qd != NULL, NULL);
+		zassert_equal(qd->data, i, NULL);
 	}
 }
 
@@ -190,7 +186,7 @@ ZTEST_USER(queue_api, test_queue_alloc_append_user)
  * @brief Test to verify free of allocated elements of queue
  * @ingroup kernel_queue_tests
  */
-ZTEST(queue_api, test_auto_free)
+void test_auto_free(void)
 {
 	/* Ensure any resources requested by the previous test were released
 	 * by allocating the entire pool. It would have allocated two kernel
@@ -198,20 +194,13 @@ ZTEST(queue_api, test_auto_free)
 	 * auto-freed when they are de-queued, and the objects when all
 	 * threads with permissions exit.
 	 */
+
 	void *b[4];
 	int i;
-
-	if (!(IS_ENABLED(CONFIG_USERSPACE))) {
-		ztest_test_skip();
-	}
 
 	for (i = 0; i < 4; i++) {
 		b[i] = k_heap_alloc(&test_pool, 64, K_FOREVER);
 		zassert_true(b[i] != NULL, "memory not auto released!");
-	}
-
-	for (i = 0; i < 4; i++) {
-		k_heap_free(&test_pool, b[i]);
 	}
 }
 

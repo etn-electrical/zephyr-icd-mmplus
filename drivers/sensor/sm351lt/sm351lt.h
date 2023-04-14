@@ -10,15 +10,17 @@
 #include <stdint.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/sensor.h>
-#include <zephyr/kernel.h>
 
 #define SENSOR_ATTR_SM351LT_TRIGGER_TYPE SENSOR_ATTR_PRIV_START
 
 struct sm351lt_config {
-	struct gpio_dt_spec int_gpio;
+	const char *bus_name;
+	gpio_pin_t gpio_pin;
+	gpio_dt_flags_t gpio_flags;
 };
 
 struct sm351lt_data {
+	const struct device *bus;
 	bool sample_status;
 
 #ifdef CONFIG_SM351LT_TRIGGER

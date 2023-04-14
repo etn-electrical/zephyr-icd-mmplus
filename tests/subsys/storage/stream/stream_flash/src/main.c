@@ -7,7 +7,7 @@
 #include <string.h>
 #include <zephyr/types.h>
 #include <stdbool.h>
-#include <zephyr/ztest.h>
+#include <ztest.h>
 #include <zephyr/drivers/flash.h>
 #include <zephyr/settings/settings.h>
 
@@ -24,7 +24,7 @@
 #define FLASH_BASE (128*1024)
 #define FLASH_AVAILABLE (FLASH_SIZE-FLASH_BASE)
 
-static const struct device *const fdev = DEVICE_DT_GET(DT_CHOSEN(zephyr_flash_controller));
+static const struct device *fdev = DEVICE_DT_GET(DT_CHOSEN(zephyr_flash_controller));
 static const struct flash_driver_api *api;
 static const struct flash_pages_layout *layout;
 static size_t layout_size;
@@ -98,7 +98,7 @@ static void init_target(void)
 	zassert_equal(rc, 0, "expected success");
 }
 
-ZTEST(lib_stream_flash, test_stream_flash_init)
+static void test_stream_flash_init(void)
 {
 	int rc;
 
@@ -124,7 +124,7 @@ ZTEST(lib_stream_flash, test_stream_flash_init)
 	zassert_equal(FLASH_AVAILABLE, ctx.available, "Wrong size");
 }
 
-ZTEST(lib_stream_flash, test_stream_flash_buffered_write)
+static void test_stream_flash_buffered_write(void)
 {
 	int rc;
 
@@ -144,7 +144,7 @@ ZTEST(lib_stream_flash, test_stream_flash_buffered_write)
 	VERIFY_WRITTEN(0, BUF_LEN);
 }
 
-ZTEST(lib_stream_flash, test_stream_flash_buffered_write_cross_buf_border)
+static void test_stream_flash_buffered_write_cross_buf_border(void)
 {
 	int rc;
 
@@ -174,7 +174,7 @@ ZTEST(lib_stream_flash, test_stream_flash_buffered_write_cross_buf_border)
 	VERIFY_WRITTEN(0, BUF_LEN * 2 + BUF_LEN / 2);
 }
 
-ZTEST(lib_stream_flash, test_stream_flash_buffered_write_unaligned)
+static void test_stream_flash_buffered_write_unaligned(void)
 {
 	int rc;
 
@@ -208,7 +208,7 @@ ZTEST(lib_stream_flash, test_stream_flash_buffered_write_unaligned)
 	VERIFY_WRITTEN(BUF_LEN, BUF_LEN - 1);
 }
 
-ZTEST(lib_stream_flash, test_stream_flash_buffered_write_multi_page)
+static void test_stream_flash_buffered_write_multi_page(void)
 {
 	int rc;
 	int num_pages = MAX_NUM_PAGES - 1;
@@ -232,7 +232,7 @@ ZTEST(lib_stream_flash, test_stream_flash_buffered_write_multi_page)
 	VERIFY_WRITTEN(0, BUF_LEN * (num_pages + 1));
 }
 
-ZTEST(lib_stream_flash, test_stream_flash_bytes_written)
+static void test_stream_flash_bytes_written(void)
 {
 	int rc;
 	size_t offset;
@@ -258,7 +258,7 @@ ZTEST(lib_stream_flash, test_stream_flash_bytes_written)
 	VERIFY_WRITTEN(BUF_LEN, BUF_LEN);
 }
 
-ZTEST(lib_stream_flash, test_stream_flash_buf_size_greater_than_page_size)
+static void test_stream_flash_buf_size_greater_than_page_size(void)
 {
 	int rc;
 
@@ -286,7 +286,7 @@ static int bad_write(const struct device *dev, off_t off, const void *data, size
 	return -EINVAL;
 }
 
-ZTEST(lib_stream_flash, test_stream_flash_buffered_write_callback)
+static void test_stream_flash_buffered_write_callback(void)
 {
 	int rc;
 
@@ -365,7 +365,7 @@ ZTEST(lib_stream_flash, test_stream_flash_buffered_write_callback)
 		      "Expected %d bytes added to buffer", tow);
 }
 
-ZTEST(lib_stream_flash, test_stream_flash_flush)
+static void test_stream_flash_flush(void)
 {
 	int rc;
 
@@ -377,7 +377,7 @@ ZTEST(lib_stream_flash, test_stream_flash_flush)
 }
 
 #ifdef CONFIG_STREAM_FLASH_ERASE
-ZTEST(lib_stream_flash, test_stream_flash_buffered_write_whole_page)
+static void test_stream_flash_buffered_write_whole_page(void)
 {
 	int rc;
 
@@ -413,7 +413,7 @@ static int bad_erase(const struct device *dev, off_t offset, size_t size)
 	return -EINVAL;
 }
 
-ZTEST(lib_stream_flash, test_stream_flash_erase_page)
+static void test_stream_flash_erase_page(void)
 {
 	int rc;
 
@@ -452,12 +452,12 @@ ZTEST(lib_stream_flash, test_stream_flash_erase_page)
 	zassert_equal(rc, -EINVAL, "Expected failure");
 }
 #else
-ZTEST(lib_stream_flash, test_stream_flash_erase_page)
+static void test_stream_flash_erase_page(void)
 {
 	ztest_test_skip();
 }
 
-ZTEST(lib_stream_flash, test_stream_flash_buffered_write_whole_page)
+static void test_stream_flash_buffered_write_whole_page(void)
 {
 	ztest_test_skip();
 }
@@ -497,7 +497,7 @@ static size_t load_progress(const char *load_key)
 	return stream_flash_bytes_written(&ctx);
 }
 
-ZTEST(lib_stream_flash, test_stream_flash_progress_api)
+static void test_stream_flash_progress_api(void)
 {
 	int rc;
 
@@ -537,7 +537,7 @@ ZTEST(lib_stream_flash, test_stream_flash_progress_api)
 	zassert_equal(rc, 0, "expected success");
 }
 
-ZTEST(lib_stream_flash, test_stream_flash_progress_resume)
+static void test_stream_flash_progress_resume(void)
 {
 	int rc;
 	size_t bytes_written_old;
@@ -603,7 +603,7 @@ ZTEST(lib_stream_flash, test_stream_flash_progress_resume)
 		      "expected bytes_written to not be overwritten");
 }
 
-ZTEST(lib_stream_flash, test_stream_flash_progress_clear)
+static void test_stream_flash_progress_clear(void)
 {
 	int rc;
 	size_t bytes_written_old;
@@ -643,15 +643,32 @@ ZTEST(lib_stream_flash, test_stream_flash_progress_clear)
 #endif
 }
 
-void lib_stream_flash_before(void *data)
+void test_main(void)
 {
-	zassume_true(device_is_ready(fdev), "Device is not ready");
+	__ASSERT_NO_MSG(device_is_ready(fdev));
 
 	api = fdev->api;
 	api->page_layout(fdev, &layout, &layout_size);
 
 	page_size = layout->pages_size;
-	zassume_true((page_size > BUF_LEN), "page size is not enough");
-}
+	__ASSERT_NO_MSG(page_size > BUF_LEN);
 
-ZTEST_SUITE(lib_stream_flash, NULL, NULL, lib_stream_flash_before, NULL, NULL);
+	ztest_test_suite(lib_stream_flash_test,
+	     ztest_unit_test(test_stream_flash_init),
+	     ztest_unit_test(test_stream_flash_buffered_write),
+	     ztest_unit_test(test_stream_flash_buffered_write_cross_buf_border),
+	     ztest_unit_test(test_stream_flash_buffered_write_unaligned),
+	     ztest_unit_test(test_stream_flash_buffered_write_multi_page),
+	     ztest_unit_test(test_stream_flash_buf_size_greater_than_page_size),
+	     ztest_unit_test(test_stream_flash_buffered_write_callback),
+	     ztest_unit_test(test_stream_flash_flush),
+	     ztest_unit_test(test_stream_flash_buffered_write_whole_page),
+	     ztest_unit_test(test_stream_flash_erase_page),
+	     ztest_unit_test(test_stream_flash_bytes_written),
+	     ztest_unit_test(test_stream_flash_progress_api),
+	     ztest_unit_test(test_stream_flash_progress_resume),
+	     ztest_unit_test(test_stream_flash_progress_clear)
+	 );
+
+	ztest_run_test_suite(lib_stream_flash_test);
+}

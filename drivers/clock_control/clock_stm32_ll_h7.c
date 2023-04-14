@@ -12,7 +12,6 @@
 #include <stm32_ll_pwr.h>
 #include <stm32_ll_rcc.h>
 #include <stm32_ll_utils.h>
-#include <zephyr/arch/cpu.h>
 #include <zephyr/drivers/clock_control.h>
 #include <zephyr/sys/util.h>
 #include <zephyr/drivers/clock_control/stm32_clock_control.h>
@@ -177,7 +176,8 @@ static uint32_t get_pllout_frequency(uint32_t pllsrc_freq,
 {
 	__ASSERT_NO_MSG(pllm_div && pllout_div);
 
-	return (pllsrc_freq / pllm_div) * plln_mul / pllout_div;
+	return (pllsrc_freq * plln_mul) /
+		(pllm_div * pllout_div);
 }
 
 __unused
@@ -253,8 +253,6 @@ static int32_t prepare_regulator_voltage_scale(void)
 	/* Make sure to put the CPU in highest Voltage scale during clock configuration */
 	/* Highest voltage is SCALE0 */
 	LL_PWR_SetRegulVoltageScaling(LL_PWR_REGU_VOLTAGE_SCALE0);
-	while (LL_PWR_IsActiveFlag_VOS() == 0) {
-	}
 	return 0;
 }
 
@@ -288,8 +286,6 @@ static int32_t optimize_regulator_voltage_scale(uint32_t sysclk_freq)
 	LL_PWR_ConfigSupply(LL_PWR_LDO_SUPPLY);
 #endif
 	LL_PWR_SetRegulVoltageScaling(LL_PWR_REGU_VOLTAGE_SCALE0);
-	while (LL_PWR_IsActiveFlag_VOS() == 0) {
-	}
 	return 0;
 }
 
@@ -336,15 +332,11 @@ static int enabled_clock(uint32_t src_clk)
 	    ((src_clk == STM32_SRC_HSE) && IS_ENABLED(STM32_HSE_ENABLED)) ||
 	    ((src_clk == STM32_SRC_HSI_KER) && IS_ENABLED(STM32_HSI_ENABLED)) ||
 	    ((src_clk == STM32_SRC_CSI_KER) && IS_ENABLED(STM32_CSI_ENABLED)) ||
-	    ((src_clk == STM32_SRC_HSI48) && IS_ENABLED(STM32_HSI48_ENABLED)) ||
 	    ((src_clk == STM32_SRC_LSE) && IS_ENABLED(STM32_LSE_ENABLED)) ||
 	    ((src_clk == STM32_SRC_LSI) && IS_ENABLED(STM32_LSI_ENABLED)) ||
 	    ((src_clk == STM32_SRC_PLL1_P) && IS_ENABLED(STM32_PLL_P_ENABLED)) ||
 	    ((src_clk == STM32_SRC_PLL1_Q) && IS_ENABLED(STM32_PLL_Q_ENABLED)) ||
 	    ((src_clk == STM32_SRC_PLL1_R) && IS_ENABLED(STM32_PLL_R_ENABLED)) ||
-	    ((src_clk == STM32_SRC_PLL2_P) && IS_ENABLED(STM32_PLL2_P_ENABLED)) ||
-	    ((src_clk == STM32_SRC_PLL2_Q) && IS_ENABLED(STM32_PLL2_Q_ENABLED)) ||
-	    ((src_clk == STM32_SRC_PLL2_R) && IS_ENABLED(STM32_PLL2_R_ENABLED)) ||
 	    ((src_clk == STM32_SRC_PLL3_P) && IS_ENABLED(STM32_PLL3_P_ENABLED)) ||
 	    ((src_clk == STM32_SRC_PLL3_Q) && IS_ENABLED(STM32_PLL3_Q_ENABLED)) ||
 	    ((src_clk == STM32_SRC_PLL3_R) && IS_ENABLED(STM32_PLL3_R_ENABLED))) {
@@ -358,6 +350,8 @@ static inline int stm32_clock_control_on(const struct device *dev,
 					 clock_control_subsys_t sub_system)
 {
 	struct stm32_pclken *pclken = (struct stm32_pclken *)(sub_system);
+	volatile uint32_t *reg;
+	uint32_t reg_val;
 
 	ARG_UNUSED(dev);
 
@@ -368,7 +362,10 @@ static inline int stm32_clock_control_on(const struct device *dev,
 
 	z_stm32_hsem_lock(CFG_HW_RCC_SEMID, HSEM_LOCK_DEFAULT_RETRY);
 
-	sys_set_bits(STM32H7_BUS_CLK_REG + pclken->bus, pclken->enr);
+	reg = (uint32_t *)(STM32H7_BUS_CLK_REG + pclken->bus);
+	reg_val = *reg;
+	reg_val |= pclken->enr;
+	*reg = reg_val;
 
 	z_stm32_hsem_unlock(CFG_HW_RCC_SEMID);
 
@@ -379,6 +376,8 @@ static inline int stm32_clock_control_off(const struct device *dev,
 					  clock_control_subsys_t sub_system)
 {
 	struct stm32_pclken *pclken = (struct stm32_pclken *)(sub_system);
+	volatile uint32_t *reg;
+	uint32_t reg_val;
 
 	ARG_UNUSED(dev);
 
@@ -389,7 +388,10 @@ static inline int stm32_clock_control_off(const struct device *dev,
 
 	z_stm32_hsem_lock(CFG_HW_RCC_SEMID, HSEM_LOCK_DEFAULT_RETRY);
 
-	sys_clear_bits(STM32H7_BUS_CLK_REG + pclken->bus, pclken->enr);
+	reg = (uint32_t *)(STM32H7_BUS_CLK_REG + pclken->bus);
+	reg_val = *reg;
+	reg_val &= ~pclken->enr;
+	*reg = reg_val;
 
 	z_stm32_hsem_unlock(CFG_HW_RCC_SEMID);
 
@@ -401,6 +403,8 @@ static inline int stm32_clock_control_configure(const struct device *dev,
 						void *data)
 {
 	struct stm32_pclken *pclken = (struct stm32_pclken *)(sub_system);
+	volatile uint32_t *reg;
+	uint32_t reg_val, dt_val;
 	int err;
 
 	ARG_UNUSED(dev);
@@ -414,8 +418,14 @@ static inline int stm32_clock_control_configure(const struct device *dev,
 
 	z_stm32_hsem_lock(CFG_HW_RCC_SEMID, HSEM_LOCK_DEFAULT_RETRY);
 
-	sys_set_bits(DT_REG_ADDR(DT_NODELABEL(rcc)) + STM32_CLOCK_REG_GET(pclken->enr),
-		     STM32_CLOCK_VAL_GET(pclken->enr) << STM32_CLOCK_SHIFT_GET(pclken->enr));
+	dt_val = STM32_CLOCK_VAL_GET(pclken->enr) <<
+					STM32_CLOCK_SHIFT_GET(pclken->enr);
+	reg = (uint32_t *)(DT_REG_ADDR(DT_NODELABEL(rcc)) +
+					STM32_CLOCK_REG_GET(pclken->enr));
+	reg_val = *reg;
+	reg_val &= ~dt_val;
+	reg_val |= dt_val;
+	*reg = reg_val;
 
 	z_stm32_hsem_unlock(CFG_HW_RCC_SEMID);
 
@@ -488,11 +498,6 @@ static int stm32_clock_control_get_subsys_rate(const struct device *clock,
 		*rate = STM32_LSI_FREQ;
 		break;
 #endif /* STM32_LSI_ENABLED */
-#if defined(STM32_HSI48_ENABLED)
-	case STM32_SRC_HSI48:
-		*rate = STM32_HSI48_FREQ;
-		break;
-#endif /* STM32_HSI48_ENABLED */
 #if defined(STM32_PLL_ENABLED)
 	case STM32_SRC_PLL1_P:
 		*rate = get_pllout_frequency(get_pllsrc_frequency(),
@@ -513,26 +518,6 @@ static int stm32_clock_control_get_subsys_rate(const struct device *clock,
 					      STM32_PLL_R_DIVISOR);
 		break;
 #endif /* STM32_PLL_ENABLED */
-#if defined(STM32_PLL2_ENABLED)
-	case STM32_SRC_PLL2_P:
-		*rate = get_pllout_frequency(get_pllsrc_frequency(),
-					      STM32_PLL2_M_DIVISOR,
-					      STM32_PLL2_N_MULTIPLIER,
-					      STM32_PLL2_P_DIVISOR);
-		break;
-	case STM32_SRC_PLL2_Q:
-		*rate = get_pllout_frequency(get_pllsrc_frequency(),
-					      STM32_PLL2_M_DIVISOR,
-					      STM32_PLL2_N_MULTIPLIER,
-					      STM32_PLL2_Q_DIVISOR);
-		break;
-	case STM32_SRC_PLL2_R:
-		*rate = get_pllout_frequency(get_pllsrc_frequency(),
-					      STM32_PLL2_M_DIVISOR,
-					      STM32_PLL2_N_MULTIPLIER,
-					      STM32_PLL2_R_DIVISOR);
-		break;
-#endif /* STM32_PLL2_ENABLED */
 #if defined(STM32_PLL3_ENABLED)
 	case STM32_SRC_PLL3_P:
 		*rate = get_pllout_frequency(get_pllsrc_frequency(),
@@ -614,20 +599,9 @@ static void set_up_fixed_clock_sources(void)
 		/* Configure driving capability */
 		LL_RCC_LSE_SetDriveCapability(STM32_LSE_DRIVING << RCC_BDCR_LSEDRV_Pos);
 
-		if (IS_ENABLED(STM32_LSE_BYPASS)) {
-			/* Configure LSE bypass */
-			LL_RCC_LSE_EnableBypass();
-		}
-
 		/* Enable LSE oscillator */
 		LL_RCC_LSE_Enable();
 		while (LL_RCC_LSE_IsReady() != 1) {
-		}
-	}
-
-	if (IS_ENABLED(STM32_HSI48_ENABLED)) {
-		LL_RCC_HSI48_Enable();
-		while (LL_RCC_HSI48_IsReady() != 1) {
 		}
 	}
 }
@@ -635,7 +609,7 @@ static void set_up_fixed_clock_sources(void)
 __unused
 static int set_up_plls(void)
 {
-#if defined(STM32_PLL_ENABLED) || defined(STM32_PLL2_ENABLED) || defined(STM32_PLL3_ENABLED)
+#if defined(STM32_PLL_ENABLED) || defined(STM32_PLL3_ENABLED)
 	int r;
 	uint32_t vco_input_range;
 	uint32_t vco_output_range;
@@ -695,44 +669,6 @@ static int set_up_plls(void)
 
 #endif /* STM32_PLL_ENABLED */
 
-#if defined(STM32_PLL2_ENABLED)
-	r = get_vco_input_range(STM32_PLL2_M_DIVISOR, &vco_input_range);
-	if (r < 0) {
-		return r;
-	}
-
-	vco_output_range = get_vco_output_range(vco_input_range);
-
-	LL_RCC_PLL2_SetM(STM32_PLL2_M_DIVISOR);
-
-	LL_RCC_PLL2_SetVCOInputRange(vco_input_range);
-	LL_RCC_PLL2_SetVCOOutputRange(vco_output_range);
-
-	LL_RCC_PLL2_SetN(STM32_PLL2_N_MULTIPLIER);
-
-	LL_RCC_PLL2FRACN_Disable();
-
-	if (IS_ENABLED(STM32_PLL2_P_ENABLED)) {
-		LL_RCC_PLL2_SetP(STM32_PLL2_P_DIVISOR);
-		LL_RCC_PLL2P_Enable();
-	}
-
-	if (IS_ENABLED(STM32_PLL2_Q_ENABLED)) {
-		LL_RCC_PLL2_SetQ(STM32_PLL2_Q_DIVISOR);
-		LL_RCC_PLL2Q_Enable();
-	}
-
-	if (IS_ENABLED(STM32_PLL2_R_ENABLED)) {
-		LL_RCC_PLL2_SetR(STM32_PLL2_R_DIVISOR);
-		LL_RCC_PLL2R_Enable();
-	}
-
-	LL_RCC_PLL2_Enable();
-	while (LL_RCC_PLL2_IsReady() != 1U) {
-	}
-
-#endif /* STM32_PLL2_ENABLED */
-
 #if defined(STM32_PLL3_ENABLED)
 	r = get_vco_input_range(STM32_PLL3_M_DIVISOR, &vco_input_range);
 	if (r < 0) {
@@ -775,7 +711,7 @@ static int set_up_plls(void)
 	/* Init PLL source to None */
 	LL_RCC_PLL_SetSource(LL_RCC_PLLSOURCE_NONE);
 
-#endif /* STM32_PLL_ENABLED || STM32_PLL2_ENABLED || STM32_PLL3_ENABLED */
+#endif /* STM32_PLL_ENABLED || STM32_PLL3_ENABLED */
 
 	return 0;
 }

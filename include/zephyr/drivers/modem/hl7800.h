@@ -26,8 +26,8 @@ extern "C" {
 #define MDM_HL7800_IMEI_SIZE 16
 #define MDM_HL7800_IMEI_STRLEN (MDM_HL7800_IMEI_SIZE - 1)
 
-#define MDM_HL7800_ICCID_MAX_SIZE 21
-#define MDM_HL7800_ICCID_MAX_STRLEN (MDM_HL7800_ICCID_MAX_SIZE - 1)
+#define MDM_HL7800_ICCID_SIZE 21
+#define MDM_HL7800_ICCID_STRLEN (MDM_HL7800_ICCID_SIZE - 1)
 
 #define MDM_HL7800_SERIAL_NUMBER_SIZE 15
 #define MDM_HL7800_SERIAL_NUMBER_STRLEN (MDM_HL7800_SERIAL_NUMBER_SIZE - 1)
@@ -250,11 +250,6 @@ struct mdm_hl7800_polte_location_data {
 typedef void (*mdm_hl7800_event_callback_t)(enum mdm_hl7800_event event,
 					    void *event_data);
 
-struct mdm_hl7800_callback_agent {
-	sys_snode_t node;
-	mdm_hl7800_event_callback_t event_callback;
-};
-
 /**
  * @brief Power off the HL7800
  *
@@ -295,8 +290,8 @@ int32_t mdm_hl7800_send_at_cmd(const uint8_t *data);
  *
  * @param rsrp Reference Signals Received Power (dBm)
  *             Range = -140 dBm to -44 dBm
- * @param sinr Signal to Interference plus Noise Ratio (dB)
- *             Range = -128 dB to 40 dB
+ * @param sinr Signal to Interference plus Noise Ratio (dBm)
+ *             Range = -128 dBm to 40dBm
  */
 void mdm_hl7800_get_signal_quality(int *rsrp, int *sinr);
 
@@ -351,22 +346,10 @@ bool mdm_hl7800_valid_rat(uint8_t value);
 
 /**
  * @brief Register a function that is called when a modem event occurs.
- * Multiple users registering for callbacks is supported.
  *
- * @param agent event callback agent
- *
- * @retval 0 on success, negative on failure
+ * @param cb event callback
  */
-int mdm_hl7800_register_event_callback(struct mdm_hl7800_callback_agent *agent);
-
-/**
- * @brief Unregister a callback event function
- *
- * @param agent event callback agent
- *
- * @retval 0 on success, negative on failure
- */
-int mdm_hl7800_unregister_event_callback(struct mdm_hl7800_callback_agent *agent);
+void mdm_hl7800_register_event_callback(mdm_hl7800_event_callback_t cb);
 
 /**
  * @brief Force modem module to generate status events.
@@ -518,8 +501,7 @@ void mdm_hl7800_register_gpio6_callback(void (*func)(int state));
 void mdm_hl7800_register_cts_callback(void (*func)(int state));
 
 /**
- * @brief Set the bands available for the LTE connection.
- * NOTE: This will cause the modem to reboot. This call returns before the reboot.
+ * @brief Set the bands available for the LTE connection
  *
  * @param bands Band bitmap in hexadecimal format without the 0x prefix.
  * Leading 0's for the value can be ommited.
@@ -527,18 +509,6 @@ void mdm_hl7800_register_cts_callback(void (*func)(int state));
  * @return int32_t negative errno, 0 on success
  */
 int32_t mdm_hl7800_set_bands(const char *bands);
-
-/**
- * @brief Set the log level for the modem.
- *
- * @note It cannot be set higher than CONFIG_MODEM_LOG_LEVEL.
- * If debug level is desired, then it must be compiled with that level.
- *
- * @param level 0 (None) - 4 (Debug)
- *
- * @retval new log level
- */
-uint32_t mdm_hl7800_log_filter_set(uint32_t level);
 
 #ifdef __cplusplus
 }

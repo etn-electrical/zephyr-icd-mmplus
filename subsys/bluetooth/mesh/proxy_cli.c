@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <zephyr/sys/byteorder.h>
 
 #include <zephyr/net/buf.h>
@@ -14,6 +14,10 @@
 #include <zephyr/bluetooth/conn.h>
 #include <zephyr/bluetooth/gatt.h>
 #include <zephyr/bluetooth/mesh.h>
+
+#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_MESH_DEBUG_PROXY)
+#define LOG_MODULE_NAME bt_mesh_proxy_client
+#include "common/log.h"
 
 #include "mesh.h"
 #include "adv.h"
@@ -28,10 +32,6 @@
 #include "proxy.h"
 #include "gatt_cli.h"
 #include "proxy_msg.h"
-
-#define LOG_LEVEL CONFIG_BT_MESH_PROXY_LOG_LEVEL
-#include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(bt_mesh_proxy_client);
 
 static struct bt_mesh_proxy_server {
 	struct bt_mesh_proxy_role *role;
@@ -105,19 +105,19 @@ static void proxy_msg_recv(struct bt_mesh_proxy_role *role)
 {
 	switch (role->msg_type) {
 	case BT_MESH_PROXY_NET_PDU:
-		LOG_DBG("Mesh Network PDU");
+		BT_DBG("Mesh Network PDU");
 		bt_mesh_net_recv(&role->buf, 0, BT_MESH_NET_IF_PROXY);
 		break;
 	case BT_MESH_PROXY_BEACON:
-		LOG_DBG("Mesh Beacon PDU");
+		BT_DBG("Mesh Beacon PDU");
 		bt_mesh_beacon_recv(&role->buf);
 		break;
 	case BT_MESH_PROXY_CONFIG:
-		LOG_DBG("Mesh Configuration PDU");
+		BT_DBG("Mesh Configuration PDU");
 		/* TODO */
 		break;
 	default:
-		LOG_WRN("Unhandled Message Type 0x%02x", role->msg_type);
+		BT_WARN("Unhandled Message Type 0x%02x", role->msg_type);
 		break;
 	}
 }

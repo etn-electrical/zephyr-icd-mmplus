@@ -18,7 +18,6 @@
 #include <driverlib/rom.h>
 #include <driverlib/rom_map.h>
 #include <driverlib/uart.h>
-#include <zephyr/irq.h>
 
 struct uart_msp432p4xx_config {
 	unsigned long base;

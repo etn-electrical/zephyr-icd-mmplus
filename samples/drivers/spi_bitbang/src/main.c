@@ -7,7 +7,7 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(app, LOG_LEVEL_INF);
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <zephyr/device.h>
 #include <zephyr/devicetree.h>
 #include <stdio.h>
@@ -120,15 +120,21 @@ void test_8bit_xfer(const struct device *dev, struct spi_cs_control *cs)
 
 void main(void)
 {
-	const struct device *const dev = DEVICE_DT_GET(SPIBB_NODE);
+	const struct device *dev;
 
-	if (!device_is_ready(dev)) {
-		printk("%s: device not ready.\n", dev->name);
+	dev = device_get_binding(DT_LABEL(SPIBB_NODE));
+
+	if (!dev) {
+		printf("SPI bitbang driver %s was not found!\n",
+				DT_LABEL(SPIBB_NODE));
 		return;
 	}
 
 	struct spi_cs_control cs_ctrl = (struct spi_cs_control){
-		.gpio = GPIO_DT_SPEC_GET(SPIBB_NODE, cs_gpios),
+		.gpio_dev = device_get_binding(
+				DT_GPIO_LABEL(SPIBB_NODE, cs_gpios)),
+		.gpio_pin = DT_GPIO_PIN(SPIBB_NODE, cs_gpios),
+		.gpio_dt_flags = DT_GPIO_FLAGS(SPIBB_NODE, cs_gpios),
 		.delay = 0u,
 	};
 

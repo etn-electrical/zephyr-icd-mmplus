@@ -50,7 +50,6 @@
 	ahb-prescaler = <1>;
 	apb1-prescaler = <2>;
 	apb2-prescaler = <1>;
-	/* usbpre not set: USB clock = 72 / 1.5: 48MHz */
 };
 
 &usart1 {
@@ -107,12 +106,12 @@
 
 	pwm1: pwm {
 		status = "okay";
-		pinctrl-0 = <&tim1_ch1_pwm_out_pa8>;
+		pinctrl-0 = <&tim1_ch1_pwm_pa8>;
 		pinctrl-names = "default";
 	};
 };
 
-zephyr_udc0: &usb {
+&usb {
 	pinctrl-0 = <&usb_dm_pa11 &usb_dp_pa12>;
 	pinctrl-names = "default";
 	status = "okay";

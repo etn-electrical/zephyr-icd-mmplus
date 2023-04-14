@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <zephyr/sys/printk.h>
 
 #include <zephyr/drivers/gpio.h>
@@ -19,10 +19,6 @@
 
 #define WHOAMI_REG      0x0F
 #define WHOAMI_ALT_REG  0x4F
-
-#ifdef CONFIG_LP3943
-static const struct device *const ledc = DEVICE_DT_GET_ONE(ti_lp3943);
-#endif
 
 static inline float out_ev(struct sensor_value *val)
 {
@@ -111,13 +107,16 @@ void main(void)
 {
 	int cnt = 0;
 	char out_str[64];
-	static const struct gpio_dt_spec led0_gpio = GPIO_DT_SPEC_GET(DT_ALIAS(led0), gpios);
-	static const struct gpio_dt_spec led1_gpio = GPIO_DT_SPEC_GET(DT_ALIAS(led1), gpios);
+	static const struct device *led0, *led1;
 	int i, on = 1;
 
 #ifdef CONFIG_LP3943
-	if (!device_is_ready(ledc)) {
-		printk("%s: device not ready.\n", ledc->name);
+	static const struct device *ledc;
+
+	ledc = device_get_binding(DT_LABEL(DT_INST(0, ti_lp3943)));
+	if (!ledc) {
+		printk("Could not get pointer to %s sensor\n",
+			DT_LABEL(DT_INST(0, ti_lp3943)));
 		return;
 	}
 
@@ -134,20 +133,18 @@ void main(void)
 	}
 #endif
 
-	if (!device_is_ready(led0_gpio.port)) {
-		printk("%s: device not ready.\n", led0_gpio.port->name);
-		return;
-	}
-	gpio_pin_configure_dt(&led0_gpio, GPIO_OUTPUT_ACTIVE);
+	led0 = device_get_binding(DT_GPIO_LABEL(DT_ALIAS(led0), gpios));
+	gpio_pin_configure(led0, DT_GPIO_PIN(DT_ALIAS(led0), gpios),
+			   GPIO_OUTPUT_ACTIVE |
+			   DT_GPIO_FLAGS(DT_ALIAS(led0), gpios));
 
-	if (!device_is_ready(led1_gpio.port)) {
-		printk("%s: device not ready.\n", led1_gpio.port->name);
-		return;
-	}
-	gpio_pin_configure_dt(&led1_gpio, GPIO_OUTPUT_INACTIVE);
+	led1 = device_get_binding(DT_GPIO_LABEL(DT_ALIAS(led1), gpios));
+	gpio_pin_configure(led1, DT_GPIO_PIN(DT_ALIAS(led1), gpios),
+			   GPIO_OUTPUT_INACTIVE |
+			   DT_GPIO_FLAGS(DT_ALIAS(led1), gpios));
 
 	for (i = 0; i < 5; i++) {
-		gpio_pin_set_dt(&led1_gpio, on);
+		gpio_pin_set(led1, DT_GPIO_PIN(DT_ALIAS(led1), gpios), on);
 		k_sleep(K_MSEC(200));
 		on = (on == 1) ? 0 : 1;
 	}
@@ -155,28 +152,32 @@ void main(void)
 	printk("ArgonKey test!!\n");
 
 #ifdef CONFIG_LPS22HB
-	const struct device *const baro_dev = DEVICE_DT_GET_ONE(st_lps22hb_press);
+	const struct device *baro_dev =
+			device_get_binding(DT_LABEL(DT_INST(0, st_lps22hb_press)));
 
-	if (!device_is_ready(baro_dev)) {
-		printk("%s: device not ready.\n", baro_dev->name);
+	if (!baro_dev) {
+		printk("Could not get pointer to %s sensor\n",
+			DT_LABEL(DT_INST(0, st_lps22hb_press)));
 		return;
 	}
 #endif
 
 #ifdef CONFIG_HTS221
-	const struct device *const hum_dev = DEVICE_DT_GET_ONE(st_hts221);
+	const struct device *hum_dev = device_get_binding(DT_LABEL(DT_INST(0, st_hts221)));
 
-	if (!device_is_ready(hum_dev)) {
-		printk("%s: device not ready.\n", hum_dev->name);
+	if (!hum_dev) {
+		printk("Could not get pointer to %s sensor\n",
+			DT_LABEL(DT_INST(0, st_hts221)));
 		return;
 	}
 #endif
 
 #ifdef CONFIG_LSM6DSL
-	const struct device *const accel_dev = DEVICE_DT_GET_ONE(st_lsm6dsl);
+	const struct device *accel_dev = device_get_binding(DT_LABEL(DT_INST(0, st_lsm6dsl)));
 
-	if (!device_is_ready(accel_dev)) {
-		printk("%s: device not ready.\n", accel_dev->name);
+	if (!accel_dev) {
+		printk("Could not get pointer to %s sensor\n",
+			DT_LABEL(DT_INST(0, st_lsm6dsl)));
 		return;
 	}
 
@@ -237,10 +238,11 @@ void main(void)
 #endif
 
 #ifdef CONFIG_VL53L0X
-	const struct device *const tof_dev = DEVICE_DT_GET_ONE(st_vl53l0x);
+	const struct device *tof_dev = device_get_binding(DT_LABEL(DT_INST(0, st_vl53l0x)));
 
-	if (!device_is_ready(tof_dev)) {
-		printk("%s: device not ready.\n", tof_dev->name);
+	if (!tof_dev) {
+		printk("Could not get pointer to %s sensor\n",
+			DT_LABEL(DT_INST(0, st_vl53l0x)));
 		return;
 	}
 #endif

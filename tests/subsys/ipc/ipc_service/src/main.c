@@ -4,7 +4,7 @@
 
 #include <zephyr/device.h>
 #include <zephyr/devicetree.h>
-#include <zephyr/ztest.h>
+#include <ztest.h>
 #include <zephyr/ipc/ipc_service.h>
 
 static void received_cb(const void *data, size_t len, void *priv)
@@ -24,7 +24,7 @@ static struct ipc_ept_cfg ept_cfg = {
 	},
 };
 
-ZTEST(ipc_service, test_ipc_service)
+void test_ipc_service(void)
 {
 	const struct device *dev_10;
 	const struct device *dev_20;
@@ -47,10 +47,10 @@ ZTEST(ipc_service, test_ipc_service)
 	ept_cfg.priv = (void *) 20;
 
 	ret = ipc_service_register_endpoint(dev_10, &ept_10, &ept_cfg);
-	zassert_ok(ret, "ipc_service_register_endpoint() failed");
+	zassert_ok(ret, "ipc_service_register_endpoint() failed", NULL);
 
 	ret = ipc_service_send(&ept_10, &msg, sizeof(msg));
-	zassert_ok(ret, "ipc_service_send() failed");
+	zassert_ok(ret, "ipc_service_send() failed", NULL);
 
 	/*
 	 * We send 10 again this time through the ipc20 instance so we expect
@@ -63,20 +63,15 @@ ZTEST(ipc_service, test_ipc_service)
 	ept_cfg.priv = (void *) 30;
 
 	ret = ipc_service_register_endpoint(dev_20, &ept_20, &ept_cfg);
-	zassert_ok(ret, "ipc_service_register_endpoint() failed");
+	zassert_ok(ret, "ipc_service_register_endpoint() failed", NULL);
 
 	ret = ipc_service_send(&ept_20, &msg, sizeof(msg));
-	zassert_ok(ret, "ipc_service_send() failed");
-
-	/*
-	 * Deregister the endpoint and ensure that we fail
-	 * correctly
-	 */
-	ret = ipc_service_deregister_endpoint(&ept_10);
-	zassert_ok(ret, "ipc_service_deregister_endpoint() failed");
-
-	ret = ipc_service_send(&ept_10, &msg, sizeof(msg));
-	zassert_equal(ret, -ENOENT, "ipc_service_send() should return -ENOENT");
+	zassert_ok(ret, "ipc_service_send() failed", NULL);
 }
 
-ZTEST_SUITE(ipc_service, NULL, NULL, NULL, NULL, NULL);
+void test_main(void)
+{
+	ztest_test_suite(ipc_service,
+			 ztest_unit_test(test_ipc_service));
+	ztest_run_test_suite(ipc_service);
+}

@@ -6,7 +6,8 @@
 
 #include <zephyr/types.h>
 #include <zephyr/sys/byteorder.h>
-#include <zephyr/ztest.h>
+#include <ztest.h>
+#include "kconfig.h"
 
 #define ULL_LLCP_UNITTEST
 
@@ -21,14 +22,12 @@
 #include "util/memq.h"
 #include "util/dbuf.h"
 
-#include "pdu_df.h"
-#include "lll/pdu_vendor.h"
 #include "pdu.h"
 #include "ll.h"
 #include "ll_settings.h"
 
 #include "lll.h"
-#include "lll/lll_df_types.h"
+#include "lll_df_types.h"
 #include "lll_conn.h"
 #include "lll_conn_iso.h"
 
@@ -49,9 +48,9 @@
 #include "helper_util.h"
 #include "helper_features.h"
 
-static struct ll_conn *conn_from_pool;
+struct ll_conn *conn_from_pool;
 
-static void hci_setup(void *data)
+static void setup(void)
 {
 	ull_conn_init();
 
@@ -81,7 +80,7 @@ static void hci_setup(void *data)
  *    |<---------------------------|                   |
  *    |                            |                   |
  */
-ZTEST(hci_fex, test_hci_feature_exchange)
+void test_hci_feature_exchange(void)
 {
 	uint64_t err;
 	uint64_t set_feature = DEFAULT_FEATURE;
@@ -125,7 +124,7 @@ ZTEST(hci_fex, test_hci_feature_exchange)
 	ll_conn_release(conn_from_pool);
 }
 
-ZTEST(hci_fex, test_hci_feature_exchange_wrong_handle)
+void test_hci_feature_exchange_wrong_handle(void)
 {
 	uint16_t conn_handle;
 	uint64_t err;
@@ -149,7 +148,7 @@ ZTEST(hci_fex, test_hci_feature_exchange_wrong_handle)
 	zassert_equal(err, BT_HCI_ERR_CMD_DISALLOWED, "Wrong reply for no-resource condition\n");
 }
 
-ZTEST(hci_version, test_hci_version_ind)
+void test_hci_version_ind(void)
 {
 	uint64_t err;
 	uint16_t conn_handle;
@@ -191,7 +190,7 @@ ZTEST(hci_version, test_hci_version_ind)
 	ll_conn_release(conn_from_pool);
 }
 
-ZTEST(hci_version, test_hci_version_ind_wrong_handle)
+void test_hci_version_ind_wrong_handle(void)
 {
 	uint16_t conn_handle;
 	uint64_t err;
@@ -214,7 +213,7 @@ ZTEST(hci_version, test_hci_version_ind_wrong_handle)
 	zassert_equal(err, BT_HCI_ERR_CMD_DISALLOWED, "Wrong reply for no-resource condition\n");
 }
 
-ZTEST(hci_apto, test_hci_apto)
+void test_hci_apto(void)
 {
 	uint16_t conn_handle;
 	uint64_t err;
@@ -230,22 +229,22 @@ ZTEST(hci_apto, test_hci_apto)
 	conn_from_pool->apto_reload = 100;
 	conn_from_pool->lll.interval = 10;
 	err = ll_apto_get(conn_handle, &apto);
-	zassert_equal(err, BT_HCI_ERR_SUCCESS);
+	zassert_equal(err, BT_HCI_ERR_SUCCESS, NULL);
 	zassert_equal(apto, 125, "Apto is %d", apto);
 
 	err = ll_apto_get(conn_handle + 1, &apto);
-	zassert_equal(err, BT_HCI_ERR_UNKNOWN_CONN_ID);
+	zassert_equal(err, BT_HCI_ERR_UNKNOWN_CONN_ID, NULL);
 
 	err = ll_apto_set(conn_handle, 1000);
-	zassert_equal(err, BT_HCI_ERR_SUCCESS);
+	zassert_equal(err, BT_HCI_ERR_SUCCESS, NULL);
 	zassert_equal(conn_from_pool->apto_reload, 800, "Apto reload is %d",
 		      conn_from_pool->apto_reload);
 
 	err = ll_apto_get(conn_handle + 1, 0x00);
-	zassert_equal(err, BT_HCI_ERR_UNKNOWN_CONN_ID);
+	zassert_equal(err, BT_HCI_ERR_UNKNOWN_CONN_ID, NULL);
 }
 
-ZTEST(hci_phy, test_hci_phy)
+void test_hci_phy(void)
 {
 	uint16_t conn_handle;
 	uint64_t err;
@@ -259,7 +258,7 @@ ZTEST(hci_phy, test_hci_phy)
 	ull_cp_state_set(conn_from_pool, ULL_CP_CONNECTED);
 
 	err = ll_phy_req_send(conn_handle + 1, 0x00, 0x00, 0x00);
-	zassert_equal(err, BT_HCI_ERR_UNKNOWN_CONN_ID);
+	zassert_equal(err, BT_HCI_ERR_UNKNOWN_CONN_ID, NULL);
 	conn_from_pool->llcp.fex.features_used = 0x00;
 	conn_from_pool->llcp.fex.valid = 1;
 	err = ll_phy_req_send(conn_handle, 0x03, 0xFF, 0x03);
@@ -269,30 +268,30 @@ ZTEST(hci_phy, test_hci_phy)
 	err = ll_phy_req_send(conn_handle, 0x03, 0xFF, 0x03);
 	zassert_equal(err, BT_HCI_ERR_SUCCESS, "Errorcode %d", err);
 	err = ll_phy_get(conn_handle + 1, &phy_tx, &phy_rx);
-	zassert_equal(err, BT_HCI_ERR_UNKNOWN_CONN_ID);
+	zassert_equal(err, BT_HCI_ERR_UNKNOWN_CONN_ID, NULL);
 
 	conn_from_pool->lll.phy_rx = 0x3;
 	conn_from_pool->lll.phy_tx = 0x7;
 	err = ll_phy_get(conn_handle, &phy_tx, &phy_rx);
-	zassert_equal(err, BT_HCI_ERR_SUCCESS);
-	zassert_equal(phy_tx, 0x07);
-	zassert_equal(phy_rx, 0x03);
+	zassert_equal(err, BT_HCI_ERR_SUCCESS, NULL);
+	zassert_equal(phy_tx, 0x07, NULL);
+	zassert_equal(phy_rx, 0x03, NULL);
 
 	err = ll_phy_default_set(0x00, 0x00);
-	zassert_equal(err, BT_HCI_ERR_SUCCESS);
+	zassert_equal(err, BT_HCI_ERR_SUCCESS, NULL);
 	phy_tx = ull_conn_default_phy_tx_get();
 	phy_rx = ull_conn_default_phy_rx_get();
-	zassert_equal(phy_tx, 0x00);
-	zassert_equal(phy_rx, 0x00);
+	zassert_equal(phy_tx, 0x00, NULL);
+	zassert_equal(phy_rx, 0x00, NULL);
 	err = ll_phy_default_set(0x01, 0x03);
-	zassert_equal(err, BT_HCI_ERR_SUCCESS);
+	zassert_equal(err, BT_HCI_ERR_SUCCESS, NULL);
 	phy_tx = ull_conn_default_phy_tx_get();
 	phy_rx = ull_conn_default_phy_rx_get();
-	zassert_equal(phy_tx, 0x01);
-	zassert_equal(phy_rx, 0x03);
+	zassert_equal(phy_tx, 0x01, NULL);
+	zassert_equal(phy_rx, 0x03, NULL);
 }
 
-ZTEST(hci_dle, test_hci_dle)
+void test_hci_dle(void)
 {
 	uint16_t conn_handle;
 	uint64_t err;
@@ -318,28 +317,28 @@ ZTEST(hci_dle, test_hci_dle)
 	zassert_equal(err, BT_HCI_ERR_UNKNOWN_CONN_ID, "Errorcode %d", err);
 
 	ll_length_max_get(&max_tx_octets, &max_tx_time, &max_rx_octets, &max_rx_time);
-	zassert_equal(max_tx_octets, LL_LENGTH_OCTETS_RX_MAX);
-	zassert_equal(max_rx_octets, LL_LENGTH_OCTETS_RX_MAX);
+	zassert_equal(max_tx_octets, LL_LENGTH_OCTETS_RX_MAX, NULL);
+	zassert_equal(max_rx_octets, LL_LENGTH_OCTETS_RX_MAX, NULL);
 	zassert_equal(max_tx_time, 17040, "Actual time is %d", max_tx_time);
 	zassert_equal(max_rx_time, 17040, "Actual time is %d", max_rx_time);
 
 	err = ll_length_default_set(0x00, 0x00);
 	ll_length_default_get(&max_tx_octets, &max_tx_time);
-	zassert_equal(err, 00);
-	zassert_equal(max_tx_octets, 0x00);
-	zassert_equal(max_tx_time, 0x00);
+	zassert_equal(err, 00, NULL);
+	zassert_equal(max_tx_octets, 0x00, NULL);
+	zassert_equal(max_tx_time, 0x00, NULL);
 	err = ll_length_default_set(0x10, 0x3FF);
 	ll_length_default_get(&max_tx_octets, &max_tx_time);
-	zassert_equal(err, 00);
-	zassert_equal(max_tx_octets, 0x10);
-	zassert_equal(max_tx_time, 0x3FF);
+	zassert_equal(err, 00, NULL);
+	zassert_equal(max_tx_octets, 0x10, NULL);
+	zassert_equal(max_tx_time, 0x3FF, NULL);
 	max_tx_octets = ull_conn_default_tx_octets_get();
 	max_tx_time = ull_conn_default_tx_time_get();
-	zassert_equal(max_tx_octets, 0x10);
-	zassert_equal(max_tx_time, 0x3FF);
+	zassert_equal(max_tx_octets, 0x10, NULL);
+	zassert_equal(max_tx_time, 0x3FF, NULL);
 }
 
-ZTEST(hci_terminate, test_hci_terminate)
+void test_hci_terminate(void)
 {
 	uint16_t conn_handle;
 	uint64_t err;
@@ -354,7 +353,7 @@ ZTEST(hci_terminate, test_hci_terminate)
 
 	reason = 0x01;
 	err = ll_terminate_ind_send(conn_handle + 1, reason);
-	zassert_equal(err, BT_HCI_ERR_CMD_DISALLOWED, "Errorcode %d", err);
+	zassert_equal(err, BT_HCI_ERR_UNKNOWN_CONN_ID, "Errorcode %d", err);
 	err = ll_terminate_ind_send(conn_handle, reason);
 	zassert_equal(err, BT_HCI_ERR_INVALID_PARAM, "Errorcode %d", err);
 	reason = BT_HCI_ERR_REMOTE_USER_TERM_CONN;
@@ -363,13 +362,13 @@ ZTEST(hci_terminate, test_hci_terminate)
 
 }
 
-ZTEST(hci_conn_update, test_hci_conn_update)
+void test_hci_conn_update(void)
 {
 	uint16_t conn_handle;
 	uint8_t err;
 
 	uint8_t cmd, status;
-	uint16_t interval_min, interval_max, latency, timeout, *offsets;
+	uint16_t interval_min, interval_max, latency, timeout;
 
 	uint8_t unknown_cmds[3U] = { 1U, 3U, 255U };
 
@@ -379,7 +378,6 @@ ZTEST(hci_conn_update, test_hci_conn_update)
 	interval_max = 100U;
 	latency = 5U;
 	timeout = 1000U;
-	offsets = NULL;
 
 	conn_handle = ll_conn_handle_get(conn_from_pool);
 
@@ -389,45 +387,45 @@ ZTEST(hci_conn_update, test_hci_conn_update)
 
 	/* Unknown Connection ID */
 	err = ll_conn_update(conn_handle + 1, cmd, status, interval_min, interval_max, latency,
-			     timeout, offsets);
+			     timeout);
 	zassert_equal(err, BT_HCI_ERR_UNKNOWN_CONN_ID, "Errorcode %d", err);
 
 	/* Unknown commands */
 	for (uint8_t i = 0U; i < sizeof(unknown_cmds); i++) {
 		err = ll_conn_update(conn_handle, unknown_cmds[i], status, interval_min,
-				     interval_max, latency, timeout, offsets);
+				     interval_max, latency, timeout);
 		zassert_equal(err, BT_HCI_ERR_UNKNOWN_CMD, "Errorcode %d", err);
 	}
 
 	/* Connection Update or Connection Parameter Req. */
 	conn_from_pool->llcp.fex.features_used |= BIT64(BT_LE_FEAT_BIT_CONN_PARAM_REQ);
 	err = ll_conn_update(conn_handle, cmd, status, interval_min, interval_max, latency,
-			     timeout, offsets);
+			     timeout);
 	zassert_equal(err, BT_HCI_ERR_SUCCESS, "Errorcode %d", err);
 
 	conn_from_pool->llcp.fex.features_used &= ~BIT64(BT_LE_FEAT_BIT_CONN_PARAM_REQ);
 	err = ll_conn_update(conn_handle, cmd, status, interval_min, interval_max, latency,
-			     timeout, offsets);
+			     timeout);
 	zassert_equal(err, BT_HCI_ERR_SUCCESS, "Errorcode %d", err);
 
 	/* Connection Parameter Req. Reply */
 	cmd = 2U;
 	conn_from_pool->llcp.fex.features_used |= BIT64(BT_LE_FEAT_BIT_CONN_PARAM_REQ);
 	err = ll_conn_update(conn_handle, cmd, status, interval_min, interval_max, latency,
-			     timeout, offsets);
+			     timeout);
 	zassert_equal(err, BT_HCI_ERR_SUCCESS, "Errorcode %d", err);
 
 	/* Connection Parameter Req. Neg. Reply */
 	status = 0x01;
 	conn_from_pool->llcp.fex.features_used |= BIT64(BT_LE_FEAT_BIT_CONN_PARAM_REQ);
-	err = ll_conn_update(conn_handle, cmd, status, 0U, 0U, 0U, 0U, NULL);
+	err = ll_conn_update(conn_handle, cmd, status, 0U, 0U, 0U, 0U);
 	zassert_equal(err, BT_HCI_ERR_SUCCESS, "Errorcode %d", err);
 }
 
 /* 'Define' out Central API tests because ull_central.c is mock'ed, so API is not supported */
 #define ULL_CENTRAL_MOCKED
 
-ZTEST(hci_channelmap, test_hci_chmap)
+void test_hci_chmap(void)
 {
 #ifndef ULL_CENTRAL_MOCKED
 	uint16_t conn_handle;
@@ -468,7 +466,7 @@ ZTEST(hci_channelmap, test_hci_chmap)
 #endif /* !defined(ULL_CENTRAL_MOCKED) */
 }
 
-ZTEST(hci_rssi, test_hci_rssi)
+void test_hci_rssi(void)
 {
 	uint16_t conn_handle;
 	uint64_t err;
@@ -491,7 +489,7 @@ ZTEST(hci_rssi, test_hci_rssi)
 	zassert_equal(rssi, 0xcd, "RSSI %d", err);
 }
 
-ZTEST(hci_encryption, test_hci_enc)
+void test_hci_enc(void)
 {
 #ifndef ULL_CENTRAL_MOCKED
 	uint16_t conn_handle;
@@ -523,13 +521,26 @@ ZTEST(hci_encryption, test_hci_enc)
 #endif /* !defined(ULL_CENTRAL_MOCKED) */
 }
 
-ZTEST_SUITE(hci_fex, NULL, NULL, hci_setup, NULL, NULL);
-ZTEST_SUITE(hci_version, NULL, NULL, hci_setup, NULL, NULL);
-ZTEST_SUITE(hci_apto, NULL, NULL, hci_setup, NULL, NULL);
-ZTEST_SUITE(hci_phy, NULL, NULL, hci_setup, NULL, NULL);
-ZTEST_SUITE(hci_dle, NULL, NULL, hci_setup, NULL, NULL);
-ZTEST_SUITE(hci_terminate, NULL, NULL, hci_setup, NULL, NULL);
-ZTEST_SUITE(hci_conn_update, NULL, NULL, hci_setup, NULL, NULL);
-ZTEST_SUITE(hci_channelmap, NULL, NULL, hci_setup, NULL, NULL);
-ZTEST_SUITE(hci_rssi, NULL, NULL, hci_setup, NULL, NULL);
-ZTEST_SUITE(hci_encryption, NULL, NULL, hci_setup, NULL, NULL);
+void test_main(void)
+{
+	ztest_test_suite(
+		hci_interface,
+		ztest_unit_test_setup_teardown(test_hci_feature_exchange, setup, unit_test_noop),
+		ztest_unit_test_setup_teardown(test_hci_feature_exchange_wrong_handle, setup,
+					       unit_test_noop),
+		ztest_unit_test_setup_teardown(test_hci_version_ind, setup, unit_test_noop),
+		ztest_unit_test_setup_teardown(test_hci_version_ind_wrong_handle, setup,
+					       unit_test_noop),
+		ztest_unit_test_setup_teardown(test_hci_apto, setup, unit_test_noop),
+		ztest_unit_test_setup_teardown(test_hci_phy, setup, unit_test_noop),
+		ztest_unit_test_setup_teardown(test_hci_dle, setup, unit_test_noop),
+		ztest_unit_test_setup_teardown(test_hci_terminate, setup, unit_test_noop),
+		ztest_unit_test_setup_teardown(test_hci_conn_update, setup, unit_test_noop),
+		ztest_unit_test_setup_teardown(test_hci_chmap, setup, unit_test_noop),
+		ztest_unit_test_setup_teardown(test_hci_enc, setup, unit_test_noop),
+		ztest_unit_test_setup_teardown(test_hci_rssi, setup, unit_test_noop)
+
+	);
+
+	ztest_run_test_suite(hci_interface);
+}

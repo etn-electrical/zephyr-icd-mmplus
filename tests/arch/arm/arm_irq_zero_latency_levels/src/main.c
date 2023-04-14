@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
+#include <ztest.h>
 #include <zephyr/arch/cpu.h>
 #include <zephyr/arch/arm/aarch32/cortex_m/cmsis.h>
 
@@ -147,7 +147,8 @@ static int find_unused_irq(int start)
 	return i;
 }
 
-ZTEST(arm_irq_zero_latency_levels, test_arm_zero_latency_levels)
+
+void test_arm_zero_latency_levels(void)
 {
 	/*
 	 * Confirm that a zero-latency interrupt with lower priority will be
@@ -176,7 +177,7 @@ ZTEST(arm_irq_zero_latency_levels, test_arm_zero_latency_levels)
 	NVIC_EnableIRQ(irq_b);
 
 	/* Lock interrupts */
-	unsigned int key = irq_lock();
+	int key = irq_lock();
 
 	execution_trace_add(STEP_MAIN_BEGIN);
 
@@ -199,4 +200,10 @@ ZTEST(arm_irq_zero_latency_levels, test_arm_zero_latency_levels)
 	irq_unlock(key);
 }
 
-ZTEST_SUITE(arm_irq_zero_latency_levels, NULL, NULL, NULL, NULL, NULL);
+
+void test_main(void)
+{
+	ztest_test_suite(arm_irq_zero_latency_levels,
+		ztest_unit_test(test_arm_zero_latency_levels));
+	ztest_run_test_suite(arm_irq_zero_latency_levels);
+}

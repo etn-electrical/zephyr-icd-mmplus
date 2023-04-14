@@ -26,9 +26,6 @@
 #include <kernel_arch_data.h>
 #include <gen_offset.h>
 #include <kernel_offsets.h>
-#ifdef CONFIG_ARC_DSP_SHARING
-#include "../dsp/dsp_offsets.c"
-#endif
 
 GEN_OFFSET_SYM(_thread_arch_t, relinquish_cause);
 #ifdef CONFIG_ARC_STACK_CHECKING
@@ -107,9 +104,7 @@ GEN_OFFSET_SYM(_callee_saved_stack_t, user_sp);
 GEN_OFFSET_SYM(_callee_saved_stack_t, r30);
 #ifdef CONFIG_ARC_HAS_ACCL_REGS
 GEN_OFFSET_SYM(_callee_saved_stack_t, r58);
-#ifndef CONFIG_64BIT
 GEN_OFFSET_SYM(_callee_saved_stack_t, r59);
-#endif /* !CONFIG_64BIT */
 #endif
 #ifdef CONFIG_FPU_SHARING
 GEN_OFFSET_SYM(_callee_saved_stack_t, fpu_status);
@@ -120,8 +115,8 @@ GEN_OFFSET_SYM(_callee_saved_stack_t, dpfp2l);
 GEN_OFFSET_SYM(_callee_saved_stack_t, dpfp1h);
 GEN_OFFSET_SYM(_callee_saved_stack_t, dpfp1l);
 #endif
-#endif
 
+#endif
 GEN_ABSOLUTE_SYM(___callee_saved_stack_t_SIZEOF, sizeof(_callee_saved_stack_t));
 
 GEN_ABSOLUTE_SYM(_K_THREAD_NO_FLOAT_SIZEOF, sizeof(struct k_thread));

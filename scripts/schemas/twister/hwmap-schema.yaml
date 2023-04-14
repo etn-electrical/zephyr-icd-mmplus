@@ -1,7 +1,7 @@
 type: seq
 sequence:
   - type: map
-    required: false
+    required: no
     mapping:
       "available":
         type: bool
@@ -52,6 +52,6 @@ sequence:
         required: false
       "fixtures":
         type: seq
-        required: false
+        required: no
         sequence:
           - type: str

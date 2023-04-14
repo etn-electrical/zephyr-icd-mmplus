@@ -19,8 +19,8 @@ include(python)
 # It looks for: <module>/zephyr/module.yml or
 #               <module>/zephyr/CMakeLists.txt
 # to load the Zephyr module into Zephyr build system.
-# If west is installed, it uses west's APIs to obtain a list of projects to
-# search for zephyr/module.yml from the current workspace's manifest.
+# If west is available, it uses `west list` to obtain a list of projects to
+# search for zephyr/module.yml
 #
 # If the module.yml file specifies that build files are located in a
 # MODULE_EXT_ROOT then the variables:
@@ -31,12 +31,18 @@ include(python)
 # Settings used by Zephyr module but where systems may define an alternative value.
 set_ifndef(KCONFIG_BINARY_DIR ${CMAKE_BINARY_DIR}/Kconfig)
 
-zephyr_get(ZEPHYR_MODULES)
+if(ZEPHYR_EXTRA_MODULES)
+  # ZEPHYR_EXTRA_MODULES has either been specified on the cmake CLI or is
+  # already in the CMakeCache.txt. This has precedence over the environment
+  # variable ZEPHYR_EXTRA_MODULES
+elseif(DEFINED ENV{ZEPHYR_EXTRA_MODULES})
+  set(ZEPHYR_EXTRA_MODULES $ENV{ZEPHYR_EXTRA_MODULES})
+endif()
+
 if(ZEPHYR_MODULES)
   set(ZEPHYR_MODULES_ARG "--modules" ${ZEPHYR_MODULES})
 endif()
 
-zephyr_get(ZEPHYR_EXTRA_MODULES)
 if(ZEPHYR_EXTRA_MODULES)
   set(ZEPHYR_EXTRA_MODULES_ARG "--extra-modules" ${ZEPHYR_EXTRA_MODULES})
 endif()

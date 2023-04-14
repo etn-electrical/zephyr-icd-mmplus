@@ -13,7 +13,7 @@
  */
 
 
-#include <zephyr/ztest.h>
+#include <ztest.h>
 #include <kernel_internal.h>
 #include <zephyr/random/rand32.h>
 
@@ -26,7 +26,7 @@
  *
  */
 
-ZTEST(rand32_common, test_rand32)
+void test_rand32(void)
 {
 	uint32_t gen, last_gen, tmp;
 	int rnd_cnt;
@@ -112,4 +112,10 @@ ZTEST(rand32_common, test_rand32)
 #endif /* CONFIG_CSPRING_ENABLED */
 }
 
-ZTEST_SUITE(rand32_common, NULL, NULL, NULL, NULL, NULL);
+
+void test_main(void)
+{
+	ztest_test_suite(common_test, ztest_unit_test(test_rand32));
+
+	ztest_run_test_suite(common_test);
+}

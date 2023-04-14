@@ -473,13 +473,13 @@ def test_nrfjprog_create(check_call, get_snr, require, test_case,
     if test_case.softreset:
         args.append('--softreset')
     if test_case.snr:
-        args.extend(['--dev-id', TEST_OVR_SNR])
+        args.extend(['--snr', TEST_OVR_SNR])
     if test_case.erase:
         args.append('--erase')
     if test_case.recover:
         args.append('--recover')
 
-    parser = argparse.ArgumentParser(allow_abbrev=False)
+    parser = argparse.ArgumentParser()
     NrfJprogBinaryRunner.add_parser(parser)
     arg_namespace = parser.parse_args(args)
     runner = NrfJprogBinaryRunner.create(runner_config, arg_namespace)

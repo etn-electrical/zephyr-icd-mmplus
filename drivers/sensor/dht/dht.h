@@ -14,11 +14,14 @@
 #define DHT_DATA_BITS_NUM			40
 
 struct dht_data {
+	const struct device *gpio;
 	uint8_t sample[4];
 };
 
 struct dht_config {
-	struct gpio_dt_spec dio_gpio;
+	const char *ctrl;
+	gpio_dt_flags_t flags;
+	gpio_pin_t pin;
 };
 
 #endif

@@ -11,7 +11,6 @@
 #include <nrfx_spi.h>
 
 #include <zephyr/logging/log.h>
-#include <zephyr/irq.h>
 LOG_MODULE_REGISTER(spi_nrfx_spi, CONFIG_SPI_LOG_LEVEL);
 
 #include "spi_context.h"
@@ -27,8 +26,9 @@ struct spi_nrfx_data {
 struct spi_nrfx_config {
 	nrfx_spi_t	  spi;
 	nrfx_spi_config_t def_config;
-	void (*irq_connect)(void);
+#ifdef CONFIG_PINCTRL
 	const struct pinctrl_dev_config *pcfg;
+#endif
 };
 
 static void event_handler(const nrfx_spi_evt_t *p_event, void *p_context);
@@ -150,19 +150,6 @@ static int configure(const struct device *dev,
 	return 0;
 }
 
-static void finish_transaction(const struct device *dev, int error)
-{
-	struct spi_nrfx_data *dev_data = dev->data;
-	struct spi_context *ctx = &dev_data->ctx;
-
-	spi_context_cs_control(ctx, false);
-
-	LOG_DBG("Transaction finished with status %d", error);
-
-	spi_context_complete(ctx, dev, error);
-	dev_data->busy = false;
-}
-
 static void transfer_next_chunk(const struct device *dev)
 {
 	const struct spi_nrfx_config *dev_config = dev->config;
@@ -190,7 +177,12 @@ static void transfer_next_chunk(const struct device *dev)
 		error = -EIO;
 	}
 
-	finish_transaction(dev, error);
+	spi_context_cs_control(ctx, false);
+
+	LOG_DBG("Transaction finished with status %d", error);
+
+	spi_context_complete(ctx, error);
+	dev_data->busy = false;
 }
 
 static void event_handler(const nrfx_spi_evt_t *p_event, void *p_context)
@@ -198,14 +190,6 @@ static void event_handler(const nrfx_spi_evt_t *p_event, void *p_context)
 	struct spi_nrfx_data *dev_data = p_context;
 
 	if (p_event->type == NRFX_SPI_EVENT_DONE) {
-		/* Chunk length is set to 0 when a transaction is aborted
-		 * due to a timeout.
-		 */
-		if (dev_data->chunk_len == 0) {
-			finish_transaction(dev_data->dev, -ETIMEDOUT);
-			return;
-		}
-
 		spi_context_update_tx(&dev_data->ctx, 1, dev_data->chunk_len);
 		spi_context_update_rx(&dev_data->ctx, 1, dev_data->chunk_len);
 
@@ -218,14 +202,12 @@ static int transceive(const struct device *dev,
 		      const struct spi_buf_set *tx_bufs,
 		      const struct spi_buf_set *rx_bufs,
 		      bool asynchronous,
-		      spi_callback_t cb,
-		      void *userdata)
+		      struct k_poll_signal *signal)
 {
 	struct spi_nrfx_data *dev_data = dev->data;
-	const struct spi_nrfx_config *dev_config = dev->config;
 	int error;
 
-	spi_context_lock(&dev_data->ctx, asynchronous, cb, userdata, spi_cfg);
+	spi_context_lock(&dev_data->ctx, asynchronous, signal, spi_cfg);
 
 	error = configure(dev, spi_cfg);
 	if (error == 0) {
@@ -237,27 +219,6 @@ static int transceive(const struct device *dev,
 		transfer_next_chunk(dev);
 
 		error = spi_context_wait_for_completion(&dev_data->ctx);
-		if (error == -ETIMEDOUT) {
-			/* Set the chunk length to 0 so that event_handler()
-			 * knows that the transaction timed out and is to be
-			 * aborted.
-			 */
-			dev_data->chunk_len = 0;
-			/* Abort the current transfer by deinitializing
-			 * the nrfx driver.
-			 */
-			nrfx_spi_uninit(&dev_config->spi);
-			dev_data->initialized = false;
-
-			/* Make sure the transaction is finished (it may be
-			 * already finished if it actually did complete before
-			 * the nrfx driver was deinitialized).
-			 */
-			finish_transaction(dev, -ETIMEDOUT);
-
-			/* Clean up the driver state. */
-			k_sem_reset(&dev_data->ctx.sync);
-		}
 	}
 
 	spi_context_release(&dev_data->ctx, error);
@@ -270,7 +231,7 @@ static int spi_nrfx_transceive(const struct device *dev,
 			       const struct spi_buf_set *tx_bufs,
 			       const struct spi_buf_set *rx_bufs)
 {
-	return transceive(dev, spi_cfg, tx_bufs, rx_bufs, false, NULL, NULL);
+	return transceive(dev, spi_cfg, tx_bufs, rx_bufs, false, NULL);
 }
 
 #ifdef CONFIG_SPI_ASYNC
@@ -278,10 +239,9 @@ static int spi_nrfx_transceive_async(const struct device *dev,
 				     const struct spi_config *spi_cfg,
 				     const struct spi_buf_set *tx_bufs,
 				     const struct spi_buf_set *rx_bufs,
-				     spi_callback_t cb,
-				     void *userdata)
+				     struct k_poll_signal *async)
 {
-	return transceive(dev, spi_cfg, tx_bufs, rx_bufs, true, cb, userdata);
+	return transceive(dev, spi_cfg, tx_bufs, rx_bufs, true, async);
 }
 #endif /* CONFIG_SPI_ASYNC */
 
@@ -321,11 +281,13 @@ static int spi_nrfx_pm_action(const struct device *dev,
 
 	switch (action) {
 	case PM_DEVICE_ACTION_RESUME:
+#ifdef CONFIG_PINCTRL
 		ret = pinctrl_apply_state(dev_config->pcfg,
 					  PINCTRL_STATE_DEFAULT);
 		if (ret < 0) {
 			return ret;
 		}
+#endif
 		/* nrfx_spi_init() will be called at configuration before
 		 * the next transfer.
 		 */
@@ -337,11 +299,13 @@ static int spi_nrfx_pm_action(const struct device *dev,
 			dev_data->initialized = false;
 		}
 
+#ifdef CONFIG_PINCTRL
 		ret = pinctrl_apply_state(dev_config->pcfg,
 					  PINCTRL_STATE_SLEEP);
 		if (ret < 0) {
 			return ret;
 		}
+#endif
 		break;
 
 	default:
@@ -352,45 +316,65 @@ static int spi_nrfx_pm_action(const struct device *dev,
 }
 #endif /* CONFIG_PM_DEVICE */
 
-static int spi_nrfx_init(const struct device *dev)
-{
-	const struct spi_nrfx_config *dev_config = dev->config;
-	struct spi_nrfx_data *dev_data = dev->data;
-	int err;
-
-	err = pinctrl_apply_state(dev_config->pcfg, PINCTRL_STATE_DEFAULT);
-	if (err < 0) {
-		return err;
-	}
-
-	dev_config->irq_connect();
-
-	err = spi_context_cs_configure_all(&dev_data->ctx);
-	if (err < 0) {
-		return err;
-	}
-
-	spi_context_unlock_unconditionally(&dev_data->ctx);
-
-	return 0;
-}
-
 /*
  * Current factors requiring use of DT_NODELABEL:
  *
- * - HAL design (requirement of drv_inst_idx in nrfx_spi_t)
- * - Name-based HAL IRQ handlers, e.g. nrfx_spi_0_irq_handler
+ * - NRFX_SPI_INSTANCE() requires an SoC instance number
+ * - soc-instance-numbered kconfig enables
+ * - ORC is a SoC-instance-numbered kconfig option instead of a DT property
  */
 
 #define SPI(idx)			DT_NODELABEL(spi##idx)
 #define SPI_PROP(idx, prop)		DT_PROP(SPI(idx), prop)
 
-#define SPI_NRFX_SPI_DEFINE(idx)					       \
-	NRF_DT_CHECK_NODE_HAS_PINCTRL_SLEEP(SPI(idx));			       \
-	static void irq_connect##idx(void)				       \
+#define SPI_NRFX_MISO_PULL(idx)				\
+	(SPI_PROP(idx, miso_pull_up)			\
+		? SPI_PROP(idx, miso_pull_down)		\
+			? -1 /* invalid configuration */\
+			: NRF_GPIO_PIN_PULLUP		\
+		: SPI_PROP(idx, miso_pull_down)		\
+			? NRF_GPIO_PIN_PULLDOWN		\
+			: NRF_GPIO_PIN_NOPULL)
+
+#define SPI_NRFX_SPI_PIN_CFG(idx)					\
+	COND_CODE_1(CONFIG_PINCTRL,					\
+		(.skip_gpio_cfg = true,					\
+		 .skip_psel_cfg = true,),				\
+		(.sck_pin   = SPI_PROP(idx, sck_pin),			\
+		 .mosi_pin  = DT_PROP_OR(SPI(idx), mosi_pin,		\
+					 NRFX_SPI_PIN_NOT_USED),	\
+		 .miso_pin  = DT_PROP_OR(SPI(idx), miso_pin,		\
+					 NRFX_SPI_PIN_NOT_USED),	\
+		 .miso_pull = SPI_NRFX_MISO_PULL(idx),))
+
+#define SPI_NRFX_SPI_DEVICE(idx)					       \
+	NRF_DT_CHECK_PIN_ASSIGNMENTS(SPI(idx), 1,			       \
+				     sck_pin, mosi_pin, miso_pin);	       \
+	BUILD_ASSERT(IS_ENABLED(CONFIG_PINCTRL) ||			       \
+		     !(SPI_PROP(idx, miso_pull_up) &&			       \
+		       SPI_PROP(idx, miso_pull_down)),			       \
+		"SPI"#idx						       \
+		": cannot enable both pull-up and pull-down on MISO line");    \
+	static int spi_##idx##_init(const struct device *dev)		       \
 	{								       \
+		struct spi_nrfx_data *dev_data = dev->data;		       \
+		int err;						       \
 		IRQ_CONNECT(DT_IRQN(SPI(idx)), DT_IRQ(SPI(idx), priority),     \
 			    nrfx_isr, nrfx_spi_##idx##_irq_handler, 0);	       \
+		IF_ENABLED(CONFIG_PINCTRL, (				       \
+			const struct spi_nrfx_config *dev_config = dev->config;\
+			err = pinctrl_apply_state(dev_config->pcfg,	       \
+						  PINCTRL_STATE_DEFAULT);      \
+			if (err < 0) {					       \
+				return err;				       \
+			}						       \
+		))							       \
+		err = spi_context_cs_configure_all(&dev_data->ctx);	       \
+		if (err < 0) {						       \
+			return err;					       \
+		}							       \
+		spi_context_unlock_unconditionally(&dev_data->ctx);	       \
+		return 0;						       \
 	}								       \
 	static struct spi_nrfx_data spi_##idx##_data = {		       \
 		SPI_CONTEXT_INIT_LOCK(spi_##idx##_data, ctx),		       \
@@ -399,24 +383,20 @@ static int spi_nrfx_init(const struct device *dev)
 		.dev  = DEVICE_DT_GET(SPI(idx)),			       \
 		.busy = false,						       \
 	};								       \
-	PINCTRL_DT_DEFINE(SPI(idx));					       \
+	IF_ENABLED(CONFIG_PINCTRL, (PINCTRL_DT_DEFINE(SPI(idx))));	       \
 	static const struct spi_nrfx_config spi_##idx##z_config = {	       \
-		.spi = {						       \
-			.p_reg = (NRF_SPI_Type *)DT_REG_ADDR(SPI(idx)),	       \
-			.drv_inst_idx = NRFX_SPI##idx##_INST_IDX,	       \
-		},							       \
+		.spi = NRFX_SPI_INSTANCE(idx),				       \
 		.def_config = {						       \
-			.skip_gpio_cfg = true,				       \
-			.skip_psel_cfg = true,				       \
+			SPI_NRFX_SPI_PIN_CFG(idx)			       \
 			.ss_pin = NRFX_SPI_PIN_NOT_USED,		       \
-			.orc    = SPI_PROP(idx, overrun_character),	       \
+			.orc    = CONFIG_SPI_##idx##_NRF_ORC,		       \
 		},							       \
-		.irq_connect = irq_connect##idx,			       \
-		.pcfg = PINCTRL_DT_DEV_CONFIG_GET(SPI(idx)),		       \
+		IF_ENABLED(CONFIG_PINCTRL,				       \
+			(.pcfg = PINCTRL_DT_DEV_CONFIG_GET(SPI(idx)),))	       \
 	};								       \
 	PM_DEVICE_DT_DEFINE(SPI(idx), spi_nrfx_pm_action);		       \
 	DEVICE_DT_DEFINE(SPI(idx),					       \
-		      spi_nrfx_init,					       \
+		      spi_##idx##_init,					       \
 		      PM_DEVICE_DT_GET(SPI(idx)),			       \
 		      &spi_##idx##_data,				       \
 		      &spi_##idx##z_config,				       \
@@ -424,13 +404,13 @@ static int spi_nrfx_init(const struct device *dev)
 		      &spi_nrfx_driver_api)
 
 #ifdef CONFIG_SPI_0_NRF_SPI
-SPI_NRFX_SPI_DEFINE(0);
+SPI_NRFX_SPI_DEVICE(0);
 #endif
 
 #ifdef CONFIG_SPI_1_NRF_SPI
-SPI_NRFX_SPI_DEFINE(1);
+SPI_NRFX_SPI_DEVICE(1);
 #endif
 
 #ifdef CONFIG_SPI_2_NRF_SPI
-SPI_NRFX_SPI_DEFINE(2);
+SPI_NRFX_SPI_DEVICE(2);
 #endif

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/sys/printk.h>
@@ -15,12 +15,9 @@
 void main(void)
 {
 	printk("Running on %s!\n", CONFIG_ARCH);
-	const struct device *const dev = DEVICE_DT_GET_ONE(ti_hdc);
+	const struct device *dev = device_get_binding(DT_LABEL(DT_INST(0, ti_hdc)));
 
-	if (!device_is_ready(dev)) {
-		printk("sensor: device not ready.\n");
-		return;
-	}
+	__ASSERT(dev != NULL, "Failed to get device binding");
 
 	printk("Dev %p name %s is ready!\n", dev, dev->name);
 

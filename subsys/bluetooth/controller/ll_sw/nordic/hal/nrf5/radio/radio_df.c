@@ -13,9 +13,7 @@
 #include <hal/nrf_gpio.h>
 #include <hal/ccm.h>
 
-#include "pdu_df.h"
-#include "lll/pdu_vendor.h"
-#include "pdu.h"
+#include "ll_sw/pdu.h"
 
 #include "radio_nrf5.h"
 #include "radio.h"
@@ -36,7 +34,7 @@
 	FOR_EACH(fn, sep, 0, 1, 2, 3, 4, 5, 6, 7)
 
 /* Index of antenna id in antenna switching pattern used for GUARD and REFERENCE period */
-#define GUARD_REF_ANTENNA_PATTERN_IDX 0U
+#define GUARD_REF_ANTENNA_PATTERN_IDX 1U
 
 /* Direction Finding antenna matrix configuration */
 struct df_ant_cfg {
@@ -253,6 +251,14 @@ void radio_df_mode_set_aod(void)
 	radio_df_mode_set(NRF_RADIO_DFE_OP_MODE_AOD);
 }
 
+static void radio_df_cte_inline_set_disabled(void)
+{
+	NRF_RADIO->CTEINLINECONF &= ~RADIO_CTEINLINECONF_CTEINLINECTRLEN_Msk;
+	NRF_RADIO->CTEINLINECONF |= ((RADIO_CTEINLINECONF_CTEINLINECTRLEN_Disabled <<
+				      RADIO_CTEINLINECONF_CTEINLINECTRLEN_Pos)
+				     & RADIO_CTEINLINECONF_CTEINLINECTRLEN_Msk);
+}
+
 static inline void radio_df_ctrl_set(uint8_t cte_len,
 				     uint8_t switch_spacing,
 				     uint8_t sample_spacing,
@@ -382,14 +388,8 @@ void radio_df_ant_switch_pattern_clear(void)
 
 void radio_df_reset(void)
 {
-	/* Initialize to NRF_RADIO reset values
-	 * Note: Only registers that turn off the DF feature and those
-	 *       registers whose bits are partially modified across functions
-	 *       are assigned back the power-on reset values.
-	 */
-	NRF_RADIO->DFEMODE = HAL_RADIO_RESET_VALUE_DFEMODE;
-	NRF_RADIO->CTEINLINECONF = HAL_RADIO_RESET_VALUE_CTEINLINECONF;
-
+	radio_df_mode_set(RADIO_DFEMODE_DFEOPMODE_Disabled);
+	radio_df_cte_inline_set_disabled();
 	radio_df_ant_switch_pattern_clear();
 }
 

@@ -24,6 +24,12 @@
 extern "C" {
 #endif
 
+#define MODEM_PIN(name_, pin_, flags_) { \
+	.dev_name = name_, \
+	.pin = pin_, \
+	.init_flags = flags_ \
+}
+
 struct modem_iface {
 	const struct device *dev;
 
@@ -43,6 +49,13 @@ struct modem_cmd_handler {
 	void *cmd_handler_data;
 };
 
+struct modem_pin {
+	const struct device *gpio_port_dev;
+	char *dev_name;
+	gpio_pin_t pin;
+	gpio_flags_t init_flags;
+};
+
 struct modem_context {
 	/* modem data */
 	char *data_manufacturer;
@@ -57,10 +70,12 @@ struct modem_context {
 	int   data_operator;
 	int   data_lac;
 	int   data_cellid;
-	int   data_act;
 #endif
 	int   *data_rssi;
 	bool  is_automatic_oper;
+	/* pin config */
+	struct modem_pin *pins;
+	size_t pins_len;
 
 	/* interface config */
 	struct modem_iface iface;
@@ -121,6 +136,12 @@ struct modem_context *modem_context_from_iface_dev(const struct device *dev);
  * @retval 0 if ok, < 0 if error.
  */
 int modem_context_register(struct modem_context *ctx);
+
+/* pin config functions */
+int modem_pin_read(struct modem_context *ctx, uint32_t pin);
+int modem_pin_write(struct modem_context *ctx, uint32_t pin, uint32_t value);
+int modem_pin_config(struct modem_context *ctx, uint32_t pin, bool enable);
+int modem_pin_init(struct modem_context *ctx);
 
 #ifdef __cplusplus
 }

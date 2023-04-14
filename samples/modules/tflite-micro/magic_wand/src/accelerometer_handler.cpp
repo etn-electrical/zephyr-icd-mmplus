@@ -20,11 +20,12 @@
 #include <zephyr/drivers/sensor.h>
 #include <stdio.h>
 #include <string.h>
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 
 #define BUFLEN 300
 int begin_index = 0;
-const struct device *const sensor = DEVICE_DT_GET_ONE(adi_adxl345);
+const char *label = NULL;
+const struct device *sensor = NULL;
 int current_index = 0;
 
 float bufx[BUFLEN] = { 0.0f };
@@ -35,18 +36,15 @@ bool initial = true;
 
 TfLiteStatus SetupAccelerometer(tflite::ErrorReporter *error_reporter)
 {
-	if (!device_is_ready(sensor)) {
-		printk("%s: device not ready.\n", sensor->name);
-		return kTfLiteApplicationError;
-	}
-
+	label = DT_LABEL(DT_INST(0, adi_adxl345));
+	sensor = device_get_binding(label);
 	if (sensor == NULL) {
 		TF_LITE_REPORT_ERROR(error_reporter,
-				     "Failed to get accelerometer, name: %s\n",
-				     sensor->name);
+				     "Failed to get accelerometer, label: %s\n",
+				     label);
 	} else {
-		TF_LITE_REPORT_ERROR(error_reporter, "Got accelerometer, name: %s\n",
-				     sensor->name);
+		TF_LITE_REPORT_ERROR(error_reporter, "Got accelerometer, label: %s\n",
+				     label);
 	}
 	return kTfLiteOk;
 }

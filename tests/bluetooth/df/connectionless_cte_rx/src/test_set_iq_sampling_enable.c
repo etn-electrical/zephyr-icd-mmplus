@@ -4,17 +4,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <stddef.h>
-#include <zephyr/ztest.h>
+#include <ztest.h>
 
 #include <zephyr/bluetooth/bluetooth.h>
 #include <zephyr/bluetooth/hci.h>
 #include <zephyr/sys/byteorder.h>
 #include <host/hci_core.h>
 
-#include <bt_common.h>
 #include "common.h"
+#include "test_set_iq_sampling_enable.h"
 
 struct ut_bt_df_scan_cte_rx_params {
 	uint8_t slot_durations;
@@ -87,7 +87,7 @@ int send_set_scan_cte_rx_enable(uint16_t sync_handle,
 				    buf, NULL);
 }
 
-ZTEST(test_hci_set_scan_cte_rx_enable, test_set_scan_cte_rx_enable_invalid_scan_set_handle)
+void test_set_scan_cte_rx_enable_invalid_scan_set_handle(void)
 {
 	int err;
 
@@ -96,7 +96,7 @@ ZTEST(test_hci_set_scan_cte_rx_enable, test_set_scan_cte_rx_enable_invalid_scan_
 		      "Unexpected error value for enable IQ sampling with wrong sync handle");
 }
 
-ZTEST(test_hci_set_scan_cte_rx_enable, test_set_scan_cte_rx_enable_invalid_antenna_slots_value)
+void test_set_scan_cte_rx_enable_invalid_antenna_slots_value(void)
 {
 	int err;
 
@@ -112,7 +112,7 @@ ZTEST(test_hci_set_scan_cte_rx_enable, test_set_scan_cte_rx_enable_invalid_anten
 	g_params.slot_durations = slot_durations_prev;
 }
 
-ZTEST(test_hci_set_scan_cte_rx_enable, test_set_scan_cte_rx_enable_invalid_antenna_pattern_num)
+void test_set_scan_cte_rx_enable_invalid_antenna_pattern_num(void)
 {
 	int err;
 
@@ -132,7 +132,7 @@ ZTEST(test_hci_set_scan_cte_rx_enable, test_set_scan_cte_rx_enable_invalid_anten
 	g_params.ant_ids = ant_ids_prev;
 }
 
-ZTEST(test_hci_set_scan_cte_rx_enable, test_set_scan_cte_rx_enable_invalid_cte_count_value)
+void test_set_scan_cte_rx_enable_invalid_cte_count_value(void)
 {
 	int err;
 
@@ -148,7 +148,7 @@ ZTEST(test_hci_set_scan_cte_rx_enable, test_set_scan_cte_rx_enable_invalid_cte_c
 	g_params.cte_count = cte_count_prev;
 }
 
-ZTEST(test_hci_set_scan_cte_rx_enable, test_set_scan_cte_rx_enable_with_slot_duration_2us)
+void test_set_scan_cte_rx_enable_with_slot_duration_2us(void)
 {
 	int err;
 
@@ -162,7 +162,7 @@ ZTEST(test_hci_set_scan_cte_rx_enable, test_set_scan_cte_rx_enable_with_slot_dur
 	g_params.slot_durations = slot_durations_prev;
 }
 
-ZTEST(test_hci_set_scan_cte_rx_enable, test_set_scan_cte_rx_enable_with_slot_duration_1us)
+void test_set_scan_cte_rx_enable_with_slot_duration_1us(void)
 {
 	int err;
 
@@ -177,7 +177,7 @@ ZTEST(test_hci_set_scan_cte_rx_enable, test_set_scan_cte_rx_enable_with_slot_dur
 	g_params.slot_durations = slot_durations_prev;
 }
 
-ZTEST(test_hci_set_scan_cte_rx_enable, test_set_scan_cte_rx_enable_with_sample_cte_count_min)
+void test_set_scan_cte_rx_enable_with_sample_cte_count_min(void)
 {
 	int err;
 
@@ -193,7 +193,7 @@ ZTEST(test_hci_set_scan_cte_rx_enable, test_set_scan_cte_rx_enable_with_sample_c
 	g_params.cte_count = cte_count_prev;
 }
 
-ZTEST(test_hci_set_scan_cte_rx_enable, test_set_scan_cte_rx_enable_with_sample_cte_count_max)
+void test_set_scan_cte_rx_enable_with_sample_cte_count_max(void)
 {
 	int err;
 
@@ -209,7 +209,7 @@ ZTEST(test_hci_set_scan_cte_rx_enable, test_set_scan_cte_rx_enable_with_sample_c
 	g_params.cte_count = cte_count_prev;
 }
 
-ZTEST(test_hci_set_scan_cte_rx_enable, test_set_scan_cte_rx_enable_with_antenna_switch_patterns_min)
+void test_set_scan_cte_rx_enable_with_antenna_switch_patterns_min(void)
 {
 	int err;
 
@@ -228,7 +228,7 @@ ZTEST(test_hci_set_scan_cte_rx_enable, test_set_scan_cte_rx_enable_with_antenna_
 	g_params.ant_ids = ant_ids_prev;
 }
 
-ZTEST(test_hci_set_scan_cte_rx_enable, test_set_scan_cte_rx_enable_with_antenna_switch_patterns_max)
+void test_set_scan_cte_rx_enable_with_antenna_switch_patterns_max(void)
 {
 	int err;
 
@@ -247,8 +247,7 @@ ZTEST(test_hci_set_scan_cte_rx_enable, test_set_scan_cte_rx_enable_with_antenna_
 	g_params.ant_ids = ant_ids_prev;
 }
 
-ZTEST(test_hci_set_scan_cte_rx_disable,
-	test_set_scan_cte_rx_disable_with_correct_sampling_parameters)
+void test_set_scan_cte_rx_disable_with_correct_sampling_parameters(void)
 {
 	int err;
 
@@ -256,8 +255,7 @@ ZTEST(test_hci_set_scan_cte_rx_disable,
 	zassert_equal(err, 0, "Unexpected error value for disable IQ sampling.");
 }
 
-ZTEST(test_hci_set_scan_cte_rx_disable,
-	test_set_scan_cte_rx_disable_with_invalid_sampling_parameters)
+void test_set_scan_cte_rx_disable_with_invalid_sampling_parameters(void)
 {
 	int err;
 
@@ -273,7 +271,7 @@ ZTEST(test_hci_set_scan_cte_rx_disable,
 	zassert_equal(err, 0, "Unexpected error value for disable IQ sampling.");
 }
 
-ZTEST(test_hci_set_scan_cte_rx_disable, test_set_scan_cte_rx_disable_when_disabled)
+void test_set_scan_cte_rx_disable_when_disabled(void)
 {
 	int err;
 
@@ -282,7 +280,7 @@ ZTEST(test_hci_set_scan_cte_rx_disable, test_set_scan_cte_rx_disable_when_disabl
 		      "Unexpected error value for disable IQ sampling when it is disabled.");
 }
 
-void set_scan_cte_rx_enable_teardown(void *data)
+void set_scan_cte_rx_enable_teardown(void)
 {
 	int err;
 
@@ -290,7 +288,7 @@ void set_scan_cte_rx_enable_teardown(void *data)
 	zassert_equal(err, 0, "Unexpected error value for disable IQ sampling.");
 }
 
-void set_scan_cte_rx_disable_setup(void *data)
+void set_scan_cte_rx_disable_setup(void)
 {
 	int err;
 
@@ -298,16 +296,46 @@ void set_scan_cte_rx_disable_setup(void *data)
 	zassert_equal(err, 0, "Unexpected error value for enable IQ sampling.");
 }
 
-static void *common_per_sync_setup(void)
+void run_set_scan_cte_rx_enable_tests(void)
 {
-	ut_bt_setup();
-
-	common_create_per_sync_set();
-
-	return NULL;
+	ztest_test_suite(
+		test_hci_set_scan_cte_rx_enable,
+		ztest_unit_test_setup_teardown(
+			test_set_scan_cte_rx_enable_invalid_scan_set_handle,
+			unit_test_noop, set_scan_cte_rx_enable_teardown),
+		ztest_unit_test_setup_teardown(
+			test_set_scan_cte_rx_enable_invalid_antenna_slots_value,
+			unit_test_noop, set_scan_cte_rx_enable_teardown),
+		ztest_unit_test_setup_teardown(
+			test_set_scan_cte_rx_enable_invalid_antenna_pattern_num,
+			unit_test_noop, set_scan_cte_rx_enable_teardown),
+		ztest_unit_test_setup_teardown(
+			test_set_scan_cte_rx_enable_invalid_cte_count_value,
+			unit_test_noop, set_scan_cte_rx_enable_teardown),
+		ztest_unit_test_setup_teardown(
+			test_set_scan_cte_rx_enable_with_slot_duration_2us,
+			unit_test_noop, set_scan_cte_rx_enable_teardown),
+		ztest_unit_test_setup_teardown(
+			test_set_scan_cte_rx_enable_with_slot_duration_1us,
+			unit_test_noop, set_scan_cte_rx_enable_teardown),
+		ztest_unit_test_setup_teardown(
+			test_set_scan_cte_rx_enable_with_sample_cte_count_min,
+			unit_test_noop, set_scan_cte_rx_enable_teardown),
+		ztest_unit_test_setup_teardown(
+			test_set_scan_cte_rx_enable_with_sample_cte_count_max,
+			unit_test_noop, set_scan_cte_rx_enable_teardown),
+		ztest_unit_test_setup_teardown(
+			test_set_scan_cte_rx_enable_with_antenna_switch_patterns_min,
+			unit_test_noop, set_scan_cte_rx_enable_teardown),
+		ztest_unit_test_setup_teardown(
+			test_set_scan_cte_rx_enable_with_antenna_switch_patterns_max,
+			unit_test_noop, set_scan_cte_rx_enable_teardown),
+		ztest_unit_test_setup_teardown(
+			test_set_scan_cte_rx_disable_with_correct_sampling_parameters,
+			set_scan_cte_rx_disable_setup, unit_test_noop),
+		ztest_unit_test_setup_teardown(
+			test_set_scan_cte_rx_disable_with_invalid_sampling_parameters,
+			set_scan_cte_rx_disable_setup, unit_test_noop),
+		ztest_unit_test(test_set_scan_cte_rx_disable_when_disabled));
+	ztest_run_test_suite(test_hci_set_scan_cte_rx_enable);
 }
-
-ZTEST_SUITE(test_hci_set_scan_cte_rx_enable, NULL, common_per_sync_setup, NULL,
-	    set_scan_cte_rx_enable_teardown, ut_bt_teardown);
-ZTEST_SUITE(test_hci_set_scan_cte_rx_disable, NULL, common_per_sync_setup,
-	    set_scan_cte_rx_disable_setup, NULL, ut_bt_teardown);

@@ -6,12 +6,13 @@ NXP MIMXRT1010-EVK
 Overview
 ********
 
-The i.MX RT1010 offer a new entry-point into the i.MX RT crossover processor
+The i.MX RT1010 offers a new entry-point into the i.MX RT crossover processor
 series by providing the lowest-cost LQFP package option, combined with the
 high performance and ease-of-use known throughout the entire i.MX RT series.
 This device is fully supported by NXP’s MCUXpresso Software and Tools.
 
-.. image:: mimxrt1010_evk.jpg
+.. image:: ./mimxrt1010_evk.jpg
+   :width: 720px
    :align: center
    :alt: MIMXRT1010-EVK
 
@@ -54,12 +55,8 @@ these references:
 Supported Features
 ==================
 
-The mimxrt1010_evk board configuration supports the hardware features listed
-below.  For additional features not yet supported, please also refer to the
-:ref:`mimxrt1064_evk` , which is the superset board in NXP's i.MX RT10xx family.
-NXP prioritizes enabling the superset board with NXP's Full Platform Support for
-Zephyr.  Therefore, the mimxrt1064_evk board may have additional features
-already supported, which can also be re-used on this mimxrt1010_evk board:
+The mimxrt1010_evk board configuration supports the following hardware
+features:
 
 +-----------+------------+-------------------------------------+
 | Interface | Controller | Driver/Component                    |
@@ -82,8 +79,6 @@ already supported, which can also be re-used on this mimxrt1010_evk board:
 | ADC       | on-chip    | adc                                 |
 +-----------+------------+-------------------------------------+
 | GPT       | on-chip    | gpt                                 |
-+-----------+------------+-------------------------------------+
-| TRNG      | on-chip    | entropy                             |
 +-----------+------------+-------------------------------------+
 
 The default configuration can be found in the defconfig file:
@@ -127,13 +122,8 @@ The MIMXRT1010 SoC has five pairs of pinmux/gpio controllers.
 System Clock
 ============
 
-The MIMXRT1010 SoC is configured to use SysTick as the system clock source,
-running at 500MHz.
-
-When power management is enabled, the 32 KHz low frequency
-oscillator on the board will be used as a source for the GPT timer to
-generate a system clock. This clock enables lower power states, at the
-cost of reduced resolution
+The MIMXRT1010 SoC is configured to use the 32 KHz low frequency oscillator on
+the board as a source for the GPT timer to generate a system clock.
 
 Serial Port
 ===========
@@ -209,7 +199,7 @@ see the following message in the terminal:
    https://www.nxp.com/webapp/Download?colCode=MIMXRT1010EVKHUG
 
 .. _MIMXRT1010-EVK Design Files:
-   https://www.nxp.com/webapp/Download?colCode=IMXRT1010-EVK-DESIGN-FILES
+   https://www.nxp.com/downloads/en/printed-circuit-boards/IMXRT1010-EVK-DESIGN-FILES.7z
 
 .. _i.MX RT1010 Website:
    https://www.nxp.com/imxrt1010

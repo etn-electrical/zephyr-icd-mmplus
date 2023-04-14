@@ -4,9 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
+#include <ztest.h>
 #include <zephyr/storage/flash_map.h>
-#include <bootutil/bootutil_public.h>
 #include <zephyr/dfu/mcuboot.h>
 #include <zephyr/drivers/flash.h>
 
@@ -16,23 +15,6 @@
 #define BOOT_MAGIC_VAL_W3 0x8079b62c
 #define BOOT_MAGIC_VALUES {BOOT_MAGIC_VAL_W0, BOOT_MAGIC_VAL_W1,\
 			   BOOT_MAGIC_VAL_W2, BOOT_MAGIC_VAL_W3 }
-
-static void erase_image_status_page(const struct flash_area *fa)
-{
-	int ret;
-	struct flash_pages_info page;
-	const struct device *sf_dev;
-
-	sf_dev = flash_area_get_device(fa);
-
-	/* Erase flash page to which image status belongs. */
-	ret = flash_get_page_info_by_offs(sf_dev, fa->fa_off + fa->fa_size - 1,
-					  &page);
-	zassert_true(ret == 0, "can't get the trailer's flash page info.");
-
-	ret = flash_erase(sf_dev, page.start_offset, page.size);
-	zassert_true(ret == 0, "can't erase the trailer flash page.");
-}
 
 static void _test_request_upgrade_n(uint8_t fa_id, int img_index, int confirmed)
 {
@@ -47,11 +29,16 @@ static void _test_request_upgrade_n(uint8_t fa_id, int img_index, int confirmed)
 	};
 	uint32_t readout[ARRAY_SIZE(expectation)];
 	int ret;
+	struct flash_pages_info page;
+	const struct device *sf_dev;
 
 	ret = flash_area_open(fa_id, &fa);
 	zassert_true(ret == 0, "can't open the images's flash area.");
 
-	erase_image_status_page(fa);
+	sf_dev = flash_area_get_device(fa);
+
+	ret = flash_get_page_info_by_offs(sf_dev, fa->fa_size - 1, &page);
+	ret = flash_erase(sf_dev, page.start_offset, page.size);
 
 	ret = (confirmed) ? BOOT_UPGRADE_PERMANENT : BOOT_UPGRADE_TEST;
 	zassert_true(boot_request_upgrade_multi(img_index, ret) == 0,
@@ -74,10 +61,10 @@ static void _test_request_upgrade_n(uint8_t fa_id, int img_index, int confirmed)
 	}
 }
 
-ZTEST(mcuboot_multi, test_request_upgrade_multi)
+void test_request_upgrade_multi(void)
 {
-	_test_request_upgrade_n(FIXED_PARTITION_ID(slot1_partition), 0, 0);
-	_test_request_upgrade_n(FIXED_PARTITION_ID(slot3_partition), 1, 1);
+	_test_request_upgrade_n(FLASH_AREA_ID(image_1), 0, 0);
+	_test_request_upgrade_n(FLASH_AREA_ID(image_3), 1, 1);
 }
 
 static void _test_write_confirm_n(uint8_t fa_id, int img_index)
@@ -87,6 +74,8 @@ static void _test_write_confirm_n(uint8_t fa_id, int img_index)
 	uint8_t flag[BOOT_MAX_ALIGN];
 	const struct flash_area *fa;
 	int ret;
+	struct flash_pages_info page;
+	const struct device *sf_dev;
 
 	flag[0] = 0x01;
 	memset(&flag[1], 0xff, sizeof(flag) - 1);
@@ -94,7 +83,13 @@ static void _test_write_confirm_n(uint8_t fa_id, int img_index)
 	ret = flash_area_open(fa_id, &fa);
 	zassert_true(ret == 0, "can't open the images's flash area.");
 
-	erase_image_status_page(fa);
+	sf_dev = flash_area_get_device(fa);
+
+	ret = flash_get_page_info_by_offs(sf_dev, fa->fa_size - 1, &page);
+	zassert_true(ret == 0, "can't get the trailer's flash page info.");
+
+	ret = flash_erase(sf_dev, page.start_offset, page.size);
+	zassert_true(ret == 0, "can't erase the trailer flash page.");
 
 	ret = flash_area_read(fa, fa->fa_size - sizeof(img_magic),
 			      &readout, sizeof(img_magic));
@@ -120,10 +115,16 @@ static void _test_write_confirm_n(uint8_t fa_id, int img_index)
 	zassert_equal(1, readout[0] & 0xff, "confirmation error");
 }
 
-ZTEST(mcuboot_multi, test_write_confirm_multi)
+void test_write_confirm_multi(void)
 {
-	_test_write_confirm_n(FIXED_PARTITION_ID(slot0_partition), 0);
-	_test_write_confirm_n(FIXED_PARTITION_ID(slot2_partition), 1);
+	_test_write_confirm_n(FLASH_AREA_ID(image_0), 0);
+	_test_write_confirm_n(FLASH_AREA_ID(image_2), 1);
 }
 
-ZTEST_SUITE(mcuboot_multi, NULL, NULL, NULL, NULL, NULL);
+void test_main(void)
+{
+	ztest_test_suite(test_mcuboot_interface,
+			 ztest_unit_test(test_request_upgrade_multi),
+			 ztest_unit_test(test_write_confirm_multi));
+	ztest_run_test_suite(test_mcuboot_interface);
+}

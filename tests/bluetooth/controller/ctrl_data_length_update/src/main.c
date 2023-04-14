@@ -6,7 +6,7 @@
 
 #include <zephyr/types.h>
 #include <zephyr/sys/byteorder.h>
-#include <zephyr/ztest.h>
+#include <ztest.h>
 
 #define ULL_LLCP_UNITTEST
 
@@ -21,23 +21,16 @@
 #include "util/memq.h"
 #include "util/dbuf.h"
 
-#include "pdu_df.h"
-#include "lll/pdu_vendor.h"
 #include "pdu.h"
 #include "ll.h"
 #include "ll_feat.h"
 #include "ll_settings.h"
 
 #include "lll.h"
-#include "lll/lll_df_types.h"
+#include "lll_df_types.h"
 #include "lll_conn.h"
-#include "lll_conn_iso.h"
 
 #include "ull_tx_queue.h"
-
-#include "isoal.h"
-#include "ull_iso_types.h"
-#include "ull_conn_iso_types.h"
 #include "ull_internal.h"
 #include "ull_conn_types.h"
 #include "ull_llcp.h"
@@ -49,9 +42,9 @@
 #include "helper_util.h"
 #include "helper_features.h"
 
-static struct ll_conn conn;
+struct ll_conn conn;
 
-static void dle_setup(void *data)
+static void setup(void)
 {
 	test_setup(&conn);
 }
@@ -79,7 +72,7 @@ static void dle_setup(void *data)
  *    |                            |                              |
  */
 
-ZTEST(dle_central, test_data_length_update_central_loc)
+void test_data_length_update_central_loc(void)
 {
 	uint8_t err;
 	struct node_tx *tx;
@@ -106,7 +99,7 @@ ZTEST(dle_central, test_data_length_update_central_loc)
 
 	/* Initiate a Data Length Update Procedure */
 	err = ull_cp_data_length_update(&conn, 211, 1800);
-	zassert_equal(err, BT_HCI_ERR_SUCCESS);
+	zassert_equal(err, BT_HCI_ERR_SUCCESS, NULL);
 
 	event_prepare(&conn);
 	/* Tx Queue should have one LL Control PDU */
@@ -157,7 +150,7 @@ ZTEST(dle_central, test_data_length_update_central_loc)
  *    |                            |                              |
  *    |                            |                              |
  */
-ZTEST(dle_central, test_data_length_update_central_loc_unknown_rsp)
+void test_data_length_update_central_loc_unknown_rsp(void)
 {
 	uint8_t err;
 	struct node_tx *tx;
@@ -179,7 +172,7 @@ ZTEST(dle_central, test_data_length_update_central_loc_unknown_rsp)
 
 	/* Initiate a Data Length Update Procedure */
 	err = ull_cp_data_length_update(&conn, 211, 1800);
-	zassert_equal(err, BT_HCI_ERR_SUCCESS);
+	zassert_equal(err, BT_HCI_ERR_SUCCESS, NULL);
 
 	event_prepare(&conn);
 	/* Tx Queue should have one LL Control PDU */
@@ -203,8 +196,8 @@ ZTEST(dle_central, test_data_length_update_central_loc_unknown_rsp)
 	/* There should not be a host notifications */
 	ut_rx_q_is_empty();
 
-	zassert_equal(llcp_ctx_buffers_free(), test_ctx_buffers_cnt(),
-		      "Free CTX buffers %d", llcp_ctx_buffers_free());
+	zassert_equal(ctx_buffers_free(), test_ctx_buffers_cnt(),
+		      "Free CTX buffers %d", ctx_buffers_free());
 }
 
 /*
@@ -228,7 +221,7 @@ ZTEST(dle_central, test_data_length_update_central_loc_unknown_rsp)
  *    |                            |                              |
  *    |                            |                              |
  */
-ZTEST(dle_central, test_data_length_update_central_loc_invalid_rsp)
+void test_data_length_update_central_loc_invalid_rsp(void)
 {
 	uint8_t err;
 	struct node_tx *tx;
@@ -252,7 +245,7 @@ ZTEST(dle_central, test_data_length_update_central_loc_invalid_rsp)
 
 	/* Initiate a Data Length Update Procedure */
 	err = ull_cp_data_length_update(&conn, 211, 1800);
-	zassert_equal(err, BT_HCI_ERR_SUCCESS);
+	zassert_equal(err, BT_HCI_ERR_SUCCESS, NULL);
 
 	event_prepare(&conn);
 	/* Tx Queue should have one LL Control PDU */
@@ -280,8 +273,8 @@ ZTEST(dle_central, test_data_length_update_central_loc_invalid_rsp)
 	/* There should not be a host notifications */
 	ut_rx_q_is_empty();
 
-	zassert_equal(llcp_ctx_buffers_free(), test_ctx_buffers_cnt(),
-		      "Free CTX buffers %d", llcp_ctx_buffers_free());
+	zassert_equal(ctx_buffers_free(), test_ctx_buffers_cnt(),
+		      "Free CTX buffers %d", ctx_buffers_free());
 
 	/* Init DLE data */
 	ull_conn_default_tx_octets_set(251);
@@ -290,7 +283,7 @@ ZTEST(dle_central, test_data_length_update_central_loc_invalid_rsp)
 
 	/* Initiate another Data Length Update Procedure */
 	err = ull_cp_data_length_update(&conn, 211, 1800);
-	zassert_equal(err, BT_HCI_ERR_SUCCESS);
+	zassert_equal(err, BT_HCI_ERR_SUCCESS, NULL);
 
 	event_prepare(&conn);
 	/* Tx Queue should have one LL Control PDU */
@@ -315,8 +308,8 @@ ZTEST(dle_central, test_data_length_update_central_loc_invalid_rsp)
 	/* There should not be a host notifications */
 	ut_rx_q_is_empty();
 
-	zassert_equal(llcp_ctx_buffers_free(), test_ctx_buffers_cnt(),
-		      "Free CTX buffers %d", llcp_ctx_buffers_free());
+	zassert_equal(ctx_buffers_free(), test_ctx_buffers_cnt(),
+		      "Free CTX buffers %d", ctx_buffers_free());
 }
 
 /*
@@ -337,7 +330,7 @@ ZTEST(dle_central, test_data_length_update_central_loc_invalid_rsp)
  *    |                            |<-----------------------------|
  *    |                            |                              |
  */
-ZTEST(dle_central, test_data_length_update_central_loc_no_eff_change)
+void test_data_length_update_central_loc_no_eff_change(void)
 {
 	uint8_t err;
 	struct node_tx *tx;
@@ -355,7 +348,7 @@ ZTEST(dle_central, test_data_length_update_central_loc_no_eff_change)
 
 	/* Initiate a Data Length Update Procedure */
 	err = ull_cp_data_length_update(&conn, 211, 1800);
-	zassert_equal(err, BT_HCI_ERR_SUCCESS);
+	zassert_equal(err, BT_HCI_ERR_SUCCESS, NULL);
 
 	event_prepare(&conn);
 	/* Tx Queue should have one LL Control PDU */
@@ -409,7 +402,7 @@ ZTEST(dle_central, test_data_length_update_central_loc_no_eff_change)
  *    |                            |                              |
  */
 
-ZTEST(dle_central, test_data_length_update_central_loc_no_eff_change2)
+void test_data_length_update_central_loc_no_eff_change2(void)
 {
 	uint8_t err;
 	struct node_tx *tx;
@@ -431,7 +424,7 @@ ZTEST(dle_central, test_data_length_update_central_loc_no_eff_change2)
 
 	/* Initiate a Data Length Update Procedure */
 	err = ull_cp_data_length_update(&conn, 211, 1800);
-	zassert_equal(err, BT_HCI_ERR_SUCCESS);
+	zassert_equal(err, BT_HCI_ERR_SUCCESS, NULL);
 
 	event_prepare(&conn);
 	/* Tx Queue should have one LL Control PDU */
@@ -456,7 +449,7 @@ ZTEST(dle_central, test_data_length_update_central_loc_no_eff_change2)
 	 * change to effective numbers, thus not generate NTF
 	 */
 	err = ull_cp_data_length_update(&conn, 211, 1800);
-	zassert_equal(err, BT_HCI_ERR_SUCCESS);
+	zassert_equal(err, BT_HCI_ERR_SUCCESS, NULL);
 
 	event_prepare(&conn);
 	/* Tx Queue should have one LL Control PDU */
@@ -477,7 +470,7 @@ ZTEST(dle_central, test_data_length_update_central_loc_no_eff_change2)
 				  conn.lll.event_counter);
 }
 
-ZTEST(dle_periph, test_data_length_update_periph_loc)
+void test_data_length_update_periph_loc(void)
 {
 	uint64_t err;
 	struct node_tx *tx;
@@ -497,7 +490,7 @@ ZTEST(dle_periph, test_data_length_update_periph_loc)
 
 	/* Initiate a Data Length Update Procedure */
 	err = ull_cp_data_length_update(&conn, 211, 1800);
-	zassert_equal(err, BT_HCI_ERR_SUCCESS);
+	zassert_equal(err, BT_HCI_ERR_SUCCESS, NULL);
 
 	event_prepare(&conn);
 	/* Tx Queue should have one LL Control PDU */
@@ -538,7 +531,7 @@ ZTEST(dle_periph, test_data_length_update_periph_loc)
  *    |                            |                              |
  */
 
-ZTEST(dle_central, test_data_length_update_central_rem)
+void test_data_length_update_central_rem(void)
 {
 	struct node_tx *tx;
 
@@ -597,7 +590,7 @@ ZTEST(dle_central, test_data_length_update_central_rem)
  *    |                            |                              |
  */
 
-ZTEST(dle_periph, test_data_length_update_periph_rem)
+void test_data_length_update_periph_rem(void)
 {
 	struct node_tx *tx;
 
@@ -672,7 +665,7 @@ ZTEST(dle_periph, test_data_length_update_periph_rem)
  *    |                            |                              |
  */
 
-ZTEST(dle_periph, test_data_length_update_periph_rem_and_loc)
+void test_data_length_update_periph_rem_and_loc(void)
 {
 	uint64_t err;
 	struct node_tx *tx;
@@ -716,7 +709,7 @@ ZTEST(dle_periph, test_data_length_update_periph_rem_and_loc)
 
 	/* Initiate a Data Length Update Procedure */
 	err = ull_cp_data_length_update(&conn, 211, 1800);
-	zassert_equal(err, BT_HCI_ERR_SUCCESS);
+	zassert_equal(err, BT_HCI_ERR_SUCCESS, NULL);
 
 	event_done(&conn);
 
@@ -737,7 +730,7 @@ ZTEST(dle_periph, test_data_length_update_periph_rem_and_loc)
 	ut_rx_q_is_empty();
 }
 
-ZTEST(dle_util, test_data_length_update_dle_max_time_get)
+void test_data_length_update_dle_max_time_get(void)
 {
 	uint16_t max_time = 0xffff;
 	uint16_t max_octets = 211;
@@ -833,6 +826,37 @@ ZTEST(dle_util, test_data_length_update_dle_max_time_get)
 #endif
 }
 
-ZTEST_SUITE(dle_central, NULL, NULL, dle_setup, NULL, NULL);
-ZTEST_SUITE(dle_periph, NULL, NULL, dle_setup, NULL, NULL);
-ZTEST_SUITE(dle_util, NULL, NULL, dle_setup, NULL, NULL);
+void test_main(void)
+{
+	ztest_test_suite(
+		data_length_update_central,
+		ztest_unit_test_setup_teardown(test_data_length_update_central_loc, setup,
+					       unit_test_noop),
+		ztest_unit_test_setup_teardown(test_data_length_update_central_loc_unknown_rsp,
+					       setup, unit_test_noop),
+		ztest_unit_test_setup_teardown(test_data_length_update_central_loc_invalid_rsp,
+					       setup, unit_test_noop),
+		ztest_unit_test_setup_teardown(test_data_length_update_central_loc_no_eff_change,
+					       setup, unit_test_noop),
+		ztest_unit_test_setup_teardown(test_data_length_update_central_loc_no_eff_change2,
+					       setup, unit_test_noop),
+		ztest_unit_test_setup_teardown(test_data_length_update_central_rem, setup,
+					       unit_test_noop));
+
+	ztest_test_suite(data_length_update_peripheral,
+			 ztest_unit_test_setup_teardown(test_data_length_update_periph_loc, setup,
+							unit_test_noop),
+			 ztest_unit_test_setup_teardown(test_data_length_update_periph_rem, setup,
+							unit_test_noop),
+			 ztest_unit_test_setup_teardown(test_data_length_update_periph_rem_and_loc,
+							setup, unit_test_noop)
+						    );
+
+	ztest_test_suite(data_length_update_util,
+			 ztest_unit_test_setup_teardown(test_data_length_update_dle_max_time_get,
+							setup, unit_test_noop));
+
+	ztest_run_test_suite(data_length_update_central);
+	ztest_run_test_suite(data_length_update_peripheral);
+	ztest_run_test_suite(data_length_update_util);
+}

@@ -18,7 +18,6 @@
 		sw0 = &user_button;
 		kscan0 = &touch_controller;
 		watchdog0 = &wdog0;
-		sdhc0 = &usdhc1;
 	};
 
 	chosen {
@@ -32,7 +31,6 @@
 		zephyr,shell-uart = &lpuart1;
 		zephyr,canbus = &flexcan2;
 		zephyr,display = &lcdif;
-		zephyr,keyboard-scan = &touch_controller;
 	};
 
 	sdram0: memory@80000000 {
@@ -45,7 +43,7 @@
 		compatible = "gpio-leds";
 		green_led: led-1 {
 			gpios = <&gpio1 9 GPIO_ACTIVE_LOW>;
-			label = "User LED1";
+			label = "User LD1";
 		};
 	};
 
@@ -113,6 +111,7 @@ arduino_serial: &lpuart3 {
 	is25wp064: is25wp064@0 {
 		compatible = "nxp,imx-flexspi-nor";
 		size = <67108864>;
+		label = "IS25WP064";
 		reg = <0>;
 		spi-max-frequency = <133000000>;
 		status = "okay";
@@ -180,6 +179,7 @@ arduino_serial: &lpuart3 {
 	touch_controller: ft5336@38 {
 		compatible = "focaltech,ft5336";
 		reg = <0x38>;
+		label = "FT5336";
 		int-gpios = <&gpio1 11 GPIO_ACTIVE_LOW>;
 	};
 };
@@ -226,9 +226,10 @@ zephyr_udc0: &usb1 {
 	pinctrl-2 = <&pinmux_usdhc1_med>;
 	pinctrl-3 = <&pinmux_usdhc1_fast>;
 	pinctrl-names = "default", "slow", "med", "fast";
-	sdmmc {
+	mmc {
 		compatible = "zephyr,sdmmc-disk";
 		status = "okay";
+		label = "SDMMC_0";
 	};
 };
 
@@ -276,23 +277,13 @@ zephyr_udc0: &usb1 {
 	pinctrl-names = "default";
 };
 
-/* GPT and Systick are enabled. If power management is enabled, the GPT
- * timer will be used instead of systick, as allows the core clock to
- * be gated.
+/* Enable GPT for use as a hardware timer. This disables Cortex Systick.
+ * to use systick, change this node from "gpt_hw_timer" to "systick"
  */
 &gpt_hw_timer {
 	status = "okay";
 };
 
-&systick {
-	status = "okay";
-};
-
 &iomuxcgpr {
 	status = "okay";
-};
-
-&itm {
-	pinctrl-0 = <&pinmux_swo>;
-	pinctrl-names = "default";
 };

@@ -5,16 +5,19 @@ compatible: "renesas,rcar-cmt"
 include: base.yaml
 
 properties:
-  reg:
-    required: true
+    label:
+      required: true
 
-  clock-frequency:
-    type: int
-    required: true
-    description: Clock frequency information for Timer operation
+    reg:
+      required: true
 
-  clocks:
-    required: true
+    clock-frequency:
+      type: int
+      required: true
+      description: Clock frequency information for Timer operation
 
-  interrupts:
-    required: true
+    clocks:
+      required: true
+
+    interrupts:
+      required: true

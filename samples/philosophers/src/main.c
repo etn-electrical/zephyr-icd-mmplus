@@ -35,7 +35,7 @@
  * header file.
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 
 #if defined(CONFIG_STDOUT_CONSOLE)
 #include <stdio.h>
@@ -83,7 +83,7 @@
 /* end - control behaviour of the demo */
 /***************************************/
 
-#define STACK_SIZE (2048)
+#define STACK_SIZE (768 + CONFIG_TEST_EXTRA_STACK_SIZE)
 
 #include "phil_obj_abstract.h"
 

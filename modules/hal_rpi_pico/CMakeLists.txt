@@ -22,8 +22,6 @@ if(CONFIG_HAS_RPI_PICO)
     endforeach()
 
     set(rp2_bootloader_prefix ${CMAKE_BINARY_DIR}/bootloader)
-    set(rp2_bootloader_asm ${rp2_bootloader_prefix}/boot_stage2.S)
-
     ExternalProject_Add(
       second_stage_bootloader
       SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/bootloader
@@ -36,14 +34,12 @@ if(CONFIG_HAS_RPI_PICO)
         -DZEPHYR_BASE=${ZEPHYR_BASE}
         -DFLASH_TYPE=${flash_type}
         -DPYTHON_EXECUTABLE=${Python3_EXECUTABLE}
-        -DRP2_BOOTLOADER_BYPRODUCT=${rp2_bootloader_asm}
+        -DCONFIG_LEGACY_INCLUDE_PATH=$<BOOL:${CONFIG_LEGACY_INCLUDE_PATH}>
       INSTALL_COMMAND "" # No installation needed
-      BUILD_BYPRODUCTS ${rp2_bootloader_asm}
+      BUILD_BYPRODUCTS ${rp2_bootloader_prefix}/boot_stage2
       BUILD_ALWAYS TRUE
       )
-
-      add_dependencies(${ZEPHYR_CURRENT_LIBRARY} second_stage_bootloader)
-      zephyr_library_sources(${rp2_bootloader_asm})
+    zephyr_library_sources(${rp2_bootloader_prefix}/boot_stage2)
   endif()
 
   # Pico sources and headers necessary for every build.
@@ -92,14 +88,6 @@ if(CONFIG_HAS_RPI_PICO)
   zephyr_include_directories_ifdef(CONFIG_PICOSDK_USE_FLASH
           ${rp2_common_dir}/hardware_flash/include)
 
-  zephyr_include_directories_ifdef(CONFIG_PICOSDK_USE_PWM
-          ${rp2_common_dir}/hardware_pwm/include)
-
-  zephyr_library_sources_ifdef(CONFIG_PICOSDK_USE_ADC
-          ${rp2_common_dir}/hardware_adc/adc.c)
-  zephyr_include_directories_ifdef(CONFIG_PICOSDK_USE_ADC
-          ${rp2_common_dir}/hardware_adc/include)
-
   # Some flash driver functions must be executed from the RAM.
   # Originally pico-sdk places them in the RW data section, so this
   # implementation does the same.
@@ -111,5 +99,4 @@ if(CONFIG_HAS_RPI_PICO)
     PROPERTIES
     COMPILE_FLAGS $<TARGET_PROPERTY:compiler,warning_no_pointer_arithmetic>
   )
-
 endif()

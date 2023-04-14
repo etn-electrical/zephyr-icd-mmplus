@@ -21,7 +21,6 @@
  */
 #define RV_ECALL_RUNTIME_EXCEPT		0
 #define RV_ECALL_IRQ_OFFLOAD		1
-#define RV_ECALL_SCHEDULE		2
 
 #ifndef _ASMLANGUAGE
 
@@ -41,18 +40,18 @@ static inline uintptr_t arch_syscall_invoke6(uintptr_t arg1, uintptr_t arg2,
 					     uintptr_t arg5, uintptr_t arg6,
 					     uintptr_t call_id)
 {
-	register unsigned long a0 __asm__ ("a0") = arg1;
-	register unsigned long a1 __asm__ ("a1") = arg2;
-	register unsigned long a2 __asm__ ("a2") = arg3;
-	register unsigned long a3 __asm__ ("a3") = arg4;
-	register unsigned long a4 __asm__ ("a4") = arg5;
-	register unsigned long a5 __asm__ ("a5") = arg6;
-	register unsigned long t0 __asm__ ("t0") = call_id;
+	register ulong_t a0 __asm__ ("a0") = arg1;
+	register ulong_t a1 __asm__ ("a1") = arg2;
+	register ulong_t a2 __asm__ ("a2") = arg3;
+	register ulong_t a3 __asm__ ("a3") = arg4;
+	register ulong_t a4 __asm__ ("a4") = arg5;
+	register ulong_t a5 __asm__ ("a5") = arg6;
+	register ulong_t a7 __asm__ ("a7") = call_id;
 
 	__asm__ volatile ("ecall"
 			  : "+r" (a0)
 			  : "r" (a1), "r" (a2), "r" (a3), "r" (a4), "r" (a5),
-			  "r" (t0)
+			  "r" (a7)
 			  : "memory");
 	return a0;
 }
@@ -62,16 +61,16 @@ static inline uintptr_t arch_syscall_invoke5(uintptr_t arg1, uintptr_t arg2,
 					     uintptr_t arg5,
 					     uintptr_t call_id)
 {
-	register unsigned long a0 __asm__ ("a0") = arg1;
-	register unsigned long a1 __asm__ ("a1") = arg2;
-	register unsigned long a2 __asm__ ("a2") = arg3;
-	register unsigned long a3 __asm__ ("a3") = arg4;
-	register unsigned long a4 __asm__ ("a4") = arg5;
-	register unsigned long t0 __asm__ ("t0") = call_id;
+	register ulong_t a0 __asm__ ("a0") = arg1;
+	register ulong_t a1 __asm__ ("a1") = arg2;
+	register ulong_t a2 __asm__ ("a2") = arg3;
+	register ulong_t a3 __asm__ ("a3") = arg4;
+	register ulong_t a4 __asm__ ("a4") = arg5;
+	register ulong_t a7 __asm__ ("a7") = call_id;
 
 	__asm__ volatile ("ecall"
 			  : "+r" (a0)
-			  : "r" (a1), "r" (a2), "r" (a3), "r" (a4), "r" (t0)
+			  : "r" (a1), "r" (a2), "r" (a3), "r" (a4), "r" (a7)
 			  : "memory");
 	return a0;
 }
@@ -80,15 +79,15 @@ static inline uintptr_t arch_syscall_invoke4(uintptr_t arg1, uintptr_t arg2,
 					     uintptr_t arg3, uintptr_t arg4,
 					     uintptr_t call_id)
 {
-	register unsigned long a0 __asm__ ("a0") = arg1;
-	register unsigned long a1 __asm__ ("a1") = arg2;
-	register unsigned long a2 __asm__ ("a2") = arg3;
-	register unsigned long a3 __asm__ ("a3") = arg4;
-	register unsigned long t0 __asm__ ("t0") = call_id;
+	register ulong_t a0 __asm__ ("a0") = arg1;
+	register ulong_t a1 __asm__ ("a1") = arg2;
+	register ulong_t a2 __asm__ ("a2") = arg3;
+	register ulong_t a3 __asm__ ("a3") = arg4;
+	register ulong_t a7 __asm__ ("a7") = call_id;
 
 	__asm__ volatile ("ecall"
 			  : "+r" (a0)
-			  : "r" (a1), "r" (a2), "r" (a3), "r" (t0)
+			  : "r" (a1), "r" (a2), "r" (a3), "r" (a7)
 			  : "memory");
 	return a0;
 }
@@ -97,14 +96,14 @@ static inline uintptr_t arch_syscall_invoke3(uintptr_t arg1, uintptr_t arg2,
 					     uintptr_t arg3,
 					     uintptr_t call_id)
 {
-	register unsigned long a0 __asm__ ("a0") = arg1;
-	register unsigned long a1 __asm__ ("a1") = arg2;
-	register unsigned long a2 __asm__ ("a2") = arg3;
-	register unsigned long t0 __asm__ ("t0") = call_id;
+	register ulong_t a0 __asm__ ("a0") = arg1;
+	register ulong_t a1 __asm__ ("a1") = arg2;
+	register ulong_t a2 __asm__ ("a2") = arg3;
+	register ulong_t a7 __asm__ ("a7") = call_id;
 
 	__asm__ volatile ("ecall"
 			  : "+r" (a0)
-			  : "r" (a1), "r" (a2), "r" (t0)
+			  : "r" (a1), "r" (a2), "r" (a7)
 			  : "memory");
 	return a0;
 }
@@ -112,55 +111,71 @@ static inline uintptr_t arch_syscall_invoke3(uintptr_t arg1, uintptr_t arg2,
 static inline uintptr_t arch_syscall_invoke2(uintptr_t arg1, uintptr_t arg2,
 					     uintptr_t call_id)
 {
-	register unsigned long a0 __asm__ ("a0") = arg1;
-	register unsigned long a1 __asm__ ("a1") = arg2;
-	register unsigned long t0 __asm__ ("t0") = call_id;
+	register ulong_t a0 __asm__ ("a0") = arg1;
+	register ulong_t a1 __asm__ ("a1") = arg2;
+	register ulong_t a7 __asm__ ("a7") = call_id;
 
 	__asm__ volatile ("ecall"
 			  : "+r" (a0)
-			  : "r" (a1), "r" (t0)
+			  : "r" (a1), "r" (a7)
 			  : "memory");
 	return a0;
 }
 
 static inline uintptr_t arch_syscall_invoke1(uintptr_t arg1, uintptr_t call_id)
 {
-	register unsigned long a0 __asm__ ("a0") = arg1;
-	register unsigned long t0 __asm__ ("t0") = call_id;
+	register ulong_t a0 __asm__ ("a0") = arg1;
+	register ulong_t a7 __asm__ ("a7") = call_id;
 
 	__asm__ volatile ("ecall"
 			  : "+r" (a0)
-			  : "r" (t0)
+			  : "r" (a7)
 			  : "memory");
 	return a0;
 }
 
 static inline uintptr_t arch_syscall_invoke0(uintptr_t call_id)
 {
-	register unsigned long a0 __asm__ ("a0");
-	register unsigned long t0 __asm__ ("t0") = call_id;
+	register ulong_t a0 __asm__ ("a0");
+	register ulong_t a7 __asm__ ("a7") = call_id;
 
 	__asm__ volatile ("ecall"
 			  : "=r" (a0)
-			  : "r" (t0)
+			  : "r" (a7)
 			  : "memory");
 	return a0;
 }
 
 #ifdef CONFIG_USERSPACE
-register unsigned long riscv_tp_reg __asm__ ("tp");
-
 static inline bool arch_is_user_context(void)
 {
-	/* don't try accessing TLS variables if tp is not initialized */
-	if (riscv_tp_reg == 0) {
-		return false;
-	}
-
+#ifdef CONFIG_SMP
+	/*
+	 * This is painful. There is no way for u-mode code to know if we're
+	 * currently executing in u-mode without generating a fault, besides
+	 * stealing a general purpose register away from the standard ABI
+	 * that is. And a global variable doesn't work on SMP as this must be
+	 * per-CPU and we could be migrated to another CPU just at the right
+	 * moment to peek at the wrong CPU variable (and u-mode can't disable
+	 * preemption either).
+	 *
+	 * So, given that we'll have to pay the price of an exception entry
+	 * anyway, let's at least make it free to privileged threads by using
+	 * the mscratch register as the non-user context indicator (it must
+	 * be zero in m-mode for exception entry to work properly). In the
+	 * case of u-mode we'll simulate a proper return value in the
+	 * exception trap code. Let's settle on the return value in t0
+	 * and omit the volatile to give the compiler a chance to cache
+	 * the result.
+	 */
+	register ulong_t is_user __asm__ ("t0");
+	__asm__ ("csrr %0, mscratch" : "=r" (is_user));
+	return is_user != 0;
+#else
 	/* Defined in arch/riscv/core/thread.c */
-	extern __thread uint8_t is_user_mode;
-
-	return is_user_mode != 0;
+	extern uint32_t is_user_mode;
+	return is_user_mode;
+#endif
 }
 #endif
 

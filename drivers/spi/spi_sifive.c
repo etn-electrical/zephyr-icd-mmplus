@@ -17,8 +17,7 @@ LOG_MODULE_REGISTER(spi_sifive);
 
 /* Helper Functions */
 
-static ALWAYS_INLINE
-void sys_set_mask(mem_addr_t addr, uint32_t mask, uint32_t value)
+static inline void sys_set_mask(mem_addr_t addr, uint32_t mask, uint32_t value)
 {
 	uint32_t temp = sys_read32(addr);
 
@@ -28,7 +27,7 @@ void sys_set_mask(mem_addr_t addr, uint32_t mask, uint32_t value)
 	sys_write32(temp, addr);
 }
 
-static int spi_config(const struct device *dev, uint32_t frequency,
+int spi_config(const struct device *dev, uint32_t frequency,
 	       uint16_t operation)
 {
 	uint32_t div;
@@ -101,64 +100,50 @@ static int spi_config(const struct device *dev, uint32_t frequency,
 	return 0;
 }
 
-static ALWAYS_INLINE bool spi_sifive_send_available(const struct device *dev)
+void spi_sifive_send(const struct device *dev, uint16_t frame)
 {
-	return !(sys_read32(SPI_REG(dev, REG_TXDATA)) & SF_TXDATA_FULL);
-}
+	while (sys_read32(SPI_REG(dev, REG_TXDATA)) & SF_TXDATA_FULL) {
+	}
 
-static ALWAYS_INLINE
-void spi_sifive_send(const struct device *dev, uint8_t frame)
-{
 	sys_write32((uint32_t) frame, SPI_REG(dev, REG_TXDATA));
 }
 
-static ALWAYS_INLINE
-bool spi_sifive_recv(const struct device *dev, uint8_t *val)
+uint16_t spi_sifive_recv(const struct device *dev)
 {
-	uint32_t reg = sys_read32(SPI_REG(dev, REG_RXDATA));
+	uint32_t val;
 
-	if (reg & SF_RXDATA_EMPTY) {
-		return false;
+	while ((val = sys_read32(SPI_REG(dev, REG_RXDATA))) & SF_RXDATA_EMPTY) {
 	}
-	*val = (uint8_t) reg;
-	return true;
+
+	return (uint16_t) val;
 }
 
-static void spi_sifive_xfer(const struct device *dev, const bool hw_cs_control)
+void spi_sifive_xfer(const struct device *dev, const bool hw_cs_control)
 {
 	struct spi_context *ctx = &SPI_DATA(dev)->ctx;
-	uint8_t txd, rxd;
-	int queued_frames = 0;
+	uint16_t txd, rxd;
 
-	while (spi_context_tx_on(ctx) || spi_context_rx_on(ctx) || queued_frames > 0) {
-		bool send = false;
-
-		/* As long as frames remain to be sent, attempt to queue them on Tx FIFO. If
-		 * the FIFO is full then another attempt will be made next pass. If Rx length
-		 * > Tx length then queue dummy Tx in order to read the requested Rx data.
-		 */
+	do {
+		/* Send a frame */
 		if (spi_context_tx_buf_on(ctx)) {
-			send = true;
 			txd = *ctx->tx_buf;
-		} else if (queued_frames == 0) {  /* Implies spi_context_rx_on(). */
-			send = true;
+		} else {
 			txd = 0U;
 		}
 
-		if (send && spi_sifive_send_available(dev)) {
-			spi_sifive_send(dev, txd);
-			queued_frames++;
-			spi_context_update_tx(ctx, 1, 1);
+		spi_sifive_send(dev, txd);
+
+		spi_context_update_tx(ctx, 1, 1);
+
+		/* Receive a frame */
+		rxd = spi_sifive_recv(dev);
+
+		if (spi_context_rx_buf_on(ctx)) {
+			*ctx->rx_buf = rxd;
 		}
 
-		if (queued_frames > 0 && spi_sifive_recv(dev, &rxd)) {
-			if (spi_context_rx_buf_on(ctx)) {
-				*ctx->rx_buf = rxd;
-			}
-			queued_frames--;
-			spi_context_update_rx(ctx, 1, 1);
-		}
-	}
+		spi_context_update_rx(ctx, 1, 1);
+	} while (spi_context_tx_on(ctx) || spi_context_rx_on(ctx));
 
 	/* Deassert the CS line */
 	if (!hw_cs_control) {
@@ -167,12 +152,12 @@ static void spi_sifive_xfer(const struct device *dev, const bool hw_cs_control)
 		sys_write32(SF_CSMODE_OFF, SPI_REG(dev, REG_CSMODE));
 	}
 
-	spi_context_complete(ctx, dev, 0);
+	spi_context_complete(ctx, 0);
 }
 
 /* API Functions */
 
-static int spi_sifive_init(const struct device *dev)
+int spi_sifive_init(const struct device *dev)
 {
 	int err;
 #ifdef CONFIG_PINCTRL
@@ -198,7 +183,7 @@ static int spi_sifive_init(const struct device *dev)
 	return 0;
 }
 
-static int spi_sifive_transceive(const struct device *dev,
+int spi_sifive_transceive(const struct device *dev,
 			  const struct spi_config *config,
 			  const struct spi_buf_set *tx_bufs,
 			  const struct spi_buf_set *rx_bufs)
@@ -207,7 +192,7 @@ static int spi_sifive_transceive(const struct device *dev,
 	bool hw_cs_control = false;
 
 	/* Lock the SPI Context */
-	spi_context_lock(&SPI_DATA(dev)->ctx, false, NULL, NULL, config);
+	spi_context_lock(&SPI_DATA(dev)->ctx, false, NULL, config);
 
 	/* Configure the SPI bus */
 	SPI_DATA(dev)->ctx.config = config;
@@ -263,7 +248,7 @@ static int spi_sifive_transceive(const struct device *dev,
 	return rc;
 }
 
-static int spi_sifive_release(const struct device *dev,
+int spi_sifive_release(const struct device *dev,
 		       const struct spi_config *config)
 {
 	spi_context_unlock_unconditionally(&SPI_DATA(dev)->ctx);
@@ -296,6 +281,24 @@ static struct spi_driver_api spi_sifive_api = {
 			&spi_sifive_cfg_##n, \
 			POST_KERNEL, \
 			CONFIG_SPI_INIT_PRIORITY, \
-			&spi_sifive_api);
+			&spi_sifive_api)
 
-DT_INST_FOREACH_STATUS_OKAY(SPI_INIT)
+#ifndef CONFIG_SIFIVE_SPI_0_ROM
+#if DT_INST_NODE_HAS_PROP(0, label)
+
+SPI_INIT(0);
+
+#endif /* DT_INST_NODE_HAS_PROP(0, label) */
+#endif /* !CONFIG_SIFIVE_SPI_0_ROM */
+
+#if DT_INST_NODE_HAS_PROP(1, label)
+
+SPI_INIT(1);
+
+#endif /* DT_INST_NODE_HAS_PROP(1, label) */
+
+#if DT_INST_NODE_HAS_PROP(2, label)
+
+SPI_INIT(2);
+
+#endif /* DT_INST_NODE_HAS_PROP(2, label) */

@@ -19,7 +19,7 @@ LOG_MODULE_REGISTER(net_test, NET_LOG_LEVEL);
 #include <zephyr/sys/printk.h>
 #include <zephyr/random/rand32.h>
 
-#include <zephyr/ztest.h>
+#include <ztest.h>
 
 #include <zephyr/net/dummy.h>
 #include <zephyr/net/buf.h>
@@ -546,7 +546,7 @@ static bool add_to_arp(struct net_if *iface, struct in_addr *addr)
 #endif
 }
 
-ZTEST(net_virtual, test_virtual_01_attach_and_detach)
+static void test_virtual_attach_and_detach(void)
 {
 	struct net_if *iface = virtual_interfaces[0];
 	int ret;
@@ -578,76 +578,7 @@ ZTEST(net_virtual, test_virtual_01_attach_and_detach)
 		      net_if_get_by_iface(iface));
 }
 
-ZTEST(net_virtual, test_virtual_02_real_iface_down)
-{
-	struct net_if *iface = virtual_interfaces[0];
-	int ret;
-
-	/* Attach virtual interface on top of Ethernet */
-
-	ret = net_virtual_interface_attach(iface, eth_interfaces[0]);
-	zassert_equal(ret, 0, "Cannot attach %d on top of %d (%d)",
-		      net_if_get_by_iface(iface),
-		      net_if_get_by_iface(eth_interfaces[0]),
-		      ret);
-
-	zassert_false(net_if_is_up(iface),
-		      "Virtual interface %d should be down",
-		      net_if_get_by_iface(iface));
-
-	ret = net_if_up(iface);
-	zassert_equal(ret, 0, "Cannot take virtual interface %d up (%d)",
-		      net_if_get_by_iface(iface), ret);
-
-	zassert_true(net_if_is_up(iface),
-		     "Virtual interface %d should be up",
-		     net_if_get_by_iface(iface));
-	zassert_true(net_if_is_up(eth_interfaces[0]),
-		     "Real interface %d should be up",
-		     net_if_get_by_iface(iface));
-
-	/* Virtual interface should go down if the underlying iface is down */
-	ret = net_if_down(eth_interfaces[0]);
-	zassert_equal(ret, 0, "Cannot take real interface %d down (%d)",
-		      net_if_get_by_iface(eth_interfaces[0]), ret);
-
-	zassert_false(net_if_is_up(iface),
-		      "Virtual interface %d should be down",
-		      net_if_get_by_iface(iface));
-	zassert_false(net_if_is_carrier_ok(iface),
-		      "Virtual interface %d should be in carrier off",
-		      net_if_get_by_iface(iface));
-	zassert_equal(net_if_oper_state(iface), NET_IF_OPER_LOWERLAYERDOWN,
-		      "Wrong operational state on %d (%d)",
-		      net_if_get_by_iface(iface), net_if_oper_state(iface));
-
-	/* Virtual interface should be brought up if the underlying iface is
-	 * back up
-	 */
-	ret = net_if_up(eth_interfaces[0]);
-	zassert_equal(ret, 0, "Cannot take real interface %d u (%d)",
-		      net_if_get_by_iface(eth_interfaces[0]), ret);
-
-	zassert_true(net_if_is_up(iface),
-		     "Virtual interface %d should be up",
-		     net_if_get_by_iface(iface));
-	zassert_true(net_if_is_carrier_ok(iface),
-		     "Virtual interface %d should be in carrier on",
-		     net_if_get_by_iface(iface));
-
-	ret = net_virtual_interface_attach(iface,
-					   NULL);
-	zassert_equal(ret, 0, "Cannot deattach %d from %d (%d)",
-		      net_if_get_by_iface(iface),
-		      net_if_get_by_iface(eth_interfaces[0]),
-		      ret);
-
-	zassert_false(net_if_is_up(iface), "Virtual interface %d is still up",
-		      net_if_get_by_iface(iface));
-}
-
-
-ZTEST(net_virtual, test_virtual_03_set_mtu)
+static void test_virtual_set_mtu(void)
 {
 	struct virtual_interface_req_params params = { 0 };
 	struct net_if *iface = virtual_interfaces[0];
@@ -674,7 +605,7 @@ ZTEST(net_virtual, test_virtual_03_set_mtu)
 		      net_if_get_by_iface(iface), params.mtu, ret);
 }
 
-ZTEST(net_virtual, test_virtual_04_get_mtu)
+static void test_virtual_get_mtu(void)
 {
 	struct virtual_interface_req_params params = { 0 };
 	struct net_if *iface = virtual_interfaces[0];
@@ -692,7 +623,7 @@ ZTEST(net_virtual, test_virtual_04_get_mtu)
 		      net_if_get_by_iface(iface), params.mtu, MTU);
 }
 
-ZTEST(net_virtual, test_virtual_05_set_peer)
+static void test_virtual_set_peer(void)
 {
 	struct virtual_interface_req_params params = { 0 };
 	struct net_if *iface = virtual_interfaces[0];
@@ -737,7 +668,7 @@ ZTEST(net_virtual, test_virtual_05_set_peer)
 		      ret);
 }
 
-ZTEST(net_virtual, test_virtual_06_get_peer)
+static void test_virtual_get_peer(void)
 {
 	struct virtual_interface_req_params params = { 0 };
 	struct net_if *iface = virtual_interfaces[0];
@@ -766,7 +697,7 @@ ZTEST(net_virtual, test_virtual_06_get_peer)
 	}
 }
 
-ZTEST(net_virtual, test_virtual_07_verify_name)
+static void test_virtual_verify_name(void)
 {
 #define NAME "foobar"
 #define NAME2 "123456789"
@@ -789,7 +720,7 @@ ZTEST(net_virtual, test_virtual_07_verify_name)
 			  "Cannot get name");
 }
 
-ZTEST(net_virtual, test_virtual_08_send_data_to_tunnel)
+static void test_virtual_send_data_to_tunnel(void)
 {
 	struct virtual_interface_req_params params = { 0 };
 	struct net_if *iface = virtual_interfaces[0];
@@ -1063,21 +994,31 @@ static void test_virtual_recv_data_from_tunnel(int remote_ip,
 	net_context_put(udp_ctx);
 }
 
-ZTEST(net_virtual, test_virtual_09_recv_data_from_tunnel_ok)
+static void test_virtual_recv_data_from_tunnel_ok(void)
 {
 	test_virtual_recv_data_from_tunnel(2, true);
 }
 
-ZTEST(net_virtual, test_virtual_10_recv_data_from_tunnel_fail)
+static void test_virtual_recv_data_from_tunnel_fail(void)
 {
 	test_virtual_recv_data_from_tunnel(3, false);
 }
 
-static void *setup(void)
+void test_main(void)
 {
-	test_virtual_setup();
-	test_address_setup();
-	return NULL;
-}
+	ztest_test_suite(net_virtual_test,
+			 ztest_unit_test(test_virtual_setup),
+			 ztest_unit_test(test_address_setup),
+			 ztest_unit_test(test_virtual_attach_and_detach),
+			 ztest_unit_test(test_virtual_set_mtu),
+			 ztest_unit_test(test_virtual_get_mtu),
+			 ztest_unit_test(test_virtual_set_peer),
+			 ztest_unit_test(test_virtual_get_peer),
+			 ztest_unit_test(test_virtual_verify_name),
+			 ztest_unit_test(test_virtual_send_data_to_tunnel),
+			 ztest_unit_test(test_virtual_recv_data_from_tunnel_ok),
+			 ztest_unit_test(test_virtual_recv_data_from_tunnel_fail)
+			 );
 
-ZTEST_SUITE(net_virtual, NULL, setup, NULL, NULL, NULL);
+	ztest_run_test_suite(net_virtual_test);
+}

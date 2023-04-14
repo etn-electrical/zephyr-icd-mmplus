@@ -18,20 +18,43 @@ Summary of the logging features:
   consuming operations to a known context instead of processing and sending
   the log message when called.
 - Multiple backends supported (up to 9 backends).
-- Custom frontend support. It can work together with backends.
+- Custom frontend support. When enabled no backends can be active.
 - Compile time filtering on module level.
 - Run time filtering independent for each backend.
 - Additional run time filtering on module instance level.
-- Timestamping with user provided function. Timestamp can have 32 or 64 bits.
+- Timestamping with user provided function.
 - Dedicated API for dumping data.
 - Dedicated API for handling transient strings.
 - Panic support - in panic mode logging switches to blocking, synchronous
   processing.
 - Printk support - printk message can be redirected to the logging.
 - Design ready for multi-domain/multi-processor system.
-- Support for logging floating point variables and long long arguments.
-- Built-in copying of transient strings used as arguments.
-- Support for multi-domain logging.
+
+Logging v2 introduces following changes:
+
+- Option to use 64 bit timestamp
+- Support for logging floating point variables
+- Support for logging variables extending size of a machine word (64 bit values
+  on 32 bit architectures)
+- Remove the need for special treatment of ``%s`` format specifier
+- Extend API for dumping data to accept formatted string
+- Improve memory utilization. More log messages fit in the logging buffer in
+  deferred mode.
+- Log message is no longer fragmented. It is self-contained block of memory which
+  simplifies out of domain handling (e.g. offline processing)
+- Improved performance when logging from user space
+- Improved performance when logging to full buffer and message are dropped.
+- Slightly degrade performance in normal circumstances due to the fact that
+  allocation from ring buffer is more complex than from memslab.
+- No change in logging API
+- Logging to frontend can be used together with backends.
+- Logging backend API extended with function for processing v2 messages.
+
+.. note::
+   Logging v1 is deprecated! Version 2 supports same set of features with extensions
+   listed above. However, logging backend API is different. All backends in
+   the tree support version 2 API. Any custom backend must be adapted to version 2.
+   Version 1 support will be removed after 3.1 release.
 
 Logging API is highly configurable at compile time as well as at run time. Using
 Kconfig options (see :ref:`logging_kconfig`) logs can be gradually removed from
@@ -98,6 +121,8 @@ Mode of operations:
 
 :kconfig:option:`CONFIG_LOG_MODE_MINIMAL`: Minimal footprint mode.
 
+:kconfig:option:`CONFIG_LOG1`: Use deprecated version of logging.
+
 Filtering options:
 
 :kconfig:option:`CONFIG_LOG_RUNTIME_FILTERING`: Enables runtime reconfiguration of the
@@ -124,6 +149,9 @@ allocated.
 
 :kconfig:option:`CONFIG_LOG_PRINTK`: Redirect printk calls to the logging.
 
+:kconfig:option:`CONFIG_LOG_PRINTK_MAX_STRING_LENGTH`: Maximal string length that can
+be processed by printk. Longer strings are trimmed.
+
 :kconfig:option:`CONFIG_LOG_PROCESS_TRIGGER_THRESHOLD`: When number of buffered log
 messages reaches the threshold dedicated thread (see :c:func:`log_thread_set`)
 is waken up. If :kconfig:option:`CONFIG_LOG_PROCESS_THREAD` is enabled then this
@@ -135,14 +163,25 @@ which handles log processing.
 :kconfig:option:`CONFIG_LOG_PROCESS_THREAD_STARTUP_DELAY_MS`: Delay in milliseconds
 after which logging thread is started.
 
-:kconfig:option:`CONFIG_LOG_BUFFER_SIZE`: Number of bytes dedicated for the circular
-packet buffer.
+:kconfig:option:`CONFIG_LOG_BUFFER_SIZE`: Number of bytes dedicated for the message pool.
+Single message capable of storing standard log with up to 3 arguments or hexdump
+message with 12 bytes of data take 32 bytes. In v2 it indicates buffer size
+dedicated for circular packet buffer.
 
-:kconfig:option:`CONFIG_LOG_FRONTEND`: Direct logs to a custom frontend.
+:kconfig:option:`CONFIG_LOG_DETECT_MISSED_STRDUP`: Enable detection of missed transient
+strings handling.
 
-:kconfig:option:`CONFIG_LOG_FRONTEND_ONLY`: No backends are used when messages goes to frontend.
+:kconfig:option:`CONFIG_LOG_STRDUP_MAX_STRING`: Longest string that can be duplicated
+using log_strdup().
 
-:kconfig:option:`CONFIG_LOG_CUSTOM_HEADER`: Injects an application provided header into log.h
+:kconfig:option:`CONFIG_LOG_STRDUP_BUF_COUNT`: Number of buffers in the pool used by
+log_strdup().
+
+:kconfig:option:`CONFIG_LOG_DOMAIN_ID`: Domain ID. Valid in multi-domain systems.
+
+:kconfig:option`CONFIG_LOG_FRONTEND`: Direct logs to a custom frontend.
+
+:kconfig:option`CONFIG_LOG_FRONTEND_ONLY`: No backends are used when messages goes to frontend.
 
 :kconfig:option:`CONFIG_LOG_TIMESTAMP_64BIT`: 64 bit timestamp.
 
@@ -295,18 +334,12 @@ level must be set using :c:macro:`LOG_LEVEL_SET`.
 Controlling the logging
 =======================
 
-By default, logging processing in deferred mode is handled internally by the
-dedicated task which starts automatically. However, it might not be available
-if multithreading is disabled. It can also be disabled by unsetting
-:kconfig:option:`CONFIG_LOG_PROCESS_TRIGGER_THRESHOLD`. In that case, logging can
-be controlled using API defined in :zephyr_file:`include/zephyr/logging/log_ctrl.h`.
-Logging must be initialized before it can be used. Optionally, user can provide
-function which returns timestamp value. If not provided, :c:macro:`k_cycle_get`
-or :c:macro:`k_cycle_get_32` is used for timestamping.
+Logging can be controlled using API defined in
+:zephyr_file:`include/zephyr/logging/log_ctrl.h`. Logger must be initialized before it can be
+used. Optionally, user can provide function which returns timestamp value. If
+not provided, :c:macro:`k_cycle_get_32` is used for timestamping.
 :c:func:`log_process` function is used to trigger processing of one log
 message (if pending). Function returns true if there is more messages pending.
-However, it is recommended to use macro wrappers (:c:macro:`LOG_INIT` and
-:c:macro:`LOG_PROCESS`) which handles case when logging is disabled.
 
 Following snippet shows how logging can be processed in simple forever loop.
 
@@ -316,20 +349,20 @@ Following snippet shows how logging can be processed in simple forever loop.
 
    void main(void)
    {
-   	LOG_INIT();
-   	/* If multithreading is enabled provide thread id to the logging. */
-   	log_thread_set(k_current_get());
+   	log_init();
 
    	while (1) {
-   		if (LOG_PROCESS() == false) {
+   		if (log_process() == false) {
    			/* sleep */
    		}
    	}
    }
 
-If logs are processed from a thread (user or internal) then it is possible to enable
-a feature which will wake up processing thread when certain amount of log messages are
-buffered (see :kconfig:option:`CONFIG_LOG_PROCESS_TRIGGER_THRESHOLD`).
+If logs are processed from a thread then it is possible to enable a feature
+which will wake up processing thread when certain amount of log messages are
+buffered (see :kconfig:option:`CONFIG_LOG_PROCESS_TRIGGER_THRESHOLD`). It is also
+possible to enable internal logging thread (see :kconfig:option:`CONFIG_LOG_PROCESS_THREAD`).
+In that case, logging thread is initialized and log messages are processed implicitly.
 
 .. _logging_panic:
 
@@ -344,22 +377,6 @@ Logger controlling API provides a function for entering into panic mode
 When :c:func:`log_panic` is called, _panic_ notification is sent to all active
 backends. Once all backends are notified, all buffered messages are flushed. Since
 that moment all logs are processed in a blocking way.
-
-.. _logging_printk:
-
-Printk
-******
-
-Typically, logging and :c:func:`printk` is using the same output for which they
-compete. This can lead to issues if the output does not support preemption but
-also it may result in the corrupted output because logging data is interleaved
-with printk data. However, it is possible to redirect printk messages to the
-logging subsystem by enabling :kconfig:option:`CONFIG_LOG_PRINTK`. In that case,
-printk entries are treated as log messages with level 0 (they cannot be disabled).
-When enabled, logging manages the output so there is no interleaving. However,
-in the deferred mode it changes the behavior of the printk because output is delayed
-until logging thread processes the data. :kconfig:option:`CONFIG_LOG_PRINTK` is by
-default enabled.
 
 .. _log_architecture:
 
@@ -384,17 +401,41 @@ time), allocating buffer for the message, creating the message and committing th
 message. Since logging API can be called in an interrupt, frontend is optimized
 to log the message as fast as possible.
 
-Log message
------------
+Log message v1
+--------------
 
-Log message contains message descriptor (source, domain and level), timestamp,
+Each log message consists of one or more fixed size chunks allocated from the
+pool of fixed size buffers (:ref:`memory_slabs_v2`). Message head chunk
+contains log entry details like: source ID, timestamp, severity level and the
+data (string pointer and arguments or raw data). Message contains also a
+reference counter which indicates how many users still uses this message. It is
+used to return message to the pool once last user indicates that it can be
+freed. If more than 3 arguments or 12 bytes of raw data is used in the log then
+log message is formed from multiple chunks which are linked together. When
+message body is filled it is put into the list.
+When log processing is triggered, a message is removed from the list of pending
+messages. If runtime filtering is disabled, the message is passed to all
+active backends, otherwise the message is passed to only those backends that
+have requested messages from that particular source (based on the source ID in
+the message), and severity level. Once all backends are iterated, the message
+is considered processed, but the message may still be in use by a backend.
+Because message is allocated from a pool, it is not mandatory to sequentially
+free messages. Processing by the backends is asynchronous and memory is freed
+when last user indicates that message can be freed. It also means that improper
+backend implementation may lead to pool drought.
+
+Log message v2
+--------------
+
+Log message v2 contains message descriptor (source, domain and level), timestamp,
 formatted string details (see :ref:`cbprintf_packaging`) and optional data.
-Log messages are stored in a continuous block of memory.
+Log messages v2 are stored in a continuous block of memory (contrary to v1).
 Memory is allocated from a circular packet buffer (:ref:`mpsc_pbuf`). It has
 few consequences:
 
  * Each message is self-contained, continuous block of memory thus it is suited
    for copying the message (e.g. for offline processing).
+ * Memory is better utilized because fixed size chunks are not used.
  * Messages must be sequentially freed. Backend processing is synchronous. Backend
    can make a copy for deferred processing.
 
@@ -483,159 +524,47 @@ Custom frontend is enabled using :kconfig:option:`CONFIG_LOG_FRONTEND`. Logs are
 to functions declared in :zephyr_file:`include/zephyr/logging/log_frontend.h`.
 If option :kconfig:option:`CONFIG_LOG_FRONTEND_ONLY` is enabled then log message is not
 created and no backend is handled. Otherwise, custom frontend can coexist with
-backends.
-
-In some cases, logs need to be redirected at the macro level. For these cases,
-:kconfig:option:`CONFIG_LOG_CUSTOM_HEADER` can be used to inject an application provided
-header named `zephyr_custom_log.h` at the end of :zephyr_file:`include/zephyr/logging/log.h`.
+backends (not available in v1).
 
 .. _logging_strings:
 
 Logging strings
 ===============
 
-String arguments are handled by :ref:`cbprintf_packaging`. See
-:ref:`cbprintf_packaging_limitations` for limitations and recommendations.
+Logging v1
+----------
 
-Multi-domain support
-====================
+Since log message contains only the value of the argument, when ``%s`` is used
+only the address of a string is stored. Because a string variable argument could
+be transient, allocated on the stack, or modifiable, logger provides a mechanism
+and a dedicated buffer pool to hold copies of strings. The buffer size and count
+is configurable (see :kconfig:option:`CONFIG_LOG_STRDUP_MAX_STRING` and
+:kconfig:option:`CONFIG_LOG_STRDUP_BUF_COUNT`).
 
-More complex systems can consist of multiple domains where each domain is an
-independent binary. Examples of domains are a core in a multicore SoC or one
-of the binaries (Secure or Nonsecure) on an ARM TrustZone core.
+If a string argument is transient, the user must call :c:func:`log_strdup` to
+duplicate the passed string into a buffer from the pool. See the examples below.
+If a strdup buffer cannot be allocated, a warning message is logged and an error
+code returned indicating :kconfig:option:`CONFIG_LOG_STRDUP_BUF_COUNT` should be
+increased. Buffers are freed together with the log message.
 
-Tracing and debugging on a multi-domain system is more complex and requires an efficient logging
-system. Two approaches can be used to structure this logging system:
+.. code-block:: c
 
-* Log inside each domain independently.
-  This option is not always possible as it requires that each domain has an available backend
-  (for example, UART). This approach can also be troublesome to use and not scalable,
-  as logs are presented on independent outputs.
-* Use a multi-domain logging system where log messages from each domain end up in one root domain,
-  where they are processed exactly as in a single domain case.
-  In this approach, log messages are passed between domains using a connection between domains
-  created from the backend on one side and linked to the other.
+   char local_str[] = "abc";
 
-  The Log link is an interface introduced in this multi-domain approach. The Log link is
-  responsible for receiving any log message from another domain, creating a copy, and
-  putting that local log message copy (including remote data) into the message queue.
-  This specific log link implementation matches the complementary backend implementation
-  to allow log messages exchange and logger control like configuring filtering, getting log
-  source names, and so on.
+   LOG_INF("logging transient string: %s", log_strdup(local_str));
+   local_str[0] = '\0'; /* String can be modified, logger will use duplicate."
 
-There are three types of domains in a multi-domain system:
+When :kconfig:option:`CONFIG_LOG_DETECT_MISSED_STRDUP` is enabled logger will scan
+each log message and report if string format specifier is found and string
+address is not in read only memory section or does not belong to memory pool
+dedicated to string duplicates. It indicates that :c:func:`log_strdup` is
+missing in a call to log a message, such as ``LOG_INF``.
 
-* The *end domain* has the logging core implementation and a cross-domain
-  backend. It can also have other backends in parallel.
-* The *relay domain* has one or more links to other domains but does not
-  have backends that output logs to the user. It has a cross-domain backend either to
-  another relay or to the root domain.
-* The *root domain* has one or multiple links and a backend that outputs logs
-  to the user.
+Logging v2
+----------
 
-See the following image for an example of a multi-domain setup:
-
-.. _logging-multidomain-example:
-
-.. figure:: images/multidomain.png
-
-    Multi-domain example
-
-In this architecture, a link can handle multiple domains.
-For example, let's consider an SoC with two ARM Cortex-M33 cores with TrustZone: cores A and B (see
-:numref:`logging-multidomain-example`). There are four domains in the system, as
-each core has both a Secure and a Nonsecure domain. If *core A nonsecure* (A_NS) is the
-root domain, it has two links: one to *core A secure* (A_NS-A_S) and one to
-*core B nonsecure* (A_NS-B_NS). *B_NS* domain has one link, to *core B secure*
-*B_NS-B_S*), and a backend to *A_NS*.
-
-Since in all instances there is a standard logging subsystem, it is always possible
-to have multiple backends and simultaneously output messages to them. An example of this is shown
-on :numref:`logging-multidomain-example` as a dotted UART backend on the *B_NS* domain.
-
-Domain ID
----------
-
-The source of each log message can be identified by the following fields in the header:
-``source_id`` and ``domain_id``.
-
-The value assigned to the ``domain_id`` is relative. Whenever a domain creates a log message,
-it sets its ``domain_id`` to ``0``.
-When a message crosses the domain, ``domain_id`` changes as it is increased by the link offset.
-The link offset is assigned during the initialization, where the logger core is iterating
-over all the registered links and assigned offsets.
-
-The first link has the offset set to 1.
-The following offset equals the previous link offset plus the number of domains in the previous
-link.
-
-The following example is shown on :numref:`logging-domain-ids-example`, where
-the assigned ``domain_ids`` are shown for each domain:
-
-.. _logging-domain-ids-example:
-.. figure:: images/domain_ids.png
-
-    Domain IDs assigning example
-
-Let's consider a log message created on the *B_S* domain:
-
-1. Initially, it has its ``domain_id`` set to ``0``.
-#. When the *B_NS-B_S* link receives the message, it increases the ``domain_id``
-   to ``1`` by adding the *B_NS-B_S* offset.
-#. The message is passed to *A_NS*.
-#. When the *A_NS-B_NS* link receives the message, it adds the offset (``2``) to the ``domain_id``.
-   The message ends up with the ``domain_id`` set to ``3``, which uniquely identifies the message
-   originator.
-
-Cross-domain log message
-------------------------
-
-In most cases, the address space of each domain is unique, and one domain
-cannot access directly the data in another domain. For this reason, the backend can
-partially process the message before it is passed to another domain. Partial
-processing can include converting a string package to a *fully self-contained*
-version (copying read-only strings to the package body).
-
-Each domain can have a different timestamp source in terms of frequency and
-offset. Logging does not perform any timestamp conversion.
-
-Runtime filtering
------------------
-
-In the single-domain case, each log source has a dedicated variable with runtime
-filtering for each backend in the system. In the multi-domain case, the originator of
-the log message is not aware of the number of backends in the root domain.
-
-As such, to filter logs in multiple domains, each source requires a runtime
-filtering setting in each domain on the way to the root domain. As the number of
-sources in other domains is not known during the compilation, the runtime filtering
-of remote sources must use dynamically allocated memory (one word per
-source). When a backend in the root domain changes the filtering of the module from a
-remote domain, the local filter is updated. After the update, the aggregated
-filter (the maximum from all the local backends) is checked and, if changed, the remote domain is
-informed about this change. With this approach, the runtime filtering works identically
-in both multi-domain and single-domain scenarios.
-
-Message ordering
-----------------
-
-Logging does not provide any mechanism for synchronizing timestamps across multiple
-domains:
-
-* If domains have different timestamp sources, messages will be
-  processed in the order of arrival to the buffer in the root domain.
-* If domains have the same timestamp source or if there is an out-of-bound mechanism that
-  recalculates timestamps, there are 2 options:
-
-  * Messages are processed as they arrive in the buffer in the root domain.
-    Messages are unordered but they can be sorted by the host as the timestamp
-    indicates the time of the message generation.
-  * Links have dedicated buffers. During processing, the head of each buffer is checked
-    and the oldest message is processed first.
-
-    With this approach, it is possible to maintain the order of the messages at the cost
-    of a suboptimal memory utilization (since the buffer is not shared) and increased processing
-    latency (see :kconfig:option:`CONFIG_LOG_PROCESSING_LATENCY_US`).
+String arguments are handled by :ref:`cbprintf_packaging` thus no special action
+is required.
 
 Logging backends
 ================
@@ -656,8 +585,51 @@ not supported.  Occasionally, logging may inform backend about number of dropped
 messages with :c:func:`log_backend_dropped`. Message processing API is version
 specific.
 
+Logging v1
+----------
+
+Logging backend interface contains following functions for processing:
+
+- :c:func:`log_backend_put` - backend gets log message in deferred mode.
+- :c:func:`log_backend_put_sync_string` - backend gets log message with formatted
+  string message in the immediate mode.
+- :c:func:`log_backend_put_sync_hexdump` - backend gets log message with hexdump
+  message in the immediate mode.
+
+The log message contains a reference counter tracking how many backends are
+processing the message. On receiving a message backend must claim it by calling
+:c:func:`log_msg_get` on that message which increments a reference counter.
+Once message is processed, backend puts back the message
+(:c:func:`log_msg_put`) decrementing a reference counter. On last
+:c:func:`log_msg_put`, when reference counter reaches 0, message is returned
+to the pool. It is up to the backend how message is processed.
+
+.. note::
+
+   The message pool can be starved if a backend does not call
+   :c:func:`log_msg_put` when it is done processing a message. The logging
+   core has no means to force messages back to the pool if they're still marked
+   as in use (with a non-zero reference counter).
+
+.. code-block:: c
+
+   #include <zephyr/logging/log_backend.h>
+
+   void put(const struct log_backend *const backend,
+   	    struct log_msg *msg)
+   {
+   	log_msg_get(msg);
+
+	/* message processing */
+
+   	log_msg_put(msg);
+   }
+
+Logging v2
+----------
+
 :c:func:`log_backend_msg2_process` is used for processing message. It is common for
-standard and hexdump messages because log message hold string with arguments
+standard and hexdump messages because log message v2 hold string with arguments
 and data. It is also common for deferred and immediate logging.
 
 Message formatting
@@ -666,7 +638,8 @@ Message formatting
 Logging provides set of function that can be used by the backend to format a
 message. Helper functions are available in :zephyr_file:`include/zephyr/logging/log_output.h`.
 
-Example message formatted using :c:func:`log_output_msg2_process`.
+Example message formatted using :c:func:`log_output_msg_process` or
+:c:func:`log_output_msg2_process`.
 
 .. code-block:: console
 
@@ -740,21 +713,37 @@ the parser to convert the hexadecimal characters to binary before parsing.
 Please refer to :ref:`logging_dictionary_sample` on how to use the log parser.
 
 
-Recommendations
-***************
 
-The are following recommendations:
+Limitations and recommendations
+*******************************
+
+Logging v1
+==========
+
+The are following limitations:
+
+* Strings as arguments (*%s*) require special treatment (see
+  :ref:`logging_strings`).
+* Logging double and float variables is not possible because arguments are
+  word size.
+* Variables larger than word size cannot be logged.
+* Number of arguments in the string is limited to 15.
+
+Logging v2
+==========
+
+Solves major limitations of v1. However, in order to get most of the logging
+capabilities following recommendations shall be followed:
 
 * Enable :kconfig:option:`CONFIG_LOG_SPEED` to slightly speed up deferred logging at the
   cost of slight increase in memory footprint.
 * Compiler with C11 ``_Generic`` keyword support is recommended. Logging
   performance is significantly degraded without it. See :ref:`cbprintf_packaging`.
-* It is recommended to cast pointer to ``const char *`` when it is used with ``%s``
-  format specifier and it points to a constant string.
-* It is recommended to cast pointer to ``char *`` when it is used with ``%s``
-  format specifier and it points to a transient string.
-* It is recommended to cast character pointer to non character pointer
-  (e.g., ``void *``) when it is used with ``%p`` format specifier.
+* When ``_Generic`` is supported, during compilation it is determined which
+  packaging method shall be used: static or runtime. It is done by searching for
+  any string pointers in the argument list. If string pointer is used with
+  format specifier other than string, e.g. ``%p``, it is recommended to cast it
+  to ``void *``.
 
 .. code-block:: c
 
@@ -765,33 +754,35 @@ Benchmark
 *********
 
 Benchmark numbers from :zephyr_file:`tests/subsys/logging/log_benchmark` performed
-on ``qemu_x86``. It is a rough comparison to give a general overview.
+on ``qemu_x86``. It is a rough comparison to give general overview. Overall,
+logging v2 improves in most a the areas with the biggest improvement in logging
+from userspace. It is at the cost of larger memory footprint for a log message.
 
-+--------------------------------------------+------------------+
-| Feature                                    |                  |
-+============================================+==================+
-| Kernel logging                             | 7us [#f0]_/11us  |
-|                                            |                  |
-+--------------------------------------------+------------------+
-| User logging                               | 13us             |
-|                                            |                  |
-+--------------------------------------------+------------------+
-| kernel logging with overwrite              | 10us [#f0]_/15us |
-+--------------------------------------------+------------------+
-| Logging transient string                   | 42us             |
-+--------------------------------------------+------------------+
-| Logging transient string from user         | 50us             |
-+--------------------------------------------+------------------+
-| Memory utilization [#f1]_                  | 518              |
-|                                            |                  |
-+--------------------------------------------+------------------+
-| Memory footprint (test) [#f2]_             | 2k               |
-+--------------------------------------------+------------------+
-| Memory footprint (application) [#f3]_      | 3.5k             |
-+--------------------------------------------+------------------+
-| Message footprint [#f4]_                   | 47 [#f0]_/32     |
-|                                            | bytes            |
-+--------------------------------------------+------------------+
++--------------------------------------------+----------------+------------------+----------------+
+| Feature                                    | v1             | v2               | Summary        |
++============================================+================+==================+================+
+| Kernel logging                             | 7us            | 7us [#f0]_/11us  | No significant |
+|                                            |                |                  | change         |
++--------------------------------------------+----------------+------------------+----------------+
+| User logging                               | 86us           | 13us             | **Strongly     |
+|                                            |                |                  | improved**     |
++--------------------------------------------+----------------+------------------+----------------+
+| kernel logging with overwrite              | 23us           | 10us [#f0]_/15us | **Improved**   |
++--------------------------------------------+----------------+------------------+----------------+
+| Logging transient string                   | 16us           | 42us             | **Degraded**   |
++--------------------------------------------+----------------+------------------+----------------+
+| Logging transient string from user         | 111us          | 50us             | **Improved**   |
++--------------------------------------------+----------------+------------------+----------------+
+| Memory utilization [#f1]_                  | 416            | 518              | Slightly       |
+|                                            |                |                  | improved       |
++--------------------------------------------+----------------+------------------+----------------+
+| Memory footprint (test) [#f2]_             | 3.2k           | 2k               | **Improved**   |
++--------------------------------------------+----------------+------------------+----------------+
+| Memory footprint (application) [#f3]_      | 6.2k           | 3.5k             | **Improved**   |
++--------------------------------------------+----------------+------------------+----------------+
+| Message footprint [#f4]_                   | 15 bytes       | 47 [#f0]_/32     | **Degraded**   |
+|                                            |                | bytes            |                |
++--------------------------------------------+----------------+------------------+----------------+
 
 .. rubric:: Benchmark details
 

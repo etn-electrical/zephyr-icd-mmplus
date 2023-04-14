@@ -20,8 +20,6 @@
 		zephyr,bt-mon-uart = &uart0;
 		zephyr,sram = &sram0;
 		zephyr,flash = &flash0;
-		zephyr,code-partition = &slot0_partition;
-		zephyr,ieee802154 = &ieee802154;
 	};
 
 	interface_to_nrf9160: gpio-interface {
@@ -135,10 +133,6 @@
 			status = "disabled";
 		};
 	};
-
-	aliases {
-		watchdog0 = &wdt0;
-	};
 };
 
 &gpiote {
@@ -166,10 +160,6 @@
 	pinctrl-names = "default", "sleep";
 };
 
-&ieee802154 {
-	status = "okay";
-};
-
 &flash0 {
 
 	partitions {
@@ -183,11 +173,15 @@
 		};
 		slot0_partition: partition@c000 {
 			label = "image-0";
-			reg = <0x0000C000 0x00076000>;
+			reg = <0x0000C000 0x00067000>;
 		};
-		slot1_partition: partition@82000 {
+		slot1_partition: partition@73000 {
 			label = "image-1";
-			reg = <0x00082000 0x00076000>;
+			reg = <0x00073000 0x00067000>;
+		};
+		scratch_partition: partition@da000 {
+			label = "image-scratch";
+			reg = <0x000da000 0x0001e000>;
 		};
 
 		/*

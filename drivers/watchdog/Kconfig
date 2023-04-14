@@ -6,6 +6,7 @@
 
 menuconfig WATCHDOG
 	bool "Watchdog Support"
+	select HAS_DTS_WDT
 	help
 	  Include support for watchdogs.
 
@@ -31,8 +32,7 @@ config WDT_MULTISTAGE
 
 config WDT_COUNTER
 	bool "Counter based watchdog"
-	default y
-	depends on DT_HAS_ZEPHYR_COUNTER_WATCHDOG_ENABLED
+	def_bool $(dt_nodelabel_enabled,wdt_counter)
 	select COUNTER
 	help
 	  Watchdog emulated with counter device. If counter device supports using
@@ -82,20 +82,5 @@ source "drivers/watchdog/Kconfig.npcx"
 
 source "drivers/watchdog/Kconfig.cc32xx"
 
-source "drivers/watchdog/Kconfig.cc13xx_cc26xx"
-
 source "drivers/watchdog/Kconfig.it8xxx2"
-
-source "drivers/watchdog/Kconfig.rpi_pico"
-
-source "drivers/watchdog/Kconfig.gd32"
-
-source "drivers/watchdog/Kconfig.npm6001"
-
-source "drivers/watchdog/Kconfig.nxp_s32"
-
-source "drivers/watchdog/Kconfig.dw"
-
-source "drivers/watchdog/Kconfig.smartbond"
-
-endif # WATCHDOG
+endif

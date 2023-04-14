@@ -24,16 +24,7 @@
 
 #define LOG_LEVEL CONFIG_ADC_LOG_LEVEL
 #include <zephyr/logging/log.h>
-#include <zephyr/irq.h>
 LOG_MODULE_REGISTER(nxp_mcux_lpadc);
-
-/*
- * Currently, no instance of the ADC IP has more than
- * 8 channels present. Therefore, we treat channels
- * with an index 8 or higher as a side b channel, with
- * the channel index given by channel_num % 8
- */
-#define CHANNELS_PER_SIDE 0x8
 
 #define ADC_CONTEXT_USES_KERNEL_TIMER
 #include "adc_context.h"
@@ -204,11 +195,7 @@ static void mcux_lpadc_start_channel(const struct device *dev)
 	lpadc_conv_command_config_t cmd_config;
 
 	LPADC_GetDefaultConvCommandConfig(&cmd_config);
-	cmd_config.channelNumber = data->channel_id % CHANNELS_PER_SIDE;
-	/* Select channel side based on next bit */
-	cmd_config.sampleChannelMode = (data->channel_id < CHANNELS_PER_SIDE) ?
-		kLPADC_SampleChannelSingleEndSideA :
-		kLPADC_SampleChannelSingleEndSideB;
+	cmd_config.channelNumber = data->channel_id;
 #if defined(FSL_FEATURE_LPADC_HAS_CMDL_MODE) \
 	&& FSL_FEATURE_LPADC_HAS_CMDL_MODE
 	cmd_config.conversionResolutionMode = data->resolution;
@@ -309,12 +296,6 @@ static int mcux_lpadc_init(const struct device *dev)
 	CLOCK_AttachClk(kSFRO_to_ADC_CLK);
 	CLOCK_SetClkDiv(kCLOCK_DivAdcClk, config->clock_div);
 
-#elif	defined(CONFIG_SOC_SERIES_IMX_RT5XX)
-	SYSCTL0->PDRUNCFG0_CLR = SYSCTL0_PDRUNCFG0_ADC_PD_MASK;
-	SYSCTL0->PDRUNCFG0_CLR = SYSCTL0_PDRUNCFG0_ADC_LP_MASK;
-	RESET_PeripheralReset(kADC0_RST_SHIFT_RSTn);
-	CLOCK_AttachClk(kFRO_DIV4_to_ADC_CLK);
-	CLOCK_SetClkDiv(kCLOCK_DivAdcClk, 1);
 #else
 
 	CLOCK_SetClkDiv(kCLOCK_DivAdcAsyncClk, config->clock_div, true);
@@ -403,9 +384,7 @@ static const struct adc_driver_api mcux_lpadc_driver_api = {
 #define ASSERT_WITHIN_RANGE(val, min, max, str)	\
 	BUILD_ASSERT(val >= min && val <= max, str)
 
-#if defined(CONFIG_SOC_SERIES_IMX_RT11XX) || \
-	defined(CONFIG_SOC_SERIES_IMX_RT6XX) || \
-	defined(CONFIG_SOC_SERIES_IMX_RT5XX)
+#if defined(CONFIG_SOC_SERIES_IMX_RT11XX) || defined(CONFIG_SOC_SERIES_IMX_RT6XX)
 #define TO_LPADC_CLOCK_SOURCE(val) 0
 #else
 #define TO_LPADC_CLOCK_SOURCE(val) \

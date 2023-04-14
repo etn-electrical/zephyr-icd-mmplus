@@ -99,12 +99,6 @@ The sample can be built and executed for the STM32F3 Discovery as follows:
 Pressing the button labelled ``USER`` will increment the button press counter
 object at index ``0x2102`` in the object dictionary.
 
-Building and Running for other STM32 boards
-===========================================
-The sample cannot run if the <erase-block-size> of the flash-controller exceeds 0x10000.
-Typically nucleo_h743zi with erase-block-size = <DT_SIZE_K(128)>;
-
-
 Building and Running for boards without storage partition
 =========================================================
 The sample can be built for boards without a flash storage partition by using a different configuration file:
@@ -394,34 +388,48 @@ Building and Running for FRDM-K64F
 The sample can be rebuilt with MCUboot and program download support
 for the FRDM-K64F as follows:
 
-#. Build the CANopenNode sample with MCUboot support:
+#. Build and flash MCUboot by following the instructions in the
+   :ref:`mcuboot` documentation page.
+
+#. Rebuild the CANopen sample with MCUboot support:
 
    .. zephyr-app-commands::
-      :tool: west
-      :app: samples/modules/canopennode
+      :zephyr-app: samples/modules/canopennode
       :board: frdm_k64f
       :goals: build
-      :west-args: --sysbuild
-      :gen-args: -Dcanopennode_CONF_FILE=prj_img_mgmt.conf
+      :gen-args: -DCONFIG_BOOTLOADER_MCUBOOT=y
       :compact:
 
-#. Flash the newly built MCUboot and CANopen sample binaries using west:
+#. Sign the newly rebuilt CANopen sample binary (using either the
+   demonstration-only RSA key from MCUboot or any other key used when
+   building MCUboot itself):
 
    .. code-block:: console
 
-      west flash --skip-rebuild
+      west sign -t imgtool --bin --no-hex -- --key mcuboot/root-rsa-2048.pem \
+              --version 1.0.0
+
+#. Flash the newly signed CANopen sample binary using west:
+
+   .. code-block:: console
+
+      west flash --skip-rebuild --bin-file zephyr/zephyr.signed.bin
 
 #. Confirm the newly flashed firmware image using west:
 
    .. code-block:: console
 
-      west flash --skip-rebuild --domain canopennode --runner canopen --confirm-only
+      west flash --skip-rebuild --runner canopen --confirm-only
 
-#. Finally, perform a program download via CANopen:
+#. Finally, resign the CANopen sample binary with a new version number
+   and perform a program download over CANopen:
 
    .. code-block:: console
 
-      west flash --skip-rebuild --domain canopennode --runner canopen
+      west sign -t imgtool --bin --no-hex  -- --key mcuboot/root-rsa-2048.pem \
+              --version 1.0.1
+      west flash --skip-rebuild --bin-file zephyr/zephyr.signed.bin \
+              --runner canopen
 
 Modifying the Object Dictionary
 *******************************

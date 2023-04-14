@@ -3,8 +3,6 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#include <zephyr/types.h>
-#include <zephyr/ztest.h>
 #include "hal/ecb.h"
 
 __attribute__((weak)) void ecb_encrypt(uint8_t const *const key_le,

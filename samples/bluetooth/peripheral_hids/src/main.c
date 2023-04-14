@@ -12,7 +12,7 @@
 #include <errno.h>
 #include <zephyr/sys/printk.h>
 #include <zephyr/sys/byteorder.h>
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 
 #include <zephyr/settings/settings.h>
 
@@ -137,10 +137,5 @@ void main(void)
 		return;
 	}
 
-	if (IS_ENABLED(CONFIG_SAMPLE_BT_USE_AUTHENTICATION)) {
-		bt_conn_auth_cb_register(&auth_cb_display);
-		printk("Bluetooth authentication callbacks registered.\n");
-	}
-
-	hog_button_loop();
+	bt_conn_auth_cb_register(&auth_cb_display);
 }

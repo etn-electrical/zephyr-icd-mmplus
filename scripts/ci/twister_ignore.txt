@@ -13,6 +13,7 @@
 .gitattributes
 .gitignore
 .mailmap
+.uncrustify.cfg
 CODEOWNERS
 MAINTAINERS.yml
 LICENSE

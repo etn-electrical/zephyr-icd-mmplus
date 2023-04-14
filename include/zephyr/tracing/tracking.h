@@ -27,7 +27,6 @@
  * - _track_list_k_mbox
  * - _track_list_k_pipe
  * - _track_list_k_queue
- * - _track_list_k_event
  *
  * @defgroup subsys_tracing_object_tracking Object tracking
  * @ingroup subsys_tracing
@@ -43,7 +42,6 @@ extern struct k_msgq *_track_list_k_msgq;
 extern struct k_mbox *_track_list_k_mbox;
 extern struct k_pipe *_track_list_k_pipe;
 extern struct k_queue *_track_list_k_queue;
-extern struct k_event *_track_list_k_event;
 
 /**
  * @brief Gets node's next element in a object tracking list.
@@ -65,7 +63,7 @@ extern struct k_event *_track_list_k_event;
 #define sys_port_track_k_mutex_init(mutex, ret) \
 	sys_track_k_mutex_init(mutex)
 #define sys_port_track_k_timer_stop(timer)
-#define sys_port_track_k_timer_start(timer, duration, period)
+#define sys_port_track_k_timer_start(timer)
 #define sys_port_track_k_timer_init(timer) \
 	sys_track_k_timer_init(timer)
 #define sys_port_track_k_queue_peek_tail(queue, ret)
@@ -92,8 +90,6 @@ extern struct k_event *_track_list_k_event;
 	sys_track_k_mem_slab_init(slab)
 #define sys_port_track_k_heap_free(h)
 #define sys_port_track_k_heap_init(h)
-#define sys_port_track_k_event_init(event) \
-	sys_track_k_event_init(event);
 
 void sys_track_k_timer_init(struct k_timer *timer);
 void sys_track_k_mem_slab_init(struct k_mem_slab *slab);
@@ -104,7 +100,6 @@ void sys_track_k_msgq_init(struct k_msgq *msgq);
 void sys_track_k_mbox_init(struct k_mbox *mbox);
 void sys_track_k_pipe_init(struct k_pipe *pipe);
 void sys_track_k_queue_init(struct k_queue *queue);
-void sys_track_k_event_init(struct k_event *event);
 
 /** @endcond */
 
@@ -122,7 +117,7 @@ void sys_track_k_event_init(struct k_event *event);
 #define sys_port_track_k_work_init(work)
 #define sys_port_track_k_mutex_init(mutex, ret)
 #define sys_port_track_k_timer_stop(timer)
-#define sys_port_track_k_timer_start(timer, duration, period)
+#define sys_port_track_k_timer_start(timer)
 #define sys_port_track_k_timer_init(timer)
 #define sys_port_track_k_queue_peek_tail(queue, ret)
 #define sys_port_track_k_queue_peek_head(queue, ret)
@@ -141,7 +136,6 @@ void sys_track_k_event_init(struct k_event *event);
 #define sys_port_track_k_mem_slab_init(slab, rc)
 #define sys_port_track_k_heap_free(h)
 #define sys_port_track_k_heap_init(h)
-#define sys_port_track_k_event_init(event)
 
 #endif
 

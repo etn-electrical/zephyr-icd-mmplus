@@ -24,8 +24,6 @@
  * @{
  */
 
-#include <errno.h>
-
 #include <zephyr/types.h>
 #include <zephyr/device.h>
 
@@ -162,11 +160,6 @@ enum dai_trigger_cmd {
 	 * state.
 	 */
 	DAI_TRIGGER_RESET,
-	/** @brief Copy
-	 *
-	 * This trigger prepares for data copying.
-	 */
-	DAI_TRIGGER_COPY,
 };
 
 /** @brief Properties of DAI
@@ -179,14 +172,12 @@ enum dai_trigger_cmd {
  * @param fifo_depth Fifo depth.
  * @param dma_hs_id Dma handshake id.
  * @param reg_init_delay Delay for initializing registers.
- * @param stream_id Stream ID.
  */
 struct dai_properties {
 	uint32_t fifo_address; /* fifo address */
 	uint32_t fifo_depth; /* fifo depth */
 	uint32_t dma_hs_id; /* dma handshake id */
 	uint32_t reg_init_delay; /* delay for register init */
-	int stream_id; /* stream id */
 };
 
 /** Main dai config struct
@@ -238,8 +229,8 @@ __subsystem struct dai_driver_api {
 	int (*remove)(const struct device *dev);
 	int (*config_set)(const struct device *dev, const struct dai_config *cfg,
 			  const void *bespoke_cfg);
-	int (*config_get)(const struct device *dev, struct dai_config *cfg,
-			  enum dai_dir dir);
+	const struct dai_config *(*config_get)(const struct device *dev,
+					       enum dai_dir dir);
 
 	const struct dai_properties *(*get_properties)(const struct device *dev,
 						       enum dai_dir dir,
@@ -328,17 +319,16 @@ static inline int dai_config_set(const struct device *dev,
  * @brief Fetch configuration information of a DAI driver
  *
  * @param dev Pointer to the device structure for the driver instance
- * @param cfg Pointer to the config structure to be filled by the instance
  * @param dir Stream direction: RX or TX as defined by DAI_DIR_*
- * @retval 0 if success, negative if invalid parameters or dai un-configured
+ * @retval Pointer to the structure containing configuration parameters,
+ *         or NULL if un-configured
  */
-static inline int dai_config_get(const struct device *dev,
-				 struct dai_config *cfg,
-				 enum dai_dir dir)
+static inline const struct dai_config *dai_config_get(const struct device *dev,
+						      enum dai_dir dir)
 {
 	const struct dai_driver_api *api = (const struct dai_driver_api *)dev->api;
 
-	return api->config_get(dev, cfg, dir);
+	return api->config_get(dev, dir);
 }
 
 /**

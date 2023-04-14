@@ -18,30 +18,23 @@
 #include "util/memq.h"
 #include "util/dbuf.h"
 
-#include "pdu_df.h"
-#include "lll/pdu_vendor.h"
 #include "pdu.h"
-
 #include "ll.h"
 #include "ll_settings.h"
 
 #include "lll.h"
 #include "lll/lll_df_types.h"
 #include "lll_conn.h"
-#include "lll_conn_iso.h"
 
 #include "ull_tx_queue.h"
-
-#include "isoal.h"
-#include "ull_iso_types.h"
-#include "ull_conn_iso_types.h"
-#include "ull_conn_iso_internal.h"
-
 #include "ull_conn_types.h"
 #include "ull_llcp.h"
 #include "ull_llcp_internal.h"
 #include "ull_conn_internal.h"
 
+#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_DEBUG_HCI_DRIVER)
+#define LOG_MODULE_NAME bt_ctlr_ull_llcp_chmu
+#include "common/log.h"
 #include <soc.h>
 #include "hal/debug.h"
 
@@ -125,6 +118,18 @@ static void lp_chmu_send_channel_map_update_ind(struct ll_conn *conn, struct pro
 	}
 }
 
+static void lp_chmu_st_idle(struct ll_conn *conn, struct proc_ctx *ctx, uint8_t evt, void *param)
+{
+	switch (evt) {
+	case LP_CHMU_EVT_RUN:
+		lp_chmu_send_channel_map_update_ind(conn, ctx, evt, param);
+		break;
+	default:
+		/* Ignore other evts */
+		break;
+	}
+}
+
 static void lp_chmu_st_wait_tx_chan_map_ind(struct ll_conn *conn, struct proc_ctx *ctx, uint8_t evt,
 					    void *param)
 {
@@ -167,9 +172,8 @@ static void lp_chmu_execute_fsm(struct ll_conn *conn, struct proc_ctx *ctx, uint
 {
 	switch (ctx->state) {
 	case LP_CHMU_STATE_IDLE:
-		/* Empty/fallthrough on purpose as idle state handling is equivalent to
-		 * 'wait for tx state' - simply to attempt TX'ing chan map ind
-		 */
+		lp_chmu_st_idle(conn, ctx, evt, param);
+		break;
 	case LP_CHMU_STATE_WAIT_TX_CHAN_MAP_IND:
 		lp_chmu_st_wait_tx_chan_map_ind(conn, ctx, evt, param);
 		break;
@@ -207,10 +211,6 @@ void llcp_lp_chmu_run(struct ll_conn *conn, struct proc_ctx *ctx, void *param)
 	lp_chmu_execute_fsm(conn, ctx, LP_CHMU_EVT_RUN, param);
 }
 
-bool llcp_lp_chmu_awaiting_instant(struct proc_ctx *ctx)
-{
-	return (ctx->state == LP_CHMU_STATE_WAIT_INSTANT);
-}
 #endif /* CONFIG_BT_CENTRAL */
 
 #if defined(CONFIG_BT_PERIPHERAL)
@@ -326,10 +326,5 @@ void llcp_rp_chmu_init_proc(struct proc_ctx *ctx)
 void llcp_rp_chmu_run(struct ll_conn *conn, struct proc_ctx *ctx, void *param)
 {
 	rp_chmu_execute_fsm(conn, ctx, RP_CHMU_EVT_RUN, param);
-}
-
-bool llcp_rp_chmu_awaiting_instant(struct proc_ctx *ctx)
-{
-	return (ctx->state == RP_CHMU_STATE_WAIT_INSTANT);
 }
 #endif /* CONFIG_BT_PERIPHERAL */

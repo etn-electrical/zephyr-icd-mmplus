@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
+#include <ztest.h>
 
 #define HELPER_STACK_SIZE 500
 
@@ -15,11 +15,6 @@
 	((((val1) * 100) < ((val2) * (100 + (pcnt)))) &&              \
 	 (((val1) * 100) > ((val2) * (100 - (pcnt))))) ? true : false
 
-#if defined(CONFIG_RISCV_MACHINE_TIMER)
-#define IDLE_EVENT_STATS_PRECISION 5
-#else
-#define IDLE_EVENT_STATS_PRECISION 1
-#endif
 
 static struct k_thread helper_thread;
 static K_THREAD_STACK_DEFINE(helper_stack, HELPER_STACK_SIZE);
@@ -60,7 +55,7 @@ void busy_loop(uint32_t ticks)
  *    - Idle time should not increase
  *    - current, peak and average cycles should be different
  */
-ZTEST(usage_api, test_all_stats_usage)
+void test_all_stats_usage(void)
 {
 	int  priority;
 	k_tid_t  tid;
@@ -103,14 +98,14 @@ ZTEST(usage_api, test_all_stats_usage)
 	 * system has been idle yet.
 	 */
 
-	zassert_true(stats2.execution_cycles > stats1.execution_cycles);
-	zassert_true(stats3.execution_cycles > stats2.execution_cycles);
-	zassert_true(stats1.execution_cycles == stats1.total_cycles);
-	zassert_true(stats2.execution_cycles == stats2.total_cycles);
-	zassert_true(stats3.execution_cycles == stats3.total_cycles);
+	zassert_true(stats2.execution_cycles > stats1.execution_cycles, NULL);
+	zassert_true(stats3.execution_cycles > stats2.execution_cycles, NULL);
+	zassert_true(stats1.execution_cycles == stats1.total_cycles, NULL);
+	zassert_true(stats2.execution_cycles == stats2.total_cycles, NULL);
+	zassert_true(stats3.execution_cycles == stats3.total_cycles, NULL);
 #ifdef CONFIG_SCHED_THREAD_USAGE_ALL
-	zassert_true(stats1.idle_cycles == stats2.idle_cycles);
-	zassert_true(stats1.idle_cycles == stats3.idle_cycles);
+	zassert_true(stats1.idle_cycles == stats2.idle_cycles, NULL);
+	zassert_true(stats1.idle_cycles == stats3.idle_cycles, NULL);
 #endif
 
 #ifdef CONFIG_SCHED_THREAD_USAGE_ANALYSIS
@@ -124,20 +119,20 @@ ZTEST(usage_api, test_all_stats_usage)
 	 * 4. [current_cycles] matches [execution_cycles].
 	 */
 
-	zassert_true(stats2.current_cycles > stats1.current_cycles);
-	zassert_true(stats3.current_cycles > stats2.current_cycles);
+	zassert_true(stats2.current_cycles > stats1.current_cycles, NULL);
+	zassert_true(stats3.current_cycles > stats2.current_cycles, NULL);
 
-	zassert_true(stats1.peak_cycles == stats1.current_cycles);
-	zassert_true(stats2.peak_cycles == stats2.current_cycles);
-	zassert_true(stats3.peak_cycles == stats3.current_cycles);
+	zassert_true(stats1.peak_cycles == stats1.current_cycles, NULL);
+	zassert_true(stats2.peak_cycles == stats2.current_cycles, NULL);
+	zassert_true(stats3.peak_cycles == stats3.current_cycles, NULL);
 
-	zassert_true(stats1.average_cycles == 0);
-	zassert_true(stats2.average_cycles == 0);
-	zassert_true(stats3.average_cycles == 0);
+	zassert_true(stats1.average_cycles == 0, NULL);
+	zassert_true(stats2.average_cycles == 0, NULL);
+	zassert_true(stats3.average_cycles == 0, NULL);
 
-	zassert_true(stats1.current_cycles == stats1.execution_cycles);
-	zassert_true(stats2.current_cycles == stats2.execution_cycles);
-	zassert_true(stats3.current_cycles == stats3.execution_cycles);
+	zassert_true(stats1.current_cycles == stats1.execution_cycles, NULL);
+	zassert_true(stats2.current_cycles == stats2.execution_cycles, NULL);
+	zassert_true(stats3.current_cycles == stats3.execution_cycles, NULL);
 #endif
 
 	/*
@@ -151,32 +146,32 @@ ZTEST(usage_api, test_all_stats_usage)
 	 * 6. [idle_cycles] increased once.
 	 */
 
-	zassert_true(stats4.execution_cycles > stats3.execution_cycles);
-	zassert_true(stats5.execution_cycles > stats4.execution_cycles);
+	zassert_true(stats4.execution_cycles > stats3.execution_cycles, NULL);
+	zassert_true(stats5.execution_cycles > stats4.execution_cycles, NULL);
 
 	/*
 	 * If the frequency is low enough, the [total_cycles] might not
 	 * increase between sample points 3 and 4. Count this as acceptable.
 	 */
 
-	zassert_true(stats4.total_cycles >= stats3.total_cycles);
-	zassert_true(stats5.total_cycles > stats4.total_cycles);
+	zassert_true(stats4.total_cycles >= stats3.total_cycles, NULL);
+	zassert_true(stats5.total_cycles > stats4.total_cycles, NULL);
 
 #ifdef CONFIG_SCHED_THREAD_USAGE_ANALYSIS
-	zassert_true(stats4.current_cycles <= stats1.current_cycles);
-	zassert_true(stats5.current_cycles > stats4.current_cycles);
+	zassert_true(stats4.current_cycles <= stats1.current_cycles, NULL);
+	zassert_true(stats5.current_cycles > stats4.current_cycles, NULL);
 
 	zassert_true(TEST_WITHIN_X_PERCENT(stats4.peak_cycles,
-					   stats3.peak_cycles, IDLE_EVENT_STATS_PRECISION), NULL);
-	zassert_true(stats4.peak_cycles == stats5.peak_cycles);
+					   stats3.peak_cycles, 1), NULL);
+	zassert_true(stats4.peak_cycles == stats5.peak_cycles, NULL);
 
-	zassert_true(stats4.average_cycles > stats3.average_cycles);
-	zassert_true(stats5.average_cycles > stats4.average_cycles);
+	zassert_true(stats4.average_cycles > stats3.average_cycles, NULL);
+	zassert_true(stats5.average_cycles > stats4.average_cycles, NULL);
 #endif
 
 #ifdef CONFIG_SCHED_THREAD_USAGE_ALL
-	zassert_true(stats4.idle_cycles > stats3.idle_cycles);
-	zassert_true(stats4.idle_cycles == stats5.idle_cycles);
+	zassert_true(stats4.idle_cycles > stats3.idle_cycles, NULL);
+	zassert_true(stats4.idle_cycles == stats5.idle_cycles, NULL);
 #endif
 }
 
@@ -184,7 +179,7 @@ ZTEST(usage_api, test_all_stats_usage)
 /**
  * @brief Test the k_thread_runtime_stats_enable/disable APIs
  */
-ZTEST(usage_api, test_thread_stats_enable_disable)
+void test_thread_stats_enable_disable(void)
 {
 	k_tid_t  tid;
 	k_thread_runtime_stats_t  stats1;
@@ -240,7 +235,7 @@ ZTEST(usage_api, test_thread_stats_enable_disable)
 
 	zassert_true(helper_stats1.execution_cycles ==
 		     helper_stats2.execution_cycles, NULL);
-	zassert_true(stats1.execution_cycles < stats2.execution_cycles);
+	zassert_true(stats1.execution_cycles < stats2.execution_cycles, NULL);
 
 	/*
 	 * Verify that between sample sets 2 and 3 that additional stats were
@@ -253,7 +248,7 @@ ZTEST(usage_api, test_thread_stats_enable_disable)
 	k_thread_abort(tid);
 }
 #else
-ZTEST(usage_api, test_thread_stats_enable_disable)
+void test_thread_stats_enable_disable(void)
 {
 }
 #endif
@@ -262,7 +257,7 @@ ZTEST(usage_api, test_thread_stats_enable_disable)
 /**
  * @brief Test the k_sys_runtime_stats_enable/disable APIs
  */
-ZTEST(usage_api, test_sys_stats_enable_disable)
+void test_sys_stats_enable_disable(void)
 {
 	k_thread_runtime_stats_t  sys_stats1;
 	k_thread_runtime_stats_t  sys_stats2;
@@ -307,18 +302,18 @@ ZTEST(usage_api, test_sys_stats_enable_disable)
 
 	zassert_true(sys_stats1.execution_cycles == sys_stats2.execution_cycles,
 		     NULL);
-	zassert_true(sys_stats1.total_cycles == sys_stats2.total_cycles);
+	zassert_true(sys_stats1.total_cycles == sys_stats2.total_cycles, NULL);
 
 #ifdef CONFIG_SCHED_THREAD_USAGE_ANALYSIS
 	zassert_true(sys_stats1.current_cycles == sys_stats2.current_cycles,
 		     NULL);
-	zassert_true(sys_stats1.peak_cycles == sys_stats2.peak_cycles);
+	zassert_true(sys_stats1.peak_cycles == sys_stats2.peak_cycles, NULL);
 	zassert_true(sys_stats1.average_cycles == sys_stats2.average_cycles,
 		     NULL);
 #endif
 
 #ifdef CONFIG_SCHED_THREAD_USAGE_ALL
-	zassert_true(sys_stats1.idle_cycles == sys_stats2.idle_cycles);
+	zassert_true(sys_stats1.idle_cycles == sys_stats2.idle_cycles, NULL);
 #endif
 
 	/*
@@ -343,7 +338,7 @@ ZTEST(usage_api, test_sys_stats_enable_disable)
 
 	zassert_true(sys_stats2.execution_cycles < sys_stats3.execution_cycles,
 		     NULL);
-	zassert_true(sys_stats2.total_cycles < sys_stats3.total_cycles);
+	zassert_true(sys_stats2.total_cycles < sys_stats3.total_cycles, NULL);
 
 #ifdef CONFIG_SCHED_THREAD_USAGE_ANALYSIS
 
@@ -355,18 +350,18 @@ ZTEST(usage_api, test_sys_stats_enable_disable)
 
 	zassert_true(sys_stats2.current_cycles != sys_stats3.current_cycles,
 		     NULL);
-	zassert_true(sys_stats2.current_cycles != 0);
-	zassert_true(sys_stats2.peak_cycles == sys_stats3.peak_cycles);
+	zassert_true(sys_stats2.current_cycles != 0, NULL);
+	zassert_true(sys_stats2.peak_cycles == sys_stats3.peak_cycles, NULL);
 	zassert_true(sys_stats2.average_cycles > sys_stats3.average_cycles,
 		     NULL);
 #endif
 
 #ifdef CONFIG_SCHED_THREAD_USAGE_ALL
-	zassert_true(sys_stats2.idle_cycles == sys_stats3.idle_cycles);
+	zassert_true(sys_stats2.idle_cycles == sys_stats3.idle_cycles, NULL);
 #endif
 }
 #else
-ZTEST(usage_api, test_sys_stats_enable_disable)
+void test_sys_stats_enable_disable(void)
 {
 }
 #endif
@@ -386,7 +381,7 @@ void resume_main(struct k_timer *timer)
  * that the contents of the fields guarded by CONFIG_SCHED_THREAD_USAGE
  * are correct.
  */
-ZTEST(usage_api, test_thread_stats_usage)
+void test_thread_stats_usage(void)
 {
 	k_tid_t  tid;
 	int  priority;
@@ -404,10 +399,10 @@ ZTEST(usage_api, test_thread_stats_usage)
 	 */
 
 	status = k_thread_runtime_stats_get(NULL, &stats1);
-	zassert_true(status == -EINVAL);
+	zassert_true(status == -EINVAL, NULL);
 
 	status = k_thread_runtime_stats_get(_current, NULL);
-	zassert_true(status == -EINVAL);
+	zassert_true(status == -EINVAL, NULL);
 
 	/* Align to the next tick */
 
@@ -426,12 +421,12 @@ ZTEST(usage_api, test_thread_stats_usage)
 
 	/* Verify thread creation succeeded */
 
-	zassert_true(tid == &helper_thread);
+	zassert_true(tid == &helper_thread, NULL);
 
 	/* Get a valid set of thread runtime stats */
 
 	status = k_thread_runtime_stats_get(tid, &stats1);
-	zassert_true(status == 0);
+	zassert_true(status == 0, NULL);
 
 	/*
 	 * Suspend main thread. Timer will wake it 1 tick to sample
@@ -492,11 +487,11 @@ ZTEST(usage_api, test_thread_stats_usage)
 
 	/* Verify execution_cycles are identical to total_cycles */
 
-	zassert_true(stats1.execution_cycles == stats1.total_cycles);
-	zassert_true(stats2.execution_cycles == stats2.total_cycles);
+	zassert_true(stats1.execution_cycles == stats1.total_cycles, NULL);
+	zassert_true(stats2.execution_cycles == stats2.total_cycles, NULL);
 
 #ifdef CONFIG_SCHED_THREAD_USAGE_ALL
-	zassert_true(stats3.idle_cycles == 0);
+	zassert_true(stats3.idle_cycles == 0, NULL);
 #endif
 
 	/*
@@ -511,27 +506,27 @@ ZTEST(usage_api, test_thread_stats_usage)
 	diff12 = stats2.execution_cycles - stats1.execution_cycles;
 	diff23 = stats3.execution_cycles - stats2.execution_cycles;
 
-	zassert_true(diff12 > diff23);
+	zassert_true(diff12 > diff23, NULL);
 
 #ifdef CONFIG_SCHED_THREAD_USAGE_ANALYSIS
 
 	/* Verify that [current_cycles] change as expected. */
 
-	zassert_true(stats4.current_cycles >= stats5.current_cycles);
-	zassert_true(stats4.current_cycles > stats3.current_cycles);
-	zassert_true(stats5.current_cycles < stats3.current_cycles);
+	zassert_true(stats4.current_cycles >= stats5.current_cycles, NULL);
+	zassert_true(stats4.current_cycles > stats3.current_cycles, NULL);
+	zassert_true(stats5.current_cycles < stats3.current_cycles, NULL);
 
 	/* Verify that [peak_cycles] change as expected */
 
-	zassert_true(stats4.peak_cycles > stats2.peak_cycles);
-	zassert_true(stats4.peak_cycles == stats5.peak_cycles);
-	zassert_true(stats4.peak_cycles == stats4.current_cycles);
+	zassert_true(stats4.peak_cycles > stats2.peak_cycles, NULL);
+	zassert_true(stats4.peak_cycles == stats5.peak_cycles, NULL);
+	zassert_true(stats4.peak_cycles == stats4.current_cycles, NULL);
 
 	/* Verify that [average_cycles] change as expected */
 
-	zassert_true(stats4.average_cycles > stats3.average_cycles);
-	zassert_true(stats4.average_cycles > stats5.average_cycles);
-	zassert_true(stats5.average_cycles >= stats3.average_cycles);
+	zassert_true(stats4.average_cycles > stats3.average_cycles, NULL);
+	zassert_true(stats4.average_cycles > stats5.average_cycles, NULL);
+	zassert_true(stats5.average_cycles > stats3.average_cycles, NULL);
 #endif
 
 	/* Abort the helper thread */
@@ -539,5 +534,16 @@ ZTEST(usage_api, test_thread_stats_usage)
 	k_thread_abort(tid);
 }
 
-ZTEST_SUITE(usage_api, NULL, NULL,
-		ztest_simple_1cpu_before, ztest_simple_1cpu_after, NULL);
+/**
+ * @brief - main entry point for thread runtime statistics (usage) test
+ */
+void test_main(void)
+{
+	ztest_test_suite(usage_api,
+		 ztest_1cpu_unit_test(test_all_stats_usage),
+		 ztest_1cpu_unit_test(test_thread_stats_enable_disable),
+		 ztest_1cpu_unit_test(test_sys_stats_enable_disable),
+		 ztest_1cpu_unit_test(test_thread_stats_usage)
+		 );
+	ztest_run_test_suite(usage_api);
+}

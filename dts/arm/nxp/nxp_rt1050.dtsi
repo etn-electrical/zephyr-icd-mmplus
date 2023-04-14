@@ -3,17 +3,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#include <nxp/nxp_rt10xx.dtsi>
-
-&ccm {
-	arm-podf {
-		clock-div = <2>;
-	};
-
-	ipg-podf {
-		clock-div = <4>;
-	};
-};
+#include <nxp/nxp_rt.dtsi>
 
 / {
 	soc {

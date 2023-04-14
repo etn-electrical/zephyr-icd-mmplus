@@ -19,7 +19,8 @@ K63, and K24 MCUs.
   running an open source bootloader, offers options for serial communication,
   flash programming, and run-control debugging
 
-.. image:: frdm_k64f.jpg
+.. image:: ./frdm_k64f.jpg
+   :width: 720px
    :align: center
    :alt: FRDM-K64F
 
@@ -58,11 +59,7 @@ For more information about the K64F SoC and FRDM-K64F board:
 Supported Features
 ==================
 
-NXP considers the FRDM-K64F as the superset board for the Kinetis K
-series of MCUs.  This board is a focus for NXP's Full Platform Support for
-Zephyr, to better enable the entire Kinetis K series.  NXP prioritizes enabling
-this board with new support for Zephyr features.  The frdm_k64f board
-configuration supports the following hardware features:
+The frdm_k64f board configuration supports the following hardware features:
 
 +-----------+------------+-------------------------------------+
 | Interface | Controller | Driver/Component                    |
@@ -104,11 +101,6 @@ configuration supports the following hardware features:
 | RTC       | on-chip    | rtc                                 |
 +-----------+------------+-------------------------------------+
 | DMA       | on-chip    | dma                                 |
-+-----------+------------+-------------------------------------+
-| RNGA      | on-chip    | entropy;                            |
-|           |            | random                              |
-+-----------+------------+-------------------------------------+
-| FTFE      | on-chip    | flash programming                   |
 +-----------+------------+-------------------------------------+
 
 The default configuration can be found in the defconfig file:

@@ -56,7 +56,7 @@ def parse_args():
 
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawTextHelpFormatter,
-        description=__doc__, allow_abbrev=False)
+        description=__doc__)
 
     parser.add_argument(
         "-n", "--check-always-n",

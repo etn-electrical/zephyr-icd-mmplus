@@ -6,7 +6,7 @@
  */
 
 #include <stdio.h>
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <zephyr/init.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/gpio.h>
@@ -14,7 +14,10 @@
 
 #include <driverlib/ioc.h>
 
-static const struct gpio_dt_spec sw0_gpio = GPIO_DT_SPEC_GET(DT_ALIAS(sw0), gpios);
+
+#define PORT    DT_GPIO_LABEL(DT_ALIAS(sw0), gpios)
+#define PIN     DT_GPIO_PIN(DT_ALIAS(sw0), gpios)
+#define PULL_UP DT_GPIO_FLAGS(DT_ALIAS(sw0), gpios)
 
 #define BUSY_WAIT_S 5U
 #define SLEEP_US 2000U
@@ -25,6 +28,7 @@ extern void CC1352R1_LAUNCHXL_shutDownExtFlash(void);
 void main(void)
 {
 	uint32_t config, status;
+	const struct device *gpiob;
 
 	printk("\n%s system off demo\n", CONFIG_BOARD);
 
@@ -32,17 +36,18 @@ void main(void)
 	CC1352R1_LAUNCHXL_shutDownExtFlash();
 
 	/* Configure to generate PORT event (wakeup) on button 1 press. */
-	if (!device_is_ready(sw0_gpio.port)) {
-		printk("%s: device not ready.\n", sw0_gpio.port->name);
+	gpiob = device_get_binding(PORT);
+	if (!gpiob) {
+		printk("error\n");
 		return;
 	}
 
-	gpio_pin_configure_dt(&sw0_gpio, GPIO_INPUT);
+	gpio_pin_configure(gpiob, PIN, GPIO_INPUT | PULL_UP);
 
 	/* Set wakeup bits for button gpio */
-	config = IOCPortConfigureGet(sw0_gpio.pin);
+	config = IOCPortConfigureGet(PIN);
 	config |= IOC_WAKE_ON_LOW;
-	IOCPortConfigureSet(sw0_gpio.pin, IOC_PORT_GPIO, config);
+	IOCPortConfigureSet(PIN, IOC_PORT_GPIO, config);
 
 	printk("Busy-wait %u s\n", BUSY_WAIT_S);
 	k_busy_wait(BUSY_WAIT_S * USEC_PER_SEC);

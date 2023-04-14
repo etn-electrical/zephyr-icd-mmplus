@@ -11,7 +11,7 @@
 #ifndef ZEPHYR_SUBSYS_SD_UTILS_H_
 #define ZEPHYR_SUBSYS_SD_UTILS_H_
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <zephyr/sd/sd.h>
 
 #ifdef __cplusplus
@@ -27,15 +27,6 @@ enum sd_return_codes {
 	SD_NOT_SDIO = 2,
 	SD_RESTART = 3,
 };
-
-/* Checks SD status return codes */
-static inline int sd_check_response(struct sdhc_command *cmd)
-{
-	if (cmd->response_type == SD_RSP_TYPE_R1) {
-		return (cmd->response[0U] & SD_R1_ERR_FLAGS);
-	}
-	return 0;
-}
 
 /* Delay function for SD subsystem */
 static inline void sd_delay(unsigned int millis)

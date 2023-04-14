@@ -10,10 +10,9 @@
 #define LOG_LEVEL CONFIG_COUNTER_LOG_LEVEL
 #define LOG_MODULE_NAME counter_timer
 #include <zephyr/logging/log.h>
-#include <zephyr/irq.h>
 LOG_MODULE_REGISTER(LOG_MODULE_NAME, LOG_LEVEL);
 
-#define TIMER_CLOCK(timer_instance) NRF_TIMER_BASE_FREQUENCY_GET(timer_instance)
+#define TIMER_CLOCK 16000000
 
 #define CC_TO_ID(cc_num) (cc_num - 2)
 
@@ -48,7 +47,7 @@ struct counter_nrfx_config {
 struct counter_timer_config {
 	nrf_timer_bit_width_t bit_width;
 	nrf_timer_mode_t mode;
-	uint32_t prescaler;
+	nrf_timer_frequency_t freq;
 };
 
 static int start(const struct device *dev)
@@ -93,11 +92,17 @@ static int get_value(const struct device *dev, uint32_t *ticks)
 	return 0;
 }
 
+/* Return true if value equals 2^n - 1 */
+static inline bool is_bit_mask(uint32_t val)
+{
+	return !(val & (val + 1));
+}
+
 static uint32_t ticks_add(uint32_t val1, uint32_t val2, uint32_t top)
 {
 	uint32_t to_top;
 
-	if (likely(IS_BIT_MASK(top))) {
+	if (likely(is_bit_mask(top))) {
 		return (val1 + val2) & top;
 	}
 
@@ -108,7 +113,7 @@ static uint32_t ticks_add(uint32_t val1, uint32_t val2, uint32_t top)
 
 static uint32_t ticks_sub(uint32_t val, uint32_t old, uint32_t top)
 {
-	if (likely(IS_BIT_MASK(top))) {
+	if (likely(is_bit_mask(top))) {
 		return (val - old) & top;
 	}
 
@@ -240,6 +245,7 @@ static int set_top_value(const struct device *dev,
 	NRF_TIMER_Type *timer = nrfx_config->timer;
 	struct counter_nrfx_data *data = dev->data;
 	int err = 0;
+
 	for (int i = 0; i < counter_get_num_of_channels(dev); i++) {
 		/* Overflow can be changed only when all alarms are
 		 * disables.
@@ -285,7 +291,7 @@ static int init_timer(const struct device *dev,
 
 	nrf_timer_bit_width_set(reg, config->bit_width);
 	nrf_timer_mode_set(reg, config->mode);
-	nrf_timer_prescaler_set(reg, config->prescaler);
+	nrf_timer_frequency_set(reg, config->freq);
 
 	nrf_timer_cc_set(reg, TOP_CH, counter_get_max_top_value(dev));
 
@@ -417,7 +423,7 @@ static const struct counter_driver_api counter_nrfx_driver_api = {
 	{								       \
 		TIMER_IRQ_CONNECT(idx);					       \
 		static const struct counter_timer_config config = {	       \
-			.prescaler = TIMER_PROP(idx, prescaler),	       \
+			.freq = TIMER_PROP(idx, prescaler),		       \
 			.mode = NRF_TIMER_MODE_TIMER,			       \
 			.bit_width = (TIMER##idx##_MAX_SIZE == 32) ?	       \
 					NRF_TIMER_BIT_WIDTH_32 :	       \
@@ -433,7 +439,7 @@ static const struct counter_driver_api counter_nrfx_driver_api = {
 		.info = {						       \
 			.max_top_value = (TIMER##idx##_MAX_SIZE == 32) ?       \
 					0xffffffff : 0x0000ffff,	       \
-			.freq = TIMER_CLOCK(NRF_TIMER##idx) /		       \
+			.freq = TIMER_CLOCK /				       \
 					(1 << TIMER_PROP(idx, prescaler)),     \
 			.flags = COUNTER_CONFIG_INFO_COUNT_UP,		       \
 			.channels = CC_TO_ID(TIMER##idx##_CC_NUM),	       \

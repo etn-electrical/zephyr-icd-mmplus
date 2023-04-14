@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
+#include <ztest.h>
 #include <zephyr/pm/pm.h>
 
 #define STACK_SIZE (512 + CONFIG_TEST_EXTRA_STACK_SIZE)
@@ -53,9 +53,9 @@ static void thread_tslice(void *p1, void *p2, void *p3)
 		t, SLICE_SIZE, SLICE_SIZE_LIMIT);
 
 	/**TESTPOINT: verify slicing scheduler behaves as expected*/
-	zassert_true(t >= SLICE_SIZE);
+	zassert_true(t >= SLICE_SIZE, NULL);
 	/*less than one tick delay*/
-	zassert_true(t <= SLICE_SIZE_LIMIT);
+	zassert_true(t <= SLICE_SIZE_LIMIT, NULL);
 
 	/*keep the current thread busy for more than one slice*/
 	k_busy_wait(1000 * SLEEP_TICKLESS);
@@ -74,7 +74,7 @@ static void thread_tslice(void *p1, void *p2, void *p3)
  * @details Check if system clock recovers and works as expected
  * when tickless idle is enabled and disabled.
  */
-ZTEST(tickless_concept, test_tickless_sysclock)
+void test_tickless_sysclock(void)
 {
 	volatile uint32_t t0, t1;
 
@@ -84,7 +84,7 @@ ZTEST(tickless_concept, test_tickless_sysclock)
 	t1 = k_uptime_get_32();
 	TC_PRINT("time %d, %d\n", t0, t1);
 	/**TESTPOINT: verify system clock recovery after exiting tickless idle*/
-	zassert_true((t1 - t0) >= SLEEP_TICKLESS);
+	zassert_true((t1 - t0) >= SLEEP_TICKLESS, NULL);
 
 	ALIGN_MS_BOUNDARY();
 	t0 = k_uptime_get_32();
@@ -92,7 +92,7 @@ ZTEST(tickless_concept, test_tickless_sysclock)
 	t1 = k_uptime_get_32();
 	TC_PRINT("time %d, %d\n", t0, t1);
 	/**TESTPOINT: verify system clock recovery after exiting tickful idle*/
-	zassert_true((t1 - t0) >= SLEEP_TICKFUL);
+	zassert_true((t1 - t0) >= SLEEP_TICKFUL, NULL);
 }
 
 /**
@@ -101,7 +101,7 @@ ZTEST(tickless_concept, test_tickless_sysclock)
  * @details Create threads of equal priority and enable time
  * slice. Check if the threads execute more than a tick.
  */
-ZTEST(tickless_concept, test_tickless_slice)
+void test_tickless_slice(void)
 {
 	k_tid_t tid[NUM_THREAD];
 
@@ -133,6 +133,10 @@ ZTEST(tickless_concept, test_tickless_slice)
 /**
  * @}
  */
-
-ZTEST_SUITE(tickless_concept, NULL, NULL,
-		ztest_simple_1cpu_before, ztest_simple_1cpu_after, NULL);
+void test_main(void)
+{
+	ztest_test_suite(tickless_concept,
+			 ztest_1cpu_unit_test(test_tickless_sysclock),
+			 ztest_1cpu_unit_test(test_tickless_slice));
+	ztest_run_test_suite(tickless_concept);
+}

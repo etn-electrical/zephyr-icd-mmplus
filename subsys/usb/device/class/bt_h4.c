@@ -18,8 +18,9 @@
 #include <zephyr/bluetooth/hci_raw.h>
 #include <zephyr/bluetooth/l2cap.h>
 
+#define LOG_LEVEL CONFIG_USB_DEVICE_LOG_LEVEL
 #include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(usb_bt_h4, CONFIG_USB_DEVICE_LOG_LEVEL);
+LOG_MODULE_REGISTER(usb_bt_h4);
 
 static K_FIFO_DEFINE(rx_queue);
 static K_FIFO_DEFINE(tx_queue);
@@ -31,9 +32,9 @@ static K_FIFO_DEFINE(tx_queue);
 #define BT_H4_IN_EP_IDX                 1
 
 /* HCI RX/TX threads */
-static K_KERNEL_STACK_DEFINE(rx_thread_stack, CONFIG_BT_RX_STACK_SIZE);
+static K_KERNEL_STACK_DEFINE(rx_thread_stack, 512);
 static struct k_thread rx_thread_data;
-static K_KERNEL_STACK_DEFINE(tx_thread_stack, CONFIG_BT_HCI_TX_STACK_SIZE);
+static K_KERNEL_STACK_DEFINE(tx_thread_stack, 512);
 static struct k_thread tx_thread_data;
 
 /* HCI USB state flags */
@@ -179,6 +180,11 @@ static void bt_h4_status_cb(struct usb_cfg_data *cfg,
 		if (suspended) {
 			LOG_DBG("from suspend");
 			suspended = false;
+			if (configured) {
+				/* Start reading */
+				bt_h4_read(bt_h4_ep_data[BT_H4_OUT_EP_IDX].ep_addr,
+					   0, NULL);
+			}
 		} else {
 			LOG_DBG("Spurious resume event");
 		}

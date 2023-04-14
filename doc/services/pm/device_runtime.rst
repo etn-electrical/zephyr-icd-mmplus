@@ -1,5 +1,3 @@
-.. _pm-device-runtime:
-
 Device Runtime Power Management
 ###############################
 

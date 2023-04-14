@@ -22,6 +22,7 @@
 			clocks = <&rcc STM32_CLOCK_BUS_APB1 0x00004000>;
 			interrupts = <26 3>;
 			status = "disabled";
+			label = "SPI_2";
 		};
 
 		usb: usb@40005c00 {
@@ -32,14 +33,15 @@
 			num-bidir-endpoints = <8>;
 			ram-size = <1024>;
 			phys = <&usb_fs_phy>;
-			clocks = <&rcc STM32_CLOCK_BUS_APB1 0x00800000>,
-				 <&rcc STM32_SRC_PLLCLK USB_SEL(1)>;
+			clocks = <&rcc STM32_CLOCK_BUS_APB1 0x00800000>;
 			status = "disabled";
+			label= "USB";
 		};
 	};
 
 	usb_fs_phy: usbphy {
 		compatible = "usb-nop-xceiv";
 		#phy-cells = <0>;
+		label = "USB_FS_PHY";
 	};
 };

@@ -11,10 +11,7 @@ import pytest
 
 ZEPHYR_BASE = os.getenv("ZEPHYR_BASE")
 sys.path.insert(0, os.path.join(ZEPHYR_BASE, "scripts/pylib/twister"))
-sys.path.insert(0, os.path.join(ZEPHYR_BASE, "scripts"))
-from twisterlib.testplan import TestPlan
-from twisterlib.testinstance import TestInstance
-from twisterlib.environment import TwisterEnv, add_parse_arguments, parse_arguments
+from twisterlib import TestPlan, TestInstance
 
 def new_get_toolchain(*args, **kwargs):
     return 'zephyr'
@@ -32,27 +29,14 @@ def testsuites_directory():
     """ Pytest fixture to load the test data directory"""
     return ZEPHYR_BASE + "/scripts/tests/twister/test_data/testsuites"
 
-@pytest.fixture(name='class_env')
-def tesenv_obj(test_data, testsuites_dir, tmpdir_factory):
-    """ Pytest fixture to initialize and return the class TestPlan object"""
-    parser = add_parse_arguments()
-    options = parse_arguments(parser, [])
-    env = TwisterEnv(options)
-    env.board_roots = [test_data +"board_config/1_level/2_level/"]
-    env.test_roots = [testsuites_dir + '/tests', testsuites_dir + '/samples']
-    env.outdir = tmpdir_factory.mktemp("sanity_out_demo")
-    return env
-
-
 @pytest.fixture(name='class_testplan')
-def testplan_obj(test_data, class_env, testsuites_dir, tmpdir_factory):
+def testsuite_obj(test_data, testsuites_dir, tmpdir_factory):
     """ Pytest fixture to initialize and return the class TestPlan object"""
-    env = class_env
-    env.board_roots = [test_data +"board_config/1_level/2_level/"]
-    env.test_roots = [testsuites_dir + '/tests', testsuites_dir + '/samples']
-    env.outdir = tmpdir_factory.mktemp("sanity_out_demo")
-    plan = TestPlan(env)
-    return plan
+    board_root = test_data +"board_config/1_level/2_level/"
+    testcase_root = [testsuites_dir + '/tests', testsuites_dir + '/samples']
+    outdir = tmpdir_factory.mktemp("sanity_out_demo")
+    suite = TestPlan(board_root, testcase_root, outdir)
+    return suite
 
 @pytest.fixture(name='all_testsuites_dict')
 def testsuites_dict(class_testplan):
@@ -67,8 +51,8 @@ def testsuites_dict(class_testplan):
 def all_platforms_list(test_data, class_testplan):
     """ Pytest fixture to call add_configurations function of
 	Testsuite class and return the Platforms list"""
-    class_testplan.env.board_roots = [os.path.abspath(test_data + "board_config")]
-    plan = TestPlan(class_testplan.env)
+    class_testplan.board_roots = os.path.abspath(test_data + "board_config")
+    plan = TestPlan(class_testplan.board_roots, class_testplan.roots, class_testplan.outdir)
     plan.add_configurations()
     return plan.platforms
 

@@ -6,7 +6,7 @@
 
 #define DT_DRV_COMPAT nxp_imx_flexspi_hyperflash
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <errno.h>
 #include <zephyr/drivers/flash.h>
 
@@ -38,6 +38,7 @@ LOG_MODULE_REGISTER(flexspi_hyperflash, CONFIG_FLASH_LOG_LEVEL);
 #define SPI_HYPERFLASH_SECTOR_SIZE              (0x40000U)
 #define SPI_HYPERFLASH_PAGE_SIZE                (512U)
 
+#define HYPERFLASH_WRITE_SIZE                   (16)
 #define HYPERFLASH_ERASE_VALUE                  (0xFF)
 
 #ifdef CONFIG_FLASH_MCUX_FLEXSPI_HYPERFLASH_WRITE_BUFFER
@@ -379,7 +380,7 @@ static int flash_flexspi_hyperflash_page_program(const struct device *dev, off_t
 		.dataSize = len,
 	};
 
-	LOG_DBG("Page programming %d bytes to 0x%08lx", len, offset);
+	LOG_DBG("Page programming %d bytes to 0x%08x", len, offset);
 
 	return memc_flexspi_transfer(data->controller, &transfer);
 }
@@ -520,7 +521,7 @@ static int flash_flexspi_hyperflash_erase(const struct device *dev, off_t offset
 			break;
 		}
 
-		LOG_DBG("Erasing sector at 0x%08lx", offset);
+		LOG_DBG("Erasing sector at 0x%08x", offset);
 
 		transfer.deviceAddress = offset;
 		transfer.port = data->port;
@@ -666,7 +667,7 @@ static const struct flash_driver_api flash_flexspi_hyperflash_api = {
 			.pages_size = SPI_HYPERFLASH_SECTOR_SIZE,	\
 		},							\
 		.flash_parameters = {					\
-			.write_block_size = DT_INST_PROP(n, write_block_size), \
+			.write_block_size = HYPERFLASH_WRITE_SIZE,	\
 			.erase_value = HYPERFLASH_ERASE_VALUE,		\
 		},							\
 	};								\

@@ -67,17 +67,23 @@
 #define AMG88XX_WAIT_INITIAL_RESET_US	2000
 
 struct amg88xx_config {
-	const struct i2c_dt_spec i2c;
+	char *i2c_name;
 #ifdef CONFIG_AMG88XX_TRIGGER
-	const struct gpio_dt_spec int_gpio;
+	char *gpio_name;
+	uint8_t gpio_pin;
+	gpio_dt_flags_t gpio_flags;
 #endif
+	uint8_t i2c_address;
 };
 
 struct amg88xx_data {
+	const struct device *i2c;
 	int16_t sample[64];
 
 #ifdef CONFIG_AMG88XX_TRIGGER
 	const struct device *dev;
+	const struct device *gpio;
+	uint8_t gpio_pin;
 	struct gpio_callback gpio_cb;
 
 	sensor_trigger_handler_t drdy_handler;

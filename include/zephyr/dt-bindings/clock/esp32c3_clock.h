@@ -14,21 +14,12 @@
 #define ESP32_CLK_SRC_APLL             3U
 
 /* Supported CPU Frequencies */
-#define ESP32_CLK_CPU_80M              80000000
-#define ESP32_CLK_CPU_160M             160000000
+#define ESP32_CLK_CPU_80M              80U
+#define ESP32_CLK_CPU_160M             160U
 
 /* Supported XTAL Frequencies */
 #define ESP32_CLK_XTAL_32M             0U
 #define ESP32_CLK_XTAL_40M             1U
-
-/* Supported RTC fast clock frequencies */
-#define ESP32_RTC_FAST_CLK_FREQ_8M     8500000U
-#define ESP32_RTC_FAST_CLK_FREQ_APPROX ESP32_RTC_FAST_CLK_FREQ_8M
-
-/* Supported RTC slow clock frequencies */
-#define ESP32_RTC_SLOW_CLK_FREQ_90K    90000U
-#define ESP32_RTC_SLOW_CLK_FREQ_8MD256 (ESP32_RTC_FAST_CLK_FREQ_APPROX / 256)
-#define ESP32_RTC_SLOW_CLK_FREQ_32K    32768U
 
 /* Modules IDs
  * These IDs are actually offsets in CLK and RST Control registers.

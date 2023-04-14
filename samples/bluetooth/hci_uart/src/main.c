@@ -10,7 +10,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <zephyr/arch/cpu.h>
 #include <zephyr/sys/byteorder.h>
 #include <zephyr/logging/log.h>
@@ -19,8 +19,6 @@
 #include <zephyr/device.h>
 #include <zephyr/init.h>
 #include <zephyr/drivers/uart.h>
-
-#include <zephyr/usb/usb_device.h>
 
 #include <zephyr/net/buf.h>
 #include <zephyr/bluetooth/bluetooth.h>
@@ -32,7 +30,7 @@
 #define LOG_MODULE_NAME hci_uart
 LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 
-static const struct device *const hci_uart_dev =
+static const struct device *hci_uart_dev =
 	DEVICE_DT_GET(DT_CHOSEN(zephyr_bt_c2h_uart));
 static K_THREAD_STACK_DEFINE(tx_thread_stack, CONFIG_BT_HCI_TX_STACK_SIZE);
 static struct k_thread tx_thread_data;
@@ -329,13 +327,6 @@ void bt_ctlr_assert_handle(char *file, uint32_t line)
 static int hci_uart_init(const struct device *unused)
 {
 	LOG_DBG("");
-
-	if (IS_ENABLED(CONFIG_USB_CDC_ACM)) {
-		if (usb_enable(NULL)) {
-			LOG_ERR("Failed to enable USB");
-			return -EINVAL;
-		}
-	}
 
 	if (!device_is_ready(hci_uart_dev)) {
 		LOG_ERR("HCI UART %s is not ready", hci_uart_dev->name);

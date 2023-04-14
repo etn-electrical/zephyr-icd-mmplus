@@ -16,7 +16,8 @@ i.MX RT500 MCUs provides up to 5MB of on-chip SRAM and several high-bandwidth in
 to access off-chip flash, including an Octal/Quad SPI interface with an on-the-fly
 decryption engine.
 
-.. image:: mimxrt595_evk.jpg
+.. image:: ./mimxrt595_evk.png
+   :width: 720px
    :align: center
    :alt: MIMXRT595-EVK
 
@@ -56,13 +57,8 @@ these references:
 Supported Features
 ==================
 
-NXP considers the MIMXRT595-EVK as a superset board for the i.MX RT5xx
-family of MCUs.  This board is a focus for NXP's Full Platform Support for
-Zephyr, to better enable the entire RT5xx family.  NXP prioritizes enabling
-this board with new support for Zephyr features.  The mimxrt595_evk board
-configuration supports the hardware features below.  Another very similar
-board is the :ref:`mimxrt685_evk`, and that board may have additional features
-already supported, which can also be re-used on this mimxrt595_evk board:
+The mimxrt595_evk board configuration supports the following hardware
+features:
 
 +-----------+------------+-------------------------------------+
 | Interface | Controller | Driver/Component                    |
@@ -77,33 +73,9 @@ already supported, which can also be re-used on this mimxrt595_evk board:
 +-----------+------------+-------------------------------------+
 | GPIO      | on-chip    | gpio                                |
 +-----------+------------+-------------------------------------+
-| USART     | on-chip    | serial port-polling;                |
-|           |            | serial port-interrupt               |
+| USART     | on-chip    | serial port-polling                 |
 +-----------+------------+-------------------------------------+
 | CLOCK     | on-chip    | clock_control                       |
-+-----------+------------+-------------------------------------+
-| I2C       | on-chip    | i2c                                 |
-+-----------+------------+-------------------------------------+
-| SPI       | on-chip    | spi                                 |
-+-----------+------------+-------------------------------------+
-| CTIMER    | on-chip    | counter                             |
-+-----------+------------+-------------------------------------+
-| WDT       | on-chip    | watchdog                            |
-+-----------+------------+-------------------------------------+
-| FLASH     | on-chip    | OctalSPI Flash                      |
-+-----------+------------+-------------------------------------+
-| TRNG      | on-chip    | entropy                             |
-+-----------+------------+-------------------------------------+
-| USB       | on-chip    | USB device                          |
-+-----------+------------+-------------------------------------+
-| FLEXSPI   | on-chip    | flash programming                   |
-+-----------+------------+-------------------------------------+
-| RTC       | on-chip    | counter                             |
-+-----------+------------+-------------------------------------+
-| PM        | on-chip    | power management; uses SoC sleep,   |
-|           |            | deep sleep and deep-powerdown modes |
-+-----------+------------+-------------------------------------+
-| SDHC      | on-chip    | disk access (works with eMMC & SD)  |
 +-----------+------------+-------------------------------------+
 
 The default configuration can be found in the defconfig file:
@@ -134,20 +106,6 @@ functionality of a pin.
 | PIO4_30 | USART12         | USART TX                   |
 +---------+-----------------+----------------------------+
 | PIO4_31 | USART12         | USART RX                   |
-+---------+-----------------+----------------------------+
-| PIO0_29 | I2C             | I2C SCL                    |
-+---------+-----------------+----------------------------+
-| PIO0_30 | I2C             | I2C SDA                    |
-+---------+-----------------+----------------------------+
-| PIO0_22 | GPIO            | FXOS8700 TRIGGER           |
-+---------+-----------------+----------------------------+
-| PIO1_5  | SPI             | SPI MOSI                   |
-+---------+-----------------+----------------------------+
-| PIO1_4  | SPI             | SPI MISO                   |
-+---------+-----------------+----------------------------+
-| PIO1_3  | SPI             | SPI SCK                    |
-+---------+-----------------+----------------------------+
-| PIO1_6  | SPI             | SPI SSEL                   |
 +---------+-----------------+----------------------------+
 
 System Clock

@@ -5,11 +5,8 @@
  */
 #include <xtensa-asm2-s.h>
 #include <offsets.h>
+#include <zephyr/toolchain.h>
 #include <zsr.h>
-
-#if defined(CONFIG_SIMULATOR_XTENSA) || defined(XT_SIMULATOR)
-#include <xtensa/simcall.h>
-#endif
 
 /*
  * xtensa_spill_reg_windows
@@ -156,10 +153,6 @@ _restore_context:
 	l32i a0, a1, BSA_PS_OFF
 	wsr a0, ZSR_EPS
 
-#if XCHAL_HAVE_FP && defined(CONFIG_CPU_HAS_FPU) && defined(CONFIG_FPU_SHARING)
-	FPU_REG_RESTORE
-#endif
-
 	l32i a0, a1, BSA_SAR_OFF
 	wsr a0, SAR
 #if XCHAL_HAVE_LOOPS
@@ -188,25 +181,9 @@ _restore_context:
 	rfi ZSR_RFI_LEVEL
 
 /*
- * void xtensa_arch_except(int reason_p);
- *
- * Implements hardware exception for Xtensa ARCH_EXCEPT to save
- * interrupted stack frame and reason_p for use in exception handler
- * and coredump
- */
-.global xtensa_arch_except
-.global xtensa_arch_except_epc
-.align 4
-xtensa_arch_except:
-	entry a1, 16
-xtensa_arch_except_epc:
-	ill
-	retw
-
-/*
  * void xtensa_switch(void *new, void **old_return);
  *
- * Context switches into the previously-saved "new" handle, placing
+ * Context switches into the prevoiusly-saved "new" handle, placing
  * the saved "old" handle into the address provided by old_return.
  */
 .global xtensa_switch
@@ -369,17 +346,7 @@ _KernelExceptionVector:
 .pushsection .DoubleExceptionVector.text, "ax"
 .global _DoubleExceptionVector
 _DoubleExceptionVector:
-#if defined(CONFIG_SIMULATOR_XTENSA) || defined(XT_SIMULATOR)
-1:
-/* Tell simulator to stop executing here, instead of trying to do
- * an infinite loop (see below). Greatly help with using tracing in
- * simulator so that traces will not have infinite iterations of
- * jumps.
- */
-	movi a3, 1
-	movi a2, SYS_exit
-	simcall
-#elif XCHAL_HAVE_DEBUG
+#if XCHAL_HAVE_DEBUG
 /* Signals an unhandled double exception */
 1:	break	1, 4
 #else

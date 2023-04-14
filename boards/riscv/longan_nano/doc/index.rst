@@ -3,7 +3,7 @@
 Sipeed Longan Nano
 ##################
 
-.. image:: img/longan_nano.jpg
+.. image:: img/longan_nano.png
      :align: center
      :alt: longan_nano
 
@@ -16,7 +16,7 @@ More information can be found on:
 
 - `Sipeed Longan website <https://longan.sipeed.com/en/>`_
 - `GD32VF103 datasheet <https://www.gigadevice.com/datasheet/gd32vf103xxxx-datasheet/>`_
-- `GD32VF103 user manual <https://www.gd32mcu.com/data/documents/userManual/GD32VF103_User_Manual_Rev1.4.pdf>`_
+- `GD32VF103 user manual <http://www.gd32mcu.com/data/documents/shujushouce/GD32VF103_User_Manual_EN_V1.2.pdf>`_
 - `Nuclei website <https://www.nucleisys.com/download.php>`_
 - `Nuclei Bumblebee core documents <https://github.com/nucleisys/Bumblebee_Core_Doc>`_
 - `Nuclei ISA Spec <https://doc.nucleisys.com/nuclei_spec/>`_
@@ -84,22 +84,26 @@ Programming and debugging
 Building & Flashing
 ===================
 
+In order to upload the application to the device, you'll need OpenOCD with
+GD32V support. Download the tarball for your OS from the
+`SiPEED longan nano download site
+<http://dl.sipeed.com/LONGAN/platformio/dl-packages/>`_ and extract it.
+
+The Zephyr SDK uses a bundled version of OpenOCD by default. You can
+overwrite that behavior by adding the
+``-DOPENOCD=<path/to/riscv-openocd/bin/openocd> -DOPENOCD_DEFAULT_PATH=<path/to/riscv-openocd/share/openocd/scripts>``
+parameter when building:
+
 Here is an example for building the :ref:`blinky-sample` application.
 
 .. zephyr-app-commands::
    :zephyr-app: samples/basic/blinky
    :board: longan_nano
    :goals: build flash
+   :gen-args: -DOPENOCD=<path/to/riscv-openocd/bin/openocd> -DOPENOCD_DEFAULT_PATH=<path/to/riscv-openocd/share/openocd/scripts>
 
 When using a custom toolchain it should be enough to have the downloaded
 version of the binary in your ``PATH``.
-
-The default runner tries to flash the board via an external programmer using openocd.
-To flash via the USB port, select the DFU runner when flashing:
-
-.. code-block:: console
-
-   west flash --runner dfu-util
 
 Debugging
 =========

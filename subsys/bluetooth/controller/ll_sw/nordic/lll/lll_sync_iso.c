@@ -5,7 +5,6 @@
  */
 
 #include <stdint.h>
-#include <string.h>
 
 #include <soc.h>
 #include <zephyr/sys/byteorder.h>
@@ -16,11 +15,8 @@
 #include "hal/ticker.h"
 
 #include "util/util.h"
-#include "util/mem.h"
 #include "util/memq.h"
 
-#include "pdu_df.h"
-#include "lll/pdu_vendor.h"
 #include "pdu.h"
 
 #include "lll.h"
@@ -31,10 +27,12 @@
 
 #include "lll_internal.h"
 #include "lll_tim_internal.h"
-#include "lll_prof_internal.h"
 
 #include "ll_feat.h"
 
+#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_DEBUG_HCI_DRIVER)
+#define LOG_MODULE_NAME bt_ctlr_lll_sync_iso
+#include "common/log.h"
 #include "hal/debug.h"
 
 static int init_reset(void);
@@ -44,16 +42,12 @@ static void prepare_bh(void *param);
 static int create_prepare_cb(struct lll_prepare_param *p);
 static int prepare_cb(struct lll_prepare_param *p);
 static int prepare_cb_common(struct lll_prepare_param *p);
-static void abort_cb(struct lll_prepare_param *prepare_param, void *param);
 static void isr_rx_estab(void *param);
 static void isr_rx(void *param);
-static void next_chan_calc(struct lll_sync_iso *lll, uint16_t event_counter,
-			   uint16_t data_chan_id);
-static void isr_rx_iso_data_valid(const struct lll_sync_iso *const lll,
-				  uint16_t handle, struct node_rx_pdu *node_rx);
-static void isr_rx_iso_data_invalid(const struct lll_sync_iso *const lll,
-				    uint8_t bn, uint16_t handle,
-				    struct node_rx_pdu *node_rx);
+static void isr_rx_iso_data_valid(struct lll_sync_iso *lll, uint8_t bis_idx,
+				  struct node_rx_pdu *node_rx);
+static void isr_rx_iso_data_invalid(struct lll_sync_iso *lll, uint8_t bis_idx,
+				    uint8_t bn, struct node_rx_pdu *node_rx);
 static void isr_rx_ctrl_recv(struct lll_sync_iso *lll, struct pdu_bis *pdu);
 
 /* FIXME: Optimize by moving to a common place, as similar variable is used for
@@ -136,7 +130,7 @@ static void create_prepare_bh(void *param)
 	int err;
 
 	/* Invoke common pipeline handling of prepare */
-	err = lll_prepare(lll_is_abort_cb, abort_cb, create_prepare_cb, 0U,
+	err = lll_prepare(lll_is_abort_cb, lll_abort_cb, create_prepare_cb, 0U,
 			  param);
 	LL_ASSERT(!err || err == -EINPROGRESS);
 }
@@ -146,7 +140,7 @@ static void prepare_bh(void *param)
 	int err;
 
 	/* Invoke common pipeline handling of prepare */
-	err = lll_prepare(lll_is_abort_cb, abort_cb, prepare_cb, 0U, param);
+	err = lll_prepare(lll_is_abort_cb, lll_abort_cb, prepare_cb, 0U, param);
 	LL_ASSERT(!err || err == -EINPROGRESS);
 }
 
@@ -184,12 +178,10 @@ static int prepare_cb(struct lll_prepare_param *p)
 
 static int prepare_cb_common(struct lll_prepare_param *p)
 {
-	struct lll_sync_iso_stream *stream;
 	struct node_rx_pdu *node_rx;
 	struct lll_sync_iso *lll;
 	uint32_t ticks_at_event;
 	uint32_t ticks_at_start;
-	uint16_t stream_handle;
 	uint16_t event_counter;
 	uint8_t access_addr[4];
 	uint16_t data_chan_id;
@@ -209,7 +201,8 @@ static int prepare_cb_common(struct lll_prepare_param *p)
 	lll->latency_event = lll->latency_prepare - 1U;
 
 	/* Calculate the current event counter value */
-	event_counter = (lll->payload_count / lll->bn) + lll->latency_event;
+	event_counter = (lll->payload_count / lll->bn) +
+			(lll->latency_event * lll->bn);
 
 	/* Update BIS packet counter to next value */
 	lll->payload_count += (lll->latency_prepare * lll->bn);
@@ -224,12 +217,6 @@ static int prepare_cb_common(struct lll_prepare_param *p)
 		lll->window_widening_event_us =	lll->window_widening_max_us;
 	}
 
-	/* Initialize trx chain count */
-	trx_cnt = 0U;
-
-	/* Initialize anchor point CRC ok flag */
-	crc_ok_anchor = 0U;
-
 	/* Initialize to mandatory parameter values */
 	lll->bis_curr = 1U;
 	lll->ptc_curr = 0U;
@@ -239,44 +226,15 @@ static int prepare_cb_common(struct lll_prepare_param *p)
 	/* Initialize control subevent flag */
 	lll->ctrl = 0U;
 
+	/* Initialize trx chain count */
+	trx_cnt = 0U;
+
+	/* Initialize anchor point CRC ok flag */
+	crc_ok_anchor = 0U;
+
 	/* Calculate the Access Address for the BIS event */
 	util_bis_aa_le32(lll->bis_curr, lll->seed_access_addr, access_addr);
 	data_chan_id = lll_chan_id(access_addr);
-
-	/* Calculate the radio channel to use for ISO event and hence store the
-	 * channel to be used for control subevent.
-	 */
-	data_chan_use = lll_chan_iso_event(event_counter, data_chan_id,
-					   lll->data_chan_map,
-					   lll->data_chan_count,
-					   &lll->data_chan_prn_s,
-					   &lll->data_chan_remap_idx);
-	lll->ctrl_chan_use = data_chan_use;
-
-	/* Initialize stream current */
-	lll->stream_curr = 0U;
-
-	/* Skip subevents until first selected BIS */
-	stream_handle = lll->stream_handle[lll->stream_curr];
-	stream = ull_sync_iso_lll_stream_get(stream_handle);
-	if ((stream->bis_index != lll->bis_curr) &&
-	    (stream->bis_index <= lll->num_bis)) {
-		/* First selected BIS */
-		lll->bis_curr = stream->bis_index;
-
-		/* Calculate the Access Address for the current BIS */
-		util_bis_aa_le32(lll->bis_curr, lll->seed_access_addr,
-				 access_addr);
-		data_chan_id = lll_chan_id(access_addr);
-
-		/* Calculate the channel id for the next BIS subevent */
-		data_chan_use = lll_chan_iso_event(event_counter,
-					data_chan_id,
-					lll->data_chan_map,
-					lll->data_chan_count,
-					&lll->data_chan_prn_s,
-					&lll->data_chan_remap_idx);
-	}
 
 	/* Calculate the CRC init value for the BIS event,
 	 * preset with the BaseCRCInit value from the BIGInfo data the most
@@ -286,49 +244,34 @@ static int prepare_cb_common(struct lll_prepare_param *p)
 	crc_init[0] = lll->bis_curr;
 	(void)memcpy(&crc_init[1], lll->base_crc_init, sizeof(uint16_t));
 
+	/* Calculate the radio channel to use for ISO event */
+	data_chan_use = lll_chan_iso_event(event_counter, data_chan_id,
+					   lll->data_chan_map,
+					   lll->data_chan_count,
+					   &lll->data_chan_prn_s,
+					   &lll->data_chan_remap_idx);
+	lll->ctrl_chan_use = data_chan_use;
+
 	/* Start setting up of Radio h/w */
 	radio_reset();
 
+#if defined(CONFIG_BT_CTLR_TX_PWR_DYNAMIC_CONTROL)
+	radio_tx_power_set(lll->tx_pwr_lvl);
+#else
+	radio_tx_power_set(RADIO_TXP_DEFAULT);
+#endif
+
 	phy = lll->phy;
 	radio_phy_set(phy, PHY_FLAGS_S8);
+	radio_pkt_configure(RADIO_PKT_CONF_LENGTH_8BIT, lll->max_pdu,
+			    RADIO_PKT_CONF_PHY(phy));
 	radio_aa_set(access_addr);
 	radio_crc_configure(PDU_CRC_POLYNOMIAL, sys_get_le24(crc_init));
 	lll_chan_set(data_chan_use);
 
-	/* By design, there shall alway be one free node rx available for
-	 * setting up radio for new PDU reception.
-	 */
 	node_rx = ull_iso_pdu_rx_alloc_peek(1U);
 	LL_ASSERT(node_rx);
-
-	/* Encryption */
-	if (lll->enc) {
-		uint64_t payload_count;
-		uint8_t pkt_flags;
-
-		payload_count = lll->payload_count - lll->bn;
-		lll->ccm_rx.counter = payload_count;
-
-		(void)memcpy(lll->ccm_rx.iv, lll->giv, 4U);
-		mem_xor_32(lll->ccm_rx.iv, lll->ccm_rx.iv, access_addr);
-
-		pkt_flags = RADIO_PKT_CONF_FLAGS(RADIO_PKT_CONF_PDU_TYPE_BIS,
-						 phy,
-						 RADIO_PKT_CONF_CTE_DISABLED);
-		radio_pkt_configure(RADIO_PKT_CONF_LENGTH_8BIT,
-				    (lll->max_pdu + PDU_MIC_SIZE), pkt_flags);
-		radio_pkt_rx_set(radio_ccm_rx_pkt_set(&lll->ccm_rx, phy,
-						      node_rx->pdu));
-	} else {
-		uint8_t pkt_flags;
-
-		pkt_flags = RADIO_PKT_CONF_FLAGS(RADIO_PKT_CONF_PDU_TYPE_BIS,
-						 phy,
-						 RADIO_PKT_CONF_CTE_DISABLED);
-		radio_pkt_configure(RADIO_PKT_CONF_LENGTH_8BIT, lll->max_pdu,
-				    pkt_flags);
-		radio_pkt_rx_set(node_rx->pdu);
-	}
+	radio_pkt_rx_set(node_rx->pdu);
 
 	radio_switch_complete_and_disable();
 
@@ -385,50 +328,15 @@ static int prepare_cb_common(struct lll_prepare_param *p)
 		LL_ASSERT(!ret);
 	}
 
-	/* Calculate ahead the next subevent channel index */
-	next_chan_calc(lll, event_counter, data_chan_id);
-
 	return 0;
 }
 
-static void abort_cb(struct lll_prepare_param *prepare_param, void *param)
-{
-	struct event_done_extra *e;
-	int err;
-
-	/* NOTE: This is not a prepare being cancelled */
-	if (!prepare_param) {
-		radio_isr_set(lll_isr_done, param);
-		radio_disable();
-		return;
-	}
-
-	/* NOTE: Else clean the top half preparations of the aborted event
-	 * currently in preparation pipeline.
-	 */
-	err = lll_hfclock_off();
-	LL_ASSERT(err >= 0);
-
-	/* Extra done event, to check sync lost */
-	e = ull_event_done_extra_get();
-	LL_ASSERT(e);
-
-	e->type = EVENT_DONE_EXTRA_TYPE_SYNC_ISO;
-	e->trx_cnt = 0U;
-	e->crc_valid = 0U;
-
-	lll_done(param);
-}
 
 static void isr_rx_estab(void *param)
 {
 	struct event_done_extra *e;
 	uint8_t trx_done;
 	uint8_t crc_ok;
-
-	if (IS_ENABLED(CONFIG_BT_CTLR_PROFILE_ISR)) {
-		lll_prof_latency_capture();
-	}
 
 	/* Read radio status and events */
 	trx_done = radio_is_done();
@@ -441,10 +349,6 @@ static void isr_rx_estab(void *param)
 
 	/* Clear radio rx status and events */
 	lll_isr_rx_status_reset();
-
-	if (IS_ENABLED(CONFIG_BT_CTLR_PROFILE_ISR)) {
-		lll_prof_cputime_capture();
-	}
 
 	/* Calculate and place the drift information in done event */
 	e = ull_event_done_extra_get();
@@ -470,15 +374,10 @@ static void isr_rx_estab(void *param)
 	}
 
 	lll_isr_cleanup(param);
-
-	if (IS_ENABLED(CONFIG_BT_CTLR_PROFILE_ISR)) {
-		lll_prof_send();
-	}
 }
 
 static void isr_rx(void *param)
 {
-	struct lll_sync_iso_stream *stream;
 	struct node_rx_pdu *node_rx;
 	struct event_done_extra *e;
 	struct lll_sync_iso *lll;
@@ -496,12 +395,7 @@ static void isr_rx(void *param)
 	uint8_t crc_ok;
 	uint32_t hcto;
 	uint8_t bis;
-	uint8_t nse;
 	uint8_t bn;
-
-	if (IS_ENABLED(CONFIG_BT_CTLR_PROFILE_ISR)) {
-		lll_prof_latency_capture();
-	}
 
 	/* Read radio status and events */
 	trx_done = radio_is_done();
@@ -522,37 +416,24 @@ static void isr_rx(void *param)
 	rssi_ready = radio_rssi_is_ready();
 	trx_cnt++;
 
-	/* initialize LLL context reference */
-	lll = param;
-
 	/* Save the AA captured for the first anchor point sync */
 	if (!radio_tmr_aa_restore()) {
-		const struct lll_sync_iso_stream *stream;
-		uint32_t se_offset_us;
-		uint8_t se;
-
 		crc_ok_anchor = crc_ok;
-
-		stream = ull_sync_iso_lll_stream_get(lll->stream_handle[0]);
-		se = ((lll->bis_curr - stream->bis_index) *
-		      ((lll->bn * lll->irc) + lll->ptc)) +
-		     ((lll->irc_curr - 1U) * lll->bn) + (lll->bn_curr - 1U) +
-		     lll->ptc_curr + lll->ctrl;
-		se_offset_us = lll->sub_interval * se;
-		radio_tmr_aa_save(radio_tmr_aa_get() - se_offset_us);
-		radio_tmr_ready_save(radio_tmr_ready_get() - se_offset_us);
+		radio_tmr_aa_save(radio_tmr_aa_get());
+		radio_tmr_ready_save(radio_tmr_ready_get());
 	}
 
 	/* Clear radio rx status and events */
 	lll_isr_rx_status_reset();
+
+	/* initialize LLL context reference */
+	lll = param;
 
 	/* BIS index */
 	bis_idx = lll->bis_curr - 1U;
 
 	/* Check CRC and generate ISO Data PDU */
 	if (crc_ok) {
-		struct lll_sync_iso_stream *stream;
-		uint16_t stream_handle;
 		struct pdu_bis *pdu;
 
 		/* Check if Control Subevent being received */
@@ -563,12 +444,6 @@ static void isr_rx(void *param)
 		    lll->ctrl) {
 			lll->cssn_curr = lll->cssn_next;
 
-			/* By design, there shall alway be one free node rx
-			 * available for setting up radio for new PDU reception.
-			 * Control procedure handling does not consume any
-			 * node rx, hence checking for one free node rx is
-			 * sufficient.
-			 */
 			node_rx = ull_iso_pdu_rx_alloc_peek(1U);
 			LL_ASSERT(node_rx);
 
@@ -578,10 +453,8 @@ static void isr_rx(void *param)
 			}
 
 			isr_rx_ctrl_recv(lll, pdu);
-
-			goto isr_rx_done;
 		} else {
-			/* Check if there are 2 free rx buffers, one will be
+			/* check if there are 2 free rx buffers, one will be
 			 * consumed to receive the current PDU, and the other
 			 * is to ensure a PDU can be setup for the radio DMA to
 			 * receive in the next sub_interval/iso_interval.
@@ -600,199 +473,97 @@ static void isr_rx(void *param)
 			/* TODO: check same CSSN is used in every subevent */
 		}
 
-		/* calculate the payload index in the sliding window */
 		payload_index = lll->payload_tail + (lll->bn_curr - 1U) +
 				(lll->ptc_curr * lll->pto);
 		if (payload_index >= lll->payload_count_max) {
 			payload_index -= lll->payload_count_max;
 		}
 
-		stream_handle = lll->stream_handle[lll->stream_curr];
-		stream = ull_sync_iso_lll_stream_get(stream_handle);
-
-		/* store the received PDU */
-		if ((lll->bis_curr == stream->bis_index) && pdu->len &&
-		    !lll->payload[bis_idx][payload_index] &&
+		if (pdu->len && !lll->payload[bis_idx][payload_index] &&
 		    ((payload_index >= lll->payload_tail) ||
 		     (payload_index < lll->payload_head))) {
-			uint16_t handle;
-
-			if (lll->enc) {
-				uint32_t mic_failure;
-				uint32_t done;
-
-				done = radio_ccm_is_done();
-				LL_ASSERT(done);
-
-				mic_failure = !radio_ccm_mic_is_valid();
-				LL_ASSERT(!mic_failure);
-			}
-
 			ull_iso_pdu_rx_alloc();
-
-			handle = LL_BIS_SYNC_HANDLE_FROM_IDX(stream_handle);
-			isr_rx_iso_data_valid(lll, handle, node_rx);
+			isr_rx_iso_data_valid(lll, bis_idx, node_rx);
 
 			lll->payload[bis_idx][payload_index] = node_rx;
 		}
 	}
 
 isr_rx_done:
-	if (IS_ENABLED(CONFIG_BT_CTLR_PROFILE_ISR)) {
-		lll_prof_cputime_capture();
-	}
-
 	new_burst = 0U;
 	skipped = 0U;
 
 isr_rx_find_subevent:
 	/* FIXME: Sequential or Interleaved BIS subevents decision */
-	/* NOTE: below code is for Sequential Rx only */
-
-	/* Find the next (bn_curr)th subevent to receive PDU */
+	/* Sequential Rx complete flow pseudo code */
 	while (lll->bn_curr < lll->bn) {
 		lll->bn_curr++;
 
-		/* Find the index of the (bn_curr)th Rx PDU buffer */
 		payload_index = lll->payload_tail + (lll->bn_curr - 1U);
 		if (payload_index >= lll->payload_count_max) {
 			payload_index -= lll->payload_count_max;
 		}
 
-		/* Check if (bn_curr)th Rx PDU has been received */
 		if (!lll->payload[bis_idx][payload_index]) {
-			/* Receive the (bn_curr)th Rx PDU of bis_curr */
 			bis = lll->bis_curr;
 
+			/* Receive the (bn_curr)th Rx PDU of bis_curr */
 			goto isr_rx_next_subevent;
 		}
 
-		/* (bn_curr)th Rx PDU already received, skip subevent */
 		skipped++;
 	}
 
-	/* Find the next repetition (irc_curr)th subevent to receive PDU */
 	if (lll->irc_curr < lll->irc) {
 		if (!new_burst) {
 			lll->bn_curr = 1U;
 			lll->irc_curr++;
 
-			/* Find the index of the (irc_curr)th bn = 1 Rx PDU
-			 * buffer.
-			 */
 			payload_index = lll->payload_tail;
+			if (payload_index >= lll->payload_count_max) {
+				payload_index -= lll->payload_count_max;
+			}
 
-			/* Check if (irc_curr)th bn = 1 Rx PDU has been
-			 * received.
-			 */
 			if (!lll->payload[bis_idx][payload_index]) {
-				/* Receive the (irc_curr)th bn = 1 Rx PDU of
-				 * bis_curr.
-				 */
 				bis = lll->bis_curr;
 
 				goto isr_rx_next_subevent;
 			} else {
-				/* bn = 1 Rx PDU already received, skip
-				 * subevent.
-				 */
 				skipped++;
-
-				/* flag to skip successive repetitions if all
-				 * bn PDUs have been received. i.e. the bn
-				 * loop above did not find a PDU to be received.
-				 */
 				new_burst = 1U;
 
-				/* Find the missing (bn_curr)th Rx PDU of
+				/* Receive the missing (bn_curr)th Rx PDU of
 				 * bis_curr
 				 */
 				goto isr_rx_find_subevent;
 			}
 		} else {
-			/* Skip all successive repetition reception as all
-			 * bn PDUs have been received.
-			 */
 			skipped += (lll->irc - lll->irc_curr) * lll->bn;
 			lll->irc_curr = lll->irc;
 		}
 	}
 
-	/* Next pre-transmission subevent */
 	if (lll->ptc_curr < lll->ptc) {
 		lll->ptc_curr++;
+		/* Receive the (ptc_curr)th Rx PDU */
 
-		/* Receive the (ptc_curr)th Rx PDU of bis_curr */
 		bis = lll->bis_curr;
 
 		goto isr_rx_next_subevent;
 	}
 
-	/* Next BIS */
 	if (lll->bis_curr < lll->num_bis) {
-		const uint8_t stream_curr = lll->stream_curr + 1U;
-		struct lll_sync_iso_stream *stream;
-		uint16_t stream_handle;
+		lll->bis_curr++;
+		lll->ptc_curr = 0U;
+		lll->irc_curr = 1U;
+		lll->bn_curr = 1U;
 
-		/* Next selected stream */
-		if (stream_curr < lll->stream_count) {
-			lll->stream_curr = stream_curr;
-			stream_handle = lll->stream_handle[lll->stream_curr];
-			stream = ull_sync_iso_lll_stream_get(stream_handle);
-			if (stream->bis_index <= lll->num_bis) {
-				uint8_t bis_idx_new;
+		/* Receive the (bn_curr)th PDU of bis_curr */
+		bis = lll->bis_curr;
 
-				lll->bis_curr = stream->bis_index;
-				lll->ptc_curr = 0U;
-				lll->irc_curr = 1U;
-				lll->bn_curr = 1U;
-
-				/* new BIS index */
-				bis_idx_new = lll->bis_curr - 1U;
-
-				/* Find the index of the (irc_curr)th bn = 1 Rx
-				 * PDU buffer.
-				 */
-				payload_index = lll->payload_tail;
-
-				/* Check if (irc_curr)th bn = 1 Rx PDU has been
-				 * received.
-				 */
-				if (!lll->payload[bis_idx_new][payload_index]) {
-					/* bn = 1 Rx PDU not received */
-					skipped = (bis_idx_new - bis_idx - 1U) *
-						  ((lll->bn * lll->irc) +
-						   lll->ptc);
-
-					/* Receive the (irc_curr)th bn = 1 Rx
-					 * PDU of bis_curr.
-					 */
-					bis = lll->bis_curr;
-
-					goto isr_rx_next_subevent;
-				} else {
-					/* bn = 1 Rx PDU already received, skip
-					 * subevent.
-					 */
-					skipped = ((bis_idx_new - bis_idx -
-						    1U) *
-						   ((lll->bn * lll->irc) +
-						    lll->ptc)) + 1U;
-
-					/* Find the missing (bn_curr)th Rx PDU
-					 * of bis_curr
-					 */
-					goto isr_rx_find_subevent;
-				}
-			} else {
-				lll->bis_curr = lll->num_bis;
-			}
-		} else {
-			lll->bis_curr = lll->num_bis;
-		}
+		goto isr_rx_next_subevent;
 	}
 
-	/* Control subevent */
 	if (!lll->ctrl && (lll->cssn_next != lll->cssn_curr)) {
 		/* Receive the control PDU and close the BIG event
 		 *  there after.
@@ -807,34 +578,20 @@ isr_rx_find_subevent:
 
 	/* Enqueue PDUs to ULL */
 	node_rx = NULL;
-	lll->stream_curr = 0U;
 	payload_index = lll->payload_tail;
 	for (bis_idx = 0U; bis_idx < lll->num_bis; bis_idx++) {
-		struct lll_sync_iso_stream *stream;
 		uint8_t payload_tail;
-		uint8_t stream_curr;
-		uint16_t stream_handle;
-
-		stream_handle = lll->stream_handle[lll->stream_curr];
-		stream = ull_sync_iso_lll_stream_get(stream_handle);
-		/* Skip BIS indices not synchronized. bis_index is 0x01 to 0x1F,
-		 * where as bis_idx is 0 indexed.
-		 */
-		if ((bis_idx + 1U) != stream->bis_index) {
-			continue;
-		}
 
 		payload_tail = lll->payload_tail;
 		bn = lll->bn;
 		while (bn--) {
 			if (lll->payload[bis_idx][payload_tail]) {
-				node_rx =
-					lll->payload[bis_idx][payload_tail];
+				node_rx = lll->payload[bis_idx][payload_tail];
 				lll->payload[bis_idx][payload_tail] = NULL;
 
 				iso_rx_put(node_rx->hdr.link, node_rx);
 			} else {
-				/* Check if there are 2 free rx buffers, one
+				/* check if there are 2 free rx buffers, one
 				 * will be consumed to generate PDU with invalid
 				 * status, and the other is to ensure a PDU can
 				 * be setup for the radio DMA to receive in the
@@ -842,18 +599,9 @@ isr_rx_find_subevent:
 				 */
 				node_rx = ull_iso_pdu_rx_alloc_peek(2U);
 				if (node_rx) {
-					struct pdu_bis *pdu;
-					uint16_t handle;
-
 					ull_iso_pdu_rx_alloc();
-
-					pdu = (void *)node_rx->pdu;
-					pdu->ll_id = PDU_BIS_LLID_COMPLETE_END;
-					pdu->len = 0U;
-
-					handle = LL_BIS_SYNC_HANDLE_FROM_IDX(stream_handle);
-					isr_rx_iso_data_invalid(lll, bn, handle,
-								node_rx);
+					isr_rx_iso_data_invalid(lll, bis_idx,
+								bn, node_rx);
 
 					iso_rx_put(node_rx->hdr.link, node_rx);
 				}
@@ -864,11 +612,6 @@ isr_rx_find_subevent:
 				payload_index = 0U;
 			}
 			payload_tail = payload_index;
-		}
-
-		stream_curr = lll->stream_curr + 1U;
-		if (stream_curr < lll->stream_count) {
-			lll->stream_curr = stream_curr;
 		}
 	}
 	lll->payload_tail = payload_index;
@@ -935,11 +678,6 @@ isr_rx_find_subevent:
 	}
 
 	lll_isr_cleanup(param);
-
-	if (IS_ENABLED(CONFIG_BT_CTLR_PROFILE_ISR)) {
-		lll_prof_send();
-	}
-
 	return;
 
 isr_rx_next_subevent:
@@ -959,70 +697,23 @@ isr_rx_next_subevent:
 	radio_crc_configure(PDU_CRC_POLYNOMIAL, sys_get_le24(crc_init));
 
 	/* Set the channel to use */
-	if (!bis) {
-		data_chan_use = lll->ctrl_chan_use;
-	} else if (!skipped) {
-		data_chan_use = lll->next_chan_use;
-	} else {
-		uint8_t bis_idx_new = lll->bis_curr - 1U;
-
-		/* Initialise to avoid compile error */
-		data_chan_use = 0U;
-
-		if (bis_idx != bis_idx_new) {
-			const uint16_t event_counter =
-				(lll->payload_count / lll->bn) - 1U;
-
-			/* Calculate the radio channel to use for next BIS */
-			data_chan_use = lll_chan_iso_event(event_counter,
-						data_chan_id,
-						lll->data_chan_map,
-						lll->data_chan_count,
-						&lll->data_chan_prn_s,
-						&lll->data_chan_remap_idx);
-
-			skipped -= (bis_idx_new - bis_idx - 1U) *
-				   ((lll->bn * lll->irc) + lll->ptc);
-		}
-
-		while (skipped--) {
-			/* Calculate the radio channel to use for subevent */
+	if (bis) {
+		do {
+			/* Calculate the radio channel to use for ISO event */
 			data_chan_use = lll_chan_iso_subevent(data_chan_id,
 						lll->data_chan_map,
 						lll->data_chan_count,
 						&lll->data_chan_prn_s,
 						&lll->data_chan_remap_idx);
-		}
+		} while (skipped--);
+	} else {
+		data_chan_use = lll->ctrl_chan_use;
 	}
-
 	lll_chan_set(data_chan_use);
 
-	/* By design, there shall alway be one free node rx available for
-	 * setting up radio for new PDU reception.
-	 */
 	node_rx = ull_iso_pdu_rx_alloc_peek(1U);
 	LL_ASSERT(node_rx);
-
-	/* Encryption */
-	if (lll->enc) {
-		uint64_t payload_count;
-
-		payload_count = lll->payload_count - lll->bn;
-		if (bis) {
-			payload_count += (lll->bn_curr - 1U) +
-					 (lll->ptc_curr * lll->pto);
-		}
-
-		lll->ccm_rx.counter = payload_count;
-
-		(void)memcpy(lll->ccm_rx.iv, lll->giv, 4U);
-		mem_xor_32(lll->ccm_rx.iv, lll->ccm_rx.iv, access_addr);
-
-		radio_pkt_rx_set(radio_ccm_rx_pkt_set(&lll->ccm_rx, lll->phy,
-						      node_rx->pdu));
-	} else {
-		radio_pkt_rx_set(node_rx->pdu);
-	}
+	radio_pkt_rx_set(node_rx->pdu);
 
 	radio_switch_complete_and_disable();
 
@@ -1030,12 +721,10 @@ isr_rx_next_subevent:
 	 * microseconds by when a PDU header is to be received for each
 	 * subevent.
 	 */
-	stream = ull_sync_iso_lll_stream_get(lll->stream_handle[0]);
-	nse = ((lll->bis_curr - stream->bis_index) *
-	       ((lll->bn * lll->irc) + lll->ptc)) +
-	      ((lll->irc_curr - 1U) * lll->bn) + (lll->bn_curr - 1U) +
-	      lll->ptc_curr + lll->ctrl;
-	hcto = lll->sub_interval * nse;
+	hcto = (lll->sub_interval *
+		(((lll->bis_curr - 1U) * ((lll->bn * lll->irc) + lll->ptc)) +
+		 (((lll->irc_curr - 1U) * lll->bn) + (lll->bn_curr - 1U) +
+		  lll->ptc_curr) + lll->ctrl));
 
 	if (trx_cnt) {
 		/* Setup radio packet timer header complete timeout for
@@ -1054,30 +743,18 @@ isr_rx_next_subevent:
 		hcto -= (EVENT_CLOCK_JITTER_US << 1);
 
 		start_us = hcto;
-		hcto = radio_tmr_start_us(0U, start_us);
-		/* FIXME: Assertion check disabled until investigation as to
-		 *        why there is high ISR latency causing assertion here.
-		 */
-		/* LL_ASSERT(hcto == (start_us + 1U)); */
+		radio_tmr_start_us(0, start_us);
 
-		/* Add 4 us + 4 us + (4 us * subevents so far), as radio
-		 * was setup to listen 4 us early and subevents could have
-		 * a 4 us drift each until the current subevent we are
-		 * listening.
-		 */
-		hcto += ((EVENT_CLOCK_JITTER_US << 1) * (2U + nse)) +
-			RANGE_DELAY_US + HCTO_START_DELAY_US;
+		/* Add 4 us + 4 us, as radio was setup to listen 4 us early */
+		hcto += (EVENT_CLOCK_JITTER_US << 2);
 	} else {
-		/* First subevent PDU was not received, hence setup radio packet
-		 * timer header complete timeout from where the first subevent
-		 * PDU which is the BIG event anchor point would have been
-		 * received.
+		/* Setup radio packet timer header complete timeout for
+		 * first subevent PDU which is the BIG event anchor point.
 		 */
 		hcto += radio_tmr_ready_restore();
 
 		start_us = hcto;
-		hcto = radio_tmr_start_us(0U, start_us);
-		LL_ASSERT(hcto == (start_us + 1U));
+		radio_tmr_start_us(0U, start_us);
 
 		hcto += ((EVENT_JITTER_US + EVENT_TICKER_RES_MARGIN_US +
 			  lll->window_widening_event_us) << 1) +
@@ -1105,101 +782,38 @@ isr_rx_next_subevent:
 							  PHY_FLAGS_S8) -
 				 HAL_RADIO_GPIO_LNA_OFFSET);
 #endif /* HAL_RADIO_GPIO_HAVE_LNA_PIN */
-
-	if (IS_ENABLED(CONFIG_BT_CTLR_PROFILE_ISR)) {
-		lll_prof_cputime_capture();
-	}
-
-	/* Calculate ahead the next subevent channel index */
-	const uint16_t event_counter = (lll->payload_count / lll->bn) - 1U;
-
-	next_chan_calc(lll, event_counter, data_chan_id);
-
-	if (IS_ENABLED(CONFIG_BT_CTLR_PROFILE_ISR)) {
-		lll_prof_send();
-	}
 }
 
-static void next_chan_calc(struct lll_sync_iso *lll, uint16_t event_counter,
-			   uint16_t data_chan_id)
+static void isr_rx_iso_data_valid(struct lll_sync_iso *lll, uint8_t bis_idx,
+				  struct node_rx_pdu *node_rx)
 {
-	/* Calculate ahead the next subevent channel index */
-	if ((lll->bn_curr < lll->bn) ||
-	    (lll->irc_curr < lll->irc) ||
-	    (lll->ptc_curr < lll->ptc)) {
-		/* Calculate the radio channel to use for next subevent */
-		lll->next_chan_use = lll_chan_iso_subevent(data_chan_id,
-						lll->data_chan_map,
-						lll->data_chan_count,
-						&lll->data_chan_prn_s,
-						&lll->data_chan_remap_idx);
-	} else if (lll->bis_curr < lll->num_bis) {
-		uint8_t access_addr[4];
-
-		/* Calculate the Access Address for the next BIS subevent */
-		util_bis_aa_le32((lll->bis_curr + 1U), lll->seed_access_addr,
-				 access_addr);
-		data_chan_id = lll_chan_id(access_addr);
-
-		/* Calculate the radio channel to use for next BIS */
-		lll->next_chan_use = lll_chan_iso_event(event_counter,
-						data_chan_id,
-						lll->data_chan_map,
-						lll->data_chan_count,
-						&lll->data_chan_prn_s,
-						&lll->data_chan_remap_idx);
-	}
-}
-
-static void isr_rx_iso_data_valid(const struct lll_sync_iso *const lll,
-				  uint16_t handle, struct node_rx_pdu *node_rx)
-{
-	struct lll_sync_iso_stream *stream;
 	struct node_rx_iso_meta *iso_meta;
 
 	node_rx->hdr.type = NODE_RX_TYPE_ISO_PDU;
-	node_rx->hdr.handle = handle;
+	node_rx->hdr.handle = lll->stream_handle[bis_idx];
 
 	iso_meta = &node_rx->hdr.rx_iso_meta;
 	iso_meta->payload_number = lll->payload_count + (lll->bn_curr - 1U) +
 				   (lll->ptc_curr * lll->pto) - lll->bn;
-
-	stream = ull_sync_iso_lll_stream_get(lll->stream_handle[0]);
 	iso_meta->timestamp = HAL_TICKER_TICKS_TO_US(radio_tmr_start_get()) +
-			      radio_tmr_aa_restore() +
+			      radio_tmr_aa_restore() - addr_us_get(lll->phy) +
 			      (ceiling_fraction(lll->ptc_curr, lll->bn) *
-			       lll->pto * lll->iso_interval *
-			       PERIODIC_INT_UNIT_US) -
-			      addr_us_get(lll->phy) -
-			      ((stream->bis_index - 1U) *
-			       lll->sub_interval * ((lll->irc * lll->bn) +
-						    lll->ptc));
-	iso_meta->timestamp %=
-		HAL_TICKER_TICKS_TO_US(BIT(HAL_TICKER_CNTR_MSBIT + 1U));
+			       lll->iso_interval * PERIODIC_INT_UNIT_US);
 	iso_meta->status = 0U;
 }
 
-static void isr_rx_iso_data_invalid(const struct lll_sync_iso *const lll,
-				    uint8_t bn, uint16_t handle,
-				    struct node_rx_pdu *node_rx)
+static void isr_rx_iso_data_invalid(struct lll_sync_iso *lll, uint8_t bis_idx,
+				    uint8_t bn, struct node_rx_pdu *node_rx)
 {
-	struct lll_sync_iso_stream *stream;
 	struct node_rx_iso_meta *iso_meta;
 
 	node_rx->hdr.type = NODE_RX_TYPE_ISO_PDU;
-	node_rx->hdr.handle = handle;
+	node_rx->hdr.handle = lll->stream_handle[bis_idx];
 
 	iso_meta = &node_rx->hdr.rx_iso_meta;
 	iso_meta->payload_number = lll->payload_count - bn - 1U;
-
-	stream = ull_sync_iso_lll_stream_get(lll->stream_handle[0]);
 	iso_meta->timestamp = HAL_TICKER_TICKS_TO_US(radio_tmr_start_get()) +
-			      radio_tmr_aa_restore() - addr_us_get(lll->phy) -
-			      ((stream->bis_index - 1U) *
-			       lll->sub_interval * ((lll->irc * lll->bn) +
-						    lll->ptc));
-	iso_meta->timestamp %=
-		HAL_TICKER_TICKS_TO_US(BIT(HAL_TICKER_CNTR_MSBIT + 1U));
+			      radio_tmr_aa_restore() - addr_us_get(lll->phy);
 	iso_meta->status = 1U;
 }
 

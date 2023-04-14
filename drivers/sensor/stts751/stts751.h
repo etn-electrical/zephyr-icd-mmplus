@@ -15,23 +15,26 @@
 #include <zephyr/drivers/i2c.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/sensor.h>
-#include <zephyr/kernel.h>
 #include <zephyr/types.h>
 #include <zephyr/sys/util.h>
 #include "stts751_reg.h"
 
 struct stts751_config {
-#if DT_ANY_INST_ON_BUS_STATUS_OKAY(i2c)
-	struct i2c_dt_spec i2c;
-#endif
+	char *master_dev_name;
 	int (*bus_init)(const struct device *dev);
 #ifdef CONFIG_STTS751_TRIGGER
-	struct gpio_dt_spec int_gpio;
+	const char *event_port;
+	uint8_t event_pin;
+	uint8_t int_flags;
+#endif
+#if DT_ANY_INST_ON_BUS_STATUS_OKAY(i2c)
+	uint16_t i2c_slv_addr;
 #endif
 };
 
 struct stts751_data {
 	const struct device *dev;
+	const struct device *bus;
 	int16_t sample_temp;
 
 	stmdev_ctx_t *ctx;
@@ -41,6 +44,8 @@ struct stts751_data {
 #endif
 
 #ifdef CONFIG_STTS751_TRIGGER
+	const struct device *gpio;
+	uint32_t pin;
 	struct gpio_callback gpio_cb;
 
 	struct sensor_trigger data_ready_trigger;

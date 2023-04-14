@@ -5,8 +5,7 @@
 
 config LEON_GPTIMER
 	bool "LEON timer"
-	default y
-	depends on DT_HAS_GAISLER_GPTIMER_ENABLED
+	depends on SOC_SPARC_LEON
 	select DYNAMIC_INTERRUPTS
 	help
 	  This module implements a kernel device driver for the GRLIB

@@ -20,7 +20,6 @@
 
 #include "ticker/ticker.h"
 
-#include "pdu_vendor.h"
 #include "pdu.h"
 
 #include "lll.h"
@@ -36,6 +35,8 @@
 #include "lll_tim_internal.h"
 #include "lll_prof_internal.h"
 
+#define LOG_MODULE_NAME bt_ctlr_llsw_openisa_lll_scan
+#include "common/log.h"
 #include <soc.h>
 #include "hal/debug.h"
 
@@ -616,7 +617,8 @@ static void isr_cleanup(void *param)
 		/* TODO: add other info by defining a payload struct */
 		node_rx->type = NODE_RX_TYPE_SCAN_INDICATION;
 
-		ull_rx_put_sched(node_rx->link, node_rx);
+		ull_rx_put(node_rx->link, node_rx);
+		ull_rx_sched();
 	}
 #else /* !CONFIG_BT_CTLR_SCAN_INDICATION */
 	ARG_UNUSED(node_rx);
@@ -855,7 +857,8 @@ static inline uint32_t isr_rx_pdu(struct lll_scan *lll, uint8_t devmatch_ok,
 			ftr->extra = ull_pdu_rx_alloc();
 		}
 
-		ull_rx_put_sched(rx->hdr.link, rx);
+		ull_rx_put(rx->hdr.link, rx);
+		ull_rx_sched();
 
 		return 0;
 #endif /* CONFIG_BT_CENTRAL */
@@ -1137,7 +1140,8 @@ static uint32_t isr_rx_scan_report(struct lll_scan *lll, uint8_t rssi_ready,
 	}
 #endif /* CONFIG_BT_CTLR_EXT_SCAN_FP */
 
-	ull_rx_put_sched(node_rx->hdr.link, node_rx);
+	ull_rx_put(node_rx->hdr.link, node_rx);
+	ull_rx_sched();
 
 	return 0;
 }

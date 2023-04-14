@@ -6,7 +6,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <zephyr/types.h>
 
 #include <zephyr/device.h>
@@ -17,17 +17,14 @@
 #include <zephyr/bluetooth/conn.h>
 #include <zephyr/bluetooth/gatt.h>
 
-#include "audio_internal.h"
 #include "tbs_internal.h"
 #include "ccid_internal.h"
 
-#include <zephyr/logging/log.h>
-
-LOG_MODULE_REGISTER(bt_tbs, CONFIG_BT_TBS_LOG_LEVEL);
+#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_DEBUG_TBS)
+#define LOG_MODULE_NAME bt_tbs
+#include "common/log.h"
 
 #define BT_TBS_VALID_STATUS_FLAGS(val)         ((val) <= (BIT(0) | BIT(1)))
-#define IS_GTBS_CHRC(_attr) \
-	IS_ENABLED(CONFIG_BT_GTBS) && BT_AUDIO_CHRC_USER_DATA(_attr) == &gtbs_inst
 
 /* TODO: Have tbs_service_inst include gtbs_service_inst and use CONTAINER_OF
  * to get a specific TBS instance from a GTBS pointer.
@@ -92,7 +89,7 @@ struct gtbs_service_inst {
 	const struct bt_gatt_service_static *service_p;
 };
 
-#if defined(CONFIG_BT_GTBS)
+#if IS_ENABLED(CONFIG_BT_GTBS)
 #define READ_BUF_SIZE   (CONFIG_BT_TBS_MAX_CALLS * \
 			 sizeof(struct bt_tbs_current_call_item) * \
 			 CONFIG_BT_TBS_BEARER_COUNT)
@@ -281,8 +278,8 @@ static void tbs_set_terminate_reason(struct tbs_service_inst *inst,
 {
 	inst->terminate_reason.call_index = call_index;
 	inst->terminate_reason.reason = reason;
-	LOG_DBG("Index %u: call index 0x%02x, reason %s", inst->index, call_index,
-		bt_tbs_term_reason_str(reason));
+	BT_DBG("Index %u: call index 0x%02x, reason %s",
+		inst->index, call_index, bt_tbs_term_reason_str(reason));
 
 	bt_gatt_notify_uuid(NULL, BT_UUID_TBS_TERMINATE_REASON,
 			    inst->service_p->attrs,
@@ -322,7 +319,7 @@ static uint8_t next_free_call_index(void)
 		}
 	}
 
-	LOG_DBG("No more free call spots");
+	BT_DBG("No more free call spots");
 
 	return BT_TBS_FREE_CALL_INDEX;
 }
@@ -400,9 +397,10 @@ static void net_buf_put_current_calls(const void *inst_p)
 					continue;
 				}
 				uri_length = strlen(call->remote_uri);
-				item_len = sizeof(call->index) + sizeof(call->state) +
-					   sizeof(call->flags) + uri_length;
-
+				item_len = sizeof(call->index != BT_TBS_FREE_CALL_INDEX) +
+						sizeof(call->state) +
+						sizeof(call->flags) +
+						uri_length;
 				net_buf_simple_add_u8(&read_buf, item_len);
 				net_buf_simple_add_u8(&read_buf, call->index);
 				net_buf_simple_add_u8(&read_buf, call->state);
@@ -502,14 +500,15 @@ static ssize_t read_provider_name(struct bt_conn *conn,
 {
 	const char *provider_name;
 
-	if (IS_GTBS_CHRC(attr)) {
+	if (IS_ENABLED(CONFIG_BT_GTBS) && attr->user_data == &gtbs_inst) {
 		provider_name = gtbs_inst.provider_name;
-		LOG_DBG("GTBS: Provider name %s", provider_name);
+		BT_DBG("GTBS: Provider name %s", log_strdup(provider_name));
 	} else {
-		const struct tbs_service_inst *inst = BT_AUDIO_CHRC_USER_DATA(attr);
+		const struct tbs_service_inst *inst = (struct tbs_service_inst *)attr->user_data;
 
 		provider_name = inst->provider_name;
-		LOG_DBG("Index %u, Provider name %s", inst->index, provider_name);
+		BT_DBG("Index %u, Provider name %s",
+		       inst->index, log_strdup(provider_name));
 	}
 
 	return bt_gatt_attr_read(conn, attr, buf, len, offset,
@@ -523,9 +522,9 @@ static void provider_name_cfg_changed(const struct bt_gatt_attr *attr,
 	const struct tbs_service_inst *inst = lookup_inst_by_ccc(attr);
 
 	if (inst != NULL) {
-		LOG_DBG("Index %u: value 0x%04x", inst->index, value);
+		BT_DBG("Index %u: value 0x%04x", inst->index, value);
 	} else if (IS_ENABLED(CONFIG_BT_GTBS)) {
-		LOG_DBG("GTBS: value 0x%04x", value);
+		BT_DBG("GTBS: value 0x%04x", value);
 	}
 }
 
@@ -534,14 +533,14 @@ static ssize_t read_uci(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 {
 	const char *uci;
 
-	if (IS_GTBS_CHRC(attr)) {
+	if (IS_ENABLED(CONFIG_BT_GTBS) && attr->user_data == &gtbs_inst) {
 		uci = gtbs_inst.uci;
-		LOG_DBG("GTBS: UCI %s", uci);
+		BT_DBG("GTBS: UCI %s", log_strdup(uci));
 	} else {
-		const struct tbs_service_inst *inst = BT_AUDIO_CHRC_USER_DATA(attr);
+		const struct tbs_service_inst *inst = (struct tbs_service_inst *)attr->user_data;
 
 		uci = inst->uci;
-		LOG_DBG("Index %u: UCI %s", inst->index, uci);
+		BT_DBG("Index %u: UCI %s", inst->index, log_strdup(uci));
 	}
 
 	return bt_gatt_attr_read(conn, attr, buf, len, offset,
@@ -554,14 +553,14 @@ static ssize_t read_technology(struct bt_conn *conn,
 {
 	uint8_t technology;
 
-	if (IS_GTBS_CHRC(attr)) {
+	if (IS_ENABLED(CONFIG_BT_GTBS) && attr->user_data == &gtbs_inst) {
 		technology = gtbs_inst.technology;
-		LOG_DBG("GTBS: Technology 0x%02X", technology);
+		BT_DBG("GTBS: Technology 0x%02X", technology);
 	} else {
-		const struct tbs_service_inst *inst = BT_AUDIO_CHRC_USER_DATA(attr);
+		const struct tbs_service_inst *inst = (struct tbs_service_inst *)attr->user_data;
 
 		technology = inst->technology;
-		LOG_DBG("Index %u: Technology 0x%02X", inst->index, technology);
+		BT_DBG("Index %u: Technology 0x%02X", inst->index, technology);
 	}
 
 	return bt_gatt_attr_read(conn, attr, buf, len, offset,
@@ -574,9 +573,9 @@ static void technology_cfg_changed(const struct bt_gatt_attr *attr,
 	const struct tbs_service_inst *inst = lookup_inst_by_ccc(attr);
 
 	if (inst != NULL) {
-		LOG_DBG("Index %u: value 0x%04x", inst->index, value);
+		BT_DBG("Index %u: value 0x%04x", inst->index, value);
 	} else if (IS_ENABLED(CONFIG_BT_GTBS)) {
-		LOG_DBG("GTBS: value 0x%04x", value);
+		BT_DBG("GTBS: value 0x%04x", value);
 	}
 }
 
@@ -586,13 +585,13 @@ static ssize_t read_uri_scheme_list(struct bt_conn *conn,
 {
 	net_buf_simple_reset(&read_buf);
 
-	if (IS_GTBS_CHRC(attr)) {
+	if (IS_ENABLED(CONFIG_BT_GTBS) && attr->user_data == &gtbs_inst) {
 		/* TODO: Make uri schemes unique */
 		for (size_t i = 0; i < ARRAY_SIZE(svc_insts); i++) {
 			size_t uri_len = strlen(svc_insts[i].uri_scheme_list);
 
 			if (read_buf.len + uri_len >= read_buf.size) {
-				LOG_WRN("Cannot fit all TBS instances in GTBS "
+				BT_WARN("Cannot fit all TBS instances in GTBS "
 					"URI scheme list");
 				break;
 			}
@@ -603,15 +602,16 @@ static ssize_t read_uri_scheme_list(struct bt_conn *conn,
 		}
 		/* Add null terminator for printing */
 		read_buf.data[read_buf.len] = '\0';
-		LOG_DBG("GTBS: URI scheme %s", read_buf.data);
+		BT_DBG("GTBS: URI scheme %s", log_strdup(read_buf.data));
 	} else {
-		const struct tbs_service_inst *inst = BT_AUDIO_CHRC_USER_DATA(attr);
+		const struct tbs_service_inst *inst = (struct tbs_service_inst *)attr->user_data;
 
 		net_buf_simple_add_mem(&read_buf, inst->uri_scheme_list,
 				       strlen(inst->uri_scheme_list));
 		/* Add null terminator for printing */
 		read_buf.data[read_buf.len] = '\0';
-		LOG_DBG("Index %u: URI scheme %s", inst->index, read_buf.data);
+		BT_DBG("Index %u: URI scheme %s", inst->index,
+		       log_strdup(read_buf.data));
 	}
 
 	return bt_gatt_attr_read(conn, attr, buf, len, offset,
@@ -624,9 +624,9 @@ static void uri_scheme_list_cfg_changed(const struct bt_gatt_attr *attr,
 	const struct tbs_service_inst *inst = lookup_inst_by_ccc(attr);
 
 	if (inst != NULL) {
-		LOG_DBG("Index %u: value 0x%04x", inst->index, value);
+		BT_DBG("Index %u: value 0x%04x", inst->index, value);
 	} else if (IS_ENABLED(CONFIG_BT_GTBS)) {
-		LOG_DBG("GTBS: value 0x%04x", value);
+		BT_DBG("GTBS: value 0x%04x", value);
 	}
 }
 
@@ -636,14 +636,15 @@ static ssize_t read_signal_strength(struct bt_conn *conn,
 {
 	uint8_t signal_strength;
 
-	if (IS_GTBS_CHRC(attr)) {
+	if (IS_ENABLED(CONFIG_BT_GTBS) && attr->user_data == &gtbs_inst) {
 		signal_strength = gtbs_inst.signal_strength;
-		LOG_DBG("GTBS: Signal strength 0x%02x", signal_strength);
+		BT_DBG("GTBS: Signal strength 0x%02x", signal_strength);
 	} else {
-		const struct tbs_service_inst *inst = BT_AUDIO_CHRC_USER_DATA(attr);
+		const struct tbs_service_inst *inst = (struct tbs_service_inst *)attr->user_data;
 
 		signal_strength = inst->signal_strength;
-		LOG_DBG("Index %u: Signal strength 0x%02x", inst->index, signal_strength);
+		BT_DBG("Index %u: Signal strength 0x%02x",
+			inst->index, signal_strength);
 	}
 
 	return bt_gatt_attr_read(conn, attr, buf, len, offset,
@@ -656,9 +657,9 @@ static void signal_strength_cfg_changed(const struct bt_gatt_attr *attr,
 	const struct tbs_service_inst *inst = lookup_inst_by_ccc(attr);
 
 	if (inst != NULL) {
-		LOG_DBG("Index %u: value 0x%04x", inst->index, value);
+		BT_DBG("Index %u: value 0x%04x", inst->index, value);
 	} else if (IS_ENABLED(CONFIG_BT_GTBS)) {
-		LOG_DBG("GTBS: value 0x%04x", value);
+		BT_DBG("GTBS: value 0x%04x", value);
 	}
 }
 
@@ -673,15 +674,16 @@ static ssize_t read_signal_strength_interval(struct bt_conn *conn,
 		return BT_GATT_ERR(BT_ATT_ERR_AUTHORIZATION);
 	}
 
-	if (IS_GTBS_CHRC(attr)) {
+	if (IS_ENABLED(CONFIG_BT_GTBS) && attr->user_data == &gtbs_inst) {
 		signal_strength_interval = gtbs_inst.signal_strength_interval;
-		LOG_DBG("GTBS: Signal strength interval 0x%02x", signal_strength_interval);
+		BT_DBG("GTBS: Signal strength interval 0x%02x",
+		       signal_strength_interval);
 	} else {
-		const struct tbs_service_inst *inst = BT_AUDIO_CHRC_USER_DATA(attr);
+		const struct tbs_service_inst *inst = (struct tbs_service_inst *)attr->user_data;
 
 		signal_strength_interval = inst->signal_strength_interval;
-		LOG_DBG("Index %u: Signal strength interval 0x%02x", inst->index,
-			signal_strength_interval);
+		BT_DBG("Index %u: Signal strength interval 0x%02x",
+		       inst->index, signal_strength_interval);
 	}
 
 	return bt_gatt_attr_read(conn, attr, buf, len, offset,
@@ -712,14 +714,15 @@ static ssize_t write_signal_strength_interval(struct bt_conn *conn,
 	net_buf_simple_init_with_data(&net_buf, (void *)buf, len);
 	signal_strength_interval = net_buf_simple_pull_u8(&net_buf);
 
-	if (IS_GTBS_CHRC(attr)) {
+	if (IS_ENABLED(CONFIG_BT_GTBS) && attr->user_data == &gtbs_inst) {
 		gtbs_inst.signal_strength_interval = signal_strength_interval;
-		LOG_DBG("GTBS: 0x%02x", signal_strength_interval);
+		BT_DBG("GTBS: 0x%02x", signal_strength_interval);
 	} else {
-		struct tbs_service_inst *inst = BT_AUDIO_CHRC_USER_DATA(attr);
+		struct tbs_service_inst *inst = (struct tbs_service_inst *)attr->user_data;
 
 		inst->signal_strength_interval = signal_strength_interval;
-		LOG_DBG("Index %u: 0x%02x", inst->index, signal_strength_interval);
+		BT_DBG("Index %u: 0x%02x",
+		       inst->index, signal_strength_interval);
 	}
 
 	return len;
@@ -731,10 +734,10 @@ static void current_calls_cfg_changed(const struct bt_gatt_attr *attr,
 	struct tbs_service_inst *inst = lookup_inst_by_ccc(attr);
 
 	if (inst != NULL) {
-		LOG_DBG("Index %u: value 0x%04x", inst->index, value);
+		BT_DBG("Index %u: value 0x%04x", inst->index, value);
 		inst->notify_current_calls = (value == BT_GATT_CCC_NOTIFY);
 	} else if (IS_ENABLED(CONFIG_BT_GTBS)) {
-		LOG_DBG("GTBS: value 0x%04x", value);
+		BT_DBG("GTBS: value 0x%04x", value);
 		gtbs_inst.notify_current_calls = (value == BT_GATT_CCC_NOTIFY);
 	}
 }
@@ -743,18 +746,18 @@ static ssize_t read_current_calls(struct bt_conn *conn,
 				  const struct bt_gatt_attr *attr,
 				  void *buf, uint16_t len, uint16_t offset)
 {
-	net_buf_put_current_calls(BT_AUDIO_CHRC_USER_DATA(attr));
+	net_buf_put_current_calls(attr->user_data);
 
-	if (IS_GTBS_CHRC(attr)) {
-		LOG_DBG("GTBS");
+	if (IS_ENABLED(CONFIG_BT_GTBS) && attr->user_data == &gtbs_inst) {
+		BT_DBG("GTBS");
 	} else {
-		const struct tbs_service_inst *inst = BT_AUDIO_CHRC_USER_DATA(attr);
+		const struct tbs_service_inst *inst = (struct tbs_service_inst *)attr->user_data;
 
-		LOG_DBG("Index %u", inst->index);
+		BT_DBG("Index %u", inst->index);
 	}
 
 	if (offset == 0) {
-		LOG_HEXDUMP_DBG(read_buf.data, read_buf.len, "Current calls");
+		BT_HEXDUMP_DBG(read_buf.data, read_buf.len, "Current calls");
 	}
 
 	return bt_gatt_attr_read(conn, attr, buf, len, offset,
@@ -767,14 +770,14 @@ static ssize_t read_ccid(struct bt_conn *conn,
 {
 	uint8_t ccid;
 
-	if (IS_GTBS_CHRC(attr)) {
+	if (IS_ENABLED(CONFIG_BT_GTBS) && attr->user_data == &gtbs_inst) {
 		ccid = gtbs_inst.ccid;
-		LOG_DBG("GTBS: CCID 0x%02X", ccid);
+		BT_DBG("GTBS: CCID 0x%02X", ccid);
 	} else {
-		const struct tbs_service_inst *inst = BT_AUDIO_CHRC_USER_DATA(attr);
+		const struct tbs_service_inst *inst = (struct tbs_service_inst *)attr->user_data;
 
 		ccid = inst->ccid;
-		LOG_DBG("Index %u: CCID 0x%02X", inst->index, ccid);
+		BT_DBG("Index %u: CCID 0x%02X", inst->index, ccid);
 	}
 
 	return bt_gatt_attr_read(conn, attr, buf, len, offset,
@@ -787,14 +790,15 @@ static ssize_t read_status_flags(struct bt_conn *conn,
 {
 	uint16_t status_flags;
 
-	if (IS_GTBS_CHRC(attr)) {
+	if (IS_ENABLED(CONFIG_BT_GTBS) && attr->user_data == &gtbs_inst) {
 		status_flags = gtbs_inst.status_flags;
-		LOG_DBG("GTBS: status_flags 0x%04X", status_flags);
+		BT_DBG("GTBS: status_flags 0x%04X", status_flags);
 	} else {
-		const struct tbs_service_inst *inst = BT_AUDIO_CHRC_USER_DATA(attr);
+		const struct tbs_service_inst *inst = (struct tbs_service_inst *)attr->user_data;
 
 		status_flags = inst->status_flags;
-		LOG_DBG("Index %u: status_flags 0x%04X", inst->index, status_flags);
+		BT_DBG("Index %u: status_flags 0x%04X",
+		       inst->index, status_flags);
 	}
 
 	return bt_gatt_attr_read(conn, attr, buf, len, offset,
@@ -807,9 +811,9 @@ static void status_flags_cfg_changed(const struct bt_gatt_attr *attr,
 	const struct tbs_service_inst *inst = lookup_inst_by_ccc(attr);
 
 	if (inst != NULL) {
-		LOG_DBG("Index %u: value 0x%04x", inst->index, value);
+		BT_DBG("Index %u: value 0x%04x", inst->index, value);
 	} else if (IS_ENABLED(CONFIG_BT_GTBS)) {
-		LOG_DBG("GTBS: value 0x%04x", value);
+		BT_DBG("GTBS: value 0x%04x", value);
 	}
 }
 
@@ -821,20 +825,22 @@ static ssize_t read_incoming_uri(struct bt_conn *conn,
 	const struct bt_tbs_in_uri *inc_call_target;
 	size_t val_len;
 
-	if (IS_GTBS_CHRC(attr)) {
+	if (IS_ENABLED(CONFIG_BT_GTBS) && attr->user_data == &gtbs_inst) {
 		inc_call_target = &gtbs_inst.incoming_uri;
-		LOG_DBG("GTBS: call index 0x%02X, URI %s", inc_call_target->call_index,
-			inc_call_target->uri);
+		BT_DBG("GTBS: call index 0x%02X, URI %s",
+		       inc_call_target->call_index,
+		       log_strdup(inc_call_target->uri));
 	} else {
-		const struct tbs_service_inst *inst = BT_AUDIO_CHRC_USER_DATA(attr);
+		const struct tbs_service_inst *inst = (struct tbs_service_inst *)attr->user_data;
 
 		inc_call_target = &inst->incoming_uri;
-		LOG_DBG("Index %u: call index 0x%02X, URI %s", inst->index,
-			inc_call_target->call_index, inc_call_target->uri);
+		BT_DBG("Index %u: call index 0x%02X, URI %s",
+		       inst->index, inc_call_target->call_index,
+		       log_strdup(inc_call_target->uri));
 	}
 
 	if (!inc_call_target->call_index) {
-		LOG_DBG("URI not set");
+		BT_DBG("URI not set");
 
 		return bt_gatt_attr_read(conn, attr, buf, len, offset, NULL, 0);
 	}
@@ -852,9 +858,9 @@ static void incoming_uri_cfg_changed(const struct bt_gatt_attr *attr,
 	const struct tbs_service_inst *inst = lookup_inst_by_ccc(attr);
 
 	if (inst != NULL) {
-		LOG_DBG("Index %u: value 0x%04x", inst->index, value);
+		BT_DBG("Index %u: value 0x%04x", inst->index, value);
 	} else if (IS_ENABLED(CONFIG_BT_GTBS)) {
-		LOG_DBG("GTBS: value 0x%04x", value);
+		BT_DBG("GTBS: value 0x%04x", value);
 	}
 }
 
@@ -862,18 +868,18 @@ static ssize_t read_call_state(struct bt_conn *conn,
 			       const struct bt_gatt_attr *attr,
 			       void *buf, uint16_t len, uint16_t offset)
 {
-	net_buf_put_call_state(BT_AUDIO_CHRC_USER_DATA(attr));
+	net_buf_put_call_state(attr->user_data);
 
-	if (IS_GTBS_CHRC(attr)) {
-		LOG_DBG("GTBS");
+	if (IS_ENABLED(CONFIG_BT_GTBS) && attr->user_data == &gtbs_inst) {
+		BT_DBG("GTBS");
 	} else {
-		const struct tbs_service_inst *inst = BT_AUDIO_CHRC_USER_DATA(attr);
+		const struct tbs_service_inst *inst = (struct tbs_service_inst *)attr->user_data;
 
-		LOG_DBG("Index %u", inst->index);
+		BT_DBG("Index %u", inst->index);
 	}
 
 	if (offset == 0) {
-		LOG_HEXDUMP_DBG(read_buf.data, read_buf.len, "Call state");
+		BT_HEXDUMP_DBG(read_buf.data, read_buf.len, "Call state");
 	}
 
 	return bt_gatt_attr_read(conn, attr, buf, len, offset,
@@ -886,10 +892,10 @@ static void call_state_cfg_changed(const struct bt_gatt_attr *attr,
 	struct tbs_service_inst *inst = lookup_inst_by_ccc(attr);
 
 	if (inst != NULL) {
-		LOG_DBG("Index %u: value 0x%04x", inst->index, value);
+		BT_DBG("Index %u: value 0x%04x", inst->index, value);
 		inst->notify_call_states = (value == BT_GATT_CCC_NOTIFY);
 	} else if (IS_ENABLED(CONFIG_BT_GTBS)) {
-		LOG_DBG("GTBS: value 0x%04x", value);
+		BT_DBG("GTBS: value 0x%04x", value);
 		gtbs_inst.notify_call_states = (value == BT_GATT_CCC_NOTIFY);
 	}
 }
@@ -903,8 +909,8 @@ static int notify_ccp(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 		.status = status
 	};
 
-	LOG_DBG("Notifying CCP: Call index %u, %s opcode and status %s", call_index,
-		bt_tbs_opcode_str(opcode), bt_tbs_status_str(status));
+	BT_DBG("Notifying CCP: Call index %u, %s opcode and status %s",
+	       call_index, bt_tbs_opcode_str(opcode), bt_tbs_status_str(status));
 
 	return bt_gatt_notify(conn, attr, &ccp_not, sizeof(ccp_not));
 }
@@ -1069,7 +1075,7 @@ static int originate_call(struct tbs_service_inst *inst,
 	(void)memcpy(call->remote_uri, ccp->uri, uri_len);
 	call->remote_uri[uri_len] = '\0';
 	if (!bt_tbs_valid_uri(call->remote_uri)) {
-		LOG_DBG("Invalid URI: %s", call->remote_uri);
+		BT_DBG("Invalid URI: %s", log_strdup(call->remote_uri));
 		call->index = BT_TBS_FREE_CALL_INDEX;
 
 		return BT_TBS_RESULT_CODE_INVALID_URI;
@@ -1087,7 +1093,7 @@ static int originate_call(struct tbs_service_inst *inst,
 	hold_other_calls(inst, 1, &call->index);
 	notify_calls(inst);
 
-	LOG_DBG("New call with call index %u", call->index);
+	BT_DBG("New call with call index %u", call->index);
 
 	return BT_TBS_RESULT_CODE_SUCCESS;
 }
@@ -1203,14 +1209,16 @@ static void notify_app(struct bt_conn *conn, uint16_t len,
 		inst = lookup_inst_by_call_index(call_index);
 
 		if (inst == NULL) {
-			LOG_DBG("Could not find instance by call index 0x%02X", call_index);
+			BT_DBG("Could not find instance by call index 0x%02X",
+			       call_index);
 			break;
 		}
 
 		call = lookup_call_in_inst(inst, call_index);
 
 		if (call == NULL) {
-			LOG_DBG("Could not find call by call index 0x%02X", call_index);
+			BT_DBG("Could not find call by call index 0x%02X",
+			       call_index);
 			break;
 		}
 
@@ -1270,7 +1278,8 @@ static ssize_t write_call_cp(struct bt_conn *conn,
 	const union bt_tbs_call_cp_t *ccp = (union bt_tbs_call_cp_t *)buf;
 	uint8_t status;
 	uint8_t call_index = 0;
-	const bool is_gtbs = IS_GTBS_CHRC(attr);
+	const bool is_gtbs = IS_ENABLED(CONFIG_BT_GTBS) &&
+				attr->user_data == &gtbs_inst;
 
 	if (!is_authorized(conn)) {
 		return BT_GATT_ERR(BT_ATT_ERR_AUTHORIZATION);
@@ -1285,12 +1294,12 @@ static ssize_t write_call_cp(struct bt_conn *conn,
 	}
 
 	if (is_gtbs) {
-		LOG_DBG("GTBS: Processing the %s opcode", bt_tbs_opcode_str(ccp->opcode));
+		BT_DBG("GTBS: Processing the %s opcode",
+		       bt_tbs_opcode_str(ccp->opcode));
 	} else {
-		inst = BT_AUDIO_CHRC_USER_DATA(attr);
-
-		LOG_DBG("Index %u: Processing the %s opcode", inst->index,
-			bt_tbs_opcode_str(ccp->opcode));
+		inst = (struct tbs_service_inst *)attr->user_data;
+		BT_DBG("Index %u: Processing the %s opcode",
+		       inst->index, bt_tbs_opcode_str(ccp->opcode));
 	}
 
 	switch (ccp->opcode) {
@@ -1417,13 +1426,13 @@ static ssize_t write_call_cp(struct bt_conn *conn,
 
 	if (inst != NULL) {
 		if (is_gtbs) {
-			LOG_DBG("GTBS: Processed the %s opcode with status %s "
+			BT_DBG("GTBS: Processed the %s opcode with status %s "
 			       "for call index %u",
 			       bt_tbs_opcode_str(ccp->opcode),
 			       bt_tbs_status_str(status),
 			       call_index);
 		} else {
-			LOG_DBG("Index %u: Processed the %s opcode with status "
+			BT_DBG("Index %u: Processed the %s opcode with status "
 			       "%s for call index %u",
 			       inst->index,
 			       bt_tbs_opcode_str(ccp->opcode),
@@ -1435,10 +1444,10 @@ static ssize_t write_call_cp(struct bt_conn *conn,
 			const struct bt_tbs_call *call = lookup_call(call_index);
 
 			if (call != NULL) {
-				LOG_DBG("Call is now in the %s state",
-					bt_tbs_state_str(call->state));
+				BT_DBG("Call is now in the %s state",
+				       bt_tbs_state_str(call->state));
 			} else {
-				LOG_DBG("Call is now terminated");
+				BT_DBG("Call is now terminated");
 			}
 		}
 	}
@@ -1464,9 +1473,9 @@ static void call_cp_cfg_changed(const struct bt_gatt_attr *attr, uint16_t value)
 	const struct tbs_service_inst *inst = lookup_inst_by_ccc(attr);
 
 	if (inst != NULL) {
-		LOG_DBG("Index %u: value 0x%04x", inst->index, value);
+		BT_DBG("Index %u: value 0x%04x", inst->index, value);
 	} else if (IS_ENABLED(CONFIG_BT_GTBS)) {
-		LOG_DBG("GTBS: value 0x%04x", value);
+		BT_DBG("GTBS: value 0x%04x", value);
 	}
 }
 
@@ -1476,14 +1485,15 @@ static ssize_t read_optional_opcodes(struct bt_conn *conn,
 {
 	uint16_t optional_opcodes;
 
-	if (IS_GTBS_CHRC(attr)) {
+	if (IS_ENABLED(CONFIG_BT_GTBS) && attr->user_data == &gtbs_inst) {
 		optional_opcodes = gtbs_inst.optional_opcodes;
-		LOG_DBG("GTBS: Supported opcodes 0x%02x", optional_opcodes);
+		BT_DBG("GTBS: Supported opcodes 0x%02x", optional_opcodes);
 	} else {
-		const struct tbs_service_inst *inst = BT_AUDIO_CHRC_USER_DATA(attr);
+		const struct tbs_service_inst *inst = (struct tbs_service_inst *)attr->user_data;
 
 		optional_opcodes = inst->optional_opcodes;
-		LOG_DBG("Index %u: Supported opcodes 0x%02x", inst->index, optional_opcodes);
+		BT_DBG("Index %u: Supported opcodes 0x%02x",
+			inst->index, optional_opcodes);
 	}
 
 	return bt_gatt_attr_read(conn, attr, buf, len, offset,
@@ -1496,9 +1506,9 @@ static void terminate_reason_cfg_changed(const struct bt_gatt_attr *attr,
 	const struct tbs_service_inst *inst = lookup_inst_by_ccc(attr);
 
 	if (inst != NULL) {
-		LOG_DBG("Index %u: value 0x%04x", inst->index, value);
+		BT_DBG("Index %u: value 0x%04x", inst->index, value);
 	} else if (IS_ENABLED(CONFIG_BT_GTBS)) {
-		LOG_DBG("GTBS: value 0x%04x", value);
+		BT_DBG("GTBS: value 0x%04x", value);
 	}
 }
 
@@ -1509,20 +1519,22 @@ static ssize_t read_friendly_name(struct bt_conn *conn,
 	const struct bt_tbs_in_uri *friendly_name;
 	size_t val_len;
 
-	if (IS_GTBS_CHRC(attr)) {
+	if (IS_ENABLED(CONFIG_BT_GTBS) && attr->user_data == &gtbs_inst) {
 		friendly_name = &gtbs_inst.friendly_name;
-		LOG_DBG("GTBS: call index 0x%02X, URI %s", friendly_name->call_index,
-			friendly_name->uri);
+		BT_DBG("GTBS: call index 0x%02X, URI %s",
+		       friendly_name->call_index,
+		       log_strdup(friendly_name->uri));
 	} else {
-		const struct tbs_service_inst *inst = BT_AUDIO_CHRC_USER_DATA(attr);
+		const struct tbs_service_inst *inst = (struct tbs_service_inst *)attr->user_data;
 
 		friendly_name = &inst->friendly_name;
-		LOG_DBG("Index %u: call index 0x%02X, URI %s", inst->index,
-			friendly_name->call_index, friendly_name->uri);
+		BT_DBG("Index %u: call index 0x%02X, URI %s",
+		       inst->index, friendly_name->call_index,
+		       log_strdup(friendly_name->uri));
 	}
 
 	if (friendly_name->call_index == BT_TBS_FREE_CALL_INDEX) {
-		LOG_DBG("URI not set");
+		BT_DBG("URI not set");
 		return bt_gatt_attr_read(conn, attr, buf, len, offset, NULL, 0);
 	}
 
@@ -1539,9 +1551,9 @@ static void friendly_name_cfg_changed(const struct bt_gatt_attr *attr,
 	const struct tbs_service_inst *inst = lookup_inst_by_ccc(attr);
 
 	if (inst != NULL) {
-		LOG_DBG("Index %u: value 0x%04x", inst->index, value);
+		BT_DBG("Index %u: value 0x%04x", inst->index, value);
 	} else if (IS_ENABLED(CONFIG_BT_GTBS)) {
-		LOG_DBG("GTBS: value 0x%04x", value);
+		BT_DBG("GTBS: value 0x%04x", value);
 	}
 }
 
@@ -1552,19 +1564,21 @@ static ssize_t read_incoming_call(struct bt_conn *conn,
 	const struct bt_tbs_in_uri *remote_uri;
 	size_t val_len;
 
-	if (IS_GTBS_CHRC(attr)) {
+	if (IS_ENABLED(CONFIG_BT_GTBS) && attr->user_data == &gtbs_inst) {
 		remote_uri = &gtbs_inst.in_call;
-		LOG_DBG("GTBS: call index 0x%02X, URI %s", remote_uri->call_index, remote_uri->uri);
+		BT_DBG("GTBS: call index 0x%02X, URI %s",
+		       remote_uri->call_index, log_strdup(remote_uri->uri));
 	} else {
-		const struct tbs_service_inst *inst = BT_AUDIO_CHRC_USER_DATA(attr);
+		const struct tbs_service_inst *inst = (struct tbs_service_inst *)attr->user_data;
 
 		remote_uri = &inst->in_call;
-		LOG_DBG("Index %u: call index 0x%02X, URI %s", inst->index, remote_uri->call_index,
-			remote_uri->uri);
+		BT_DBG("Index %u: call index 0x%02X, URI %s",
+		       inst->index, remote_uri->call_index,
+		       log_strdup(remote_uri->uri));
 	}
 
 	if (remote_uri->call_index == BT_TBS_FREE_CALL_INDEX) {
-		LOG_DBG("URI not set");
+		BT_DBG("URI not set");
 
 		return bt_gatt_attr_read(conn, attr, buf, len, offset, NULL, 0);
 	}
@@ -1581,119 +1595,135 @@ static void in_call_cfg_changed(const struct bt_gatt_attr *attr,
 	const struct tbs_service_inst *inst = lookup_inst_by_ccc(attr);
 
 	if (inst != NULL) {
-		LOG_DBG("Index %u: value 0x%04x", inst->index, value);
+		BT_DBG("Index %u: value 0x%04x", inst->index, value);
 	} else if (IS_ENABLED(CONFIG_BT_GTBS)) {
-		LOG_DBG("GTBS: value 0x%04x", value);
+		BT_DBG("GTBS: value 0x%04x", value);
 	}
 }
 
 #define BT_TBS_CHR_PROVIDER_NAME(inst) \
-	BT_AUDIO_CHRC(BT_UUID_TBS_PROVIDER_NAME, \
-		      BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY, \
-		      BT_GATT_PERM_READ_ENCRYPT, \
-		      read_provider_name, NULL, inst), \
-	BT_AUDIO_CCC(provider_name_cfg_changed)
+	BT_GATT_CHARACTERISTIC(BT_UUID_TBS_PROVIDER_NAME, \
+			BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY, \
+			BT_GATT_PERM_READ_ENCRYPT, \
+			read_provider_name, NULL, inst), \
+	BT_GATT_CCC(provider_name_cfg_changed, \
+			BT_GATT_PERM_READ | BT_GATT_PERM_WRITE_ENCRYPT)
 
 #define BT_TBS_CHR_UCI(inst) \
-	BT_AUDIO_CHRC(BT_UUID_TBS_UCI, \
-		      BT_GATT_CHRC_READ, \
-		      BT_GATT_PERM_READ_ENCRYPT, \
-		      read_uci, NULL, inst)
+	BT_GATT_CHARACTERISTIC(BT_UUID_TBS_UCI, \
+			BT_GATT_CHRC_READ, \
+			BT_GATT_PERM_READ_ENCRYPT, \
+			read_uci, NULL, inst)
 
 #define BT_TBS_CHR_TECHNOLOGY(inst) \
-	BT_AUDIO_CHRC(BT_UUID_TBS_TECHNOLOGY, \
-		      BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY, \
-		      BT_GATT_PERM_READ_ENCRYPT, \
-		      read_technology, NULL, inst), \
-	BT_AUDIO_CCC(technology_cfg_changed)
+	BT_GATT_CHARACTERISTIC(BT_UUID_TBS_TECHNOLOGY, \
+			BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY, \
+			BT_GATT_PERM_READ_ENCRYPT, \
+			read_technology, NULL, inst), \
+	BT_GATT_CCC(technology_cfg_changed, \
+			BT_GATT_PERM_READ | BT_GATT_PERM_WRITE_ENCRYPT)
 
 #define BT_TBS_CHR_URI_LIST(inst) \
-	BT_AUDIO_CHRC(BT_UUID_TBS_URI_LIST, \
-		      BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY, \
-		      BT_GATT_PERM_READ_ENCRYPT, \
-		      read_uri_scheme_list, NULL, inst), \
-	BT_AUDIO_CCC(uri_scheme_list_cfg_changed)
+	BT_GATT_CHARACTERISTIC(BT_UUID_TBS_URI_LIST, \
+			BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY, \
+			BT_GATT_PERM_READ_ENCRYPT, \
+			read_uri_scheme_list, NULL, inst), \
+	BT_GATT_CCC(uri_scheme_list_cfg_changed, \
+			BT_GATT_PERM_READ | BT_GATT_PERM_WRITE_ENCRYPT)
 
 #define BT_TBS_CHR_SIGNAL_STRENGTH(inst) \
-	BT_AUDIO_CHRC(BT_UUID_TBS_SIGNAL_STRENGTH, /* Optional */ \
-		      BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY, \
-		      BT_GATT_PERM_READ_ENCRYPT, \
-		      read_signal_strength, NULL, inst), \
-	BT_AUDIO_CCC(signal_strength_cfg_changed)
+	BT_GATT_CHARACTERISTIC(BT_UUID_TBS_SIGNAL_STRENGTH, /* Optional */ \
+			BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY, \
+			BT_GATT_PERM_READ_ENCRYPT, \
+			read_signal_strength, NULL, inst), \
+	BT_GATT_CCC(signal_strength_cfg_changed, \
+			BT_GATT_PERM_READ | BT_GATT_PERM_WRITE_ENCRYPT)
 
 #define BT_TBS_CHR_SIGNAL_INTERVAL(inst) \
-	BT_AUDIO_CHRC(BT_UUID_TBS_SIGNAL_INTERVAL, /* Conditional */ \
-		      BT_GATT_CHRC_READ | BT_GATT_CHRC_WRITE | BT_GATT_CHRC_WRITE_WITHOUT_RESP, \
-		      BT_GATT_PERM_READ_ENCRYPT | BT_GATT_PERM_WRITE_ENCRYPT, \
-		      read_signal_strength_interval, write_signal_strength_interval, inst)
+	BT_GATT_CHARACTERISTIC(BT_UUID_TBS_SIGNAL_INTERVAL, /* Conditional */ \
+			BT_GATT_CHRC_READ | BT_GATT_CHRC_WRITE | \
+				BT_GATT_CHRC_WRITE_WITHOUT_RESP, \
+			BT_GATT_PERM_READ_ENCRYPT | \
+				BT_GATT_PERM_WRITE_ENCRYPT, \
+			read_signal_strength_interval,  \
+			write_signal_strength_interval, inst)
 
 #define BT_TBS_CHR_CURRENT_CALLS(inst) \
-	BT_AUDIO_CHRC(BT_UUID_TBS_LIST_CURRENT_CALLS, \
-		      BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY, \
-		      BT_GATT_PERM_READ_ENCRYPT, \
-		      read_current_calls, NULL, inst), \
-	BT_AUDIO_CCC(current_calls_cfg_changed)
+	BT_GATT_CHARACTERISTIC(BT_UUID_TBS_LIST_CURRENT_CALLS, \
+			BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY, \
+			BT_GATT_PERM_READ_ENCRYPT, \
+			read_current_calls, NULL, inst), \
+	BT_GATT_CCC(current_calls_cfg_changed, \
+			BT_GATT_PERM_READ | BT_GATT_PERM_WRITE_ENCRYPT)
 
 #define BT_TBS_CHR_CCID(inst) \
-	BT_AUDIO_CHRC(BT_UUID_CCID, \
-		      BT_GATT_CHRC_READ, \
-		      BT_GATT_PERM_READ_ENCRYPT, \
-		      read_ccid, NULL, inst)
+	BT_GATT_CHARACTERISTIC(BT_UUID_CCID, \
+			BT_GATT_CHRC_READ, \
+			BT_GATT_PERM_READ_ENCRYPT, \
+			read_ccid, NULL, inst)
 
 #define BT_TBS_CHR_STATUS_FLAGS(inst) \
-	BT_AUDIO_CHRC(BT_UUID_TBS_STATUS_FLAGS, \
-		      BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY, \
-		      BT_GATT_PERM_READ_ENCRYPT, \
-		      read_status_flags, NULL, inst), \
-	BT_AUDIO_CCC(status_flags_cfg_changed)
+	BT_GATT_CHARACTERISTIC(BT_UUID_TBS_STATUS_FLAGS, \
+			BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY, \
+			BT_GATT_PERM_READ_ENCRYPT, \
+			read_status_flags, NULL, inst), \
+	BT_GATT_CCC(status_flags_cfg_changed, \
+			BT_GATT_PERM_READ | BT_GATT_PERM_WRITE_ENCRYPT)
 
 #define BT_TBS_CHR_INCOMING_URI(inst) \
-	BT_AUDIO_CHRC(BT_UUID_TBS_INCOMING_URI, /* Optional */ \
-		      BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY, \
-		      BT_GATT_PERM_READ_ENCRYPT, \
-		      read_incoming_uri, NULL, inst), \
-	BT_AUDIO_CCC(incoming_uri_cfg_changed)
+	BT_GATT_CHARACTERISTIC(BT_UUID_TBS_INCOMING_URI, /* Optional */ \
+			BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY, \
+			BT_GATT_PERM_READ_ENCRYPT, \
+			read_incoming_uri, NULL, inst), \
+	BT_GATT_CCC(incoming_uri_cfg_changed, \
+			BT_GATT_PERM_READ | BT_GATT_PERM_WRITE_ENCRYPT)
 
 #define BT_TBS_CHR_CALL_STATE(inst) \
-	BT_AUDIO_CHRC(BT_UUID_TBS_CALL_STATE, \
-		      BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY, \
-		      BT_GATT_PERM_READ_ENCRYPT, \
-		      read_call_state, NULL, inst), \
-	BT_AUDIO_CCC(call_state_cfg_changed)
+	BT_GATT_CHARACTERISTIC(BT_UUID_TBS_CALL_STATE, \
+			BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY, \
+			BT_GATT_PERM_READ_ENCRYPT, \
+			read_call_state, NULL, inst), \
+	BT_GATT_CCC(call_state_cfg_changed, \
+			BT_GATT_PERM_READ | BT_GATT_PERM_WRITE_ENCRYPT)
 
 #define BT_TBS_CHR_CONTROL_POINT(inst) \
-	BT_AUDIO_CHRC(BT_UUID_TBS_CALL_CONTROL_POINT, \
-		      BT_GATT_CHRC_WRITE | BT_GATT_CHRC_NOTIFY | BT_GATT_CHRC_WRITE_WITHOUT_RESP, \
-		      BT_GATT_PERM_WRITE_ENCRYPT, \
-		      NULL, write_call_cp, inst), \
-	BT_AUDIO_CCC(call_cp_cfg_changed)
+	BT_GATT_CHARACTERISTIC(BT_UUID_TBS_CALL_CONTROL_POINT, \
+			BT_GATT_CHRC_WRITE | BT_GATT_CHRC_NOTIFY | \
+				BT_GATT_CHRC_WRITE_WITHOUT_RESP, \
+			BT_GATT_PERM_WRITE_ENCRYPT, \
+			NULL, write_call_cp, inst), \
+	BT_GATT_CCC(call_cp_cfg_changed, \
+			BT_GATT_PERM_READ | BT_GATT_PERM_WRITE_ENCRYPT)
 
 #define BT_TBS_CHR_OPTIONAL_OPCODES(inst) \
-	BT_AUDIO_CHRC(BT_UUID_TBS_OPTIONAL_OPCODES, \
-		      BT_GATT_CHRC_READ, \
-		      BT_GATT_PERM_READ_ENCRYPT, \
-		      read_optional_opcodes, NULL, inst) \
+	BT_GATT_CHARACTERISTIC(BT_UUID_TBS_OPTIONAL_OPCODES, \
+			BT_GATT_CHRC_READ, \
+			BT_GATT_PERM_READ_ENCRYPT, \
+			read_optional_opcodes, NULL, inst) \
 
 #define BT_TBS_CHR_TERMINATE_REASON(inst) \
-	BT_AUDIO_CHRC(BT_UUID_TBS_TERMINATE_REASON, \
-		      BT_GATT_CHRC_NOTIFY, \
-		      BT_GATT_PERM_READ_ENCRYPT, \
-		      NULL, NULL, inst), \
-	BT_AUDIO_CCC(terminate_reason_cfg_changed)
+	BT_GATT_CHARACTERISTIC(BT_UUID_TBS_TERMINATE_REASON, \
+			BT_GATT_CHRC_NOTIFY, \
+			BT_GATT_PERM_READ_ENCRYPT, \
+			NULL, NULL, inst), \
+	BT_GATT_CCC(terminate_reason_cfg_changed, \
+			BT_GATT_PERM_READ | BT_GATT_PERM_WRITE_ENCRYPT)
 
 #define BT_TBS_CHR_INCOMING_CALL(inst) \
-	BT_AUDIO_CHRC(BT_UUID_TBS_INCOMING_CALL, \
-		      BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY, \
-		      BT_GATT_PERM_READ_ENCRYPT, \
-		      read_incoming_call, NULL, inst), \
-	BT_AUDIO_CCC(in_call_cfg_changed)
+	BT_GATT_CHARACTERISTIC(BT_UUID_TBS_INCOMING_CALL, \
+			BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY, \
+			BT_GATT_PERM_READ_ENCRYPT, \
+			read_incoming_call, NULL, inst), \
+	BT_GATT_CCC(in_call_cfg_changed, \
+			BT_GATT_PERM_READ | BT_GATT_PERM_WRITE_ENCRYPT)
 
 #define BT_TBS_CHR_FRIENDLY_NAME(inst) \
-	BT_AUDIO_CHRC(BT_UUID_TBS_FRIENDLY_NAME, /* Optional */ \
-		      BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY, \
-		      BT_GATT_PERM_READ_ENCRYPT, \
-		      read_friendly_name, NULL, inst), \
-	BT_AUDIO_CCC(friendly_name_cfg_changed)
+	BT_GATT_CHARACTERISTIC(BT_UUID_TBS_FRIENDLY_NAME, /* Optional */ \
+			BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY, \
+			BT_GATT_PERM_READ_ENCRYPT, \
+			read_friendly_name, NULL, inst), \
+	BT_GATT_CCC(friendly_name_cfg_changed, \
+			BT_GATT_PERM_READ | BT_GATT_PERM_WRITE_ENCRYPT)
 
 #define BT_TBS_SERVICE_DEFINITION(inst) {\
 	BT_GATT_PRIMARY_SERVICE(BT_UUID_TBS), \
@@ -1792,7 +1822,7 @@ static int bt_tbs_init(const struct device *unused)
 
 		err = bt_gatt_service_register(svc_insts[i].service_p);
 		if (err != 0) {
-			LOG_ERR("Could not register TBS[%d]: %d", i, err);
+			BT_ERR("Could not register TBS[%d]: %d", i, err);
 		}
 	}
 
@@ -1914,7 +1944,7 @@ int bt_tbs_originate(uint8_t bearer_index, char *remote_uri,
 	if (bearer_index >= CONFIG_BT_TBS_BEARER_COUNT) {
 		return -EINVAL;
 	} else if (!bt_tbs_valid_uri(remote_uri)) {
-		LOG_DBG("Invalid URI %s", remote_uri);
+		BT_DBG("Invalid URI %s", log_strdup(remote_uri));
 		return -EINVAL;
 	}
 
@@ -2072,10 +2102,10 @@ int bt_tbs_remote_incoming(uint8_t bearer_index, const char *to,
 	if (bearer_index >= CONFIG_BT_TBS_BEARER_COUNT) {
 		return -EINVAL;
 	} else if (!bt_tbs_valid_uri(to)) {
-		LOG_DBG("Invalid \"to\" URI: %s", to);
+		BT_DBG("Invalid \"to\" URI: %s", log_strdup(to));
 		return -EINVAL;
 	} else if (!bt_tbs_valid_uri(from)) {
-		LOG_DBG("Invalid \"from\" URI: %s", from);
+		BT_DBG("Invalid \"from\" URI: %s", log_strdup(from));
 		return -EINVAL;
 	}
 
@@ -2170,7 +2200,7 @@ int bt_tbs_remote_incoming(uint8_t bearer_index, const char *to,
 
 	notify_calls(inst);
 
-	LOG_DBG("New call with call index %u", call->index);
+	BT_DBG("New call with call index %u", call->index);
 
 	return call->index;
 }
@@ -2301,12 +2331,13 @@ int bt_tbs_set_signal_strength(uint8_t bearer_index,
 		}
 	} else {
 		if (bearer_index == BT_TBS_GTBS_INDEX) {
-			LOG_DBG("GTBS: Reporting signal strength in %d ms", timer_status);
+			BT_DBG("GTBS: Reporting signal strength in %d ms",
+			       timer_status);
 			gtbs_inst.pending_signal_strength_notification = true;
 
 		} else {
-			LOG_DBG("Index %u: Reporting signal strength in %d ms", bearer_index,
-				timer_status);
+			BT_DBG("Index %u: Reporting signal strength in %d ms",
+			       bearer_index, timer_status);
 			inst->pending_signal_strength_notification = true;
 		}
 	}
@@ -2389,7 +2420,8 @@ int bt_tbs_set_uri_scheme_list(uint8_t bearer_index, const char **uri_list,
 	/* Store final result */
 	(void)strcpy(inst->uri_scheme_list, uri_scheme_list);
 
-	LOG_DBG("TBS instance %u uri prefix list is now %s", bearer_index, inst->uri_scheme_list);
+	BT_DBG("TBS instance %u uri prefix list is now %s",
+	       bearer_index, log_strdup(inst->uri_scheme_list));
 
 	bt_gatt_notify_uuid(NULL, BT_UUID_TBS_URI_LIST,
 			    inst->service_p->attrs, &inst->uri_scheme_list,
@@ -2403,7 +2435,7 @@ int bt_tbs_set_uri_scheme_list(uint8_t bearer_index, const char **uri_list,
 			const size_t uri_len = strlen(svc_insts[i].uri_scheme_list);
 
 			if (uri_scheme_buf.len + uri_len >= uri_scheme_buf.size) {
-				LOG_WRN("Cannot fit all TBS instances in GTBS "
+				BT_WARN("Cannot fit all TBS instances in GTBS "
 					"URI scheme list");
 				break;
 			}
@@ -2415,7 +2447,7 @@ int bt_tbs_set_uri_scheme_list(uint8_t bearer_index, const char **uri_list,
 
 		/* Add null terminator for printing */
 		uri_scheme_buf.data[uri_scheme_buf.len] = '\0';
-		LOG_DBG("GTBS: URI scheme %s", uri_scheme_buf.data);
+		BT_DBG("GTBS: URI scheme %s", log_strdup(uri_scheme_buf.data));
 
 		bt_gatt_notify_uuid(NULL, BT_UUID_TBS_URI_LIST,
 				    gtbs_inst.service_p->attrs,
@@ -2430,11 +2462,11 @@ void bt_tbs_register_cb(struct bt_tbs_cb *cbs)
 	tbs_cbs = cbs;
 }
 
-#if defined(CONFIG_BT_TBS_LOG_LEVEL_DBG)
+#if defined(CONFIG_BT_DEBUG_TBS)
 void bt_tbs_dbg_print_calls(void)
 {
 	for (int i = 0; i < CONFIG_BT_TBS_BEARER_COUNT; i++) {
-		LOG_DBG("Bearer #%u", i);
+		BT_DBG("Bearer #%u", i);
 		for (int j = 0; j < ARRAY_SIZE(svc_insts[i].calls); j++) {
 			struct bt_tbs_call *call = &svc_insts[i].calls[j];
 
@@ -2442,11 +2474,11 @@ void bt_tbs_dbg_print_calls(void)
 				continue;
 			}
 
-			LOG_DBG("  Call #%u", call->index);
-			LOG_DBG("    State: %s", bt_tbs_state_str(call->state));
-			LOG_DBG("    Flags: 0x%02X", call->flags);
-			LOG_DBG("    URI  : %s", call->remote_uri);
+			BT_DBG("  Call #%u", call->index);
+			BT_DBG("    State: %s", bt_tbs_state_str(call->state));
+			BT_DBG("    Flags: 0x%02X", call->flags);
+			BT_DBG("    URI  : %s", log_strdup(call->remote_uri));
 		}
 	}
 }
-#endif /* defined(CONFIG_BT_TBS_LOG_LEVEL_DBG) */
+#endif /* defined(CONFIG_BT_DEBUG_TBS) */

@@ -4,11 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <zephyr/zephyr.h>
 #include <zephyr/kernel.h>
-#include <zephyr/ztest.h>
+#include <ztest.h>
 #include <zephyr/pm/pm.h>
 
-BUILD_ASSERT(CONFIG_MP_MAX_NUM_CPUS == 2, "Invalid number of cpus");
+BUILD_ASSERT(CONFIG_MP_NUM_CPUS == 2, "Invalid number of cpus");
 
 #define NUM_OF_ITERATIONS (5)
 
@@ -35,17 +36,17 @@ void pm_state_set(enum pm_state state, uint8_t substate_id)
 
 	switch (state_testing[_current_cpu->id]) {
 	case PM_STATE_ACTIVE:
-		zassert_equal(PM_STATE_ACTIVE, state);
+		zassert_equal(PM_STATE_ACTIVE, state, NULL);
 		break;
 	case  PM_STATE_RUNTIME_IDLE:
-		zassert_equal(PM_STATE_RUNTIME_IDLE, state);
+		zassert_equal(PM_STATE_RUNTIME_IDLE, state, NULL);
 		break;
 	case  PM_STATE_SUSPEND_TO_IDLE:
-		zassert_equal(PM_STATE_SUSPEND_TO_IDLE, state);
+		zassert_equal(PM_STATE_SUSPEND_TO_IDLE, state, NULL);
 		break;
 	case  PM_STATE_STANDBY:
-		zassert_equal(_current_cpu->id, 1U);
-		zassert_equal(PM_STATE_STANDBY, state);
+		zassert_equal(_current_cpu->id, 1U, NULL);
+		zassert_equal(PM_STATE_STANDBY, state, NULL);
 		break;
 	default:
 		zassert_unreachable(NULL);
@@ -102,7 +103,7 @@ const struct pm_state_info *pm_policy_next_state(uint8_t cpu, int ticks)
  *
  * @ingroup power_tests
  */
-ZTEST(pm_multicore, test_power_idle)
+void test_power_idle(void)
 {
 
 	for (uint8_t i = 0U; i < NUM_OF_ITERATIONS; i++) {
@@ -116,4 +117,9 @@ ZTEST(pm_multicore, test_power_idle)
 	}
 }
 
-ZTEST_SUITE(pm_multicore, NULL, NULL, NULL, NULL, NULL);
+void test_main(void)
+{
+	ztest_test_suite(pm_multicore_test,
+			 ztest_unit_test(test_power_idle));
+	ztest_run_test_suite(pm_multicore_test);
+}

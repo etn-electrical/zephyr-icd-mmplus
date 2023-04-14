@@ -6,7 +6,7 @@
 
 /* Sample which uses the filesystem API and SDHC driver */
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <zephyr/device.h>
 #include <zephyr/storage/disk_access.h>
 #include <zephyr/logging/log.h>

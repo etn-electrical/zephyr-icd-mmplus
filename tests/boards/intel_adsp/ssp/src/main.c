@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
-#include <zephyr/kernel.h>
+#include <ztest.h>
+#include <zephyr/zephyr.h>
 
 #include <zephyr/toolchain.h>
 #include <zephyr/sys/printk.h>
@@ -43,17 +43,16 @@ struct sof_dai_ssp_params {
 	uint32_t bclk_delay;
 } __packed;
 
-static const struct device *const dev_dai_ssp =
-	DEVICE_DT_GET(DT_NODELABEL(ssp0));
-static const struct device *const dev_dma_dw =
-	DEVICE_DT_GET(DT_NODELABEL(lpgpdma0));
-
+static const struct device *dev_dai_ssp;
+static const struct device *dev_dma_dw;
 static struct dai_config config;
 static struct sof_dai_ssp_params ssp_config;
 
 #define BUF_SIZE 48
 #define XFER_SIZE BUF_SIZE * 4
 #define XFERS 2
+#define DMA_DEVICE_NAME "DMA_0"
+#define SSP_DEVICE_NAME "SSP_0"
 
 K_SEM_DEFINE(xfer_sem, 0, 1);
 
@@ -83,11 +82,10 @@ static __aligned(32) int32_t rx_data[XFERS][BUF_SIZE] = { { 0 } };
 static void dma_callback(const struct device *dma_dev, void *user_data,
 			 uint32_t channel, int status)
 {
-	if (status) {
+	if (status)
 		TC_PRINT("tx callback status %d\n", status);
-	} else {
+	else
 		TC_PRINT("tx giving up\n");
-	}
 }
 
 static void dma_callback_rx(const struct device *dma_dev, void *user_data,
@@ -108,10 +106,10 @@ static int config_output_dma(const struct dai_properties *props, uint32_t *chan_
 	dma_cfg.dest_handshake = 0;
 	dma_cfg.source_handshake = 0;
 	dma_cfg.cyclic = 1;
-	dma_cfg.source_data_size = 1;
-	dma_cfg.dest_data_size = 1;
-	dma_cfg.source_burst_length = 1;
-	dma_cfg.dest_burst_length = 1;
+	dma_cfg.source_data_size = ssp_config.tdm_slot_width / 8;
+	dma_cfg.dest_data_size = ssp_config.tdm_slot_width / 8;
+	dma_cfg.source_burst_length = ssp_config.tdm_slots;
+	dma_cfg.dest_burst_length = ssp_config.tdm_slots;
 	dma_cfg.user_data = NULL;
 	dma_cfg.dma_callback = dma_callback;
 	dma_cfg.block_count = XFERS;
@@ -148,10 +146,10 @@ static int config_input_dma(const struct dai_properties *props, uint32_t *chan_i
 	dma_cfg_rx.dest_handshake = 0;
 	dma_cfg_rx.source_handshake = 0;
 	dma_cfg_rx.cyclic = 1;
-	dma_cfg_rx.source_data_size = 1;
-	dma_cfg_rx.dest_data_size = 1;
-	dma_cfg_rx.source_burst_length = 1;
-	dma_cfg_rx.dest_burst_length = 1;
+	dma_cfg_rx.source_data_size = ssp_config.tdm_slot_width / 8;
+	dma_cfg_rx.dest_data_size = ssp_config.tdm_slot_width / 8;
+	dma_cfg_rx.source_burst_length = ssp_config.tdm_slots;
+	dma_cfg_rx.dest_burst_length = ssp_config.tdm_slots;
 	dma_cfg_rx.user_data = NULL;
 	dma_cfg_rx.dma_callback = dma_callback_rx;
 	dma_cfg_rx.block_count = XFERS;
@@ -198,15 +196,13 @@ static int check_transmission(void)
 		buffer[BUF_SIZE + i] = rx_data[1][i];
 	}
 
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < 4; i++)
 		pattern[i] = sine_buf[i];
-	}
 
 	TC_PRINT("tx_data (will be sent 2 times):\n");
 	for (i = 0; i < BUF_SIZE; i += 8) {
-		for (j = 0; j < 8; j++) {
+		for (j = 0; j < 8; j++)
 			TC_PRINT("0x%08x ", sine_buf[i + j]);
-		}
 		TC_PRINT("\n");
 	}
 	TC_PRINT("\n");
@@ -242,9 +238,8 @@ static int check_transmission(void)
 
 	for (i = 0; i < BUF_SIZE; i++) {
 		TC_PRINT("tx 0x%08x rx 0x%08x\n", buffer[start_index + i], sine_buf[i]);
-		if (buffer[start_index + i] != sine_buf[i]) {
+		if (buffer[start_index + i] != sine_buf[i])
 			break;
-		}
 	}
 
 	if (i < BUF_SIZE - 1) {
@@ -255,7 +250,7 @@ static int check_transmission(void)
 	return TC_PASS;
 }
 
-ZTEST(adsp_ssp, test_adsp_ssp_transfer)
+void test_adsp_ssp_transfer(void)
 {
 	const struct dai_properties *props;
 	static int chan_id_rx;
@@ -344,7 +339,7 @@ ZTEST(adsp_ssp, test_adsp_ssp_transfer)
 	check_transmission();
 }
 
-ZTEST(adsp_ssp, test_adsp_ssp_config_set)
+void test_adsp_ssp_config_set(void)
 {
 	int ret;
 
@@ -383,28 +378,36 @@ ZTEST(adsp_ssp, test_adsp_ssp_config_set)
 
 	ret = dai_config_set(dev_dai_ssp, &config, &ssp_config);
 
-	zassert_equal(ret, TC_PASS);
+	zassert_equal(ret, TC_PASS, NULL);
 }
 
-static void test_adsp_ssp_probe(void)
+void test_adsp_ssp_probe(void)
 {
 	int ret;
 
 	ret = dai_probe(dev_dai_ssp);
 
-	zassert_equal(ret, TC_PASS);
+	zassert_equal(ret, TC_PASS, NULL);
 }
 
-static void *adsp_ssp_setup(void)
+void test_main(void)
 {
-	k_object_access_grant(dev_dai_ssp, k_current_get());
+	dev_dai_ssp = device_get_binding(SSP_DEVICE_NAME);
 
-	zassert_true(device_is_ready(dev_dai_ssp), "device SSP_0 is not ready");
-	zassert_true(device_is_ready(dev_dma_dw), "device DMA 0 is not ready");
+	if (dev_dai_ssp != NULL) {
+		k_object_access_grant(dev_dai_ssp, k_current_get());
+	}
 
-	test_adsp_ssp_probe();
+	zassert_not_null(dev_dai_ssp, "device SSP_0 not found");
 
-	return NULL;
+	dev_dma_dw = device_get_binding(DMA_DEVICE_NAME);
+
+	zassert_not_null(dev_dma_dw, "device DMA_0 not found");
+
+	ztest_test_suite(adsp_ssp,
+			 ztest_unit_test(test_adsp_ssp_probe),
+			 ztest_unit_test(test_adsp_ssp_config_set),
+			 ztest_unit_test(test_adsp_ssp_transfer));
+
+	ztest_run_test_suite(adsp_ssp);
 }
-
-ZTEST_SUITE(adsp_ssp, NULL, adsp_ssp_setup, NULL, NULL, NULL);

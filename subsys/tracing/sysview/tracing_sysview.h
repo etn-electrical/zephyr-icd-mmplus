@@ -533,13 +533,6 @@ void sys_trace_thread_info(struct k_thread *thread);
 #define sys_port_trace_k_pipe_block_put_enter(pipe, sem)
 #define sys_port_trace_k_pipe_block_put_exit(pipe, sem)
 
-#define sys_port_trace_k_event_init(event)
-#define sys_port_trace_k_event_post_enter(event, events, events_mask)
-#define sys_port_trace_k_event_post_exit(event, events, events_mask)
-#define sys_port_trace_k_event_wait_enter(event, events, options, timeout)
-#define sys_port_trace_k_event_wait_blocking(event, events, options, timeout)
-#define sys_port_trace_k_event_wait_exit(event, events, ret)
-
 #define sys_port_trace_k_heap_init(heap)                                                           \
 	SEGGER_SYSVIEW_RecordU32(TID_HEAP_INIT, (uint32_t)(uintptr_t)heap)
 
@@ -590,9 +583,8 @@ void sys_trace_thread_info(struct k_thread *thread);
 #define sys_port_trace_k_timer_init(timer)                                                         \
 	SEGGER_SYSVIEW_RecordU32(TID_TIMER_INIT, (uint32_t)(uintptr_t)timer)
 
-#define sys_port_trace_k_timer_start(timer, duration, period)					   \
-	SEGGER_SYSVIEW_RecordU32x3(TID_TIMER_START, (uint32_t)(uintptr_t)timer,			   \
-			(uint32_t)duration.ticks, (uint32_t)period.ticks)
+#define sys_port_trace_k_timer_start(timer)                                                        \
+	SEGGER_SYSVIEW_RecordU32(TID_TIMER_START, (uint32_t)(uintptr_t)timer)
 
 #define sys_port_trace_k_timer_stop(timer)                                                         \
 	SEGGER_SYSVIEW_RecordU32(TID_TIMER_STOP, (uint32_t)(uintptr_t)timer)
@@ -652,7 +644,7 @@ void sys_trace_k_thread_info(struct k_thread *thread);
 	SEGGER_SYSVIEW_RecordU32(TID_PM_DEVICE_RUNTIME_ENABLE,		       \
 				 (uint32_t)(uintptr_t)dev)
 #define sys_port_trace_pm_device_runtime_enable_exit(dev, ret)		       \
-	SEGGER_SYSVIEW_RecordEndCallU32(TID_PM_DEVICE_RUNTIME_ENABLE,	       \
+	SEGGER_SYSVIEW_RecordEndCall(TID_PM_DEVICE_RUNTIME_ENABLE,	       \
 				     (uint32_t)ret)
 #define sys_port_trace_pm_device_runtime_disable_enter(dev)		       \
 	SEGGER_SYSVIEW_RecordU32(TID_PM_DEVICE_RUNTIME_DISABLE,		       \

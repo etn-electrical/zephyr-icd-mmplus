@@ -13,8 +13,6 @@ The demo will run on native_posix and will use the on-board SPI flash.
        cmake -DBOARD=native_posix ..
        make run
 
-To test fatfs on MMC, add this cmake option to your build command:
-	-DCONF_FILE=prj_mmc.conf
 --------------------------------------------------------------------------------
 
 Sample Output:

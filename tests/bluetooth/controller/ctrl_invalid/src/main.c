@@ -5,7 +5,7 @@
  */
 
 #include <zephyr/types.h>
-#include <zephyr/ztest.h>
+#include <ztest.h>
 
 #include <zephyr/bluetooth/hci.h>
 #include <zephyr/sys/byteorder.h>
@@ -18,33 +18,26 @@
 #include "util/memq.h"
 #include "util/dbuf.h"
 
-#include "pdu_df.h"
-#include "lll/pdu_vendor.h"
 #include "pdu.h"
 #include "ll.h"
 #include "ll_settings.h"
 #include "ll_feat.h"
 
 #include "lll.h"
-#include "lll/lll_df_types.h"
+#include "lll_df_types.h"
 #include "lll_conn.h"
-#include "lll_conn_iso.h"
 #include "ull_tx_queue.h"
 
-#include "isoal.h"
-#include "ull_iso_types.h"
-#include "ull_conn_iso_types.h"
 #include "ull_conn_types.h"
 #include "ull_llcp.h"
-#include "ull_conn_internal.h"
 #include "ull_llcp_internal.h"
 
 #include "helper_pdu.h"
 #include "helper_util.h"
 
-static struct ll_conn test_conn;
+struct ll_conn test_conn;
 
-static void invalid_setup(void *data)
+static void setup(void)
 {
 	test_setup(&test_conn);
 }
@@ -110,11 +103,11 @@ static void lt_tx_invalid_pdu_size(enum helper_pdu_opcode opcode, int adj_size)
 	/* There should not be a host notifications */
 	ut_rx_q_is_empty();
 
-	zassert_equal(llcp_ctx_buffers_free(), test_ctx_buffers_cnt(),
-		      "Free CTX buffers %d", llcp_ctx_buffers_free());
+	zassert_equal(ctx_buffers_free(), test_ctx_buffers_cnt(),
+		      "Free CTX buffers %d", ctx_buffers_free());
 }
 
-ZTEST(invalid, test_invalid_pdu_ignore_rx)
+void test_invalid_pdu_ignore_rx(void)
 {
 	/* Role */
 	test_set_role(&test_conn, BT_HCI_ROLE_PERIPHERAL);
@@ -181,4 +174,11 @@ ZTEST(invalid, test_invalid_pdu_ignore_rx)
 	lt_tx_invalid_pdu_size(LL_CTE_RSP, 1);
 }
 
-ZTEST_SUITE(invalid, NULL, NULL, invalid_setup, NULL, NULL);
+void test_main(void)
+{
+	ztest_test_suite(invalid,
+			 ztest_unit_test_setup_teardown(test_invalid_pdu_ignore_rx, setup,
+							unit_test_noop));
+
+	ztest_run_test_suite(invalid);
+}

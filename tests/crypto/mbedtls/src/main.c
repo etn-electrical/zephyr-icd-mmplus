@@ -4,12 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
+#include <ztest.h>
 #include <zephyr/app_memory/partitions.h>
 
 extern void test_mbedtls(void);
 
-void *mbedtls_fn_setup(void)
+/**test case main entry*/
+void test_main(void)
 {
 #ifdef CONFIG_USERSPACE
 	int ret = k_mem_domain_add_partition(&k_mem_domain_default,
@@ -19,8 +20,7 @@ void *mbedtls_fn_setup(void)
 		k_oops();
 	}
 #endif
-
-	return NULL;
+	ztest_test_suite(test_mbedtls_fn,
+		ztest_user_unit_test(test_mbedtls));
+	ztest_run_test_suite(test_mbedtls_fn);
 }
-
-ZTEST_SUITE(mbedtls_fn, NULL, mbedtls_fn_setup, NULL, NULL, NULL);

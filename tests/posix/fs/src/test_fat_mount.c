@@ -18,31 +18,17 @@ static struct fs_mount_t fatfs_mnt = {
 	.fs_data = &fat_fs,
 };
 
-void *test_mount(void)
+static int test_mount(void)
 {
 	int res;
 
 	res = fs_mount(&fatfs_mnt);
 	if (res < 0) {
-		TC_ERROR("Error mounting fs [%d]\n", res);
-		/* FIXME: restructure tests as per #46897 */
-		__ASSERT_NO_MSG(res == 0);
+		TC_PRINT("Error mounting fs [%d]\n", res);
+		return TC_FAIL;
 	}
 
-	return NULL;
-}
-
-void test_unmount(void *unused)
-{
-	int res;
-
-	ARG_UNUSED(unused);
-	res = fs_unmount(&fatfs_mnt);
-	if (res < 0) {
-		TC_ERROR("Error unmounting fs [%d]\n", res);
-		/* FIXME: restructure tests as per #46897 */
-		__ASSERT_NO_MSG(res == 0);
-	}
+	return TC_PASS;
 }
 
 /**
@@ -51,8 +37,7 @@ void test_unmount(void *unused)
  * @details Test initializes the fs_mount_t data structure with FatFs
  * related info and calls the fs_mount API for mount the file system.
  */
-ZTEST(posix_fs_test, test_fs_mount)
+void test_fs_mount(void)
 {
-	/* FIXME: restructure tests as per #46897 */
-	zassert_equal(fatfs_mnt.flags, FS_MOUNT_FLAG_USE_DISK_ACCESS);
+	zassert_true(test_mount() == TC_PASS, NULL);
 }

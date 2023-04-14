@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2023 Nordic Semiconductor ASA
+ * Copyright (c) 2018 Nordic Semiconductor ASA
  * Copyright (c) 2017 Linaro Limited
  *
  * SPDX-License-Identifier: Apache-2.0
@@ -14,15 +14,14 @@
 	compatible = "nordic,nrf52840-dongle-nrf52840";
 
 	chosen {
-		zephyr,console = &cdc_acm_uart;
-		zephyr,shell-uart = &cdc_acm_uart;
-		zephyr,uart-mcumgr = &cdc_acm_uart;
-		zephyr,bt-mon-uart = &cdc_acm_uart;
-		zephyr,bt-c2h-uart = &cdc_acm_uart;
+		zephyr,console = &uart0;
+		zephyr,shell-uart = &uart0;
+		zephyr,uart-mcumgr = &uart0;
+		zephyr,bt-mon-uart = &uart0;
+		zephyr,bt-c2h-uart = &uart0;
 		zephyr,sram = &sram0;
 		zephyr,flash = &flash0;
 		zephyr,code-partition = &slot0_partition;
-		zephyr,ieee802154 = &ieee802154;
 	};
 
 	leds {
@@ -83,9 +82,6 @@
 		red-pwm-led = &red_pwm_led;
 		green-pwm-led = &green_pwm_led;
 		blue-pwm-led = &blue_pwm_led;
-		mcuboot-button0 = &button0;
-		mcuboot-led0 = &led0_green;
-		watchdog0 = &wdt0;
 	};
 };
 
@@ -159,10 +155,6 @@
 	pinctrl-names = "default", "sleep";
 };
 
-&ieee802154 {
-	status = "okay";
-};
-
 /* Include flash partition table.
  * Two partition tables are available:
  * fstab-stock		-compatible with Nordic nRF5 bootloader, default
@@ -173,8 +165,4 @@
 zephyr_udc0: &usbd {
 	compatible = "nordic,nrf-usbd";
 	status = "okay";
-
-	cdc_acm_uart: cdc_acm_uart {
-		compatible = "zephyr,cdc-acm-uart";
-	};
 };

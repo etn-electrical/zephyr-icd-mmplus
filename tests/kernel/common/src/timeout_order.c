@@ -6,7 +6,7 @@
 
 #include <zephyr/kernel.h>
 #include <zephyr/sys/printk.h>
-#include <zephyr/ztest.h>
+#include <ztest.h>
 
 #define NUM_TIMEOUTS 3
 
@@ -48,7 +48,7 @@ static struct k_thread threads[NUM_TIMEOUTS];
  *
  * @see k_timer_start()
  */
-ZTEST(common_1cpu, test_timeout_order)
+void test_timeout_order(void)
 {
 	int ii, prio = k_thread_priority_get(k_current_get()) + 1;
 

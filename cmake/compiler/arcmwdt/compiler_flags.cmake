@@ -117,8 +117,9 @@ set_compiler_property(PROPERTY cstd -std=)
 
 if (NOT CONFIG_ARCMWDT_LIBC)
   set_compiler_property(PROPERTY nostdinc -Hno_default_include -Hnoarcexlib)
-  set_compiler_property(APPEND PROPERTY nostdinc_include ${NOSTDINC})
 endif()
+
+set_compiler_property(APPEND PROPERTY nostdinc_include ${NOSTDINC})
 
 # C++ std options
 set_property(TARGET compiler-cpp PROPERTY dialect_cpp98 "-std=c++98")
@@ -130,13 +131,6 @@ set_property(TARGET compiler-cpp PROPERTY dialect_cpp17 "-std=c++17")
 set_property(TARGET compiler-cpp PROPERTY dialect_cpp2a "")
 set_property(TARGET compiler-cpp PROPERTY dialect_cpp20 "")
 set_property(TARGET compiler-cpp PROPERTY dialect_cpp2b "")
-
-# Flag for disabling strict aliasing rule in C and C++
-set_compiler_property(PROPERTY no_strict_aliasing -fno-strict-aliasing)
-
-# Flags for set extra warnigs (ARCMWDT asm can't recognize --fatal-warnings. Skip it)
-set_property(TARGET compiler PROPERTY warnings_as_errors -Werror)
-set_property(TARGET asm PROPERTY warnings_as_errors -Werror)
 
 # Disable exceptions flag in C++
 set_property(TARGET compiler-cpp PROPERTY no_exceptions "-fno-exceptions")
@@ -153,13 +147,7 @@ set_property(TARGET compiler-cpp PROPERTY no_rtti "-fno-rtti")
 set_compiler_property(PROPERTY freestanding -Hnocrt)
 
 # Flag to enable debugging
-if(CONFIG_THREAD_LOCAL_STORAGE)
-  # FIXME: Temporary workaround for ARC MWDT toolchain issue - LLDAC linker produce errors on
-  # debugging information (if -g option specified) of thread-local variables.
-  set_compiler_property(PROPERTY debug)
-else()
-  set_compiler_property(PROPERTY debug -g)
-endif()
+set_compiler_property(PROPERTY debug -g)
 
 # compile common globals like normal definitions
 set_compiler_property(PROPERTY no_common -fno-common)
@@ -171,13 +159,17 @@ set_compiler_property(PROPERTY coverage "")
 # mwdt compiler flags for imacros. The specific header must be appended by user.
 set_compiler_property(PROPERTY imacros -imacros)
 
+#no support of -fsanitize=address and -lasan
+set_compiler_property(PROPERTY sanitize_address "")
+
+set_compiler_property(PROPERTY sanitize_undefined "")
+
 # Security canaries.
 #no support of -mstack-protector-guard=global"
 set_compiler_property(PROPERTY security_canaries -fstack-protector-all)
 
 #no support of _FORTIFY_SOURCE"
-set_compiler_property(PROPERTY security_fortify_compile_time)
-set_compiler_property(PROPERTY security_fortify_run_time)
+set_compiler_property(PROPERTY security_fortify "")
 
 # Required C++ flags when using mwdt
 set_property(TARGET compiler-cpp PROPERTY required "-Hcplus" "-Hoff=Stackcheck_alloca")
@@ -185,22 +177,9 @@ set_property(TARGET compiler-cpp PROPERTY required "-Hcplus" "-Hoff=Stackcheck_a
 # Compiler flag for turning off thread-safe initialization of local statics
 set_property(TARGET compiler-cpp PROPERTY no_threadsafe_statics "-fno-threadsafe-statics")
 
-# ARC MWDT does not support -fno-pic and -fno-pie flags,
-# but it has PIE disabled by default - so no extra flags are required here.
-set_compiler_property(PROPERTY no_position_independent "")
-
-set_compiler_property(PROPERTY no_global_merge "")
-
 #################################
 # This section covers asm flags #
 #################################
 
 # Required ASM flags when using mwdt
 set_property(TARGET asm PROPERTY required "-Hasmcpp")
-
-if(CONFIG_ARCMWDT_LIBC)
-  # We rely on the default C/C++ include locations which are provided by MWDT if we do build with
-  # MW C / C++ libraries. However, for that case we still need to explicitly set header directory
-  # to ASM builds (which may use 'stdbool.h').
-  set_property(TARGET asm APPEND PROPERTY required "-I${NOSTDINC}")
-endif()

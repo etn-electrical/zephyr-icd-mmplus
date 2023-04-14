@@ -43,4 +43,4 @@ typedef struct sigevent {
 }
 #endif
 
-#endif /* ZEPHYR_INCLUDE_POSIX_SIGNAL_H_ */
+#endif /* POSIX__SIGNAL_H */

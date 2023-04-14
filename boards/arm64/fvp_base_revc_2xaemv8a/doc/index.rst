@@ -56,19 +56,6 @@ Known Problems or Limitations
 Programming and Debugging
 *************************
 
-Environment
-===========
-
-First, set the ``ARMFVP_BIN_PATH`` environment variable before building.
-Optionally, set ``ARMFVP_EXTRA_FLAGS`` to pass additional arguments to the FVP.
-
-.. code-block:: bash
-
-   export ARMFVP_BIN_PATH=/path/to/fvp/directory
-
-Programming
-===========
-
 Use this configuration to build basic Zephyr applications and kernel tests in the
 ARM FVP emulated environment, for example, with the :ref:`synchronization_sample`:
 
@@ -79,7 +66,10 @@ ARM FVP emulated environment, for example, with the :ref:`synchronization_sample
    :goals: build
 
 This will build an image with the synchronization sample app.
-Then you can run it with ``west build -t run``.
+
+To run with FVP, ARMFVP_BIN_PATH must be set before running:
+
+e.g. export ARMFVP_BIN_PATH=<path/to/fvp/dir>
 
 Running Zephyr at EL1NS
 ***********************

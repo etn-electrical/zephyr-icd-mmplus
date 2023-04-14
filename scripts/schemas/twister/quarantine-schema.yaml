@@ -11,33 +11,21 @@ type: seq
 matching: all
 sequence:
   - type: map
-    required: true
+    required: yes
     matching: all
     mapping:
       "scenarios":
         type: seq
-        required: false
+        required: true
         sequence:
           - type: str
-          - unique: true
+          - unique: True
       "platforms":
-        required: false
+        required: true
         type: seq
         sequence:
           - type: str
-          - unique: true
-      "architectures":
-        required: false
-        type: seq
-        sequence:
-          - type: str
-          - unique: true
-      "simulations":
-        required: false
-        type: seq
-        sequence:
-          - type: str
-          - unique: true
+          - unique: True
       "comment":
         type: str
         required: false

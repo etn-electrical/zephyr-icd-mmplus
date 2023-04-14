@@ -463,8 +463,10 @@ static void gptp_mi_pss_store_last_pss(int port)
 	struct gptp_pss_send_state *state;
 	struct gptp_mi_port_sync_sync *pss_ptr;
 	struct gptp_md_sync_info *sync_info;
+	struct gptp_port_ds *port_ds;
 
 	state = &GPTP_PORT_STATE(port)->pss_send;
+	port_ds = GPTP_PORT_DS(port);
 	pss_ptr = state->pss_sync_ptr;
 	sync_info = &pss_ptr->sync_info;
 
@@ -487,9 +489,11 @@ static void gptp_mi_pss_send_md_sync_send(int port)
 {
 	struct gptp_pss_send_state *state;
 	struct gptp_mi_port_sync_sync *pss_ptr;
+	struct gptp_port_ds *port_ds;
 	struct gptp_sync_send_state *sync_send;
 
 	state = &GPTP_PORT_STATE(port)->pss_send;
+	port_ds = GPTP_PORT_DS(port);
 	pss_ptr = state->pss_sync_ptr;
 	sync_send = &GPTP_PORT_STATE(port)->sync_send;
 
@@ -740,7 +744,7 @@ static void gptp_update_local_port_clock(void)
 	int64_t second_diff;
 	const struct device *clk;
 	struct net_ptp_time tm;
-	unsigned int key;
+	int key;
 
 	state = &GPTP_STATE()->clk_slave_sync;
 	global_ds = GPTP_GLOBAL_DS();
@@ -997,9 +1001,11 @@ static inline void gptp_mi_tx_ps_sync_cmss(void)
 static void gptp_mi_clk_master_sync_snd_state_machine(void)
 {
 	struct gptp_clk_master_sync_snd_state *state;
+	struct gptp_global_ds *global_ds;
 	uint64_t current_time;
 
 	state = &GPTP_STATE()->clk_master_sync_send;
+	global_ds = GPTP_GLOBAL_DS();
 
 	switch (state->state) {
 	case GPTP_CMS_SND_INITIALIZING:
@@ -1306,8 +1312,10 @@ static enum gptp_received_info compare_priority_vectors(
 {
 	struct gptp_hdr *hdr;
 	struct gptp_announce *announce;
+	struct gptp_port_bmca_data *bmca_data;
 	int rsi_cmp, spi_cmp, port_cmp;
 
+	bmca_data = GPTP_PORT_BMCA_DATA(port);
 	hdr = GPTP_HDR(pkt);
 	announce = GPTP_ANNOUNCE(pkt);
 

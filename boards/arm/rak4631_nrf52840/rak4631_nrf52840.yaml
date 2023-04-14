@@ -18,4 +18,3 @@ supported:
   - usb_cdc
   - usb_device
   - watchdog
-  - lora

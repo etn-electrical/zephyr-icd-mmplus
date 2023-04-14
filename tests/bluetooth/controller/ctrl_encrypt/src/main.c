@@ -5,7 +5,8 @@
  */
 
 #include <zephyr/types.h>
-#include <zephyr/ztest.h>
+#include <ztest.h>
+#include "kconfig.h"
 
 #define ULL_LLCP_UNITTEST
 
@@ -20,23 +21,16 @@
 #include "util/memq.h"
 #include "util/dbuf.h"
 
-#include "pdu_df.h"
-#include "lll/pdu_vendor.h"
 #include "pdu.h"
 #include "ll.h"
 #include "ll_feat.h"
 #include "ll_settings.h"
 
 #include "lll.h"
-#include "lll/lll_df_types.h"
+#include "lll_df_types.h"
 #include "lll_conn.h"
-#include "lll_conn_iso.h"
 
 #include "ull_tx_queue.h"
-
-#include "isoal.h"
-#include "ull_iso_types.h"
-#include "ull_conn_iso_types.h"
 
 #include "ull_internal.h"
 #include "ull_conn_types.h"
@@ -95,9 +89,9 @@
 		zassert_equal(_conn.lll.ccm_tx.direction, _dir, "CCM Tx Direction is wrong");\
 	} while (0)
 
-static struct ll_conn conn;
+struct ll_conn conn;
 
-static void enc_setup(void *data)
+static void setup(void)
 {
 	test_setup(&conn);
 
@@ -178,7 +172,7 @@ int lll_csrand_get(void *buf, size_t len)
  *    |<---------------------------|                     |
  *    |                            |                     |
  */
-ZTEST(encryption_start, test_encryption_start_central_loc)
+void test_encryption_start_central_loc(void)
 {
 	uint8_t err;
 	struct node_tx *tx;
@@ -224,7 +218,7 @@ ZTEST(encryption_start, test_encryption_start_central_loc)
 
 	/* Initiate an Encryption Start Procedure */
 	err = ull_cp_encryption_start(&conn, rand, ediv, ltk);
-	zassert_equal(err, BT_HCI_ERR_SUCCESS);
+	zassert_equal(err, BT_HCI_ERR_SUCCESS, NULL);
 
 	/* Prepare */
 	event_prepare(&conn);
@@ -292,8 +286,8 @@ ZTEST(encryption_start, test_encryption_start_central_loc)
 	/* Release Ntf */
 	ull_cp_release_ntf(ntf);
 
-	zassert_equal(llcp_ctx_buffers_free(), test_ctx_buffers_cnt(),
-				  "Free CTX buffers %d", llcp_ctx_buffers_free());
+	zassert_equal(ctx_buffers_free(), test_ctx_buffers_cnt(),
+				  "Free CTX buffers %d", ctx_buffers_free());
 }
 
 /* +-----+                     +-------+              +-----+
@@ -335,7 +329,7 @@ ZTEST(encryption_start, test_encryption_start_central_loc)
  *    |<---------------------------|                     |
  *    |                            |                     |
  */
-ZTEST(encryption_start, test_encryption_start_central_loc_limited_memory)
+void test_encryption_start_central_loc_limited_memory(void)
 {
 	uint8_t err;
 	struct node_tx *tx;
@@ -401,7 +395,7 @@ ZTEST(encryption_start, test_encryption_start_central_loc_limited_memory)
 
 	/* Initiate an Encryption Start Procedure */
 	err = ull_cp_encryption_start(&conn, rand, ediv, ltk);
-	zassert_equal(err, BT_HCI_ERR_SUCCESS);
+	zassert_equal(err, BT_HCI_ERR_SUCCESS, NULL);
 
 	/* Prepare */
 	event_prepare(&conn);
@@ -513,16 +507,16 @@ ZTEST(encryption_start, test_encryption_start_central_loc_limited_memory)
 	ull_cp_release_ntf(ntf);
 
 	/* Tx Encryption should be enabled */
-	zassert_equal(conn.lll.enc_tx, 1U);
+	zassert_equal(conn.lll.enc_tx, 1U, NULL);
 
 	/* Rx Decryption should be enabled */
-	zassert_equal(conn.lll.enc_rx, 1U);
+	zassert_equal(conn.lll.enc_rx, 1U, NULL);
 
 	/* Release dummy procedure */
 	llcp_proc_ctx_release(ctx);
 
-	zassert_equal(llcp_ctx_buffers_free(), test_ctx_buffers_cnt(),
-				  "Free CTX buffers %d", llcp_ctx_buffers_free());
+	zassert_equal(ctx_buffers_free(), test_ctx_buffers_cnt(),
+				  "Free CTX buffers %d", ctx_buffers_free());
 }
 
 /* +-----+                     +-------+              +-----+
@@ -547,7 +541,7 @@ ZTEST(encryption_start, test_encryption_start_central_loc_limited_memory)
  *    |<---------------------------|                     |
  *    |                            |                     |
  */
-ZTEST(encryption_start, test_encryption_start_central_loc_reject_ext)
+void test_encryption_start_central_loc_reject_ext(void)
 {
 	uint8_t err;
 	struct node_tx *tx;
@@ -590,7 +584,7 @@ ZTEST(encryption_start, test_encryption_start_central_loc_reject_ext)
 
 	/* Initiate an Encryption Start Procedure */
 	err = ull_cp_encryption_start(&conn, rand, ediv, ltk);
-	zassert_equal(err, BT_HCI_ERR_SUCCESS);
+	zassert_equal(err, BT_HCI_ERR_SUCCESS, NULL);
 
 	/* Prepare */
 	event_prepare(&conn);
@@ -623,8 +617,8 @@ ZTEST(encryption_start, test_encryption_start_central_loc_reject_ext)
 	/* Release Ntf */
 	ull_cp_release_ntf(ntf);
 
-	zassert_equal(llcp_ctx_buffers_free(), test_ctx_buffers_cnt(),
-				  "Free CTX buffers %d", llcp_ctx_buffers_free());
+	zassert_equal(ctx_buffers_free(), test_ctx_buffers_cnt(),
+				  "Free CTX buffers %d", ctx_buffers_free());
 }
 
 /* +-----+                     +-------+              +-----+
@@ -649,7 +643,7 @@ ZTEST(encryption_start, test_encryption_start_central_loc_reject_ext)
  *    |<---------------------------|                     |
  *    |                            |                     |
  */
-ZTEST(encryption_start, test_encryption_start_central_loc_reject)
+void test_encryption_start_central_loc_reject(void)
 {
 	uint8_t err;
 	struct node_tx *tx;
@@ -687,7 +681,7 @@ ZTEST(encryption_start, test_encryption_start_central_loc_reject)
 
 	/* Initiate an Encryption Start Procedure */
 	err = ull_cp_encryption_start(&conn, rand, ediv, ltk);
-	zassert_equal(err, BT_HCI_ERR_SUCCESS);
+	zassert_equal(err, BT_HCI_ERR_SUCCESS, NULL);
 
 	/* Prepare */
 	event_prepare(&conn);
@@ -720,8 +714,8 @@ ZTEST(encryption_start, test_encryption_start_central_loc_reject)
 	/* Release Ntf */
 	ull_cp_release_ntf(ntf);
 
-	zassert_equal(llcp_ctx_buffers_free(), test_ctx_buffers_cnt(),
-				  "Free CTX buffers %d", llcp_ctx_buffers_free());
+	zassert_equal(ctx_buffers_free(), test_ctx_buffers_cnt(),
+				  "Free CTX buffers %d", ctx_buffers_free());
 }
 
 /* +-----+                     +-------+              +-----+
@@ -749,7 +743,7 @@ ZTEST(encryption_start, test_encryption_start_central_loc_reject)
  *    |<---------------------------|                     |
  *    |                            |                     |
  */
-ZTEST(encryption_start, test_encryption_start_central_loc_no_ltk)
+void test_encryption_start_central_loc_no_ltk(void)
 {
 	uint8_t err;
 	struct node_tx *tx;
@@ -795,7 +789,7 @@ ZTEST(encryption_start, test_encryption_start_central_loc_no_ltk)
 
 	/* Initiate an Encryption Start Procedure */
 	err = ull_cp_encryption_start(&conn, rand, ediv, ltk);
-	zassert_equal(err, BT_HCI_ERR_SUCCESS);
+	zassert_equal(err, BT_HCI_ERR_SUCCESS, NULL);
 
 	/* Prepare */
 	event_prepare(&conn);
@@ -831,8 +825,8 @@ ZTEST(encryption_start, test_encryption_start_central_loc_no_ltk)
 	/* Release Ntf */
 	ull_cp_release_ntf(ntf);
 
-	zassert_equal(llcp_ctx_buffers_free(), test_ctx_buffers_cnt(),
-				  "Free CTX buffers %d", llcp_ctx_buffers_free());
+	zassert_equal(ctx_buffers_free(), test_ctx_buffers_cnt(),
+				  "Free CTX buffers %d", ctx_buffers_free());
 }
 
 /* +-----+                     +-------+              +-----+
@@ -860,7 +854,7 @@ ZTEST(encryption_start, test_encryption_start_central_loc_no_ltk)
  *    |<---------------------------|                     |
  *    |                            |                     |
  */
-ZTEST(encryption_start, test_encryption_start_central_loc_no_ltk_2)
+void test_encryption_start_central_loc_no_ltk_2(void)
 {
 	uint8_t err;
 	struct node_tx *tx;
@@ -901,7 +895,7 @@ ZTEST(encryption_start, test_encryption_start_central_loc_no_ltk_2)
 
 	/* Initiate an Encryption Start Procedure */
 	err = ull_cp_encryption_start(&conn, rand, ediv, ltk);
-	zassert_equal(err, BT_HCI_ERR_SUCCESS);
+	zassert_equal(err, BT_HCI_ERR_SUCCESS, NULL);
 
 	/* Prepare */
 	event_prepare(&conn);
@@ -937,8 +931,8 @@ ZTEST(encryption_start, test_encryption_start_central_loc_no_ltk_2)
 	/* Release Ntf */
 	ull_cp_release_ntf(ntf);
 
-	zassert_equal(llcp_ctx_buffers_free(), test_ctx_buffers_cnt(),
-				  "Free CTX buffers %d", llcp_ctx_buffers_free());
+	zassert_equal(ctx_buffers_free(), test_ctx_buffers_cnt(),
+				  "Free CTX buffers %d", ctx_buffers_free());
 }
 
 /* +-----+                     +-------+              +-----+
@@ -966,7 +960,7 @@ ZTEST(encryption_start, test_encryption_start_central_loc_no_ltk_2)
  *    |<---------------------------|                     |
  *    |                            |                     |
  */
-ZTEST(encryption_start, test_encryption_start_central_loc_mic)
+void test_encryption_start_central_loc_mic(void)
 {
 	uint8_t err;
 	struct node_tx *tx;
@@ -1009,7 +1003,7 @@ ZTEST(encryption_start, test_encryption_start_central_loc_mic)
 
 	/* Initiate an Encryption Start Procedure */
 	err = ull_cp_encryption_start(&conn, rand, ediv, ltk);
-	zassert_equal(err, BT_HCI_ERR_SUCCESS);
+	zassert_equal(err, BT_HCI_ERR_SUCCESS, NULL);
 
 	/* Prepare */
 	event_prepare(&conn);
@@ -1069,8 +1063,8 @@ ZTEST(encryption_start, test_encryption_start_central_loc_mic)
 	}
 
 	/* Note that for this test the context is not released */
-	zassert_equal(llcp_ctx_buffers_free(), test_ctx_buffers_cnt() - 1,
-				  "Free CTX buffers %d", llcp_ctx_buffers_free());
+	zassert_equal(ctx_buffers_free(), test_ctx_buffers_cnt() - 1,
+				  "Free CTX buffers %d", ctx_buffers_free());
 }
 
 /* +-----+                +-------+              +-----+
@@ -1111,7 +1105,7 @@ ZTEST(encryption_start, test_encryption_start_central_loc_mic)
  *    |     |---------------| |                     |
  *    |                       |                     |
  */
-ZTEST(encryption_start, test_encryption_start_periph_rem)
+void test_encryption_start_periph_rem(void)
 {
 	struct node_tx *tx;
 	struct node_rx_pdu *ntf;
@@ -1281,8 +1275,8 @@ ZTEST(encryption_start, test_encryption_start_periph_rem)
 	/* CCM Tx Direction should be S->M */
 	CHECK_TX_CCM_STATE(conn, sk_be, iv, 0U, CCM_DIR_S_TO_M);
 
-	zassert_equal(llcp_ctx_buffers_free(), test_ctx_buffers_cnt(),
-				  "Free CTX buffers %d", llcp_ctx_buffers_free());
+	zassert_equal(ctx_buffers_free(), test_ctx_buffers_cnt(),
+				  "Free CTX buffers %d", ctx_buffers_free());
 }
 
 /* +-----+                +-------+              +-----+
@@ -1327,7 +1321,7 @@ ZTEST(encryption_start, test_encryption_start_periph_rem)
  *    |     |---------------| |                     |
  *    |                       |                     |
  */
-ZTEST(encryption_start, test_encryption_start_periph_rem_limited_memory)
+void test_encryption_start_periph_rem_limited_memory(void)
 {
 	struct node_tx *tx;
 	struct node_rx_pdu *ntf;
@@ -1580,8 +1574,8 @@ ZTEST(encryption_start, test_encryption_start_periph_rem_limited_memory)
 	/* Release dummy procedure */
 	llcp_proc_ctx_release(ctx);
 
-	zassert_equal(llcp_ctx_buffers_free(), test_ctx_buffers_cnt(),
-				  "Free CTX buffers %d", llcp_ctx_buffers_free());
+	zassert_equal(ctx_buffers_free(), test_ctx_buffers_cnt(),
+				  "Free CTX buffers %d", ctx_buffers_free());
 }
 
 /* +-----+                +-------+              +-----+
@@ -1606,7 +1600,7 @@ ZTEST(encryption_start, test_encryption_start_periph_rem_limited_memory)
  *    |                       | LL_REJECT_EXT_IND   |
  *    |                       |-------------------->|
  */
-ZTEST(encryption_start, test_encryption_start_periph_rem_no_ltk)
+void test_encryption_start_periph_rem_no_ltk(void)
 {
 	struct node_tx *tx;
 	struct node_rx_pdu *ntf;
@@ -1721,11 +1715,9 @@ ZTEST(encryption_start, test_encryption_start_periph_rem_no_ltk)
 	/* There should not be a host notification */
 	ut_rx_q_is_empty();
 
-	/* All contexts should be released until now. This is a side-effect of a call to
-	 * ull_cp_tx_ntf that internall calls rr_check_done and lr_check_done.
-	 */
-	zassert_equal(llcp_ctx_buffers_free(), test_ctx_buffers_cnt(),
-				  "Free CTX buffers %d", llcp_ctx_buffers_free());
+	/* Note that for this test the context is not released */
+	zassert_equal(ctx_buffers_free(), test_ctx_buffers_cnt() - 1,
+				  "Free CTX buffers %d", ctx_buffers_free());
 }
 
 /* +-----+                +-------+              +-----+
@@ -1745,7 +1737,7 @@ ZTEST(encryption_start, test_encryption_start_periph_rem_no_ltk)
  *    |                       |<--------------------|
  *    |                       |                     |
  */
-ZTEST(encryption_start, test_encryption_start_periph_rem_mic)
+void test_encryption_start_periph_rem_mic(void)
 {
 	struct node_tx *tx;
 	struct node_rx_pdu *ntf;
@@ -1873,12 +1865,12 @@ ZTEST(encryption_start, test_encryption_start_periph_rem_mic)
 	}
 
 	/* Note that for this test the context is not released */
-	zassert_equal(llcp_ctx_buffers_free(), test_ctx_buffers_cnt() - 1,
-				  "Free CTX buffers %d", llcp_ctx_buffers_free());
+	zassert_equal(ctx_buffers_free(), test_ctx_buffers_cnt() - 1,
+				  "Free CTX buffers %d", ctx_buffers_free());
 }
 
 
-ZTEST(encryption_pause, test_encryption_pause_central_loc)
+void test_encryption_pause_central_loc(void)
 {
 	uint8_t err;
 	struct node_tx *tx;
@@ -1926,7 +1918,7 @@ ZTEST(encryption_pause, test_encryption_pause_central_loc)
 
 	/* Initiate an Encryption Pause Procedure */
 	err = ull_cp_encryption_pause(&conn, rand, ediv, ltk);
-	zassert_equal(err, BT_HCI_ERR_SUCCESS);
+	zassert_equal(err, BT_HCI_ERR_SUCCESS, NULL);
 
 	/* Prepare */
 	event_prepare(&conn);
@@ -1954,10 +1946,10 @@ ZTEST(encryption_pause, test_encryption_pause_central_loc)
 	ull_cp_release_tx(&conn, tx);
 
 	/* Tx Encryption should be disabled */
-	zassert_equal(conn.lll.enc_tx, 0U);
+	zassert_equal(conn.lll.enc_tx, 0U, NULL);
 
 	/* Rx Decryption should be disabled */
-	zassert_equal(conn.lll.enc_rx, 0U);
+	zassert_equal(conn.lll.enc_rx, 0U, NULL);
 
 	/**** UNENCRYPTED ****/
 
@@ -1993,10 +1985,10 @@ ZTEST(encryption_pause, test_encryption_pause_central_loc)
 	CHECK_TX_CCM_STATE(conn, sk_be, iv, 0U, CCM_DIR_M_TO_S);
 
 	/* Tx Encryption should be enabled */
-	zassert_equal(conn.lll.enc_tx, 1U);
+	zassert_equal(conn.lll.enc_tx, 1U, NULL);
 
 	/* Rx Decryption should be enabled */
-	zassert_equal(conn.lll.enc_rx, 1U);
+	zassert_equal(conn.lll.enc_rx, 1U, NULL);
 
 	/* Release Tx */
 	ull_cp_release_tx(&conn, tx);
@@ -2015,16 +2007,16 @@ ZTEST(encryption_pause, test_encryption_pause_central_loc)
 	ull_cp_release_ntf(ntf);
 
 	/* Tx Encryption should be enabled */
-	zassert_equal(conn.lll.enc_tx, 1U);
+	zassert_equal(conn.lll.enc_tx, 1U, NULL);
 
 	/* Rx Decryption should be enabled */
-	zassert_equal(conn.lll.enc_rx, 1U);
+	zassert_equal(conn.lll.enc_rx, 1U, NULL);
 
-	zassert_equal(llcp_ctx_buffers_free(), test_ctx_buffers_cnt(),
-				  "Free CTX buffers %d", llcp_ctx_buffers_free());
+	zassert_equal(ctx_buffers_free(), test_ctx_buffers_cnt(),
+				  "Free CTX buffers %d", ctx_buffers_free());
 }
 
-ZTEST(encryption_pause, test_encryption_pause_periph_rem)
+void test_encryption_pause_periph_rem(void)
 {
 	struct node_tx *tx;
 	struct node_rx_pdu *ntf;
@@ -2086,7 +2078,7 @@ ZTEST(encryption_pause, test_encryption_pause_periph_rem)
 	lt_rx_q_is_empty(&conn);
 
 	/* Rx Decryption should be disabled */
-	zassert_equal(conn.lll.enc_rx, 0U);
+	zassert_equal(conn.lll.enc_rx, 0U, NULL);
 
 	/* Rx */
 	lt_tx(LL_PAUSE_ENC_RSP, &conn, NULL);
@@ -2098,7 +2090,7 @@ ZTEST(encryption_pause, test_encryption_pause_periph_rem)
 	ull_cp_release_tx(&conn, tx);
 
 	/* Tx Encryption should be disabled */
-	zassert_equal(conn.lll.enc_tx, 0U);
+	zassert_equal(conn.lll.enc_tx, 0U, NULL);
 
 	/**** UNENCRYPTED ****/
 
@@ -2154,7 +2146,7 @@ ZTEST(encryption_pause, test_encryption_pause_periph_rem)
 	CHECK_RX_CCM_STATE(conn, sk_be, iv, 0U, CCM_DIR_M_TO_S);
 
 	/* Rx Decryption should be enabled */
-	zassert_equal(conn.lll.enc_rx, 1U);
+	zassert_equal(conn.lll.enc_rx, 1U, NULL);
 
 	/* Prepare */
 	event_prepare(&conn);
@@ -2189,11 +2181,45 @@ ZTEST(encryption_pause, test_encryption_pause_periph_rem)
 	CHECK_TX_CCM_STATE(conn, sk_be, iv, 0U, CCM_DIR_S_TO_M);
 
 	/* Tx Encryption should be enabled */
-	zassert_equal(conn.lll.enc_tx, 1U);
+	zassert_equal(conn.lll.enc_tx, 1U, NULL);
 
-	zassert_equal(llcp_ctx_buffers_free(), test_ctx_buffers_cnt(),
-				  "Free CTX buffers %d", llcp_ctx_buffers_free());
+	zassert_equal(ctx_buffers_free(), test_ctx_buffers_cnt(),
+				  "Free CTX buffers %d", ctx_buffers_free());
 }
 
-ZTEST_SUITE(encryption_start, NULL, NULL, enc_setup, NULL, NULL);
-ZTEST_SUITE(encryption_pause, NULL, NULL, enc_setup, NULL, NULL);
+void test_main(void)
+{
+	ztest_test_suite(
+		encryption_start,
+		ztest_unit_test_setup_teardown(test_encryption_start_central_loc, setup,
+					       unit_test_noop),
+		ztest_unit_test_setup_teardown(test_encryption_start_central_loc_limited_memory,
+					       setup, unit_test_noop),
+		ztest_unit_test_setup_teardown(test_encryption_start_central_loc_reject_ext, setup,
+					       unit_test_noop),
+		ztest_unit_test_setup_teardown(test_encryption_start_central_loc_reject, setup,
+					       unit_test_noop),
+		ztest_unit_test_setup_teardown(test_encryption_start_central_loc_no_ltk, setup,
+					       unit_test_noop),
+		ztest_unit_test_setup_teardown(test_encryption_start_central_loc_no_ltk_2, setup,
+					       unit_test_noop),
+		ztest_unit_test_setup_teardown(test_encryption_start_central_loc_mic, setup,
+					       unit_test_noop),
+		ztest_unit_test_setup_teardown(test_encryption_start_periph_rem, setup,
+					       unit_test_noop),
+		ztest_unit_test_setup_teardown(test_encryption_start_periph_rem_limited_memory,
+					       setup, unit_test_noop),
+		ztest_unit_test_setup_teardown(test_encryption_start_periph_rem_no_ltk, setup,
+					       unit_test_noop),
+		ztest_unit_test_setup_teardown(test_encryption_start_periph_rem_mic, setup,
+					       unit_test_noop));
+
+	ztest_test_suite(encryption_pause,
+			 ztest_unit_test_setup_teardown(test_encryption_pause_central_loc, setup,
+							unit_test_noop),
+			 ztest_unit_test_setup_teardown(test_encryption_pause_periph_rem, setup,
+							unit_test_noop));
+
+	ztest_run_test_suite(encryption_start);
+	ztest_run_test_suite(encryption_pause);
+}

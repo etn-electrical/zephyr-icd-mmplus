@@ -10,7 +10,7 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_DECLARE(net_echo_server_sample, LOG_LEVEL_DBG);
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <errno.h>
 #include <stdio.h>
 
@@ -138,11 +138,13 @@ static void handle_data(void *ptr1, void *ptr2, void *ptr3)
 		if (received == 0) {
 			/* Connection closed */
 			LOG_INF("TCP (%s): Connection closed", data->proto);
+			ret = 0;
 			break;
 		} else if (received < 0) {
 			/* Socket error */
 			LOG_ERR("TCP (%s): Connection error %d", data->proto,
 				errno);
+			ret = -errno;
 			break;
 		} else {
 			atomic_add(&data->tcp.bytes_received, received);
@@ -168,6 +170,7 @@ static void handle_data(void *ptr1, void *ptr2, void *ptr3)
 			if (ret < 0) {
 				LOG_ERR("TCP (%s): Failed to send, "
 					"closing socket", data->proto);
+				ret = 0;
 				break;
 			}
 
@@ -302,6 +305,8 @@ static void process_tcp4(void)
 		return;
 	}
 
+	k_work_reschedule(&conf.ipv4.tcp.stats_print, K_SECONDS(STATS_TIMER));
+
 	while (ret == 0) {
 		ret = process_tcp(&conf.ipv4);
 		if (ret < 0) {
@@ -327,6 +332,8 @@ static void process_tcp6(void)
 		quit();
 		return;
 	}
+
+	k_work_reschedule(&conf.ipv6.tcp.stats_print, K_SECONDS(STATS_TIMER));
 
 	while (ret == 0) {
 		ret = process_tcp(&conf.ipv6);
@@ -380,6 +387,8 @@ void start_tcp(void)
 	k_mem_domain_add_thread(&app_domain, tcp6_thread_id);
 
 	for (i = 0; i < CONFIG_NET_SAMPLE_NUM_HANDLERS; i++) {
+		k_mem_domain_add_thread(&app_domain, &tcp6_handler_thread[i]);
+
 		k_thread_access_grant(tcp6_thread_id, &tcp6_handler_thread[i]);
 		k_thread_access_grant(tcp6_thread_id, &tcp6_handler_stack[i]);
 	}
@@ -387,7 +396,6 @@ void start_tcp(void)
 
 	k_work_init_delayable(&conf.ipv6.tcp.stats_print, print_stats);
 	k_thread_start(tcp6_thread_id);
-	k_work_reschedule(&conf.ipv6.tcp.stats_print, K_SECONDS(STATS_TIMER));
 #endif
 
 #if defined(CONFIG_NET_IPV4)
@@ -395,6 +403,8 @@ void start_tcp(void)
 	k_mem_domain_add_thread(&app_domain, tcp4_thread_id);
 
 	for (i = 0; i < CONFIG_NET_SAMPLE_NUM_HANDLERS; i++) {
+		k_mem_domain_add_thread(&app_domain, &tcp4_handler_thread[i]);
+
 		k_thread_access_grant(tcp4_thread_id, &tcp4_handler_thread[i]);
 		k_thread_access_grant(tcp4_thread_id, &tcp4_handler_stack[i]);
 	}
@@ -402,7 +412,6 @@ void start_tcp(void)
 
 	k_work_init_delayable(&conf.ipv4.tcp.stats_print, print_stats);
 	k_thread_start(tcp4_thread_id);
-	k_work_reschedule(&conf.ipv4.tcp.stats_print, K_SECONDS(STATS_TIMER));
 #endif
 }
 

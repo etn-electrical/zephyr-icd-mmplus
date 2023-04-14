@@ -8,20 +8,17 @@
 #include <stdio.h>
 #include <zephyr/device.h>
 #include <zephyr/fs/fs.h>
-#include <zephyr/ztest.h>
+#include <ztest.h>
 #include <zephyr/fs/littlefs.h>
 #include "test_fs_shell.h"
 
 #if !defined(CONFIG_FILE_SYSTEM_SHELL)
 FS_LITTLEFS_DECLARE_DEFAULT_CONFIG(storage);
 
-#define TEST_PARTITION		storage_partition
-#define TEST_PARTITION_ID	FIXED_PARTITION_ID(TEST_PARTITION)
-
 struct fs_mount_t littlefs_mnt = {
 	.type = FS_LITTLEFS,
 	.fs_data = &storage,
-	.storage_dev = (void *)TEST_PARTITION_ID,
+	.storage_dev = (void *)FLASH_AREA_ID(storage),
 	.mnt_point = "/littlefs"
 };
 
@@ -44,6 +41,6 @@ void test_littlefs_mount(void)
 #ifdef CONFIG_FILE_SYSTEM_SHELL
 	test_fs_littlefs_mount();
 #else
-	zassert_true(test_mount() == TC_PASS);
+	zassert_true(test_mount() == TC_PASS, NULL);
 #endif
 }

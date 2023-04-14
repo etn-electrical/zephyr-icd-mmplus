@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
+#include <ztest.h>
 #include <psa/crypto.h>
 #include <zephyr/kernel.h>
 
@@ -30,7 +30,7 @@ static void do_hash(char *hash)
 	psa_status_t status = psa_hash_compute(PSA_ALG_SHA_512, dummy_string,
 			sizeof(dummy_string), hash, HASH_LEN, &len);
 
-	zassert_equal(PSA_SUCCESS, status, "psa_hash_compute_fail: %d\n", status);
+	zassert_equal(PSA_SUCCESS, status, "psa_hash_compute_fail\n");
 	zassert_equal(HASH_LEN, len, "hash length not correct\n");
 }
 
@@ -77,7 +77,7 @@ static void work_func(struct k_work *work)
 
 }
 
-ZTEST(thread_swap_tz, test_thread_swap_tz)
+void test_thread_swap_tz(void)
 {
 	int err;
 	char dummy_digest[HASH_LEN];
@@ -89,7 +89,7 @@ ZTEST(thread_swap_tz, test_thread_swap_tz)
 	main_thread = (struct k_thread *)curr;
 
 	status = psa_crypto_init();
-	zassert_equal(PSA_SUCCESS, status);
+	zassert_equal(PSA_SUCCESS, status, NULL);
 
 	/* Calculate correct hash. */
 	do_hash(dummy_digest_correct);
@@ -147,4 +147,10 @@ ZTEST(thread_swap_tz, test_thread_swap_tz)
 #endif /* CONFIG_CPU_HAS_FPU */
 }
 
-ZTEST_SUITE(thread_swap_tz, NULL, NULL, NULL, NULL, NULL);
+void test_main(void)
+{
+	ztest_test_suite(test_thread_swap_tz,
+			ztest_unit_test(test_thread_swap_tz)
+			);
+	ztest_run_test_suite(test_thread_swap_tz);
+}

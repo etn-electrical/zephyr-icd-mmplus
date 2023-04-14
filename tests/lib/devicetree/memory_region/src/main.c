@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
+#include <ztest.h>
 #include <zephyr/devicetree.h>
 #include <zephyr/device.h>
 
@@ -22,7 +22,7 @@ extern char __SRAM_REGION_end[];
 extern char __SRAM_REGION_size[];
 extern char __SRAM_REGION_load_start[];
 
-ZTEST(devicetree_memory_region, test_memory_region)
+static void test_memory_region(void)
 {
 	zassert_true(!strcmp(LINKER_DT_NODE_REGION_NAME(TEST_SRAM_NODE), "SRAM_REGION"), "");
 
@@ -35,4 +35,10 @@ ZTEST(devicetree_memory_region, test_memory_region)
 	zassert_equal((unsigned long) __SRAM_REGION_size, TEST_SRAM_SIZE, "");
 }
 
-ZTEST_SUITE(devicetree_memory_region, NULL, NULL, NULL, NULL, NULL);
+void test_main(void)
+{
+	ztest_test_suite(devicetree_memory_region,
+			 ztest_unit_test(test_memory_region)
+			 );
+	ztest_run_test_suite(devicetree_memory_region);
+}

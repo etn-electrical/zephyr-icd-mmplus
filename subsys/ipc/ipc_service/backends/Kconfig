@@ -1,6 +1,9 @@
 # Copyright (c) 2021 Nordic Semiconductor (ASA)
 # SPDX-License-Identifier: Apache-2.0
 
+DT_COMPAT_ZEPHYR_IPC_OPENAMP_STATIC_VRINGS := zephyr,ipc-openamp-static-vrings
+DT_COMPAT_ZEPHYR_IPC_ICMSG := zephyr,ipc-icmsg
+
 config IPC_SERVICE_REG_BACKEND_PRIORITY
 	int "Initialization priority of modules registering IPC backend"
 	default 46
@@ -9,44 +12,42 @@ config IPC_SERVICE_REG_BACKEND_PRIORITY
 
 config IPC_SERVICE_BACKEND_RPMSG
 	bool "OpenAMP RPMSG backend with static VRINGs"
-	default y
 	depends on MBOX
-	depends on DT_HAS_ZEPHYR_IPC_OPENAMP_STATIC_VRINGS_ENABLED
+	default $(dt_compat_enabled,$(DT_COMPAT_ZEPHYR_IPC_OPENAMP_STATIC_VRINGS))
 	select IPC_SERVICE_RPMSG
 	select IPC_SERVICE_STATIC_VRINGS
 	select OPENAMP
 
 config IPC_SERVICE_BACKEND_ICMSG
-	bool "ICMSG backend with SPSC packet buffer"
-	default y
+	bool "ICMSG backend with ICMsg buffer"
 	depends on MBOX
-	depends on DT_HAS_ZEPHYR_IPC_ICMSG_ENABLED
-	select IPC_SERVICE_ICMSG
+	default $(dt_compat_enabled,$(DT_COMPAT_ZEPHYR_IPC_ICMSG))
+	select IPC_SERVICE_ICMSG_BUF
 	help
 	  Chosing this backend results in single endpoint implementation based
-	  on circular packet buffer.
+	  on ringbuf.
 
-config IPC_SERVICE_BACKEND_ICMSG_ME_INITIATOR
-	bool "ICMSG backend with multi-endpoint support in initiator role"
-	default y
-	depends on MBOX
-	depends on DT_HAS_ZEPHYR_IPC_ICMSG_ME_INITIATOR_ENABLED
-	select IPC_SERVICE_ICMSG_ME
+config IPC_SERVICE_RPMSG
+	bool "RPMsg support library"
 	help
-	  Chosing this backend results in multi endpoint implementation based
-	  on circular packet buffer. This enables enpoint discovery initiator
-	  role.
+	  "RPMsg library"
 
-config IPC_SERVICE_BACKEND_ICMSG_ME_FOLLOWER
-	bool "ICMSG backend with multi-endpoint support in follower role"
-	default y
-	depends on MBOX
-	depends on DT_HAS_ZEPHYR_IPC_ICMSG_ME_FOLLOWER_ENABLED
-	select IPC_SERVICE_ICMSG_ME
+config IPC_SERVICE_STATIC_VRINGS
+	bool "Static VRINGs support library"
 	help
-	  Chosing this backend results in multi endpoint implementation based
-	  on circular packet buffer. This enables enpoint discovery follower
-	  role.
+	  "Static VRINGs library"
 
-rsource "Kconfig.icmsg_me"
+config IPC_SERVICE_STATIC_VRINGS_ALIGNMENT
+	int "VRINGs alignment"
+	depends on IPC_SERVICE_STATIC_VRINGS
+	default 4
+	help
+	  Static VRINGs alignment
+
+config IPC_SERVICE_ICMSG_BUF
+	bool "Inter core messaging buffer support library"
+	help
+	  Inter core messaging buffer library
+
+rsource "Kconfig.icmsg"
 rsource "Kconfig.rpmsg"

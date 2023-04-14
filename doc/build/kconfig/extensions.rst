@@ -5,7 +5,7 @@ Kconfig extensions
 
 Zephyr uses the `Kconfiglib <https://github.com/ulfalizer/Kconfiglib>`__
 implementation of `Kconfig
-<https://docs.kernel.org/kbuild/kconfig-language.html>`__,
+<https://www.kernel.org/doc/Documentation/kbuild/kconfig-language.txt>`__,
 which includes some Kconfig extensions:
 
 - Environment variables in ``source`` statements are expanded directly, meaning
@@ -17,7 +17,7 @@ which includes some Kconfig extensions:
 
   The recommended syntax for referencing environment variables is ``$(FOO)``
   rather than ``$FOO``. This uses the new `Kconfig preprocessor
-  <https://docs.kernel.org/kbuild/kconfig-macro-language.html>`__.
+  <https://raw.githubusercontent.com/torvalds/linux/master/Documentation/kbuild/kconfig-macro-language.txt>`__.
   The ``$FOO`` syntax for expanding environment variables is only supported for
   backwards compatibility.
 

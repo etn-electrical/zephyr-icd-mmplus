@@ -4,12 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <zephyr/sys/printk.h>
 
-#include <zephyr/ztest.h>
+#include <ztest.h>
 #include <assert.h>
-#include <zephyr/tc_util.h>
+#include <tc_util.h>
 
 #include <zephyr/debug/coredump.h>
 
@@ -106,10 +106,12 @@ void test_verify_stored_dump(void)
 	}
 }
 
-ZTEST(coredump_backends, test_coredump_backend) {
-	test_coredump();
-	test_query_stored_dump();
-	test_verify_stored_dump();
-}
+void test_main(void)
+{
+	ztest_test_suite(coredump_backends,
+			 ztest_unit_test(test_coredump),
+			 ztest_unit_test(test_query_stored_dump),
+			 ztest_unit_test(test_verify_stored_dump));
+	ztest_run_test_suite(coredump_backends);
 
-ZTEST_SUITE(coredump_backends, NULL, NULL, NULL, NULL, NULL);
+}

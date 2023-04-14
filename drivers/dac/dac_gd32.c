@@ -7,27 +7,18 @@
 #define DT_DRV_COMPAT gd_gd32_dac
 
 #include <errno.h>
-
-#include <zephyr/drivers/clock_control.h>
-#include <zephyr/drivers/clock_control/gd32.h>
 #include <zephyr/drivers/pinctrl.h>
-#include <zephyr/drivers/reset.h>
 #include <zephyr/drivers/dac.h>
-
-#include <gd32_dac.h>
+#include <soc.h>
 
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(dac_gd32, CONFIG_DAC_LOG_LEVEL);
 
 /**
- * For some gd32 series which only have 1 DAC, their HAL name may not same as others.
- * Below definitions help to unify the HAL name.
+ * GD32 DAC HAL use different DAC0 interface for 2 or 1 output channels SoCs.
+ * Unify the DAC0 interface to DAC0_xx.
  */
-#if defined(CONFIG_SOC_SERIES_GD32A50X)
-#define DAC_CTL_DEN0 DAC_CTL_DEN
-#define DAC0_R8DH    OUT_R8DH
-#define DAC0_R12DH   OUT_R12DH
-#elif defined(CONFIG_SOC_SERIES_GD32F3X0)
+#if DT_INST_PROP(0, num_channels) == 1
 #define DAC_CTL_DEN0 DAC_CTL_DEN
 #define DAC0_R8DH    DAC_R8DH
 #define DAC0_R12DH   DAC_R12DH
@@ -35,8 +26,7 @@ LOG_MODULE_REGISTER(dac_gd32, CONFIG_DAC_LOG_LEVEL);
 
 struct dac_gd32_config {
 	uint32_t reg;
-	uint16_t clkid;
-	struct reset_dt_spec reset;
+	uint32_t rcu_periph_clock;
 	const struct pinctrl_dev_config *pcfg;
 	uint32_t num_channels;
 	uint32_t reset_val;
@@ -155,10 +145,7 @@ static int dac_gd32_init(const struct device *dev)
 		return ret;
 	}
 
-	(void)clock_control_on(GD32_CLOCK_CONTROLLER,
-			       (clock_control_subsys_t *)&cfg->clkid);
-
-	(void)reset_line_toggle_dt(&cfg->reset);
+	rcu_periph_clock_enable(cfg->rcu_periph_clock);
 
 	return 0;
 }
@@ -169,8 +156,7 @@ static struct dac_gd32_data dac_gd32_data_0;
 
 static const struct dac_gd32_config dac_gd32_cfg_0 = {
 	.reg = DT_INST_REG_ADDR(0),
-	.clkid = DT_INST_CLOCKS_CELL(0, id),
-	.reset = RESET_DT_SPEC_INST_GET(0),
+	.rcu_periph_clock = DT_INST_PROP(0, rcu_periph_clock),
 	.pcfg = PINCTRL_DT_INST_DEV_CONFIG_GET(0),
 	.num_channels = DT_INST_PROP(0, num_channels),
 	.reset_val = DT_INST_PROP(0, reset_val),

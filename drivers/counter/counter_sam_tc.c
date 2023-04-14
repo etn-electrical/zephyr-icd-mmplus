@@ -33,7 +33,6 @@
 #include <zephyr/drivers/pinctrl.h>
 
 #include <zephyr/logging/log.h>
-#include <zephyr/irq.h>
 LOG_MODULE_REGISTER(counter_sam_tc, CONFIG_COUNTER_LOG_LEVEL);
 
 #define MAX_ALARMS_PER_TC_CHANNEL 2

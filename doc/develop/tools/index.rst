@@ -7,3 +7,4 @@ Tools and IDEs
    :maxdepth: 1
 
    coccinelle.rst
+   platformio/index.rst

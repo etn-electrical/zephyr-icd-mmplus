@@ -423,20 +423,14 @@ __comp_west_west()
 
 __comp_west_init()
 {
-	local dir_opts="
+	local init_args_opts="
 		--manifest -m
+		--manifest-rev --mr
 		--local -l
 	"
 
-	local bool_opts="
-		--manifest-rev --mr
-		--manifest-file --mf
-	"
-
-	all_opts="$dir_opts $bool_opts"
-
 	case "$prev" in
-		$(__west_to_extglob "$dir_opts") )
+		--local|-l)
 			__set_comp_dirs
 			return
 			;;
@@ -444,47 +438,21 @@ __comp_west_init()
 
 	case "$cur" in
 		-*)
-			__set_comp $all_opts
+			__set_comp $init_args_opts
 			;;
 	esac
 }
 
 __comp_west_update()
 {
-	local bool_opts="
-		--stats
-		--narrow -n
+	local update_bool_opts="
 		--keep-descendants -k
 		--rebase -r
 	"
 
-	local dir_opts="
-		--name-cache
-		--path-cache
-	"
-
-	local other_opts="
-		--fetch -f
-		--fetch-opt -o
-	"
-
-	all_opts="$dir_opts $bool_opts $other_opts"
-
-	case "$prev" in
-		# We don't know how to autocomplete those
-		$(__west_to_extglob "$other_opts") )
-			return
-			;;
-
-		$(__west_to_extglob "$dir_opts") )
-			__set_comp_dirs
-			return
-			;;
-	esac
-
 	case "$cur" in
 		-*)
-			__set_comp $all_opts
+			__set_comp $update_bool_opts
 			;;
 		*)
 			__set_comp_west_projs
@@ -494,26 +462,20 @@ __comp_west_update()
 
 __comp_west_list()
 {
-	local other_opts="
+	local list_args_opts="
 		--format -f
 	"
 
-	local bool_opts="
-		--all -a
-	"
-
-	all_opts="$other_opts $bool_opts"
-
 	case "$prev" in
 		# We don't know how to autocomplete those
-		$(__west_to_extglob "$other_opts") )
+		$(__west_to_extglob "$list_args_opts") )
 			return
 			;;
 	esac
 
 	case "$cur" in
 		-*)
-			__set_comp $all_opts
+			__set_comp $list_args_opts
 			;;
 		*)
 			__set_comp_west_projs
@@ -523,20 +485,15 @@ __comp_west_list()
 
 __comp_west_manifest()
 {
-	local bool_opts="
-		--resolve
+	local manifest_bool_opts="
 		--freeze
-		--validate
-		--path
 	"
-	local file_opts="
+	local manifest_args_opts="
 		--out -o
 	"
 
-	all_opts="$bool_opts $file_opts"
-
 	case "$prev" in
-		$(__west_to_extglob "$file_opts") )
+		--out|-o)
 			__set_comp_files
 			return
 			;;
@@ -544,21 +501,14 @@ __comp_west_manifest()
 
 	case "$cur" in
 		-*)
-			__set_comp $all_opts
+			__set_comp $manifest_bool_opts $manifest_args_opts
 			;;
 	esac
 }
 
 __comp_west_diff()
 {
-	local bool_opts="
-		--all -a
-	"
-
 	case "$cur" in
-		-*)
-			__set_comp $bool_opts
-			;;
 		*)
 			__set_comp_west_projs
 			;;
@@ -567,13 +517,7 @@ __comp_west_diff()
 
 __comp_west_status()
 {
-	local bool_opts="
-		--all -a
-	"
 	case "$cur" in
-		-*)
-			__set_comp $bool_opts
-			;;
 		*)
 			__set_comp_west_projs
 			;;
@@ -582,24 +526,20 @@ __comp_west_status()
 
 __comp_west_forall()
 {
-	local bool_opts="
-		--all -a
-	"
-	local other_opts="
+	local forall_args_opts="
 		-c
 	"
 
-	all_opts="$bool_opts $other_opts"
 	case "$prev" in
 		# We don't know how to autocomplete those
-		$(__west_to_extglob "$other_opts") )
+		$(__west_to_extglob "$forall_args_opts") )
 			return
 			;;
 	esac
 
 	case "$cur" in
 		-*)
-			__set_comp $all_opts
+			__set_comp $forall_args_opts
 			;;
 		*)
 			__set_comp_west_projs
@@ -609,10 +549,7 @@ __comp_west_forall()
 
 __comp_west_config()
 {
-	local bool_opts="
-		--list -l
-		--delete -d
-		--delete-all -D
+	local config_bool_opts="
 		--global
 		--local
 		--system
@@ -620,7 +557,7 @@ __comp_west_config()
 
 	case "$cur" in
 		-*)
-			__set_comp $bool_opts
+			__set_comp $config_bool_opts
 			;;
 	esac
 }
@@ -644,7 +581,7 @@ __comp_west_completion()
 		*)
 			local counter=$( __west_pos_first_nonflag "$(__west_to_extglob "$global_args_opts")" )
 			if [ "$cword" -eq "$counter" ]; then
-				__set_comp "bash zsh"
+				__set_comp "bash"
 			fi
 			;;
 	esac
@@ -652,24 +589,21 @@ __comp_west_completion()
 
 __comp_west_boards()
 {
-	local other_opts="
-		--format -f
-		--name -n
+	local boards_args_opts="
+		--format -f --name -n
+		--arch-root --board-root
 	"
-
-	local dir_opts="
-		--arch-root
-		--board-root
-	"
-
-	all_opts="$dir_opts $other_opts"
 
 	case "$prev" in
-		$(__west_to_extglob "$other_opts") )
+		--format|-f|--name|-n)
 			# We don't know how to autocomplete these.
 			return
 			;;
-		$(__west_to_extglob "$dir_opts") )
+		--arch-root)
+			__set_comp_dirs
+			return
+			;;
+		--board-root)
 			__set_comp_dirs
 			return
 			;;
@@ -677,61 +611,50 @@ __comp_west_boards()
 
 	case "$cur" in
 		-*)
-			__set_comp $all_opts
+			__set_comp $boards_args_opts
 			;;
 	esac
 }
 
 __comp_west_build()
 {
-	local bool_opts="
+	local build_bool_opts="
 		--cmake -c
 		--cmake-only
 		-n --just-print --dry-run --recon
 		--force -f
-		--sysbuild
-		--no-sysbuild
 	"
 
-	local special_opts="
+	local build_args_opts="
 		--board -b
-		--pristine -p
-	"
-
-	local dir_opts="
 		--build-dir -d
-	"
-
-	local other_opts="
 		--target -t
-		--test-item -T
+		--pristine -p
 		--build-opt -o
 	"
-
-	all_opts="$bool_opts $special_opts $dir_opts $other_opts"
 
 	case "$prev" in
 		--board|-b)
 			__set_comp_west_boards
 			return
 			;;
+		--build-dir|-d)
+			__set_comp_dirs
+			return
+			;;
 		--pristine|-p)
 			__set_comp "auto always never"
 			return
 			;;
-		$(__west_to_extglob "$dir_opts") )
-			__set_comp_dirs
-			return
-			;;
 		# We don't know how to autocomplete those
-		$(__west_to_extglob "$other_opts") )
+		$(__west_to_extglob "$build_args_opts") )
 			return
 			;;
 	esac
 
 	case "$cur" in
 		-*)
-			__set_comp $all_opts
+			__set_comp $build_bool_opts $build_args_opts
 			;;
 		*)
 			__set_comp_dirs
@@ -741,40 +664,30 @@ __comp_west_build()
 
 __comp_west_sign()
 {
-	local bool_opts="
-		--quiet -q
+	local sign_bool_opts="
 		--force -f
 		--bin --no-bin
 		--hex --no-hex
 	"
 
-	local special_opts="
-		--tool -t
-	"
-
-	local dir_opts="
+	local sign_args_opts="
 		--build-dir -d
+		--tool -t
 		--tool-path -p
-		--tool-data -D
+		-B --sbin
+		-H --shex
 	"
-
-	local file_opts="
-		--sbin -B
-		--shex -H
-	"
-
-	all_opts="$bool_opts $special_opts $dir_opts $file_opts"
 
 	case "$prev" in
-		$(__west_to_extglob "$dir_opts") )
+		--build-dir|-d|--tool-path|-p)
 			__set_comp_dirs
 			return
 			;;
 		--tool|-t)
-			__set_comp "imgtool rimage"
+			__set_comp "imgtool"
 			return
 			;;
-		$(__west_to_extglob "$file_opts") )
+		-B|--sbin|-H|--shex)
 			__set_comp_files
 			return
 			;;
@@ -782,7 +695,7 @@ __comp_west_sign()
 
 	case "$cur" in
 		-*)
-			__set_comp $all_opts
+			__set_comp $sign_bool_opts $sign_args_opts
 			;;
 	esac
 }
@@ -790,41 +703,29 @@ __comp_west_sign()
 __comp_west_runner_cmd()
 {
 	# Common arguments for runners
-	local bool_opts="
+	local runner_bool_opts="
 		--context -H
 		--skip-rebuild
 	"
-
-	local dir_opts="
-		--board-dir
-		--openocd-search
-		--build-dir -d
+	local runner_args_opts="
+	--build-dir -d
+	--cmake-cache -c
+	--runner -r
+	--board-dir
+	--elf-file
+	--hex-file
+	--bin-file
+	--gdb
+	--openocd
+	--openocd-search
 	"
-
-	local file_opts="
-		--file -f
-		--file-type -t
-		--elf-file
-		--hex-file
-		--bin-file
-		--gdb
-		--openocd
-	"
-
-	local other_opts="
-		--runner -r
-		--domain
-		--dev-id -i
-	"
-
-	all_opts="$bool_opts $other_opts $dir_opts $file_opts"
 
 	case "$prev" in
-		$(__west_to_extglob "$dir_opts") )
+		--build-dir|-d|--cmake-cache|-c|--board-dir|--gdb|--openocd|--openocd-search)
 			__set_comp_dirs
 			return
 			;;
-		$(__west_to_extglob "$file_opts") )
+		--elf-file|--hex-file|--bin-file)
 			__set_comp_files
 			return
 			;;
@@ -832,7 +733,7 @@ __comp_west_runner_cmd()
 
 	case "$cur" in
 		-*)
-			__set_comp $all_opts
+			__set_comp $runner_bool_opts $runner_args_opts
 			;;
 	esac
 }
@@ -857,73 +758,6 @@ __comp_west_attach()
 	__comp_west_runner_cmd
 }
 
-__comp_west_spdx()
-{
-	local bool_opts="
-		--init -i
-		--analyze-includes
-		--include-sdk
-	"
-
-	local dir_opts="
-		--build-dir -d
-		--namespace-prefix -n
-		--spdx-dir -s
-	"
-
-	local other_opts="
-		--namespace-prefix -n
-	"
-
-	all_opts="$bool_opts $other_opts $dir_opts"
-
-	case "$prev" in
-		$(__west_to_extglob "$dir_opts") )
-			__set_comp_dirs
-			return
-			;;
-
-		# We don't know how to autocomplete those
-		$(__west_to_extglob "$other_opts") )
-			return
-			;;
-	esac
-
-	case "$cur" in
-		-*)
-			__set_comp $all_opts
-			;;
-	esac
-}
-
-__comp_west_blobs()
-{
-	local other_opts="
-		--format -f
-	"
-
-	case "$prev" in
-		# We don't know how to autocomplete those
-		$(__west_to_extglob "$other_opts") )
-			return
-			;;
-		blobs)
-			__set_comp "list fetch clean"
-			return
-			;;
-	esac
-
-	case "$cur" in
-		-*)
-			__set_comp $other_opts
-			;;
-		*)
-			__set_comp_west_projs
-			;;
-	esac
-}
-
-
 __comp_west()
 {
 	local previous_extglob_setting=$(shopt -p extglob)
@@ -940,7 +774,6 @@ __comp_west()
 		status
 		forall
 		config
-		topdir
 		help
 	)
 
@@ -954,8 +787,6 @@ __comp_west()
 		debugserver
 		attach
 		zephyr-export
-		spdx
-		blobs
 	)
 
 	local cmds=(${builtin_cmds[*]} ${zephyr_ext_cmds[*]})

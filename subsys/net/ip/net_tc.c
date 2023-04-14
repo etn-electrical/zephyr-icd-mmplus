@@ -7,7 +7,7 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(net_tc, CONFIG_NET_TC_LOG_LEVEL);
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <string.h>
 
 #include <zephyr/net/net_core.h>
@@ -105,7 +105,7 @@ int net_rx_priority2tc(enum net_priority prio)
 }
 
 
-#if defined(CONFIG_NET_TC_THREAD_COOPERATIVE)
+#if IS_ENABLED(CONFIG_NET_TC_THREAD_COOPERATIVE)
 #define BASE_PRIO_TX (CONFIG_NET_TC_NUM_PRIORITIES - 1)
 #else
 #define BASE_PRIO_TX (CONFIG_NET_TC_TX_COUNT - 1)
@@ -113,7 +113,7 @@ int net_rx_priority2tc(enum net_priority prio)
 
 #define PRIO_TX(i, _) (BASE_PRIO_TX - i)
 
-#if defined(CONFIG_NET_TC_THREAD_COOPERATIVE)
+#if IS_ENABLED(CONFIG_NET_TC_THREAD_COOPERATIVE)
 #define BASE_PRIO_RX (CONFIG_NET_TC_NUM_PRIORITIES - 1)
 #else
 #define BASE_PRIO_RX (CONFIG_NET_TC_RX_COUNT - 1)

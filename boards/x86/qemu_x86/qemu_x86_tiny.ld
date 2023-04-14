@@ -143,14 +143,6 @@ MEMORY
 
 #endif /* CONFIG_NEWLIB_LIBC */
 
-#ifdef CONFIG_PICOLIBC
-/* For Picolibc libc-hook.c. */
-#define LIB_C_IN_SECT(lsect)						\
-	*liblib__libc__picolibc.a:libc-hooks.c.obj(.##lsect)		\
-	*liblib__libc__picolibc.a:libc-hooks.c.obj(.##lsect##.*)
-
-#endif /* CONFIG_PICOLIBC */
-
 /*
  * For drivers that are usually used (e.g. serial)
  */
@@ -189,7 +181,6 @@ MEMORY
 	LIB_ZEPHYR_OBJECT_FILE_IN_SECT(lsect, cbprintf_complete)	\
 	LIB_ZEPHYR_OBJECT_FILE_IN_SECT(lsect, cbprintf_nano)		\
 	LIB_ZEPHYR_OBJECT_FILE_IN_SECT(lsect, configs)			\
-	LIB_ZEPHYR_OBJECT_FILE_IN_SECT(lsect, coverage)			\
 	LIB_ZEPHYR_OBJECT_FILE_IN_SECT(lsect, heap)			\
 	LIB_ZEPHYR_OBJECT_FILE_IN_SECT(lsect, heap-validate)		\
 	LIB_ZEPHYR_OBJECT_FILE_IN_SECT(lsect, mutex)			\
@@ -199,8 +190,6 @@ MEMORY
 	LIB_ZEPHYR_OBJECT_FILE_IN_SECT(lsect, stdout_console)		\
 	LIB_ZEPHYR_OBJECT_FILE_IN_SECT(lsect, sys_clock_init)		\
 	LIB_ZEPHYR_OBJECT_FILE_IN_SECT(lsect, rb)			\
-	LIB_ZEPHYR_OBJECT_FILE_IN_SECT(lsect, tracing_none)		\
-	LIB_ZEPHYR_OBJECT_FILE_IN_SECT(lsect, tracing_tracking)		\
 	LIB_ZEPHYR_OBJECT_FILE_IN_SECT(lsect, thread_entry)		\
 	LIB_ZEPHYR_OBJECT_FILE_IN_SECT(lsect, work_q)
 
@@ -393,14 +382,10 @@ SECTIONS
 		*(.text.*.constprop)
 		*(.text.*.constprop.*)
 
-#if defined(CONFIG_NEWLIB_LIBC) || defined(CONFIG_PICOLIBC)
+#ifdef CONFIG_NEWLIB_LIBC
 		*libc.a:(.text)
 		*libc.a:(.text.*)
-#endif
-
-#ifdef CONFIG_COVERAGE
-		*(.text._sub_I_00100_0)
-#endif
+#endif /* CONFIG_NEWLIB_LIBC */
 
 		ZEPHYR_KERNEL_FUNCS_IN_SECT
 
@@ -437,13 +422,12 @@ SECTIONS
 		*(.rodata.str*.*)
 		*(.rodata.*.str*.*)
 
-#if defined(CONFIG_NEWLIB_LIBC) || defined(CONFIG_PICOLIBC)
+#ifdef CONFIG_NEWLIB_LIBC
 		*libc.a:(.rodata)
 		*libc.a:(.rodata.*)
-#endif
+#endif /* CONFIG_NEWLIB_LIBC */
 
 #include <snippets-rodata.ld>
-#include <snippets-pinned-rodata.ld>
 
 #include <zephyr/linker/kobject-rom.ld>
 
@@ -474,33 +458,13 @@ SECTIONS
 		LIB_DRIVERS_IN_SECT(data)
 		LIB_SUBSYS_LOGGING_IN_SECT(data)
 
-#ifdef CONFIG_COVERAGE
-		*(.data.__gcov_.*)
-
-		/*
-		 * This is for the struct gcov_info for
-		 * various functions.
-		 */
-		*(.data..LPBX*)
-#endif
-
 	} GROUP_DATA_LINK_IN(RAMABLE_REGION, ROMABLE_REGION)
 
 #include <zephyr/linker/common-ram.ld>
 #include <zephyr/arch/x86/pagetables.ld>
 #include <zephyr/linker/kobject-data.ld>
 
-/* Located in generated directory. This file is populated by the
- * zephyr_linker_sources() Cmake function.
- */
-#include <snippets-pinned-data-sections.ld>
-
 	lnkr_pinned_data_end = .;
-
-/* Located in generated directory. This file is populated by the
- * zephyr_linker_sources() Cmake function.
- */
-#include <snippets-pinned-ram-sections.ld>
 
 	SECTION_PROLOGUE(pinned.bss, (NOLOAD),)
 	{
@@ -518,10 +482,6 @@ SECTIONS
 		LIB_C_IN_SECT(bss)
 		LIB_DRIVERS_IN_SECT(bss)
 		LIB_SUBSYS_LOGGING_IN_SECT(bss)
-
-#ifdef CONFIG_COVERAGE
-		*(.bss.__gcov0.*)
-#endif
 
 		lnkr_pinned_bss_end = .;
 	} GROUP_NOLOAD_LINK_IN(RAMABLE_REGION, ROMABLE_REGION)

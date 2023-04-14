@@ -26,29 +26,8 @@ extern "C" {
 
 static ALWAYS_INLINE void arch_kernel_init(void)
 {
-#ifdef CONFIG_THREAD_LOCAL_STORAGE
-	__asm__ volatile ("li tp, 0");
-#endif
-#if defined(CONFIG_SMP) || defined(CONFIG_USERSPACE)
-	csr_write(mscratch, &_kernel.cpus[0]);
-#endif
-#ifdef CONFIG_SMP
-	_kernel.cpus[0].arch.hartid = csr_read(mhartid);
-	_kernel.cpus[0].arch.online = true;
-#endif
-#if ((CONFIG_MP_MAX_NUM_CPUS) > 1)
-	unsigned int cpu_node_list[] = {
-		DT_FOREACH_CHILD_STATUS_OKAY_SEP(DT_PATH(cpus), DT_REG_ADDR, (,))
-	};
-	unsigned int cpu_num, hart_x;
-
-	for (cpu_num = 1, hart_x = 0; cpu_num < arch_num_cpus(); cpu_num++) {
-		if (cpu_node_list[hart_x] == _kernel.cpus[0].arch.hartid) {
-			hart_x++;
-		}
-		_kernel.cpus[cpu_num].arch.hartid = cpu_node_list[hart_x];
-		hart_x++;
-	}
+#ifdef CONFIG_USERSPACE
+	csr_write(mscratch, 0);
 #endif
 #ifdef CONFIG_RISCV_PMP
 	z_riscv_pmp_init();
@@ -62,11 +41,8 @@ arch_switch(void *switch_to, void **switched_from)
 	struct k_thread *new = switch_to;
 	struct k_thread *old = CONTAINER_OF(switched_from, struct k_thread,
 					    switch_handle);
-#ifdef CONFIG_RISCV_ALWAYS_SWITCH_THROUGH_ECALL
-	arch_syscall_invoke2((uintptr_t)new, (uintptr_t)old, RV_ECALL_SCHEDULE);
-#else
+
 	z_riscv_switch(new, old);
-#endif
 }
 
 FUNC_NORETURN void z_riscv_fatal_error(unsigned int reason,
@@ -92,11 +68,6 @@ extern FUNC_NORETURN void z_riscv_userspace_enter(k_thread_entry_t user_entry,
 
 #ifdef CONFIG_IRQ_OFFLOAD
 int z_irq_do_offload(void);
-#endif
-
-#ifdef CONFIG_FPU_SHARING
-void z_riscv_flush_local_fpu(void);
-void z_riscv_flush_fpu_ipi(unsigned int cpu);
 #endif
 
 #endif /* _ASMLANGUAGE */

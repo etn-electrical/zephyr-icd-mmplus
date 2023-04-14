@@ -82,7 +82,6 @@ struct sdhc_spi_config {
 	const struct device *spi_dev;
 	const struct gpio_dt_spec pwr_gpio;
 	const uint32_t spi_max_freq;
-	uint32_t power_delay_ms;
 };
 
 struct sdhc_spi_data {
@@ -150,27 +149,6 @@ static int sdhc_spi_init_card(const struct device *dev)
 	ret = spi_release(config->spi_dev, spi_cfg);
 	spi_cfg->operation &= ~SPI_CS_ACTIVE_HIGH;
 	return ret;
-}
-
-/* Checks if SPI SD card is sending busy signal */
-static int sdhc_spi_card_busy(const struct device *dev)
-{
-	const struct sdhc_spi_config *config = dev->config;
-	struct sdhc_spi_data *data = dev->data;
-	int ret;
-	uint8_t response;
-
-
-	ret = sdhc_spi_rx(config->spi_dev, data->spi_cfg, &response, 1);
-	if (ret) {
-		return -EIO;
-	}
-
-	if (response == 0xFF) {
-		return 0;
-	} else
-		return 1;
-
 }
 
 /* Waits for SPI SD card to stop sending busy signal */
@@ -719,7 +697,7 @@ static int sdhc_spi_get_host_props(const struct device *dev,
 
 	props->f_min = SDMMC_CLOCK_400KHZ;
 	props->f_max = cfg->spi_max_freq;
-	props->power_delay = cfg->power_delay_ms;
+	props->power_delay = 1000; /* SPI always needs 1ms power delay */
 	props->host_caps.vol_330_support = true;
 	props->is_spi = true;
 	return 0;
@@ -754,7 +732,6 @@ static struct sdhc_driver_api sdhc_spi_api = {
 	.get_host_props = sdhc_spi_get_host_props,
 	.get_card_present = sdhc_spi_get_card_present,
 	.reset = sdhc_spi_reset,
-	.card_busy = sdhc_spi_card_busy,
 };
 
 
@@ -763,13 +740,23 @@ static struct sdhc_driver_api sdhc_spi_api = {
 		.spi_dev = DEVICE_DT_GET(DT_INST_PARENT(n)),			\
 		.pwr_gpio = GPIO_DT_SPEC_INST_GET_OR(n, pwr_gpios, {0}),	\
 		.spi_max_freq = DT_INST_PROP(n, spi_max_frequency),		\
-		.power_delay_ms = DT_INST_PROP(n, power_delay_ms),		\
 	};									\
 										\
+	IF_ENABLED(DT_INST_SPI_DEV_HAS_CS_GPIOS(n),				\
+		(struct spi_cs_control sdhc_spi_cs_##n = {			\
+			.gpio_dev = DEVICE_DT_GET(DT_INST_SPI_DEV_CS_GPIOS_CTLR(n)), \
+			.gpio_pin = DT_INST_SPI_DEV_CS_GPIOS_PIN(n),		\
+			.gpio_dt_flags = DT_INST_SPI_DEV_CS_GPIOS_FLAGS(n),	\
+		};))								\
 	struct sdhc_spi_data sdhc_spi_data_##n = {				\
-		.cfg_a = SPI_CONFIG_DT_INST(n,					\
-				(SPI_LOCK_ON | SPI_HOLD_ON_CS | SPI_WORD_SET(8)),\
-				0),						\
+		.cfg_a = {							\
+			.operation = (SPI_LOCK_ON |				\
+				SPI_HOLD_ON_CS |				\
+				SPI_WORD_SET(8)),				\
+			COND_CODE_1(DT_INST_SPI_DEV_HAS_CS_GPIOS(n),		\
+			(.cs = &sdhc_spi_cs_##n),				\
+			(.cs = NULL))						\
+		},								\
 	};									\
 										\
 	DEVICE_DT_INST_DEFINE(n,						\

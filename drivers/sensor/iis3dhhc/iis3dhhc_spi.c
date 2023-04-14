@@ -20,9 +20,9 @@
 
 LOG_MODULE_DECLARE(IIS3DHHC, CONFIG_SENSOR_LOG_LEVEL);
 
-static int iis3dhhc_spi_read(const struct device *dev, uint8_t reg, uint8_t *data, uint16_t len)
+static int iis3dhhc_spi_read(struct iis3dhhc_data *ctx, uint8_t reg,
+			    uint8_t *data, uint16_t len)
 {
-	const struct iis3dhhc_config *config = dev->config;
 	uint8_t buffer_tx[2] = { reg | IIS3DHHC_SPI_READ, 0 };
 	const struct spi_buf tx_buf = {
 			.buf = buffer_tx,
@@ -47,16 +47,16 @@ static int iis3dhhc_spi_read(const struct device *dev, uint8_t reg, uint8_t *dat
 		.count = 2
 	};
 
-	if (spi_transceive_dt(&config->spi, &tx, &rx)) {
+	if (spi_transceive_dt(ctx->spi, &tx, &rx)) {
 		return -EIO;
 	}
 
 	return 0;
 }
 
-static int iis3dhhc_spi_write(const struct device *dev, uint8_t reg, uint8_t *data, uint16_t len)
+static int iis3dhhc_spi_write(struct iis3dhhc_data *ctx, uint8_t reg,
+			     uint8_t *data, uint16_t len)
 {
-	const struct iis3dhhc_config *config = dev->config;
 	uint8_t buffer_tx[1] = { reg & ~IIS3DHHC_SPI_READ };
 	const struct spi_buf tx_buf[2] = {
 		{
@@ -74,7 +74,7 @@ static int iis3dhhc_spi_write(const struct device *dev, uint8_t reg, uint8_t *da
 	};
 
 
-	if (spi_write_dt(&config->spi, &tx)) {
+	if (spi_write_dt(ctx->spi, &tx)) {
 		return -EIO;
 	}
 
@@ -91,13 +91,14 @@ int iis3dhhc_spi_init(const struct device *dev)
 	struct iis3dhhc_data *data = dev->data;
 	const struct iis3dhhc_config *config = dev->config;
 
-	if (!spi_is_ready_dt(&config->spi)) {
+	if (!spi_is_ready(&config->spi)) {
 		LOG_ERR("SPI bus is not ready");
 		return -ENODEV;
 	};
 
 	data->ctx = &iis3dhhc_spi_ctx;
-	data->ctx->handle = (void *)dev;
+	data->ctx->handle = data;
+	data->spi = &config->spi;
 
 	return 0;
 }

@@ -3,9 +3,9 @@
  * Copyright (c) 2021 Lexmark International, Inc.
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <zephyr/syscall_handler.h>
-#include <zephyr/ztest.h>
+#include <ztest.h>
 
 ZTEST_BMEM char user_stack[256];
 
@@ -14,7 +14,7 @@ ZTEST_BMEM char user_stack[256];
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST_USER(arm_mem_protect, test_user_corrupt_stack_pointer)
+void test_user_corrupt_stack_pointer(void)
 {
 	int ret = 0;
 	uint32_t saved_sp;
@@ -37,4 +37,10 @@ ZTEST_USER(arm_mem_protect, test_user_corrupt_stack_pointer)
 	zassert_equal(ret, 0, "svc exception wrote to user stack");
 }
 
-ZTEST_SUITE(arm_mem_protect, NULL, NULL, NULL, NULL, NULL);
+void test_main(void)
+{
+	ztest_test_suite(arm_mem_protect,
+			 ztest_user_unit_test(test_user_corrupt_stack_pointer)
+			 );
+	ztest_run_test_suite(arm_mem_protect);
+}

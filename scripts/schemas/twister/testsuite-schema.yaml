@@ -32,21 +32,6 @@ mapping:
       "extra_args":
         type: str
         required: false
-      "extra_conf_files":
-        type: seq
-        required: false
-        sequence:
-          - type: str
-      "extra_overlay_confs":
-        type: seq
-        required: false
-        sequence:
-          - type: str
-      "extra_dtc_overlay_files":
-        type: seq
-        required: false
-        sequence:
-          - type: str
       "extra_sections":
         type: str
         required: false
@@ -58,12 +43,6 @@ mapping:
         required: false
         sequence:
           - type: str
-      "ignore_faults":
-        type: bool
-        required: false
-      "ignore_qemu_crash":
-        type: bool
-        required: false
       "testcases":
         type: seq
         required: false
@@ -130,12 +109,6 @@ mapping:
         required: false
         sequence:
           - type: str
-      "platform_key":
-        required: false
-        type: seq
-        matching: "all"
-        sequence:
-          - type: str
       "tags":
         type: str
         required: false
@@ -157,9 +130,6 @@ mapping:
       "slow":
         type: bool
         required: false
-      "sysbuild":
-        type: bool
-        required: false
   # The sample descriptor, if present
   "sample":
     type: map
@@ -176,7 +146,6 @@ mapping:
   # maybe it is just an artifact?
   "tests":
     type: map
-    required: true
     matching-rule: "any"
     mapping:
       # The key for the testname is any, so
@@ -216,21 +185,6 @@ mapping:
             required: false
             sequence:
               - type: str
-          "extra_conf_files":
-            type: seq
-            required: false
-            sequence:
-              - type: str
-          "extra_overlay_confs":
-            type: seq
-            required: false
-            sequence:
-              - type: str
-          "extra_dtc_overlay_files":
-            type: seq
-            required: false
-            sequence:
-              - type: str
           "extra_sections":
             type: str
             required: false
@@ -242,12 +196,6 @@ mapping:
             required: false
             sequence:
               - type: str
-          "ignore_faults":
-            type: bool
-            required: false
-          "ignore_qemu_crash":
-            type: bool
-            required: false
           "harness":
             type: str
             required: false
@@ -309,12 +257,6 @@ mapping:
             required: false
             sequence:
               - type: str
-          "platform_key":
-            required: false
-            type: seq
-            matching: "all"
-            sequence:
-              - type: str
           "tags":
             type: str
             required: false
@@ -334,8 +276,5 @@ mapping:
             type: bool
             required: false
           "slow":
-            type: bool
-            required: false
-          "sysbuild":
             type: bool
             required: false

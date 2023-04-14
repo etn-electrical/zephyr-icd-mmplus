@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <zephyr/device.h>
 #include <zephyr/display/cfb.h>
 #include <zephyr/sys/printk.h>
@@ -13,7 +13,7 @@
 
 void main(void)
 {
-	const struct device *const display = DEVICE_DT_GET(DT_CHOSEN(zephyr_display));
+	const struct device *display = DEVICE_DT_GET(DT_CHOSEN(zephyr_display));
 	int err;
 
 	if (!device_is_ready(display)) {
@@ -22,11 +22,6 @@ void main(void)
 
 	if (display_set_pixel_format(display, PIXEL_FORMAT_MONO10) != 0) {
 		printk("Failed to set required pixel format\n");
-		return;
-	}
-
-	if (display_blanking_off(display) != 0) {
-		printk("Failed to turn off display blanking\n");
 		return;
 	}
 

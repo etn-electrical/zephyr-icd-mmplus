@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
-#include <zephyr/busy_sim.h>
+#include <ztest.h>
+#include <busy_sim.h>
 
-ZTEST(busy_sim, test_busy_sim)
+static void test_busy_sim(void)
 {
 	uint32_t ms = 1000;
 	uint32_t delta = 80;
@@ -17,7 +17,7 @@ ZTEST(busy_sim, test_busy_sim)
 	k_busy_wait(1000 * ms);
 	t = k_uptime_get_32() - t;
 
-	zassert_true((t > (ms - delta)) && (t < (ms + delta)));
+	zassert_true((t > (ms - delta)) && (t < (ms + delta)), NULL);
 
 	/* Start busy simulator and check that k_busy_wait last longer */
 	t = k_uptime_get_32();
@@ -38,7 +38,14 @@ ZTEST(busy_sim, test_busy_sim)
 	t = k_uptime_get_32();
 	k_busy_wait(1000 * ms);
 	t = k_uptime_get_32() - t;
-	zassert_true((t > (ms - delta)) && (t < (ms + delta)));
+	zassert_true((t > (ms - delta)) && (t < (ms + delta)), NULL);
 }
 
-ZTEST_SUITE(busy_sim, NULL, NULL, NULL, NULL, NULL);
+void test_main(void)
+{
+	ztest_test_suite(busy_sim_tests,
+			 ztest_unit_test(test_busy_sim)
+			 );
+
+	ztest_run_test_suite(busy_sim_tests);
+}

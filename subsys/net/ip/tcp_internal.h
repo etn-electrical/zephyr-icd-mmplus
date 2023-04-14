@@ -30,10 +30,6 @@ extern "C" {
 
 #include "tcp_private.h"
 
-enum tcp_conn_option {
-	TCP_OPT_NODELAY	= 1,
-};
-
 /**
  * @brief Calculates and returns the MSS for a given TCP context
  *
@@ -42,9 +38,9 @@ enum tcp_conn_option {
  * @return Maximum Segment Size
  */
 #if defined(CONFIG_NET_NATIVE_TCP)
-uint16_t net_tcp_get_supported_mss(const struct tcp *conn);
+uint16_t net_tcp_get_recv_mss(const struct tcp *conn);
 #else
-static inline uint16_t net_tcp_get_supported_mss(const struct tcp *conn)
+static inline uint16_t net_tcp_get_recv_mss(const struct tcp *conn)
 {
 	ARG_UNUSED(conn);
 	return 0;
@@ -99,6 +95,24 @@ static inline void net_tcp_foreach(net_tcp_cb_t cb, void *user_data)
 int net_tcp_get(struct net_context *context);
 #else
 static inline int net_tcp_get(struct net_context *context)
+{
+	ARG_UNUSED(context);
+
+	return -EPROTONOSUPPORT;
+}
+#endif
+
+/**
+ * @brief Unref TCP parts of a context
+ *
+ * @param context Network context
+ *
+ * @return 0 if successful, < 0 on error
+ */
+#if defined(CONFIG_NET_NATIVE_TCP)
+int net_tcp_unref(struct net_context *context);
+#else
+static inline int net_tcp_unref(struct net_context *context)
 {
 	ARG_UNUSED(context);
 
@@ -351,57 +365,6 @@ static inline int net_tcp_put(struct net_context *context)
 void net_tcp_init(void);
 #else
 #define net_tcp_init(...)
-#endif
-
-/**
- * @brief Set tcp specific options of a socket
- *
- * @param context Network context
- *
- * @return 0 on success, -EINVAL if the value is not allowed
- */
-#if defined(CONFIG_NET_NATIVE_TCP)
-int net_tcp_set_option(struct net_context *context,
-		       enum tcp_conn_option option,
-		       const void *value, size_t len);
-#else
-static inline int net_tcp_set_option(struct net_context *context,
-				     enum tcp_conn_option option,
-				     const void *value, size_t len)
-{
-	ARG_UNUSED(context);
-	ARG_UNUSED(option);
-	ARG_UNUSED(value);
-	ARG_UNUSED(len);
-
-	return -EPROTONOSUPPORT;
-}
-#endif
-
-
-/**
- * @brief Obtain tcp specific options of a socket
- *
- * @param context Network context
- *
- * @return 0 on success
- */
-#if defined(CONFIG_NET_NATIVE_TCP)
-int net_tcp_get_option(struct net_context *context,
-		       enum tcp_conn_option option,
-		       void *value, size_t *len);
-#else
-static inline int net_tcp_get_option(struct net_context *context,
-				     enum tcp_conn_option option,
-				     void *value, size_t *len)
-{
-	ARG_UNUSED(context);
-	ARG_UNUSED(option);
-	ARG_UNUSED(value);
-	ARG_UNUSED(len);
-
-	return -EPROTONOSUPPORT;
-}
 #endif
 
 /**

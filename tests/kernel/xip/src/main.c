@@ -20,7 +20,7 @@
  * @}
  */
 
-#include <zephyr/ztest.h>
+#include <ztest.h>
 
 /* This test relies on these values being one larger than the one before */
 #define TEST_VAL_1  0x1
@@ -44,7 +44,7 @@ uint32_t xip_array[XIP_TEST_ARRAY_SZ] = {
  *
  * @ingroup kernel_xip_tests
  */
-ZTEST(xip, test_globals)
+void test_globals(void)
 {
 	int  i;
 
@@ -57,4 +57,9 @@ ZTEST(xip, test_globals)
 }
 
 /**test case main entry*/
-ZTEST_SUITE(xip, NULL, NULL, NULL, NULL, NULL);
+void test_main(void)
+{
+	ztest_test_suite(xip,
+		ztest_unit_test(test_globals));
+	ztest_run_test_suite(xip);
+}

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
+#include <ztest.h>
 #include <zephyr/crypto/crypto.h>
 
 #define CRYPTO_DRV_NAME CONFIG_CRYPTO_MBEDTLS_SHIM_DRV_NAME
@@ -124,7 +124,7 @@ uint8_t sha256_results[7][32] = {
 	 0x86, 0x59, 0x98, 0x71, 0x4a, 0xad, 0x0b, 0x5e}
 };
 
-ZTEST_USER(crypto_hash, test_hash)
+static void test_hash(void)
 {
 	int ret;
 	struct hash_ctx ctx;
@@ -161,4 +161,10 @@ ZTEST_USER(crypto_hash, test_hash)
 	hash_free_session(dev, &ctx);
 }
 
-ZTEST_SUITE(crypto_hash, NULL, NULL, NULL, NULL, NULL);
+/**test case main entry*/
+void test_main(void)
+{
+	ztest_test_suite(test_crypto_hash,
+		ztest_user_unit_test(test_hash));
+	ztest_run_test_suite(test_crypto_hash);
+}

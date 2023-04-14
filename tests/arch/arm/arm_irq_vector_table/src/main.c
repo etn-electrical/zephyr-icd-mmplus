@@ -8,6 +8,13 @@
   #error project can only run on Cortex-M
 #endif
 
-#include <zephyr/ztest.h>
+#include <ztest.h>
 
-ZTEST_SUITE(vector_table, NULL, NULL, NULL, NULL, NULL);
+extern void test_arm_irq_vector_table(void);
+
+void test_main(void)
+{
+	ztest_test_suite(vector_table,
+		ztest_unit_test(test_arm_irq_vector_table));
+	ztest_run_test_suite(vector_table);
+}

@@ -27,7 +27,6 @@
 #include <zephyr/init.h>
 #include <zephyr/drivers/uart.h>
 #include <zephyr/linker/sections.h>
-#include <zephyr/irq.h>
 
 /* definitions */
 

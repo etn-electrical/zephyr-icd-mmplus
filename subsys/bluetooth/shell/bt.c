@@ -21,7 +21,7 @@
 #include <zephyr/sys/printk.h>
 #include <zephyr/sys/byteorder.h>
 #include <zephyr/sys/util.h>
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 
 #include <zephyr/settings/settings.h>
 
@@ -31,9 +31,6 @@
 #include <zephyr/bluetooth/rfcomm.h>
 #include <zephyr/bluetooth/sdp.h>
 #include <zephyr/bluetooth/iso.h>
-#include <zephyr/bluetooth/audio/audio.h>
-#include <zephyr/bluetooth/audio/pacs.h>
-#include <zephyr/bluetooth/audio/csip.h>
 
 #include <zephyr/shell/shell.h>
 
@@ -72,21 +69,9 @@ static struct bt_conn_auth_info_cb auth_info_cb;
  */
 #define HCI_CMD_MAX_PARAM 65
 
-enum {
-	SHELL_ADV_OPT_CONNECTABLE,
-	SHELL_ADV_OPT_DISCOVERABLE,
-	SHELL_ADV_OPT_EXT_ADV,
-	SHELL_ADV_OPT_APPEARANCE,
-	SHELL_ADV_OPT_KEEP_RPA,
-
-	SHELL_ADV_OPT_NUM,
-};
-
-static ATOMIC_DEFINE(adv_opt, SHELL_ADV_OPT_NUM);
 #if defined(CONFIG_BT_EXT_ADV)
 uint8_t selected_adv;
 struct bt_le_ext_adv *adv_sets[CONFIG_BT_EXT_ADV_MAX_ADV_SET];
-static ATOMIC_DEFINE(adv_set_opt, SHELL_ADV_OPT_NUM)[CONFIG_BT_EXT_ADV_MAX_ADV_SET];
 #endif /* CONFIG_BT_EXT_ADV */
 
 #if defined(CONFIG_BT_OBSERVER) || defined(CONFIG_BT_USER_PHY_UPDATE)
@@ -102,45 +87,12 @@ static const char *phy2str(uint8_t phy)
 }
 #endif
 
-#if defined(CONFIG_BT_CONN) || (defined(CONFIG_BT_BROADCASTER) && defined(CONFIG_BT_EXT_ADV))
-static void print_le_addr(const char *desc, const bt_addr_le_t *addr)
-{
-	char addr_str[BT_ADDR_LE_STR_LEN];
-
-	const char *addr_desc = bt_addr_le_is_identity(addr) ? "identity" :
-				bt_addr_le_is_rpa(addr) ? "resolvable" :
-				"non-resolvable";
-
-	bt_addr_le_to_str(addr, addr_str, sizeof(addr_str));
-
-	shell_print(ctx_shell, "%s address: %s (%s)", desc, addr_str,
-		    addr_desc);
-}
-#endif /* CONFIG_BT_CONN || (CONFIG_BT_BROADCASTER && CONFIG_BT_EXT_ADV) */
-
-#if defined(CONFIG_BT_CENTRAL)
-static int cmd_scan_off(const struct shell *sh);
-static int cmd_connect_le(const struct shell *sh, size_t argc, char *argv[]);
-static int cmd_scan_filter_clear_name(const struct shell *sh, size_t argc,
-				      char *argv[]);
-
-static struct bt_auto_connect {
-	bt_addr_le_t addr;
-	bool addr_set;
-	bool connect_name;
-} auto_connect;
-#endif
-
 #if defined(CONFIG_BT_OBSERVER)
 static struct bt_scan_filter {
 	char name[NAME_LEN];
 	bool name_set;
 	char addr[18]; /* fits xx:xx:xx:xx:xx:xx\0 */
 	bool addr_set;
-	int8_t rssi;
-	bool rssi_set;
-	uint16_t pa_interval;
-	bool pa_interval_set;
 } scan_filter;
 
 
@@ -164,6 +116,7 @@ static bool is_substring(const char *substr, const char *str)
 	for (size_t pos = 0; pos < str_len; pos++) {
 		if (tolower(substr[0]) == tolower(str[pos])) {
 			if (pos + sub_str_len > str_len) {
+				shell_print(ctx_shell, "length fail");
 				return false;
 			}
 
@@ -196,32 +149,23 @@ static void scan_recv(const struct bt_le_scan_recv_info *info,
 	char le_addr[BT_ADDR_LE_STR_LEN];
 	char name[NAME_LEN];
 
-	if (scan_filter.rssi_set && (scan_filter.rssi > info->rssi)) {
-		return;
-	}
-
-	bt_addr_le_to_str(info->addr, le_addr, sizeof(le_addr));
-
-	if (scan_filter.addr_set && !is_substring(scan_filter.addr, le_addr)) {
-		return;
-	}
-
 	(void)memset(name, 0, sizeof(name));
 
 	bt_data_parse(buf, data_cb, name);
+
+	bt_addr_le_to_str(info->addr, le_addr, sizeof(le_addr));
 
 	if (scan_filter.name_set && !is_substring(scan_filter.name, name)) {
 		return;
 	}
 
-	if (scan_filter.pa_interval_set &&
-	    (scan_filter.pa_interval > BT_CONN_INTERVAL_TO_MS(info->interval))) {
+	if (scan_filter.addr_set && !is_substring(scan_filter.addr, le_addr)) {
 		return;
 	}
 
 	shell_print(ctx_shell, "[DEVICE]: %s, AD evt type %u, RSSI %i %s "
 		    "C:%u S:%u D:%d SR:%u E:%u Prim: %s, Secn: %s, "
-		    "Interval: 0x%04x (%u us), SID: 0x%x",
+		    "Interval: 0x%04x (%u ms), SID: 0x%x",
 		    le_addr, info->adv_type, info->rssi, name,
 		    (info->adv_props & BT_GAP_ADV_PROP_CONNECTABLE) != 0,
 		    (info->adv_props & BT_GAP_ADV_PROP_SCANNABLE) != 0,
@@ -229,40 +173,13 @@ static void scan_recv(const struct bt_le_scan_recv_info *info,
 		    (info->adv_props & BT_GAP_ADV_PROP_SCAN_RESPONSE) != 0,
 		    (info->adv_props & BT_GAP_ADV_PROP_EXT_ADV) != 0,
 		    phy2str(info->primary_phy), phy2str(info->secondary_phy),
-		    info->interval, BT_CONN_INTERVAL_TO_US(info->interval),
+		    info->interval, BT_CONN_INTERVAL_TO_MS(info->interval),
 		    info->sid);
-
-	/* Store address for later use */
-#if defined(CONFIG_BT_CENTRAL)
-	auto_connect.addr_set = true;
-	bt_addr_le_copy(&auto_connect.addr, info->addr);
-
-	/* Use the above auto_connect.addr address to automatically connect */
-	if (auto_connect.connect_name) {
-		auto_connect.connect_name = false;
-
-		cmd_scan_off(ctx_shell);
-
-		/* "name" is what would be in argv[0] normally */
-		cmd_scan_filter_clear_name(ctx_shell, 1, (char *[]){ "name" });
-
-		/* "connect" is what would be in argv[0] normally */
-		cmd_connect_le(ctx_shell, 1, (char *[]){ "connect" });
-	}
-#endif /* CONFIG_BT_CENTRAL */
 }
 
 static void scan_timeout(void)
 {
 	shell_print(ctx_shell, "Scan timeout");
-
-#if defined(CONFIG_BT_CENTRAL)
-	if (auto_connect.connect_name) {
-		auto_connect.connect_name = false;
-		/* "name" is what would be in argv[0] normally */
-		cmd_scan_filter_clear_name(ctx_shell, 1, (char *[]){ "name" });
-	}
-#endif /* CONFIG_BT_CENTRAL */
 }
 #endif /* CONFIG_BT_OBSERVER */
 
@@ -299,22 +216,6 @@ static void adv_connected(struct bt_le_ext_adv *adv,
 		    bt_le_ext_adv_get_index(adv), adv, str);
 }
 #endif /* CONFIG_BT_PERIPHERAL */
-
-#if defined(CONFIG_BT_PRIVACY)
-static bool adv_rpa_expired(struct bt_le_ext_adv *adv)
-{
-	uint8_t adv_index = bt_le_ext_adv_get_index(adv);
-
-	bool keep_rpa = atomic_test_bit(adv_set_opt[adv_index],
-					  SHELL_ADV_OPT_KEEP_RPA);
-	shell_print(ctx_shell, "Advertiser[%d] %p RPA %s",
-		    adv_index, adv,
-		    keep_rpa ? "not expired" : "expired");
-
-	return keep_rpa;
-}
-#endif /* defined(CONFIG_BT_PRIVACY) */
-
 #endif /* CONFIG_BT_EXT_ADV */
 
 #if !defined(CONFIG_BT_CONN)
@@ -508,7 +409,7 @@ static const char *ver_str(uint8_t ver)
 {
 	const char * const str[] = {
 		"1.0b", "1.1", "1.2", "2.0", "2.1", "3.0", "4.0", "4.1", "4.2",
-		"5.0", "5.1", "5.2", "5.3", "5.4"
+		"5.0", "5.1", "5.2", "5.3"
 	};
 
 	if (ver < ARRAY_SIZE(str)) {
@@ -604,10 +505,6 @@ static struct bt_le_ext_adv_cb adv_callbacks = {
 #if defined(CONFIG_BT_PERIPHERAL)
 	.connected = adv_connected,
 #endif /* CONFIG_BT_PERIPHERAL */
-#if defined(CONFIG_BT_PRIVACY)
-	.rpa_expired = adv_rpa_expired,
-#endif /* defined(CONFIG_BT_PRIVACY) */
-
 };
 #endif /* CONFIG_BT_BROADCASTER */
 #endif /* CONFIG_BT_EXT_ADV */
@@ -631,9 +528,9 @@ static void per_adv_sync_sync_cb(struct bt_le_per_adv_sync *sync,
 	}
 
 	shell_print(ctx_shell, "PER_ADV_SYNC[%u]: [DEVICE]: %s synced, "
-		    "Interval 0x%04x (%u us), PHY %s, SD 0x%04X, PAST peer %s",
+		    "Interval 0x%04x (%u ms), PHY %s, SD 0x%04X, PAST peer %s",
 		    bt_le_per_adv_sync_get_index(sync), le_addr,
-		    info->interval, BT_CONN_INTERVAL_TO_US(info->interval),
+		    info->interval, BT_CONN_INTERVAL_TO_MS(info->interval),
 		    phy2str(info->phy), info->service_data, past_peer);
 
 	if (info->conn) { /* if from PAST */
@@ -685,12 +582,12 @@ static void per_adv_sync_biginfo_cb(struct bt_le_per_adv_sync *sync,
 
 	bt_addr_le_to_str(biginfo->addr, le_addr, sizeof(le_addr));
 	shell_print(ctx_shell, "BIG_INFO PER_ADV_SYNC[%u]: [DEVICE]: %s, sid 0x%02x, num_bis %u, "
-		    "nse 0x%02x, interval 0x%04x (%u us), bn 0x%02x, pto 0x%02x, irc 0x%02x, "
+		    "nse 0x%02x, interval 0x%04x (%u ms), bn 0x%02x, pto 0x%02x, irc 0x%02x, "
 		    "max_pdu 0x%04x, sdu_interval 0x%04x, max_sdu 0x%04x, phy %s, framing 0x%02x, "
 		    "%sencrypted",
 		    bt_le_per_adv_sync_get_index(sync), le_addr, biginfo->sid, biginfo->num_bis,
 		    biginfo->sub_evt_count, biginfo->iso_interval,
-		    BT_CONN_INTERVAL_TO_US(biginfo->iso_interval), biginfo->burst_number,
+		    BT_CONN_INTERVAL_TO_MS(biginfo->iso_interval), biginfo->burst_number,
 		    biginfo->offset, biginfo->rep_count, biginfo->max_pdu, biginfo->sdu_interval,
 		    biginfo->max_sdu, phy2str(biginfo->phy), biginfo->framing,
 		    biginfo->encryption ? "" : "not ");
@@ -744,7 +641,7 @@ static void bt_ready(int err)
 static int cmd_init(const struct shell *sh, size_t argc, char *argv[])
 {
 	int err;
-	bool sync = false;
+	bool no_ready_cb = false;
 
 	ctx_shell = sh;
 
@@ -754,30 +651,26 @@ static int cmd_init(const struct shell *sh, size_t argc, char *argv[])
 		if (!strcmp(arg, "no-settings-load")) {
 			no_settings_load = true;
 		} else if (!strcmp(arg, "sync")) {
-			sync = true;
+			no_ready_cb = true;
 		} else {
 			shell_help(sh);
 			return SHELL_CMD_HELP_PRINTED;
 		}
 	}
 
-	if (sync) {
-		err = bt_enable(NULL);
-		bt_ready(err);
-	} else {
+	if (no_ready_cb) {
 		err = bt_enable(bt_ready);
 		if (err) {
 			shell_error(sh, "Bluetooth init failed (err %d)",
 				    err);
 		}
+
+	} else {
+		err = bt_enable(NULL);
+		bt_ready(err);
 	}
 
 	return err;
-}
-
-static int cmd_disable(const struct shell *sh, size_t argc, char *argv[])
-{
-	return bt_disable();
 }
 
 #ifdef CONFIG_SETTINGS
@@ -1181,65 +1074,6 @@ static int cmd_scan_filter_set_addr(const struct shell *sh, size_t argc,
 	return 0;
 }
 
-static int cmd_scan_filter_set_rssi(const struct shell *sh, size_t argc, char *argv[])
-{
-	int err = 0;
-	long rssi;
-
-	rssi = shell_strtol(argv[1], 10, &err);
-
-	if (!err) {
-		if (IN_RANGE(rssi, INT8_MIN, INT8_MAX)) {
-			scan_filter.rssi = (int8_t)rssi;
-			scan_filter.rssi_set = true;
-			shell_print(sh, "RSSI cutoff set at %d dB", scan_filter.rssi);
-
-			return 0;
-		}
-
-		shell_print(sh, "value out of bounds (%d to %d)", INT8_MIN, INT8_MAX);
-		err = -ERANGE;
-	}
-
-	shell_print(sh, "error %d", err);
-	shell_help(sh);
-
-	return SHELL_CMD_HELP_PRINTED;
-}
-
-static int cmd_scan_filter_set_pa_interval(const struct shell *sh, size_t argc,
-					   char *argv[])
-{
-	unsigned long pa_interval;
-	int err = 0;
-
-	pa_interval = shell_strtoul(argv[1], 10, &err);
-
-	if (!err) {
-		if (IN_RANGE(pa_interval,
-			     BT_GAP_PER_ADV_MIN_INTERVAL,
-			     BT_GAP_PER_ADV_MAX_INTERVAL)) {
-			scan_filter.pa_interval = (uint16_t)pa_interval;
-			scan_filter.pa_interval_set = true;
-			shell_print(sh, "PA interval cutoff set at %u",
-				    scan_filter.pa_interval);
-
-			return 0;
-		}
-
-		shell_print(sh, "value out of bounds (%d to %d)",
-			    BT_GAP_PER_ADV_MIN_INTERVAL,
-			    BT_GAP_PER_ADV_MAX_INTERVAL);
-
-		err = -ERANGE;
-	}
-
-	shell_print(sh, "error %d", err);
-	shell_help(sh);
-
-	return SHELL_CMD_HELP_PRINTED;
-}
-
 static int cmd_scan_filter_clear_all(const struct shell *sh, size_t argc,
 				     char *argv[])
 {
@@ -1269,87 +1103,15 @@ static int cmd_scan_filter_clear_addr(const struct shell *sh, size_t argc,
 #endif /* CONFIG_BT_OBSERVER */
 
 #if defined(CONFIG_BT_BROADCASTER)
-static ssize_t ad_init(struct bt_data *data_array, const size_t data_array_size,
-		       const atomic_t *adv_opt)
-{
-	const bool discoverable = atomic_test_bit(adv_opt, SHELL_ADV_OPT_DISCOVERABLE);
-	const bool appearance = atomic_test_bit(adv_opt, SHELL_ADV_OPT_APPEARANCE);
-	const bool adv_ext = atomic_test_bit(adv_opt, SHELL_ADV_OPT_EXT_ADV);
-	static uint8_t ad_flags;
-	size_t ad_len = 0;
-
-	/* Set BR/EDR Not Supported if LE-only device */
-	ad_flags = IS_ENABLED(CONFIG_BT_BREDR) ? 0 : BT_LE_AD_NO_BREDR;
-
-	if (discoverable) {
-		/* A privacy-enabled Set Member should advertise RSI values only when in
-		 * the GAP Limited Discoverable mode.
-		 */
-		if (IS_ENABLED(CONFIG_BT_PRIVACY) &&
-		    IS_ENABLED(CONFIG_BT_CSIP_SET_MEMBER) &&
-		    svc_inst != NULL) {
-			ad_flags |= BT_LE_AD_LIMITED;
-		} else {
-			ad_flags |= BT_LE_AD_GENERAL;
-		}
-	}
-
-	if (ad_flags != 0) {
-		__ASSERT(data_array_size > ad_len, "No space for AD_FLAGS");
-		data_array[ad_len].type = BT_DATA_FLAGS;
-		data_array[ad_len].data_len = sizeof(ad_flags);
-		data_array[ad_len].data = &ad_flags;
-		ad_len++;
-	}
-
-	if (appearance) {
-		const uint16_t appearance = bt_get_appearance();
-		static uint8_t appearance_data[sizeof(appearance)];
-
-		__ASSERT(data_array_size > ad_len, "No space for appearance");
-		sys_put_le16(appearance, appearance_data);
-		data_array[ad_len].type = BT_DATA_GAP_APPEARANCE;
-		data_array[ad_len].data_len = sizeof(appearance_data);
-		data_array[ad_len].data = appearance_data;
-		ad_len++;
-	}
-
-	if (IS_ENABLED(CONFIG_BT_CSIP_SET_MEMBER)) {
-		ssize_t csis_ad_len;
-
-		csis_ad_len = csis_ad_data_add(&data_array[ad_len],
-					       data_array_size - ad_len, discoverable);
-		if (csis_ad_len < 0) {
-			shell_error(ctx_shell, "Failed to add CSIS data (err %d)", csis_ad_len);
-			return ad_len;
-		}
-
-		ad_len += csis_ad_len;
-	}
-
-	if (IS_ENABLED(CONFIG_BT_AUDIO) && IS_ENABLED(CONFIG_BT_EXT_ADV) && adv_ext) {
-		const bool connectable = atomic_test_bit(adv_opt, SHELL_ADV_OPT_CONNECTABLE);
-		ssize_t audio_ad_len;
-
-		audio_ad_len = audio_ad_data_add(&data_array[ad_len], data_array_size - ad_len,
-						 discoverable, connectable);
-		if (audio_ad_len < 0) {
-			return audio_ad_len;
-		}
-
-		ad_len += audio_ad_len;
-	}
-
-	return ad_len;
-}
+static const struct bt_data ad_discov[] = {
+	BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
+};
 
 static int cmd_advertise(const struct shell *sh, size_t argc, char *argv[])
 {
 	struct bt_le_adv_param param = {};
-	struct bt_data ad[3];
-	bool discoverable = true;
-	bool appearance = false;
-	ssize_t ad_len;
+	const struct bt_data *ad;
+	size_t ad_len;
 	int err;
 
 	if (!strcmp(argv[1], "off")) {
@@ -1378,15 +1140,17 @@ static int cmd_advertise(const struct shell *sh, size_t argc, char *argv[])
 		goto fail;
 	}
 
+	ad = ad_discov;
+	ad_len = ARRAY_SIZE(ad_discov);
+
 	for (size_t argn = 2; argn < argc; argn++) {
 		const char *arg = argv[argn];
 
 		if (!strcmp(arg, "discov")) {
-			discoverable = true;
+			/* Default */
 		} else if (!strcmp(arg, "non_discov")) {
-			discoverable = false;
-		} else if (!strcmp(arg, "appearance")) {
-			appearance = true;
+			ad = NULL;
+			ad_len = 0;
 		} else if (!strcmp(arg, "fal")) {
 			param.options |= BT_LE_ADV_OPT_FILTER_SCAN_REQ;
 			param.options |= BT_LE_ADV_OPT_FILTER_CONN;
@@ -1414,18 +1178,7 @@ static int cmd_advertise(const struct shell *sh, size_t argc, char *argv[])
 		}
 	}
 
-	atomic_clear(adv_opt);
-	atomic_set_bit_to(adv_opt, SHELL_ADV_OPT_CONNECTABLE,
-			  (param.options & BT_LE_ADV_OPT_CONNECTABLE) > 0);
-	atomic_set_bit_to(adv_opt, SHELL_ADV_OPT_DISCOVERABLE, discoverable);
-	atomic_set_bit_to(adv_opt, SHELL_ADV_OPT_APPEARANCE, appearance);
-
-	ad_len = ad_init(ad, ARRAY_SIZE(ad), adv_opt);
-	if (ad_len < 0) {
-		return -ENOEXEC;
-	}
-
-	err = bt_le_adv_start(&param, ad_len > 0 ? ad : NULL, ad_len, NULL, 0);
+	err = bt_le_adv_start(&param, ad, ad_len, NULL, 0);
 	if (err < 0) {
 		shell_error(sh, "Failed to start advertising (err %d)",
 			    err);
@@ -1542,8 +1295,6 @@ static bool adv_param_parse(size_t argc, char *argv[],
 			param->options |= BT_LE_ADV_OPT_FORCE_NAME_IN_AD;
 		} else if (!strcmp(arg, "low")) {
 			param->options |= BT_LE_ADV_OPT_DIR_MODE_LOW_DUTY;
-		} else if (!strcmp(arg, "dir-rpa")) {
-			param->options |= BT_LE_ADV_OPT_DIR_ADDR_RPA;
 		} else if (!strcmp(arg, "disable-37")) {
 			param->options |= BT_LE_ADV_OPT_DISABLE_CHAN_37;
 		} else if (!strcmp(arg, "disable-38")) {
@@ -1604,12 +1355,6 @@ static int cmd_adv_create(const struct shell *sh, size_t argc, char *argv[])
 	adv_index = bt_le_ext_adv_get_index(adv);
 	adv_sets[adv_index] = adv;
 
-	atomic_clear(adv_set_opt[adv_index]);
-	atomic_set_bit_to(adv_set_opt[adv_index], SHELL_ADV_OPT_CONNECTABLE,
-			  (param.options & BT_LE_ADV_OPT_CONNECTABLE) > 0);
-	atomic_set_bit_to(adv_set_opt[adv_index], SHELL_ADV_OPT_EXT_ADV,
-			  (param.options & BT_LE_ADV_OPT_EXT_ADV) > 0);
-
 	shell_print(sh, "Created adv id: %d, adv: %p", adv_index, adv);
 
 	return 0;
@@ -1637,16 +1382,15 @@ static int cmd_adv_param(const struct shell *sh, size_t argc, char *argv[])
 
 static int cmd_adv_data(const struct shell *sh, size_t argc, char *argv[])
 {
+	uint8_t discov_data = (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR);
 	struct bt_le_ext_adv *adv = adv_sets[selected_adv];
 	static uint8_t hex_data[1650];
-	bool appearance = false;
 	struct bt_data *data;
-	struct bt_data ad[9];
-	struct bt_data sd[9];
+	struct bt_data ad[8];
+	struct bt_data sd[8];
 	size_t hex_data_len;
 	size_t ad_len = 0;
 	size_t sd_len = 0;
-	bool discoverable = false;
 	size_t *data_len;
 	int err;
 
@@ -1671,11 +1415,17 @@ static int cmd_adv_data(const struct shell *sh, size_t argc, char *argv[])
 		}
 
 		if (!strcmp(arg, "discov")) {
-			discoverable = true;
-		} else if (!strcmp(arg, "non_discov")) {
-			discoverable = false;
-		} else if (!strcmp(arg, "appearance")) {
-			appearance = true;
+			data[*data_len].type = BT_DATA_FLAGS;
+			data[*data_len].data_len = sizeof(discov_data);
+			data[*data_len].data = &discov_data;
+			(*data_len)++;
+		} else if (!strcmp(arg, "name")) {
+			const char *name = bt_get_name();
+
+			data[*data_len].type = BT_DATA_NAME_COMPLETE;
+			data[*data_len].data_len = strlen(name);
+			data[*data_len].data = name;
+			(*data_len)++;
 		} else if (!strcmp(arg, "scan-response")) {
 			if (data == sd) {
 				shell_print(sh, "Failed to set advertising data: "
@@ -1703,18 +1453,6 @@ static int cmd_adv_data(const struct shell *sh, size_t argc, char *argv[])
 			(*data_len)++;
 			hex_data_len += len;
 		}
-	}
-
-	atomic_set_bit_to(adv_set_opt[selected_adv], SHELL_ADV_OPT_DISCOVERABLE, discoverable);
-	atomic_set_bit_to(adv_set_opt[selected_adv], SHELL_ADV_OPT_APPEARANCE,
-			  appearance);
-
-	ad_len = ad_init(&ad[*data_len], ARRAY_SIZE(ad) - *data_len,
-			 adv_set_opt[selected_adv]);
-	if (ad_len < 0) {
-		shell_error(sh, "Failed to initialize stack advertising data");
-
-		return -ENOEXEC;
 	}
 
 	err = bt_le_ext_adv_set_data(adv, ad_len > 0 ? ad : NULL, ad_len,
@@ -1858,7 +1596,6 @@ static int cmd_adv_info(const struct shell *sh, size_t argc, char *argv[])
 
 	shell_print(sh, "Advertiser[%d] %p", selected_adv, adv);
 	shell_print(sh, "Id: %d, TX power: %d dBm", info.id, info.tx_power);
-	print_le_addr("Address", info.addr);
 
 	return 0;
 }
@@ -1884,24 +1621,6 @@ static int cmd_adv_oob(const struct shell *sh, size_t argc, char *argv[])
 	return 0;
 }
 #endif /* CONFIG_BT_PERIPHERAL */
-
-#if defined(CONFIG_BT_PRIVACY)
-static int cmd_adv_rpa_expire(const struct shell *sh, size_t argc, char *argv[])
-{
-	if (!strcmp(argv[1], "on")) {
-		atomic_clear_bit(adv_set_opt[selected_adv], SHELL_ADV_OPT_KEEP_RPA);
-		shell_print(sh, "RPA will expire on next timeout");
-	} else if (!strcmp(argv[1], "off")) {
-		atomic_set_bit(adv_set_opt[selected_adv], SHELL_ADV_OPT_KEEP_RPA);
-		shell_print(sh, "RPA will not expire on RPA timeout");
-	} else {
-		shell_error(sh, "Invalid argument: %s", argv[1]);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-#endif
 
 #if defined(CONFIG_BT_PER_ADV)
 static int cmd_per_adv(const struct shell *sh, size_t argc, char *argv[])
@@ -1982,33 +1701,12 @@ static int cmd_per_adv_param(const struct shell *sh, size_t argc,
 	return 0;
 }
 
-static ssize_t pa_ad_init(struct bt_data *data_array,
-			  const size_t data_array_size)
-{
-	size_t ad_len = 0;
-
-	if (IS_ENABLED(CONFIG_BT_AUDIO)) {
-		ssize_t audio_pa_ad_len;
-
-		audio_pa_ad_len = audio_pa_data_add(&data_array[ad_len],
-						    data_array_size - ad_len);
-		if (audio_pa_ad_len < 0U) {
-			return audio_pa_ad_len;
-		}
-
-		ad_len += audio_pa_ad_len;
-	}
-
-	return ad_len;
-}
-
 static int cmd_per_adv_data(const struct shell *sh, size_t argc,
 			    char *argv[])
 {
 	struct bt_le_ext_adv *adv = adv_sets[selected_adv];
+	static struct bt_data ad;
 	static uint8_t hex_data[256];
-	static struct bt_data ad[2U];
-	ssize_t stack_ad_len;
 	uint8_t ad_len = 0;
 	int err;
 
@@ -2017,34 +1715,19 @@ static int cmd_per_adv_data(const struct shell *sh, size_t argc,
 		return -EINVAL;
 	}
 
-	if (argc > 1) {
-		size_t hex_len = 0U;
+	memset(hex_data, 0, sizeof(hex_data));
+	ad_len = hex2bin(argv[1], strlen(argv[1]), hex_data, sizeof(hex_data));
 
-		(void)memset(hex_data, 0, sizeof(hex_data));
-		hex_len = hex2bin(argv[1U], strlen(argv[1U]), hex_data,
-				  sizeof(hex_data));
-
-		if (hex_len == 0U) {
-			shell_error(sh, "Could not parse adv data");
-
-			return -ENOEXEC;
-		}
-
-		ad[ad_len].data_len = hex_data[0U];
-		ad[ad_len].type = hex_data[1U];
-		ad[ad_len].data = &hex_data[2U];
-		ad_len++;
-	}
-
-	stack_ad_len = pa_ad_init(&ad[ad_len], ARRAY_SIZE(ad) - ad_len);
-	if (stack_ad_len < 0) {
-		shell_error(sh, "Failed to get stack PA data");
-
+	if (!ad_len) {
+		shell_error(sh, "Could not parse adv data");
 		return -ENOEXEC;
 	}
-	ad_len += stack_ad_len;
 
-	err = bt_le_per_adv_set_data(adv, ad, ad_len);
+	ad.data_len = hex_data[0];
+	ad.type = hex_data[1];
+	ad.data = &hex_data[2];
+
+	err = bt_le_per_adv_set_data(adv, &ad, 1);
 	if (err) {
 		shell_error(sh,
 			    "Failed to set periodic advertising data (%d)",
@@ -2173,7 +1856,6 @@ static int cmd_per_adv_sync_delete(const struct shell *sh, size_t argc,
 	return 0;
 }
 
-#if defined(CONFIG_BT_PER_ADV_SYNC_TRANSFER_RECEIVER)
 static int cmd_past_subscribe(const struct shell *sh, size_t argc,
 			      char *argv[])
 {
@@ -2274,9 +1956,7 @@ static int cmd_past_unsubscribe(const struct shell *sh, size_t argc,
 
 	return err;
 }
-#endif /* CONFIG_BT_PER_ADV_SYNC_TRANSFER_RECEIVER */
 
-#if defined(CONFIG_BT_PER_ADV_SYNC_TRANSFER_SENDER)
 static int cmd_per_adv_sync_transfer(const struct shell *sh, size_t argc,
 				     char *argv[])
 {
@@ -2307,30 +1987,7 @@ static int cmd_per_adv_sync_transfer(const struct shell *sh, size_t argc,
 
 	return err;
 }
-#endif /* CONFIG_BT_PER_ADV_SYNC_TRANSFER_SENDER */
 #endif /* CONFIG_BT_PER_ADV_SYNC */
-
-#if defined(CONFIG_BT_PER_ADV_SYNC_TRANSFER_SENDER) && defined(CONFIG_BT_PER_ADV)
-static int cmd_per_adv_set_info_transfer(const struct shell *sh, size_t argc,
-					 char *argv[])
-{
-	const struct bt_le_ext_adv *adv = adv_sets[selected_adv];
-	int err;
-
-	if (default_conn == NULL) {
-		shell_error(sh, "%s: at least, one connection is required",
-			    sh->ctx->active_cmd.syntax);
-		return -ENOEXEC;
-	}
-
-	err = bt_le_per_adv_set_info_transfer(adv, default_conn, 0U);
-	if (err) {
-		shell_error(sh, "Periodic advertising sync transfer failed (%d)", err);
-	}
-
-	return err;
-}
-#endif /* CONFIG_BT_PER_ADV_SYNC_TRANSFER_SENDER && CONFIG_BT_PER_ADV */
 
 #if defined(CONFIG_BT_CONN)
 #if defined(CONFIG_BT_CENTRAL)
@@ -2341,22 +1998,10 @@ static int cmd_connect_le(const struct shell *sh, size_t argc, char *argv[])
 	struct bt_conn *conn;
 	uint32_t options = 0;
 
-	/* When no arguments are specified, connect to the last scanned device. */
-	if (argc == 1) {
-		if (auto_connect.addr_set) {
-			bt_addr_le_copy(&addr, &auto_connect.addr);
-		} else {
-			shell_error(sh, "No connectable adv stored, please trigger a scan first.");
-			shell_help(sh);
-
-			return SHELL_CMD_HELP_PRINTED;
-		}
-	} else {
-		err = bt_addr_le_from_str(argv[1], argv[2], &addr);
-		if (err) {
-			shell_error(sh, "Invalid peer address (err %d)", err);
-			return err;
-		}
+	err = bt_addr_le_from_str(argv[1], argv[2], &addr);
+	if (err) {
+		shell_error(sh, "Invalid peer address (err %d)", err);
+		return err;
 	}
 
 #if defined(CONFIG_BT_EXT_ADV)
@@ -2421,43 +2066,6 @@ static int cmd_auto_conn(const struct shell *sh, size_t argc, char *argv[])
 	return 0;
 }
 #endif /* !defined(CONFIG_BT_FILTER_ACCEPT_LIST) */
-
-static int cmd_connect_le_name(const struct shell *sh, size_t argc, char *argv[])
-{
-	const uint16_t timeout_seconds = 10;
-	const struct bt_le_scan_param param = {
-		.type       = BT_LE_SCAN_TYPE_ACTIVE,
-		.options    = BT_LE_SCAN_OPT_NONE,
-		.interval   = BT_GAP_SCAN_FAST_INTERVAL,
-		.window     = BT_GAP_SCAN_FAST_WINDOW,
-		.timeout    = timeout_seconds * 100, /* 10ms units */
-	};
-	int err;
-
-	/* Set the name filter which we will use in the scan callback to
-	 * automatically connect to the first device that passes the filter
-	 */
-	err = cmd_scan_filter_set_name(sh, argc, argv);
-	if (err) {
-		shell_error(sh,
-			    "Bluetooth set scan filter name to %s failed (err %d)",
-			    argv[1], err);
-		return err;
-	}
-
-	err = bt_le_scan_start(&param, NULL);
-	if (err) {
-		shell_error(sh, "Bluetooth scan failed (err %d)", err);
-		return err;
-	}
-
-	shell_print(sh, "Bluetooth active scan enabled");
-
-	/* Set boolean to tell the scan callback to connect to this name */
-	auto_connect.connect_name = true;
-
-	return 0;
-}
 #endif /* CONFIG_BT_CENTRAL */
 
 static int cmd_disconnect(const struct shell *sh, size_t argc, char *argv[])
@@ -2547,6 +2155,20 @@ static const char *get_conn_role_str(uint8_t role)
 	}
 }
 
+static void print_le_addr(const char *desc, const bt_addr_le_t *addr)
+{
+	char addr_str[BT_ADDR_LE_STR_LEN];
+
+	const char *addr_desc = bt_addr_le_is_identity(addr) ? "identity" :
+				bt_addr_le_is_rpa(addr) ? "resolvable" :
+				"non-resolvable";
+
+	bt_addr_le_to_str(addr, addr_str, sizeof(addr_str));
+
+	shell_print(ctx_shell, "%s address: %s (%s)", desc, addr_str,
+		    addr_desc);
+}
+
 static int cmd_info(const struct shell *sh, size_t argc, char *argv[])
 {
 	struct bt_conn *conn = NULL;
@@ -2604,11 +2226,12 @@ static int cmd_info(const struct shell *sh, size_t argc, char *argv[])
 		print_le_addr("Remote on-air", info.le.remote);
 		print_le_addr("Local on-air", info.le.local);
 
-		shell_print(ctx_shell, "Interval: 0x%04x (%u us)",
+		shell_print(ctx_shell, "Interval: 0x%04x (%u ms)",
 			    info.le.interval,
-			    BT_CONN_INTERVAL_TO_US(info.le.interval));
-		shell_print(ctx_shell, "Latency: 0x%04x",
-			    info.le.latency);
+			    BT_CONN_INTERVAL_TO_MS(info.le.interval));
+		shell_print(ctx_shell, "Latency: 0x%04x (%u ms)",
+			    info.le.latency,
+			    BT_CONN_INTERVAL_TO_MS(info.le.latency));
 		shell_print(ctx_shell, "Supervision timeout: 0x%04x (%d ms)",
 			    info.le.timeout, info.le.timeout * 10);
 #if defined(CONFIG_BT_USER_PHY_UPDATE)
@@ -2909,12 +2532,6 @@ static int cmd_security(const struct shell *sh, size_t argc, char *argv[])
 		return -ENOEXEC;
 	}
 
-	if (argc < 2) {
-		shell_print(sh, "BT_SECURITY_L%d", bt_conn_get_security(default_conn));
-
-		return 0;
-	}
-
 	sec = *argv[1] - '0';
 
 	if ((info.type == BT_CONN_TYPE_BR &&
@@ -3142,7 +2759,7 @@ static void auth_pairing_oob_data_request(struct bt_conn *conn,
 						  : NULL;
 
 		if (oobd_remote &&
-		    !bt_addr_le_eq(info.le.remote, &oob_remote.addr)) {
+		    bt_addr_le_cmp(info.le.remote, &oob_remote.addr)) {
 			bt_addr_le_to_str(info.le.remote, addr, sizeof(addr));
 			shell_print(ctx_shell,
 				    "No OOB data available for remote %s",
@@ -3152,7 +2769,7 @@ static void auth_pairing_oob_data_request(struct bt_conn *conn,
 		}
 
 		if (oobd_local &&
-		    !bt_addr_le_eq(info.le.local, &oob_local.addr)) {
+		    bt_addr_le_cmp(info.le.local, &oob_local.addr)) {
 			bt_addr_le_to_str(info.le.local, addr, sizeof(addr));
 			shell_print(ctx_shell,
 				    "No OOB data available for local %s",
@@ -3244,7 +2861,7 @@ enum bt_security_err pairing_accept(
 
 void bond_deleted(uint8_t id, const bt_addr_le_t *peer)
 {
-	char addr[BT_ADDR_LE_STR_LEN];
+	char addr[BT_ADDR_STR_LEN];
 
 	bt_addr_le_to_str(peer, addr, sizeof(addr));
 	shell_print(ctx_shell, "Bond deleted for %s, id %u", addr, id);
@@ -3608,31 +3225,17 @@ static int cmd_auth_oob_tk(const struct shell *sh, size_t argc, char *argv[])
 #endif /* !defined(CONFIG_BT_SMP_SC_PAIR_ONLY) */
 #endif /* CONFIG_BT_SMP) || CONFIG_BT_BREDR */
 
-static int cmd_default_handler(const struct shell *sh, size_t argc, char **argv)
-{
-	if (argc == 1) {
-		shell_help(sh);
-		return SHELL_CMD_HELP_PRINTED;
-	}
-
-	shell_error(sh, "%s unknown parameter: %s", argv[0], argv[1]);
-
-	return -EINVAL;
-}
 
 #define HELP_NONE "[none]"
-#define HELP_ONOFF "<on, off>"
-#define HELP_ADDR "<address: XX:XX:XX:XX:XX:XX>"
 #define HELP_ADDR_LE "<address: XX:XX:XX:XX:XX:XX> <type: (public|random)>"
 
 #if defined(CONFIG_BT_EXT_ADV)
 #define EXT_ADV_SCAN_OPT " [coded] [no-1m]"
-#define EXT_ADV_PARAM                                                                              \
-	"<type: conn-scan conn-nscan, nconn-scan nconn-nscan> "                                    \
-	"[ext-adv] [no-2m] [coded] [anon] [tx-power] [scan-reports] "                              \
-	"[filter-accept-list: fal, fal-scan, fal-conn] [identity] [name] "                         \
-	"[name-ad] [directed " HELP_ADDR_LE "] [mode: low] [dir-rpa] "                             \
-	"[disable-37] [disable-38] [disable-39]"
+#define EXT_ADV_PARAM "<type: conn-scan conn-nscan, nconn-scan nconn-nscan> " \
+		      "[ext-adv] [no-2m] [coded] "                            \
+		      "[filter-accept-list: fal, fal-scan, fal-conn] [identity] [name] "  \
+		      "[name-ad] [directed "HELP_ADDR_LE"] [mode: low]"       \
+		      "[disable-37] [disable-38] [disable-39]"
 #else
 #define EXT_ADV_SCAN_OPT ""
 #endif /* defined(CONFIG_BT_EXT_ADV) */
@@ -3640,10 +3243,7 @@ static int cmd_default_handler(const struct shell *sh, size_t argc, char **argv)
 #if defined(CONFIG_BT_OBSERVER)
 SHELL_STATIC_SUBCMD_SET_CREATE(bt_scan_filter_set_cmds,
 	SHELL_CMD_ARG(name, NULL, "<name>", cmd_scan_filter_set_name, 2, 0),
-	SHELL_CMD_ARG(addr, NULL, HELP_ADDR, cmd_scan_filter_set_addr, 2, 0),
-	SHELL_CMD_ARG(rssi, NULL, "<rssi>", cmd_scan_filter_set_rssi, 2, 0),
-	SHELL_CMD_ARG(pa_interval, NULL, "<pa_interval>",
-		      cmd_scan_filter_set_pa_interval, 2, 0),
+	SHELL_CMD_ARG(addr, NULL, "<addr>", cmd_scan_filter_set_addr, 2, 0),
 	SHELL_SUBCMD_SET_END
 );
 
@@ -3658,15 +3258,14 @@ SHELL_STATIC_SUBCMD_SET_CREATE(bt_scan_filter_clear_cmds,
 SHELL_STATIC_SUBCMD_SET_CREATE(bt_cmds,
 	SHELL_CMD_ARG(init, NULL, "[no-settings-load], [sync]",
 		      cmd_init, 1, 2),
-	SHELL_CMD_ARG(disable, NULL, HELP_NONE, cmd_disable, 1, 0),
 #if defined(CONFIG_SETTINGS)
 	SHELL_CMD_ARG(settings-load, NULL, HELP_NONE, cmd_settings_load, 1, 0),
 #endif
 #if defined(CONFIG_BT_HCI)
 	SHELL_CMD_ARG(hci-cmd, NULL, "<ogf> <ocf> [data]", cmd_hci_cmd, 3, 1),
 #endif
-	SHELL_CMD_ARG(id-create, NULL, HELP_ADDR, cmd_id_create, 1, 1),
-	SHELL_CMD_ARG(id-reset, NULL, "<id> "HELP_ADDR, cmd_id_reset, 2, 1),
+	SHELL_CMD_ARG(id-create, NULL, "[addr]", cmd_id_create, 1, 1),
+	SHELL_CMD_ARG(id-reset, NULL, "<id> [addr]", cmd_id_reset, 2, 1),
 	SHELL_CMD_ARG(id-delete, NULL, "<id>", cmd_id_delete, 2, 0),
 	SHELL_CMD_ARG(id-show, NULL, HELP_NONE, cmd_id_show, 1, 0),
 	SHELL_CMD_ARG(id-select, NULL, "<id>", cmd_id_select, 2, 0),
@@ -3674,25 +3273,25 @@ SHELL_STATIC_SUBCMD_SET_CREATE(bt_cmds,
 #if defined(CONFIG_BT_DEVICE_APPEARANCE_DYNAMIC)
 	SHELL_CMD_ARG(appearance, NULL, "[new appearance value]", cmd_appearance, 1, 1),
 #else
-	SHELL_CMD_ARG(appearance, NULL, HELP_NONE, cmd_appearance, 1, 0),
+	SHELL_CMD_ARG(appearance, NULL, "", cmd_appearance, 1, 0),
 #endif /* CONFIG_BT_DEVICE_APPEARANCE_DYNAMIC */
 #if defined(CONFIG_BT_OBSERVER)
 	SHELL_CMD_ARG(scan, NULL,
 		      "<value: on, passive, off> [filter: dups, nodups] [fal]"
 		      EXT_ADV_SCAN_OPT,
 		      cmd_scan, 2, 4),
-	SHELL_CMD(scan-filter-set, &bt_scan_filter_set_cmds,
+	SHELL_CMD_ARG(scan-filter-set, &bt_scan_filter_set_cmds,
 		      "Scan filter set commands",
-		      cmd_default_handler),
-	SHELL_CMD(scan-filter-clear, &bt_scan_filter_clear_cmds,
+		      NULL, 1, 0),
+	SHELL_CMD_ARG(scan-filter-clear, &bt_scan_filter_clear_cmds,
 		      "Scan filter clear commands",
-		      cmd_default_handler),
+		      NULL, 1, 0),
 #endif /* CONFIG_BT_OBSERVER */
 #if defined(CONFIG_BT_BROADCASTER)
 	SHELL_CMD_ARG(advertise, NULL,
 		      "<type: off, on, scan, nconn> [mode: discov, non_discov] "
 		      "[filter-accept-list: fal, fal-scan, fal-conn] [identity] [no-name] "
-		      "[one-time] [name-ad] [appearance] "
+		      "[one-time] [name-ad]"
 		      "[disable-37] [disable-38] [disable-39]",
 		      cmd_advertise, 2, 8),
 #if defined(CONFIG_BT_PERIPHERAL)
@@ -3704,27 +3303,24 @@ SHELL_STATIC_SUBCMD_SET_CREATE(bt_cmds,
 	SHELL_CMD_ARG(adv-create, NULL, EXT_ADV_PARAM, cmd_adv_create, 2, 11),
 	SHELL_CMD_ARG(adv-param, NULL, EXT_ADV_PARAM, cmd_adv_param, 2, 11),
 	SHELL_CMD_ARG(adv-data, NULL, "<data> [scan-response <data>] "
-				      "<type: discov, hex> [appearance] ",
-		      cmd_adv_data, 1, 16),
+				      "<type: discov, name, hex>", cmd_adv_data,
+		      1, 16),
 	SHELL_CMD_ARG(adv-start, NULL,
 		"[timeout <timeout>] [num-events <num events>]",
 		cmd_adv_start, 1, 4),
-	SHELL_CMD_ARG(adv-stop, NULL, HELP_NONE, cmd_adv_stop, 1, 0),
-	SHELL_CMD_ARG(adv-delete, NULL, HELP_NONE, cmd_adv_delete, 1, 0),
+	SHELL_CMD_ARG(adv-stop, NULL, "", cmd_adv_stop, 1, 0),
+	SHELL_CMD_ARG(adv-delete, NULL, "", cmd_adv_delete, 1, 0),
 	SHELL_CMD_ARG(adv-select, NULL, "[adv]", cmd_adv_select, 1, 1),
 	SHELL_CMD_ARG(adv-info, NULL, HELP_NONE, cmd_adv_info, 1, 0),
 #if defined(CONFIG_BT_PERIPHERAL)
 	SHELL_CMD_ARG(adv-oob, NULL, HELP_NONE, cmd_adv_oob, 1, 0),
 #endif /* CONFIG_BT_PERIPHERAL */
-#if defined(CONFIG_BT_PRIVACY)
-	SHELL_CMD_ARG(adv-rpa-expire, NULL, HELP_ONOFF, cmd_adv_rpa_expire, 2, 0),
-#endif
 #if defined(CONFIG_BT_PER_ADV)
-	SHELL_CMD_ARG(per-adv, NULL, HELP_ONOFF, cmd_per_adv, 2, 0),
+	SHELL_CMD_ARG(per-adv, NULL, "<type: off, on>", cmd_per_adv, 2, 0),
 	SHELL_CMD_ARG(per-adv-param, NULL,
 		      "[<interval-min> [<interval-max> [tx_power]]]",
 		      cmd_per_adv_param, 1, 3),
-	SHELL_CMD_ARG(per-adv-data, NULL, "[data]", cmd_per_adv_data, 1, 1),
+	SHELL_CMD_ARG(per-adv-data, NULL, "<data>", cmd_per_adv_data, 2, 0),
 #endif /* CONFIG_BT_PER_ADV */
 #endif /* CONFIG_BT_EXT_ADV */
 #endif /* CONFIG_BT_BROADCASTER */
@@ -3737,33 +3333,23 @@ SHELL_STATIC_SUBCMD_SET_CREATE(bt_cmds,
 		      cmd_per_adv_sync_delete, 1, 1),
 #endif /* defined(CONFIG_BT_PER_ADV_SYNC) */
 #if defined(CONFIG_BT_CONN)
-#if defined(CONFIG_BT_PER_ADV_SYNC_TRANSFER_RECEIVER)
+#if defined(CONFIG_BT_PER_ADV_SYNC)
 	SHELL_CMD_ARG(past-subscribe, NULL, "[conn] [skip <count>] "
 		      "[timeout <ms>] [aoa] [aod_1us] [aod_2us] [cte_only]",
 		      cmd_past_subscribe, 1, 7),
 	SHELL_CMD_ARG(past-unsubscribe, NULL, "[conn]",
 		      cmd_past_unsubscribe, 1, 1),
-#endif /* CONFIG_BT_PER_ADV_SYNC_TRANSFER_RECEIVER */
-#if defined(CONFIG_BT_PER_ADV_SYNC_TRANSFER_SENDER)
-#if defined(CONFIG_BT_PER_ADV_SYNC)
 	SHELL_CMD_ARG(per-adv-sync-transfer, NULL, "[<index>]",
 		      cmd_per_adv_sync_transfer, 1, 1),
-#endif /* CONFIG_BT_PER_ADV_SYNC */
-#if defined(CONFIG_BT_PER_ADV)
-	SHELL_CMD_ARG(per-adv-set-info-transfer, NULL, "",
-		      cmd_per_adv_set_info_transfer, 1, 0),
-#endif /* CONFIG_BT_PER_ADV */
-#endif /* CONFIG_BT_PER_ADV_SYNC_TRANSFER_SENDER */
+#endif /* defined(CONFIG_BT_PER_ADV_SYNC) */
 #if defined(CONFIG_BT_CENTRAL)
 	SHELL_CMD_ARG(connect, NULL, HELP_ADDR_LE EXT_ADV_SCAN_OPT,
-		      cmd_connect_le, 1, 3),
+		      cmd_connect_le, 3, 3),
 #if !defined(CONFIG_BT_FILTER_ACCEPT_LIST)
 	SHELL_CMD_ARG(auto-conn, NULL, HELP_ADDR_LE, cmd_auto_conn, 3, 0),
 #endif /* !defined(CONFIG_BT_FILTER_ACCEPT_LIST) */
-	SHELL_CMD_ARG(connect-name, NULL, "<name filter>",
-		      cmd_connect_le_name, 2, 0),
 #endif /* CONFIG_BT_CENTRAL */
-	SHELL_CMD_ARG(disconnect, NULL, HELP_ADDR_LE, cmd_disconnect, 1, 2),
+	SHELL_CMD_ARG(disconnect, NULL, HELP_NONE, cmd_disconnect, 1, 2),
 	SHELL_CMD_ARG(select, NULL, HELP_ADDR_LE, cmd_select, 3, 0),
 	SHELL_CMD_ARG(info, NULL, HELP_ADDR_LE, cmd_info, 1, 2),
 	SHELL_CMD_ARG(conn-update, NULL, "<min> <max> <latency> <timeout>",
@@ -3780,13 +3366,13 @@ SHELL_STATIC_SUBCMD_SET_CREATE(bt_cmds,
 	SHELL_CMD_ARG(channel-map, NULL, "<channel-map: XXXXXXXXXX> (36-0)",
 		      cmd_chan_map, 2, 1),
 #endif /* CONFIG_BT_CENTRAL */
-	SHELL_CMD_ARG(oob, NULL, HELP_NONE, cmd_oob, 1, 0),
-	SHELL_CMD_ARG(clear, NULL, "[all] ["HELP_ADDR_LE"]", cmd_clear, 2, 1),
+	SHELL_CMD_ARG(oob, NULL, NULL, cmd_oob, 1, 0),
+	SHELL_CMD_ARG(clear, NULL, "<remote: addr, all>", cmd_clear, 2, 1),
 #if defined(CONFIG_BT_SMP) || defined(CONFIG_BT_BREDR)
 	SHELL_CMD_ARG(security, NULL, "<security level BR/EDR: 0 - 3, "
 				      "LE: 1 - 4> [force-pair]",
-		      cmd_security, 1, 2),
-	SHELL_CMD_ARG(bondable, NULL, HELP_ONOFF, cmd_bondable,
+		      cmd_security, 2, 1),
+	SHELL_CMD_ARG(bondable, NULL, "<bondable: on, off>", cmd_bondable,
 		      2, 0),
 	SHELL_CMD_ARG(bonds, NULL, HELP_NONE, cmd_bonds, 1, 0),
 	SHELL_CMD_ARG(connections, NULL, HELP_NONE, cmd_connections, 1, 0),
@@ -3813,7 +3399,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(bt_cmds,
 	SHELL_CMD_ARG(fal-clear, NULL, HELP_NONE, cmd_fal_clear, 1, 0),
 
 #if defined(CONFIG_BT_CENTRAL)
-	SHELL_CMD_ARG(fal-connect, NULL, HELP_ONOFF EXT_ADV_SCAN_OPT,
+	SHELL_CMD_ARG(fal-connect, NULL, "<on, off>" EXT_ADV_SCAN_OPT,
 		      cmd_fal_connect, 2, 3),
 #endif /* CONFIG_BT_CENTRAL */
 #endif /* defined(CONFIG_BT_FILTER_ACCEPT_LIST) */
@@ -3824,11 +3410,10 @@ SHELL_STATIC_SUBCMD_SET_CREATE(bt_cmds,
 #endif /* CONFIG_BT_SMP || CONFIG_BT_BREDR) */
 #endif /* CONFIG_BT_CONN */
 #if defined(CONFIG_BT_HCI_MESH_EXT)
-	SHELL_CMD(mesh_adv, NULL, HELP_ONOFF, cmd_mesh_adv),
+	SHELL_CMD(mesh_adv, NULL, "<on, off>", cmd_mesh_adv),
 #endif /* CONFIG_BT_HCI_MESH_EXT */
 
 #if defined(CONFIG_BT_LL_SW_SPLIT)
-	SHELL_CMD(ll-addr, NULL, "<random|public>", cmd_ll_addr_read),
 #if defined(CONFIG_BT_CTLR_ADV_EXT)
 #if defined(CONFIG_BT_BROADCASTER)
 	SHELL_CMD_ARG(advx, NULL,
@@ -3852,4 +3437,16 @@ SHELL_STATIC_SUBCMD_SET_CREATE(bt_cmds,
 	SHELL_SUBCMD_SET_END
 );
 
-SHELL_CMD_REGISTER(bt, &bt_cmds, "Bluetooth shell commands", cmd_default_handler);
+static int cmd_bt(const struct shell *sh, size_t argc, char **argv)
+{
+	if (argc == 1) {
+		shell_help(sh);
+		return SHELL_CMD_HELP_PRINTED;
+	}
+
+	shell_error(sh, "%s unknown parameter: %s", argv[0], argv[1]);
+
+	return -EINVAL;
+}
+
+SHELL_CMD_REGISTER(bt, &bt_cmds, "Bluetooth shell commands", cmd_bt);

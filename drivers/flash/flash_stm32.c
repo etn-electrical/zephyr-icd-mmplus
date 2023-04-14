@@ -83,9 +83,6 @@ static int flash_stm32_check_status(const struct device *dev)
 		LOG_DBG("Status: 0x%08lx",
 			FLASH_STM32_REGS(dev)->FLASH_STM32_SR &
 							FLASH_STM32_SR_ERRORS);
-		/* Clear errors to unblock usage of the flash */
-		FLASH_STM32_REGS(dev)->FLASH_STM32_SR = FLASH_STM32_REGS(dev)->FLASH_STM32_SR &
-							FLASH_STM32_SR_ERRORS;
 		return -EIO;
 	}
 
@@ -345,7 +342,7 @@ static int stm32_flash_init(const struct device *dev)
 	 */
 #if DT_INST_NODE_HAS_PROP(0, clocks)
 	struct flash_stm32_priv *p = FLASH_STM32_PRIV(dev);
-	const struct device *const clk = DEVICE_DT_GET(STM32_CLOCK_CONTROL_NODE);
+	const struct device *clk = DEVICE_DT_GET(STM32_CLOCK_CONTROL_NODE);
 
 	/*
 	 * On STM32 F0, F1, F3 & L1 series, flash interface clock source is
@@ -360,11 +357,6 @@ static int stm32_flash_init(const struct device *dev)
 	while (!LL_RCC_HSI_IsReady()) {
 	}
 #endif
-
-	if (!device_is_ready(clk)) {
-		LOG_ERR("clock control device not ready");
-		return -ENODEV;
-	}
 
 	/* enable clock */
 	if (clock_control_on(clk, (clock_control_subsys_t *)&p->pclken) != 0) {
@@ -399,7 +391,7 @@ static int stm32_flash_init(const struct device *dev)
 	}
 #endif
 
-	return 0;
+	return flash_stm32_write_protection(dev, false);
 }
 
 DEVICE_DT_INST_DEFINE(0, stm32_flash_init, NULL,

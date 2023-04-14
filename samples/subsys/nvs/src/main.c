@@ -38,7 +38,7 @@
  */
 
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <zephyr/sys/reboot.h>
 #include <zephyr/device.h>
 #include <string.h>
@@ -48,9 +48,7 @@
 
 static struct nvs_fs fs;
 
-#define NVS_PARTITION		storage_partition
-#define NVS_PARTITION_DEVICE	FIXED_PARTITION_DEVICE(NVS_PARTITION)
-#define NVS_PARTITION_OFFSET	FIXED_PARTITION_OFFSET(NVS_PARTITION)
+#define STORAGE_NODE_LABEL storage
 
 /* 1000 msec = 1 sec */
 #define SLEEP_TIME      100
@@ -76,14 +74,14 @@ void main(void)
 	/* define the nvs file system by settings with:
 	 *	sector_size equal to the pagesize,
 	 *	3 sectors
-	 *	starting at NVS_PARTITION_OFFSET
+	 *	starting at FLASH_AREA_OFFSET(storage)
 	 */
-	fs.flash_device = NVS_PARTITION_DEVICE;
+	fs.flash_device = FLASH_AREA_DEVICE(STORAGE_NODE_LABEL);
 	if (!device_is_ready(fs.flash_device)) {
 		printk("Flash device %s is not ready\n", fs.flash_device->name);
 		return;
 	}
-	fs.offset = NVS_PARTITION_OFFSET;
+	fs.offset = FLASH_AREA_OFFSET(storage);
 	rc = flash_get_page_info_by_offs(fs.flash_device, fs.offset, &info);
 	if (rc) {
 		printk("Unable to get page info\n");

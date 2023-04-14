@@ -1,8 +1,7 @@
 identifier: nsim_hs6x
 name: HS6x nSIM simulator
-type: sim
+type: mcu
 simulation: nsim
-simulation_exec: nsimdrv
 arch: arc
 toolchain:
   - arcmwdt

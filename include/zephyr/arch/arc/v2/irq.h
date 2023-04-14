@@ -24,8 +24,6 @@
 extern "C" {
 #endif
 
-#define ARC_MP_PRIMARY_CPU_ID 0
-
 #ifndef _ASMLANGUAGE
 
 extern void z_arc_firq_stack_set(void);
@@ -39,6 +37,8 @@ extern void sys_trace_isr_exit(void);
 
 extern void z_irq_priority_set(unsigned int irq, unsigned int prio,
 			      uint32_t flags);
+extern void _isr_wrapper(void);
+extern void z_irq_spurious(const void *unused);
 
 /* Z_ISR_DECLARE will populate the .intList section with the interrupt's
  * parameters, which will then be used by gen_irq_tables.py to create

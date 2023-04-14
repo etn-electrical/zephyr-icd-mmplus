@@ -4,8 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#define LOG_LEVEL CONFIG_USB_DEVICE_NETWORK_LOG_LEVEL
 #include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(usb_ecm, CONFIG_USB_DEVICE_NETWORK_LOG_LEVEL);
+LOG_MODULE_REGISTER(usb_ecm);
 
 /* Enable verbose debug printing extra hexdumps */
 #define VERBOSE_DEBUG	0
@@ -296,15 +297,15 @@ static void ecm_read_cb(uint8_t ep, int size, void *priv)
 		}
 	}
 
-	pkt = net_pkt_rx_alloc_with_buffer(netusb_net_iface(), size, AF_UNSPEC,
-					   0, K_FOREVER);
+	pkt = net_pkt_alloc_with_buffer(netusb_net_iface(), size,
+					AF_UNSPEC, 0, K_FOREVER);
 	if (!pkt) {
-		LOG_ERR("no memory for network packet");
+		LOG_ERR("no memory for network packet\n");
 		goto done;
 	}
 
 	if (net_pkt_write(pkt, rx_buf, size)) {
-		LOG_ERR("Unable to write into pkt");
+		LOG_ERR("Unable to write into pkt\n");
 		net_pkt_unref(pkt);
 		goto done;
 	}

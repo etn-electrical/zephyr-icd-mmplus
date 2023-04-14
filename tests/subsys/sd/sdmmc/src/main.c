@@ -4,17 +4,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <zephyr/sd/sdmmc.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/disk.h>
-#include <zephyr/ztest.h>
+#include <ztest.h>
 
 
 #define SECTOR_COUNT 32
 #define SECTOR_SIZE 512 /* subsystem should set all cards to 512 byte blocks */
 #define BUF_SIZE SECTOR_SIZE * SECTOR_COUNT
-static const struct device *const sdhc_dev = DEVICE_DT_GET(DT_ALIAS(sdhc0));
+const struct device *sdhc_dev;
 static struct sd_card card;
 static uint8_t buf[BUF_SIZE] __aligned(CONFIG_SDHC_BUFFER_ALIGNMENT);
 static uint8_t check_buf[BUF_SIZE] __aligned(CONFIG_SDHC_BUFFER_ALIGNMENT);
@@ -24,15 +24,13 @@ static uint32_t sector_count;
 #define SDMMC_UNALIGN_OFFSET 1
 
 
-/*
- * Verify that SD stack can initialize an SD card
- * This test must run first, to ensure the card is initialized.
- */
-ZTEST(sd_stack, test_0_init)
+/* Verify that SD stack can initialize an SD card */
+static void test_init(void)
 {
 	int ret;
 
-	zassert_true(device_is_ready(sdhc_dev), "SDHC device is not ready");
+	sdhc_dev = device_get_binding(CONFIG_SDHC_LABEL);
+	zassert_not_null(sdhc_dev, "Could not get SD host controller dev");
 
 	ret = sd_is_card_present(sdhc_dev);
 	zassert_equal(ret, 1, "SD card not present in slot");
@@ -42,7 +40,7 @@ ZTEST(sd_stack, test_0_init)
 }
 
 /* Verify that SD stack returns valid IOCTL values */
-ZTEST(sd_stack, test_ioctl)
+static void test_ioctl(void)
 {
 	int ret;
 
@@ -57,7 +55,7 @@ ZTEST(sd_stack, test_ioctl)
 
 
 /* Verify that SD stack can read from an SD card */
-ZTEST(sd_stack, test_read)
+static void test_read(void)
 {
 	int ret;
 	int block_addr = 0;
@@ -93,7 +91,7 @@ ZTEST(sd_stack, test_read)
 }
 
 /* Verify that SD stack can write to an SD card */
-ZTEST(sd_stack, test_write)
+static void test_write(void)
 {
 	int ret;
 	int block_addr = 0;
@@ -129,7 +127,7 @@ ZTEST(sd_stack, test_write)
 }
 
 /* Test reads and writes interleaved, to verify data is making it on disk */
-ZTEST(sd_stack, test_rw)
+static void test_rw(void)
 {
 	int ret;
 	int block_addr = 0;
@@ -179,7 +177,7 @@ ZTEST(sd_stack, test_rw)
 }
 
 /* Simply dump the card configuration. */
-ZTEST(sd_stack, test_card_config)
+void test_card_config(void)
 {
 	switch (card.card_voltage) {
 	case SD_VOL_1_2_V:
@@ -243,4 +241,17 @@ ZTEST(sd_stack, test_card_config)
 	}
 }
 
-ZTEST_SUITE(sd_stack, NULL, NULL, NULL, NULL, NULL);
+
+void test_main(void)
+{
+	ztest_test_suite(sd_stack_test,
+		ztest_unit_test(test_init),
+		ztest_unit_test(test_ioctl),
+		ztest_unit_test(test_read),
+		ztest_unit_test(test_write),
+		ztest_unit_test(test_rw),
+		ztest_unit_test(test_card_config)
+	);
+
+	ztest_run_test_suite(sd_stack_test);
+}

@@ -1,7 +1,6 @@
 sample:
-  name: Bluetooth ST BLE Sensor Demo
-  description: Demonstrates BLE peripheral by exposing vendor-specific GATT
-    services
+  description: TBD
+  name: TBD
 tests:
   sample.bluetooth.st_ble_sensor:
     harness: bluetooth

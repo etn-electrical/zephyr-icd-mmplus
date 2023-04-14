@@ -170,7 +170,7 @@ static int uart_mux_consume_ringbuf(struct uart_mux *uart_mux)
 
 		snprintk(tmp, sizeof(tmp), "RECV muxed %s",
 			 uart_mux->uart->name);
-		LOG_HEXDUMP_DBG(data, len, tmp);
+		LOG_HEXDUMP_DBG(data, len, log_strdup(tmp));
 	}
 
 	gsm_mux_recv_buf(uart_mux->mux, data, len);
@@ -217,7 +217,7 @@ static void uart_mux_tx_work(struct k_work *work)
 
 		snprintk(tmp, sizeof(tmp), "SEND %s",
 			 dev_data->dev->name);
-		LOG_HEXDUMP_DBG(data, len, tmp);
+		LOG_HEXDUMP_DBG(data, len, log_strdup(tmp));
 	}
 
 	(void)gsm_dlci_send(dev_data->dlci, data, len);
@@ -787,7 +787,6 @@ const struct device *z_impl_uart_mux_find(int dlci_address)
 int uart_mux_send(const struct device *uart, const uint8_t *buf, size_t size)
 {
 	struct uart_mux_dev_data *dev_data = uart->data;
-	size_t remaining = size;
 
 	if (size == 0) {
 		return 0;
@@ -802,18 +801,18 @@ int uart_mux_send(const struct device *uart, const uint8_t *buf, size_t size)
 
 		snprintk(tmp, sizeof(tmp), "SEND muxed %s",
 			 dev_data->real_uart->uart->name);
-		LOG_HEXDUMP_DBG(buf, size, tmp);
+		LOG_HEXDUMP_DBG(buf, size, log_strdup(tmp));
 	}
 
 	k_mutex_lock(&dev_data->real_uart->lock, K_FOREVER);
 
 	do {
 		uart_poll_out(dev_data->real_uart->uart, *buf++);
-	} while (--remaining);
+	} while (--size);
 
 	k_mutex_unlock(&dev_data->real_uart->lock);
 
-	return size;
+	return 0;
 }
 
 int uart_mux_recv(const struct device *mux, struct gsm_dlci *dlci,
@@ -832,7 +831,7 @@ int uart_mux_recv(const struct device *mux, struct gsm_dlci *dlci,
 
 		snprintk(tmp, sizeof(tmp), "RECV %s",
 			 dev_data->dev->name);
-		LOG_HEXDUMP_DBG(data, len, tmp);
+		LOG_HEXDUMP_DBG(data, len, log_strdup(tmp));
 	}
 
 	wrote = ring_buf_put(dev_data->rx_ringbuf, data, len);

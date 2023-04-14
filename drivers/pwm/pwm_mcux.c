@@ -13,9 +13,9 @@
 #include <fsl_pwm.h>
 #include <zephyr/drivers/pinctrl.h>
 
+#define LOG_LEVEL CONFIG_PWM_LOG_LEVEL
 #include <zephyr/logging/log.h>
-
-LOG_MODULE_REGISTER(pwm_mcux, CONFIG_PWM_LOG_LEVEL);
+LOG_MODULE_REGISTER(pwm_mcux);
 
 #define CHANNEL_COUNT 2
 
@@ -25,10 +25,7 @@ struct pwm_mcux_config {
 	const struct device *clock_dev;
 	clock_control_subsys_t clock_subsys;
 	pwm_clock_prescale_t prescale;
-	pwm_register_reload_t reload;
 	pwm_mode_t mode;
-	bool run_wait;
-	bool run_debug;
 	const struct pinctrl_dev_config *pincfg;
 };
 
@@ -44,11 +41,15 @@ static int mcux_pwm_set_cycles(const struct device *dev, uint32_t channel,
 	const struct pwm_mcux_config *config = dev->config;
 	struct pwm_mcux_data *data = dev->data;
 	uint8_t duty_cycle;
-	pwm_level_select_t level;
 
 	if (channel >= CHANNEL_COUNT) {
 		LOG_ERR("Invalid channel");
 		return -EINVAL;
+	}
+
+	if (flags) {
+		/* PWM polarity not supported (yet?) */
+		return -ENOTSUP;
 	}
 
 	if (period_cycles == 0) {
@@ -66,22 +67,15 @@ static int mcux_pwm_set_cycles(const struct device *dev, uint32_t channel,
 
 	duty_cycle = 100 * pulse_cycles / period_cycles;
 
-	if (flags & PWM_POLARITY_INVERTED) {
-		level = kPWM_LowTrue;
-	} else {
-		level = kPWM_HighTrue;
-	}
-
 	/* FIXME: Force re-setup even for duty-cycle update */
-	if (period_cycles != data->period_cycles[channel]
-	    || level != data->channel[channel].level) {
+	if (period_cycles != data->period_cycles[channel]) {
 		uint32_t clock_freq;
 		uint32_t pwm_freq;
 		status_t status;
 
 		data->period_cycles[channel] = period_cycles;
 
-		LOG_DBG("SETUP dutycycle to %u", duty_cycle);
+		LOG_DBG("SETUP dutycycle to %u\n", duty_cycle);
 
 		if (clock_control_get_rate(config->clock_dev, config->clock_subsys,
 				&clock_freq)) {
@@ -98,7 +92,6 @@ static int mcux_pwm_set_cycles(const struct device *dev, uint32_t channel,
 		PWM_StopTimer(config->base, 1U << config->index);
 
 		data->channel[channel].dutyCyclePercent = duty_cycle;
-		data->channel[channel].level = level;
 
 		status = PWM_SetupPwm(config->base, config->index,
 				      &data->channel[0], CHANNEL_COUNT,
@@ -144,25 +137,15 @@ static int pwm_mcux_init(const struct device *dev)
 	status_t status;
 	int i, err;
 
-	if (!device_is_ready(config->clock_dev)) {
-		LOG_ERR("clock control device not ready");
-		return -ENODEV;
-	}
-
 	err = pinctrl_apply_state(config->pincfg, PINCTRL_STATE_DEFAULT);
 	if (err < 0) {
 		return err;
 	}
 
-	LOG_DBG("Set prescaler %d, reload mode %d",
-			1 << config->prescale, config->reload);
-
 	PWM_GetDefaultConfig(&pwm_config);
 	pwm_config.prescale = config->prescale;
-	pwm_config.reloadLogic = config->reload;
+	pwm_config.reloadLogic = kPWM_ReloadPwmFullCycle;
 	pwm_config.clockSource = kPWM_BusClock;
-	pwm_config.enableDebugMode = config->run_debug;
-	pwm_config.enableWait = config->run_wait;
 
 	status = PWM_Init(config->base, config->index, &pwm_config);
 	if (status != kStatus_Success) {
@@ -172,7 +155,7 @@ static int pwm_mcux_init(const struct device *dev)
 
 	/* Disable fault sources */
 	for (i = 0; i < FSL_FEATURE_PWM_FAULT_CH_COUNT; i++) {
-		config->base->SM[config->index].DISMAP[i] = 0x0000;
+		((PWM_Type *)config->base)->SM[config->index].DISMAP[i] = 0x0000;
 	}
 
 	data->channel[0].pwmChannel = kPWM_PwmA;
@@ -193,16 +176,12 @@ static const struct pwm_driver_api pwm_mcux_driver_api = {
 	PINCTRL_DT_INST_DEFINE(n);					  \
 									  \
 	static const struct pwm_mcux_config pwm_mcux_config_ ## n = {     \
-		.base = (PWM_Type *)DT_REG_ADDR(DT_INST_PARENT(n)),	  \
+		.base = (void *)DT_REG_ADDR(DT_INST_PARENT(n)),		  \
 		.index = DT_INST_PROP(n, index),			  \
 		.mode = kPWM_EdgeAligned,				  \
-		.prescale = _CONCAT(kPWM_Prescale_Divide_, DT_INST_PROP(n, nxp_prescaler)),\
-		.reload = DT_ENUM_IDX_OR(DT_DRV_INST(n), nxp_reload,\
-				kPWM_ReloadPwmFullCycle),\
+		.prescale = kPWM_Prescale_Divide_128,			  \
 		.clock_dev = DEVICE_DT_GET(DT_INST_CLOCKS_CTLR(n)),		\
 		.clock_subsys = (clock_control_subsys_t)DT_INST_CLOCKS_CELL(n, name),\
-		.run_wait = DT_INST_PROP(n, run_in_wait),		  \
-		.run_debug = DT_INST_PROP(n, run_in_debug),		  \
 		.pincfg = PINCTRL_DT_INST_DEV_CONFIG_GET(n),		  \
 	};								  \
 									  \
@@ -211,7 +190,7 @@ static const struct pwm_driver_api pwm_mcux_driver_api = {
 			    NULL,					  \
 			    &pwm_mcux_data_ ## n,			  \
 			    &pwm_mcux_config_ ## n,			  \
-			    POST_KERNEL, CONFIG_PWM_INIT_PRIORITY,	  \
+			    POST_KERNEL, CONFIG_KERNEL_INIT_PRIORITY_DEVICE,\
 			    &pwm_mcux_driver_api);
 
 DT_INST_FOREACH_STATUS_OKAY(PWM_DEVICE_INIT_MCUX)

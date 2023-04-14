@@ -59,12 +59,7 @@
 		led1 = &blue_led;
 		led2 = &red_led;
 		sw0 = &user_button;
-		watchdog0 = &iwdg;
 	};
-};
-
-&clk_lsi {
-	status = "okay";
 };
 
 &clk_hse {
@@ -75,19 +70,19 @@
 
 &pll {
 	div-m = <4>;
-	mul-n = <216>;
+	mul-n = <72>;
 	div-p = <2>;
-	div-q = <9>;
+	div-q = <3>;
 	clocks = <&clk_hse>;
 	status = "okay";
 };
 
 &rcc {
 	clocks = <&pll>;
-	clock-frequency = <DT_FREQ_M(216)>;
+	clock-frequency = <DT_FREQ_M(72)>;
 	ahb-prescaler = <1>;
-	apb1-prescaler = <4>;
-	apb2-prescaler = <2>;
+	apb1-prescaler = <2>;
+	apb2-prescaler = <1>;
 };
 
 &usart2 {
@@ -153,8 +148,6 @@ zephyr_udc0: &usbotg_fs {
 };
 
 &rtc {
-	clocks = <&rcc STM32_CLOCK_BUS_APB1 0x10000000>,
-		 <&rcc STM32_SRC_LSI RTC_SEL(2)>;
 	status = "okay";
 };
 

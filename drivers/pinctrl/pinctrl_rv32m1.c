@@ -8,9 +8,7 @@
 #define DT_DRV_COMPAT openisa_rv32m1_pinmux
 
 #include <zephyr/drivers/pinctrl.h>
-
 #include <fsl_clock.h>
-#include <soc.h>
 
 /* Port register addresses. */
 static PORT_Type *ports[] = {
@@ -42,6 +40,11 @@ int pinctrl_configure_pins(const pinctrl_soc_pin_t *pins, uint8_t pin_cnt,
 	return 0;
 }
 
+/* RV32M1 pinmux driver binds to the same DTS nodes,
+ * and handles clock init. Only bind to these nodes if pinmux driver
+ * is disabled.
+ */
+#ifndef CONFIG_PINMUX
 static int pinctrl_rv32m1_init(const struct device *dev)
 {
 	const struct pinctrl_rv32m1_config *config = dev->config;
@@ -65,3 +68,4 @@ static int pinctrl_rv32m1_init(const struct device *dev)
 			    NULL);
 
 DT_INST_FOREACH_STATUS_OKAY(PINCTRL_RV32M1_INIT)
+#endif

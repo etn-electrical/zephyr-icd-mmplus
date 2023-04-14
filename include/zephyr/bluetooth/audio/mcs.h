@@ -28,7 +28,6 @@
 extern "C" {
 #endif
 
-#define BT_MCS_ERR_LONG_VAL_CHANGED     0x80
 
 /** @brief Playback speeds
  *

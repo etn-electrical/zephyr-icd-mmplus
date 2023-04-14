@@ -6,6 +6,7 @@
  */
 
 
+#include <zephyr/zephyr.h>
 #include <zephyr/kernel.h>
 #include <kernel_internal.h>
 #include <zephyr/linker/linker-defs.h>

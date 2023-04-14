@@ -147,9 +147,6 @@
 		sw2 = &button2;
 		sw3 = &button3;
 		bootloader-led0 = &led0;
-		mcuboot-button0 = &button0;
-		mcuboot-led0 = &led0;
-		watchdog0 = &wdt0;
 	};
 };
 
@@ -202,10 +199,9 @@ arduino_i2c: &i2c2 {
 	pinctrl-names = "default", "sleep";
 };
 
-arduino_spi: &spi3 {
+&spi3 {
 	compatible = "nordic,nrf-spim";
 	status = "okay";
-	cs-gpios = <&arduino_header 16 GPIO_ACTIVE_LOW>; /* D10 */
 	pinctrl-0 = <&spi3_default>;
 	pinctrl-1 = <&spi3_sleep>;
 	pinctrl-names = "default", "sleep";
@@ -246,10 +242,13 @@ arduino_spi: &spi3 {
 		slot1_ns_partition: partition@c0000 {
 			label = "image-1-nonsecure";
 		};
-		/* 0xf0000 to 0xf7fff reserved for TF-M partitions */
-		storage_partition: partition@f8000 {
+		scratch_partition: partition@f0000 {
+			label = "image-scratch";
+			reg = <0x000f0000 0xa000>;
+		};
+		storage_partition: partition@fa000 {
 			label = "storage";
-			reg = <0x000f8000 0x00008000>;
+			reg = <0x000fa000 0x00006000>;
 		};
 	};
 };

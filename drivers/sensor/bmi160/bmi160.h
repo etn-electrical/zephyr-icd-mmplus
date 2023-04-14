@@ -14,7 +14,6 @@
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/drivers/spi.h>
-#include <zephyr/kernel.h>
 #include <zephyr/sys/util.h>
 
 /* registers */

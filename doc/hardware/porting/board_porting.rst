@@ -129,15 +129,6 @@ board directory in the zephyr repository, but it's the easiest way to get
 started. See :ref:`custom_board_definition` for documentation on moving your
 board directory to a separate repository once it's working.)
 
-.. note::
-
-  The board directory name does not need to match the name of the board.
-  Multiple boards can even defined be in one directory.
-  For example, for boards with multi-core SoC, a logical board might be created
-  for each core following the naming scheme `<board>_<soc-core>`, with definitions
-  for all of these different boards defined inside the same directory. This and
-  similar schemes are common for upstream vendor boards.
-
 Your board directory should look like this:
 
 .. code-block:: none
@@ -172,6 +163,18 @@ The optional files are:
 - :file:`board.cmake`: used for :ref:`flash-and-debug-support`
 - :file:`CMakeLists.txt`: if you need to add additional source files to
   your build.
+
+  One common use for this file is to add a :file:`pinmux.c` file in your board
+  directory to the build, which configures pin controllers at boot time. In
+  that case, :file:`CMakeLists.txt` usually looks like this:
+
+  .. code-block:: cmake
+
+     if(CONFIG_PINMUX)
+       zephyr_library()
+       zephyr_library_sources(pinmux.c)
+     endif()
+
 - :file:`doc/index.rst`, :file:`doc/plank.png`: documentation for and a picture
   of your board. You only need this if you're :ref:`contributing-your-board` to
   Zephyr.
@@ -473,18 +476,6 @@ This example configures the ``nrfjprog``, ``jlink``, and ``pyocd`` runners.
    Runners usually have names which match the tools they wrap, so the ``jlink``
    runner wraps Segger's J-Link tools, and so on. But the runner command line
    options like ``--speed`` etc. are specific to the Python scripts.
-
-.. note::
-
-   Runners and board configuration should be created without being targeted to
-   a single operating system if the tool supports multiple operating systems,
-   nor should it rely upon special system setup/configuration. For example; do
-   not assume that a user will have prior knowledge/configuration or (if using
-   Linux) special udev rules installed, do not assume one specific ``/dev/X``
-   device for all platforms as this will not be compatible with Windows or
-   macOS, and allow for overriding of the selected device so that multiple
-   boards can be connected to a single system and flashed/debugged at the
-   choice of the user.
 
 For more details:
 

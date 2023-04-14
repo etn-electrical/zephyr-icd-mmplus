@@ -7,7 +7,7 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(net_virtual_interface_sample, LOG_LEVEL_DBG);
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <zephyr/device.h>
 #include <errno.h>
 
@@ -44,7 +44,7 @@ struct virtual_test_context {
 static void virtual_test_iface_init(struct net_if *iface)
 {
 	struct virtual_test_context *ctx = net_if_get_device(iface)->data;
-	char name[sizeof("VirtualTest-+##########")];
+	char name[16];
 	static int count;
 
 	if (ctx->init_done) {
@@ -374,15 +374,18 @@ void main(void)
 
 	LOG_INF("My example tunnel interface %d (%s / %p)",
 		net_if_get_by_iface(ud.my_iface),
-		net_virtual_get_name(ud.my_iface, buf, sizeof(buf)),
+		log_strdup(net_virtual_get_name(ud.my_iface, buf,
+						sizeof(buf))),
 		ud.my_iface);
 	LOG_INF("Tunnel interface %d (%s / %p)",
 		net_if_get_by_iface(ud.ip_tunnel_1),
-		net_virtual_get_name(ud.ip_tunnel_1, buf, sizeof(buf)),
+		log_strdup(net_virtual_get_name(ud.ip_tunnel_1, buf,
+						sizeof(buf))),
 		ud.ip_tunnel_1);
 	LOG_INF("Tunnel interface %d (%s / %p)",
 		net_if_get_by_iface(ud.ip_tunnel_2),
-		net_virtual_get_name(ud.ip_tunnel_2, buf, sizeof(buf)),
+		log_strdup(net_virtual_get_name(ud.ip_tunnel_2, buf,
+						sizeof(buf))),
 		ud.ip_tunnel_2);
 	LOG_INF("IPIP interface %d (%p)",
 		net_if_get_by_iface(ud.ipip), ud.ipip);

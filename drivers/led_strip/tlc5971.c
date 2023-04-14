@@ -6,7 +6,7 @@
 
 #define DT_DRV_COMPAT ti_tlc5971
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <zephyr/drivers/spi.h>
 #include <zephyr/drivers/led_strip.h>
 #include <zephyr/drivers/led_strip/tlc5971.h>
@@ -292,7 +292,7 @@ static int tlc5971_init(const struct device *dev)
 	const struct tlc5971_config *cfg = dev->config;
 	struct tlc5971_data *data = dev->data;
 
-	if (!spi_is_ready_dt(&cfg->bus)) {
+	if (!spi_is_ready(&cfg->bus)) {
 		LOG_ERR("%s: SPI device %s not ready", dev->name, cfg->bus.bus->name);
 		return -ENODEV;
 	}

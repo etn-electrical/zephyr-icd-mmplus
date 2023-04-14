@@ -6,17 +6,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <stddef.h>
-#include <zephyr/ztest.h>
+#include <ztest.h>
 
 #include <zephyr/settings/settings.h>
 
 #include "ll_settings.h"
 
-ZTEST_SUITE(test_ll_settings, NULL, NULL, NULL, NULL, NULL);
-
-ZTEST(test_ll_settings, test_company_id)
+void test_company_id(void)
 {
 	uint16_t cid;
 	int err;
@@ -34,7 +32,7 @@ ZTEST(test_ll_settings, test_company_id)
 		      "Company ID does not match");
 }
 
-ZTEST(test_ll_settings, test_subversion_number)
+void test_subversion_number(void)
 {
 	uint16_t svn;
 	int err;
@@ -50,4 +48,13 @@ ZTEST(test_ll_settings, test_subversion_number)
 	zassert_equal(err, 0, "Changing Subversion number failed");
 	zassert_equal(ll_settings_subversion_number(), svn,
 		      "Subversion number does not match");
+}
+
+/*test case main entry*/
+void test_main(void)
+{
+	ztest_test_suite(test_ll_settings,
+			 ztest_unit_test(test_company_id),
+			 ztest_unit_test(test_subversion_number));
+	ztest_run_test_suite(test_ll_settings);
 }

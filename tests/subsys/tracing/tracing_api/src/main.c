@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
-#include <zephyr/kernel.h>
+#include <ztest.h>
+#include <zephyr/zephyr.h>
 #include <zephyr/logging/log.h>
 #include <tracing_buffer.h>
 #include <tracing_core.h>
@@ -27,7 +27,6 @@ static bool data_format_found;
 static bool raw_data_format_found;
 static bool sync_string_format_found;
 #ifdef CONFIG_TRACING_ASYNC
-static bool async_tracing_api;
 static bool tracing_api_found;
 static bool tracing_api_not_found;
 static uint8_t *string_tracked[] = {
@@ -55,7 +54,7 @@ static uint8_t *string_tracked[] = {
 	"sys_trace_k_sem_take_blocking", "sys_trace_k_mutex_init",
 	"sys_trace_k_mutex_lock_enter", "sys_trace_k_mutex_lock_exit",
 	"sys_trace_k_mutex_lock_blocking", "sys_trace_k_mutex_unlock_enter",
-	"sys_trace_k_mutex_unlock_exit", "sys_trace_k_timer_start", NULL
+	"sys_trace_k_mutex_unlock_exit", "sys_trace_k_timer_start"
 };
 #endif
 
@@ -66,20 +65,18 @@ static void tracing_backends_output(
 {
 	/* Check the output data. */
 #ifdef CONFIG_TRACING_ASYNC
-	if (async_tracing_api) {
-		/* Define static 'i' is for guaranteeing all strings of 0 ~ end
-		 * of the array string_tracked are tested.
-		 */
-		static int i;
+	/* Define static 'i' is for guaranteeing all strings of 0 ~ end
+	 * of the array string_tracked are tested.
+	 */
+	static int i;
 
-		while (string_tracked[i] != NULL) {
-			if (strstr(data, string_tracked[i]) != NULL) {
-				tracing_api_found = true;
-			} else {
-				tracing_api_not_found = true;
-			}
-			i++;
+	while (string_tracked[i] != NULL) {
+		if (strstr(data, string_tracked[i]) != NULL) {
+			tracing_api_found = true;
+		} else {
+			tracing_api_not_found = true;
 		}
+		i++;
 	}
 #endif
 	if (strstr(data, "tracing_format_data_testing") != NULL) {
@@ -111,7 +108,7 @@ TRACING_BACKEND_DEFINE(tracing_backend_uart, tracing_uart_backend_api);
  *
  * @ingroup tracing_api_tests
  */
-ZTEST(tracing_api, test_tracing_sys_api)
+void test_tracing_sys_api(void)
 {
 	int ret = 0, prio = 0;
 	size_t stack = 0;
@@ -123,7 +120,6 @@ ZTEST(tracing_api, test_tracing_sys_api)
 	k_timeout_t timeout = K_MSEC(1);
 
 	tracing_buffer_init();
-	async_tracing_api = true;
 	/* thread api */
 	sys_trace_k_thread_switched_out();
 	sys_trace_k_thread_switched_in();
@@ -186,7 +182,6 @@ ZTEST(tracing_api, test_tracing_sys_api)
 	k_sleep(K_MSEC(100));
 	zassert_true(tracing_api_found, "Failded to check output from backend");
 	zassert_true(tracing_api_not_found == false, "Failded to check output from backend");
-	async_tracing_api = false;
 }
 #else
 /**
@@ -198,7 +193,7 @@ ZTEST(tracing_api, test_tracing_sys_api)
  *
  * @ingroup tracing_api_tests
  */
-ZTEST(tracing_api, test_tracing_sys_api)
+void test_tracing_sys_api(void)
 {
 	tracing_buffer_init();
 	tracing_format_string("tracing_format_string_testing");
@@ -216,7 +211,7 @@ ZTEST(tracing_api, test_tracing_sys_api)
  *
  * @ingroup tracing_api_tests
  */
-ZTEST(tracing_api, test_tracing_data_format)
+void test_tracing_data_format(void)
 {
 	tracing_data_t tracing_data, tracing_raw_data;
 	uint8_t data[] = "tracing_format_data_testing";
@@ -245,13 +240,13 @@ ZTEST(tracing_api, test_tracing_data_format)
  *
  * @ingroup tracing_api_tests
  */
-ZTEST(tracing_api, test_tracing_cmd_manual)
+void test_tracing_cmd_manual(void)
 {
 	uint32_t length = 0;
 	uint8_t *cmd = NULL;
 	uint8_t cmd0[] = " ";
-	uint8_t cmd1[] = "disable";
-	uint8_t cmd2[] = "enable";
+	uint8_t cmd1[] = "enable";
+	uint8_t cmd2[] = "disable";
 
 	length = tracing_cmd_buffer_alloc(&cmd);
 	cmd = cmd0;
@@ -264,12 +259,22 @@ ZTEST(tracing_api, test_tracing_cmd_manual)
 	cmd = cmd1;
 	zassert_true(sizeof(cmd1) < length, "cmd1 is too long");
 	tracing_cmd_handle(cmd, sizeof(cmd1));
-	zassert_false(is_tracing_enabled(), "Failed to disable tracing");
+	zassert_true(is_tracing_enabled(), "Failed to enable tracing");
 
 	length = tracing_cmd_buffer_alloc(&cmd);
 	cmd = cmd2;
 	zassert_true(sizeof(cmd2) < length, "cmd2 is too long");
 	tracing_cmd_handle(cmd, sizeof(cmd2));
-	zassert_true(is_tracing_enabled(), "Failed to enable tracing");
+	zassert_false(is_tracing_enabled(), "Failed to disable tracing");
 }
-ZTEST_SUITE(tracing_api, NULL, NULL, NULL, NULL, NULL);
+
+
+void test_main(void)
+{
+	ztest_test_suite(test_tracing,
+			 ztest_unit_test(test_tracing_sys_api),
+			 ztest_unit_test(test_tracing_data_format),
+			 ztest_unit_test(test_tracing_cmd_manual)
+			 );
+	ztest_run_test_suite(test_tracing);
+}

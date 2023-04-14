@@ -5,7 +5,7 @@
  */
 
 #include <stdio.h>
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <string.h>
 #include <stdlib.h>
 #include "lz4.h"

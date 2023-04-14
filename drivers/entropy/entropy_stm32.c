@@ -26,7 +26,6 @@
 #include <zephyr/sys/printk.h>
 #include <zephyr/drivers/clock_control.h>
 #include <zephyr/drivers/clock_control/stm32_clock_control.h>
-#include <zephyr/irq.h>
 #include "stm32_hsem.h"
 
 #define IRQN		DT_INST_IRQN(0)
@@ -76,7 +75,7 @@ BUILD_ASSERT((CONFIG_ENTROPY_STM32_THR_POOL_SIZE &
 	     "The CONFIG_ENTROPY_STM32_THR_POOL_SIZE must be a power of 2!");
 
 struct entropy_stm32_rng_dev_cfg {
-	struct stm32_pclken *pclken;
+	struct stm32_pclken pclken;
 };
 
 struct entropy_stm32_rng_dev_data {
@@ -91,10 +90,9 @@ struct entropy_stm32_rng_dev_data {
 	RNG_POOL_DEFINE(thr, CONFIG_ENTROPY_STM32_THR_POOL_SIZE);
 };
 
-static struct stm32_pclken pclken_rng[] = STM32_DT_INST_CLOCKS(0);
-
-static struct entropy_stm32_rng_dev_cfg entropy_stm32_rng_config = {
-	.pclken	= pclken_rng
+static const struct entropy_stm32_rng_dev_cfg entropy_stm32_rng_config = {
+	.pclken	= { .bus = DT_INST_CLOCKS_CELL(0, bus),
+		    .enr = DT_INST_CLOCKS_CELL(0, bits) },
 };
 
 static struct entropy_stm32_rng_dev_data entropy_stm32_rng_data = {
@@ -105,49 +103,16 @@ static void configure_rng(void)
 {
 	RNG_TypeDef *rng = entropy_stm32_rng_data.rng;
 
-#ifdef STM32_CONDRST_SUPPORT
-	uint32_t desired_nist_cfg = DT_INST_PROP_OR(0, nist_config, 0U);
-	uint32_t desired_htcr = DT_INST_PROP_OR(0, health_test_config, 0U);
-	uint32_t cur_nist_cfg = 0U;
-	uint32_t cur_htcr = 0U;
-
-#if DT_INST_NODE_HAS_PROP(0, nist_config)
-	/*
-	 * Configure the RNG_CR in compliance with the NIST SP800.
-	 * The nist-config is direclty copied from the DTS.
-	 * The RNG clock must be 48MHz else the clock DIV is not adpated.
-	 * The RNG_CR_CONDRST is set to 1 at the same time the RNG_CR is written
-	 */
-	cur_nist_cfg = READ_BIT(rng->CR,
-				(RNG_CR_NISTC | RNG_CR_CLKDIV | RNG_CR_RNG_CONFIG1 |
-				RNG_CR_RNG_CONFIG2 | RNG_CR_RNG_CONFIG3
-#if defined(RNG_CR_ARDIS)
-				| RNG_CR_ARDIS
-	/* For STM32U5 series, the ARDIS bit7 is considered in the nist-config */
-#endif /* RNG_CR_ARDIS */
-			));
-#endif /* nist_config */
-
-#if DT_INST_NODE_HAS_PROP(0, health_test_config)
-	cur_htcr = LL_RNG_GetHealthConfig(rng);
-#endif /* health_test_config */
-
-	if (cur_nist_cfg != desired_nist_cfg || cur_htcr != desired_htcr) {
-		MODIFY_REG(rng->CR, cur_nist_cfg, (desired_nist_cfg | RNG_CR_CONDRST));
-
 #if DT_INST_NODE_HAS_PROP(0, health_test_config)
 #if DT_INST_NODE_HAS_PROP(0, health_test_magic)
-		LL_RNG_SetHealthConfig(rng, DT_INST_PROP(0, health_test_magic));
-#endif /* health_test_magic */
-		LL_RNG_SetHealthConfig(rng, desired_htcr);
-#endif /* health_test_config */
-
-		LL_RNG_DisableCondReset(rng);
-		/* Wait for conditioning reset process to be completed */
-		while (LL_RNG_IsEnabledCondReset(rng) == 1) {
-		}
-	}
-#endif /* STM32_CONDRST_SUPPORT */
+	/* Write Magic number before writing configuration
+	 * Not all stm32 series have a Magic number
+	 */
+	LL_RNG_SetHealthConfig(rng, DT_INST_PROP(0, health_test_magic));
+#endif
+	/* Write RNG HTCR configuration */
+	LL_RNG_SetHealthConfig(rng, DT_INST_PROP(0, health_test_config));
+#endif
 
 	LL_RNG_Enable(rng);
 	LL_RNG_EnableIT(rng);
@@ -232,11 +197,6 @@ static int random_byte_get(void)
 	int retval = -EAGAIN;
 	unsigned int key;
 	RNG_TypeDef *rng = entropy_stm32_rng_data.rng;
-
-	if (IS_ENABLED(CONFIG_ENTROPY_STM32_CLK_CHECK)) {
-		__ASSERT(LL_RNG_IsActiveFlag_CECS(rng) == 0,
-			 "Clock configuration error. See reference manual");
-	}
 
 	key = irq_lock();
 
@@ -583,23 +543,70 @@ static int entropy_stm32_rng_init(const struct device *dev)
 	__ASSERT_NO_MSG(dev_data != NULL);
 	__ASSERT_NO_MSG(dev_cfg != NULL);
 
+#if CONFIG_SOC_SERIES_STM32L4X
+	/* Configure PLLSA11 to enable 48M domain */
+	LL_RCC_PLLSAI1_ConfigDomain_48M(LL_RCC_PLLSOURCE_MSI,
+					LL_RCC_PLLM_DIV_1,
+					24, LL_RCC_PLLSAI1Q_DIV_2);
+
+	/* Enable PLLSA1 */
+	LL_RCC_PLLSAI1_Enable();
+
+	/*  Enable PLLSAI1 output mapped on 48MHz domain clock */
+	LL_RCC_PLLSAI1_EnableDomain_48M();
+
+	/* Wait for PLLSA1 ready flag */
+	while (LL_RCC_PLLSAI1_IsReady() != 1) {
+	}
+
+	/*  Write the peripherals independent clock configuration register :
+	 *  choose PLLSAI1 source as the 48 MHz clock is needed for the RNG
+	 *  Linear Feedback Shift Register
+	 */
+	 LL_RCC_SetRNGClockSource(LL_RCC_RNG_CLKSOURCE_PLLSAI1);
+#elif CONFIG_SOC_SERIES_STM32WLX || CONFIG_SOC_SERIES_STM32G0X
+	LL_RCC_PLL_EnableDomain_RNG();
+	LL_RCC_SetRNGClockSource(LL_RCC_RNG_CLKSOURCE_PLL);
+#elif defined(RCC_CR2_HSI48ON) || defined(RCC_CR_HSI48ON) \
+	|| defined(RCC_CRRCR_HSI48ON)
+
+#if CONFIG_SOC_SERIES_STM32L0X
+	/* We need SYSCFG to control VREFINT, so make sure it is clocked */
+	if (!LL_APB2_GRP1_IsEnabledClock(LL_APB2_GRP1_PERIPH_SYSCFG)) {
+		return -EINVAL;
+	}
+	/* HSI48 requires VREFINT (see RM0376 section 7.2.4). */
+	LL_SYSCFG_VREFINT_EnableHSI48();
+#endif /* CONFIG_SOC_SERIES_STM32L0X */
+
+	z_stm32_hsem_lock(CFG_HW_CLK48_CONFIG_SEMID, HSEM_LOCK_DEFAULT_RETRY);
+	/* Use the HSI48 for the RNG */
+	LL_RCC_HSI48_Enable();
+	while (!LL_RCC_HSI48_IsReady()) {
+		/* Wait for HSI48 to become ready */
+	}
+
+#if defined(CONFIG_SOC_SERIES_STM32WBX)
+	LL_RCC_SetRNGClockSource(LL_RCC_RNG_CLKSOURCE_CLK48);
+	LL_RCC_SetCLK48ClockSource(LL_RCC_CLK48_CLKSOURCE_HSI48);
+
+	/* Don't unlock the HSEM to prevent M0 core
+	 * to disable HSI48 clock used for RNG.
+	 */
+#else
+	LL_RCC_SetRNGClockSource(LL_RCC_RNG_CLKSOURCE_HSI48);
+
+	/* Unlock the HSEM if it is not STM32WB */
+	z_stm32_hsem_unlock(CFG_HW_CLK48_CONFIG_SEMID);
+#endif /* CONFIG_SOC_SERIES_STM32WBX */
+
+#endif /* CONFIG_SOC_SERIES_STM32L4X */
+
 	dev_data->clock = DEVICE_DT_GET(STM32_CLOCK_CONTROL_NODE);
 
-	if (!device_is_ready(dev_data->clock)) {
-		return -ENODEV;
-	}
-
 	res = clock_control_on(dev_data->clock,
-		(clock_control_subsys_t *)&dev_cfg->pclken[0]);
+		(clock_control_subsys_t *)&dev_cfg->pclken);
 	__ASSERT_NO_MSG(res == 0);
-
-	/* Configure domain clock if any */
-	if (DT_INST_NUM_CLOCKS(0) > 1) {
-		res = clock_control_configure(dev_data->clock,
-					      (clock_control_subsys_t *)&dev_cfg->pclken[1],
-					      NULL);
-		__ASSERT(res == 0, "Could not select RNG domain clock");
-	}
 
 	/* Locking semaphore initialized to 1 (unlocked) */
 	k_sem_init(&dev_data->sem_lock, 1, 1);

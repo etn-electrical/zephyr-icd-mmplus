@@ -6,7 +6,8 @@
 
 #include <zephyr/types.h>
 #include <zephyr/sys/byteorder.h>
-#include <zephyr/ztest.h>
+#include <ztest.h>
+#include "kconfig.h"
 
 #define ULL_LLCP_UNITTEST
 
@@ -21,22 +22,16 @@
 #include "util/memq.h"
 #include "util/dbuf.h"
 
-#include "pdu_df.h"
-#include "lll/pdu_vendor.h"
 #include "pdu.h"
 #include "ll.h"
 #include "ll_settings.h"
 
 #include "lll.h"
-#include "lll/lll_df_types.h"
+#include "lll_df_types.h"
 #include "lll_conn.h"
-#include "lll_conn_iso.h"
 
 #include "ull_tx_queue.h"
 
-#include "isoal.h"
-#include "ull_iso_types.h"
-#include "ull_conn_iso_types.h"
 #include "ull_conn_types.h"
 
 #include "ull_internal.h"
@@ -50,9 +45,9 @@
 #include "helper_util.h"
 #include "helper_features.h"
 
-static struct ll_conn conn;
+struct ll_conn conn;
 
-static void fex_setup(void *data)
+static void setup(void)
 {
 	test_setup(&conn);
 }
@@ -77,7 +72,7 @@ static void fex_setup(void *data)
  *    |<---------------------------|                   |
  *    |                            |                   |
  */
-ZTEST(fex_central, test_feat_exchange_central_loc)
+void test_feat_exchange_central_loc(void)
 {
 	uint64_t err;
 	uint64_t set_featureset[] = { DEFAULT_FEATURE, DEFAULT_FEATURE };
@@ -111,7 +106,7 @@ ZTEST(fex_central, test_feat_exchange_central_loc)
 
 		/* Initiate a Feature Exchange Procedure */
 		err = ull_cp_feature_exchange(&conn);
-		zassert_equal(err, BT_HCI_ERR_SUCCESS);
+		zassert_equal(err, BT_HCI_ERR_SUCCESS, NULL);
 
 		event_prepare(&conn);
 		/* Tx Queue should have one LL Control PDU */
@@ -131,43 +126,10 @@ ZTEST(fex_central, test_feat_exchange_central_loc)
 		ull_cp_release_tx(&conn, tx);
 		ull_cp_release_ntf(ntf);
 	}
-
-	/* Test that host enabled feature makes it into feature exchange */
-	ll_set_host_feature(BT_LE_FEAT_BIT_ISO_CHANNELS, 1);
-
-	/* Add host feature bit to expected features bit mask */
-	set_featureset[0] |= BIT64(BT_LE_FEAT_BIT_ISO_CHANNELS);
-
-	sys_put_le64(set_featureset[0], local_feature_req.features);
-	/* Initiate a Feature Exchange Procedure */
-	err = ull_cp_feature_exchange(&conn);
-	zassert_equal(err, BT_HCI_ERR_SUCCESS);
-
-	event_prepare(&conn);
-	/* Tx Queue should have one LL Control PDU */
-	lt_rx(LL_FEATURE_REQ, &conn, &tx, &local_feature_req);
-	lt_rx_q_is_empty(&conn);
-
-	/* Rx */
-	lt_tx(LL_FEATURE_RSP, &conn, &remote_feature_rsp);
-
-	event_done(&conn);
-	/* There should be one host notification */
-
-	ut_rx_pdu(LL_FEATURE_RSP, &ntf, &exp_remote_feature_rsp);
-
-	ut_rx_q_is_empty();
-
-	ull_cp_release_tx(&conn, tx);
-	ull_cp_release_ntf(ntf);
-
-	/* Remove host feature bit again */
-	ll_set_host_feature(BT_LE_FEAT_BIT_ISO_CHANNELS, 0);
-
-	zassert_equal(conn.lll.event_counter, feat_to_test + 1, "Wrong event-count %d\n",
+	zassert_equal(conn.lll.event_counter, feat_to_test, "Wrong event-count %d\n",
 		      conn.lll.event_counter);
-	zassert_equal(llcp_ctx_buffers_free(), test_ctx_buffers_cnt(),
-		      "Free CTX buffers %d", llcp_ctx_buffers_free());
+	zassert_equal(ctx_buffers_free(), test_ctx_buffers_cnt(),
+		      "Free CTX buffers %d", ctx_buffers_free());
 }
 
 /*
@@ -188,7 +150,7 @@ ZTEST(fex_central, test_feat_exchange_central_loc)
  *  ~~~~~~~~~~~~~~~~  TERMINATE CONNECTION ~~~~~~~~~~~~~~
  *    |                            |                   |
  */
-ZTEST(fex_central, test_feat_exchange_central_loc_invalid_rsp)
+void test_feat_exchange_central_loc_invalid_rsp(void)
 {
 	uint64_t err;
 	struct pdu_data_llctrl_feature_req local_feature_req;
@@ -210,7 +172,7 @@ ZTEST(fex_central, test_feat_exchange_central_loc_invalid_rsp)
 
 	/* Initiate a Feature Exchange Procedure */
 	err = ull_cp_feature_exchange(&conn);
-	zassert_equal(err, BT_HCI_ERR_SUCCESS);
+	zassert_equal(err, BT_HCI_ERR_SUCCESS, NULL);
 
 	event_prepare(&conn);
 	/* Tx Queue should have one LL Control PDU */
@@ -235,8 +197,8 @@ ZTEST(fex_central, test_feat_exchange_central_loc_invalid_rsp)
 	/* There should not be a host notifications */
 	ut_rx_q_is_empty();
 
-	zassert_equal(llcp_ctx_buffers_free(), test_ctx_buffers_cnt(),
-		      "Free CTX buffers %d", llcp_ctx_buffers_free());
+	zassert_equal(ctx_buffers_free(), test_ctx_buffers_cnt(),
+		      "Free CTX buffers %d", ctx_buffers_free());
 
 	test_set_role(&conn, BT_HCI_ROLE_CENTRAL);
 	/* Connect */
@@ -244,7 +206,7 @@ ZTEST(fex_central, test_feat_exchange_central_loc_invalid_rsp)
 
 	/* Initiate another Feature Exchange Procedure */
 	err = ull_cp_feature_exchange(&conn);
-	zassert_equal(err, BT_HCI_ERR_SUCCESS);
+	zassert_equal(err, BT_HCI_ERR_SUCCESS, NULL);
 
 	event_prepare(&conn);
 	/* Tx Queue should have one LL Control PDU */
@@ -266,11 +228,11 @@ ZTEST(fex_central, test_feat_exchange_central_loc_invalid_rsp)
 	/* There should not be a host notifications */
 	ut_rx_q_is_empty();
 
-	zassert_equal(llcp_ctx_buffers_free(), test_ctx_buffers_cnt(),
-		      "Free CTX buffers %d", llcp_ctx_buffers_free());
+	zassert_equal(ctx_buffers_free(), test_ctx_buffers_cnt(),
+		      "Free CTX buffers %d", ctx_buffers_free());
 }
 
-ZTEST(fex_central, test_feat_exchange_central_loc_2)
+void test_feat_exchange_central_loc_2(void)
 {
 	uint8_t err;
 
@@ -279,14 +241,14 @@ ZTEST(fex_central, test_feat_exchange_central_loc_2)
 
 	err = ull_cp_feature_exchange(&conn);
 	for (int i = 0U; i < CONFIG_BT_CTLR_LLCP_LOCAL_PROC_CTX_BUF_NUM; i++) {
-		zassert_equal(err, BT_HCI_ERR_SUCCESS);
+		zassert_equal(err, BT_HCI_ERR_SUCCESS, NULL);
 		err = ull_cp_feature_exchange(&conn);
 	}
 
 	zassert_not_equal(err, BT_HCI_ERR_SUCCESS, NULL);
-	zassert_equal(llcp_ctx_buffers_free(),
+	zassert_equal(ctx_buffers_free(),
 		      test_ctx_buffers_cnt() - CONFIG_BT_CTLR_LLCP_LOCAL_PROC_CTX_BUF_NUM,
-		      "Free CTX buffers %d", llcp_ctx_buffers_free());
+		      "Free CTX buffers %d", ctx_buffers_free());
 }
 
 /*
@@ -302,7 +264,7 @@ ZTEST(fex_central, test_feat_exchange_central_loc_2)
  *   |        |                         |
  */
 #define CENTRAL_NR_OF_EVENTS 2
-ZTEST(fex_central, test_feat_exchange_central_rem)
+void test_feat_exchange_central_rem(void)
 {
 	uint64_t set_featureset[] = {
 		DEFAULT_FEATURE,
@@ -349,13 +311,13 @@ ZTEST(fex_central, test_feat_exchange_central_rem)
 	}
 	zassert_equal(conn.lll.event_counter, CENTRAL_NR_OF_EVENTS * (feat_to_test),
 		      "Wrong event-count %d\n", conn.lll.event_counter);
-	zassert_equal(llcp_ctx_buffers_free(), test_ctx_buffers_cnt(),
-		      "Free CTX buffers %d", llcp_ctx_buffers_free());
+	zassert_equal(ctx_buffers_free(), test_ctx_buffers_cnt(),
+		      "Free CTX buffers %d", ctx_buffers_free());
 }
 
 #undef CENTRAL_NR_OF_EVENTS
 #define CENTRAL_NR_OF_EVENTS 3
-ZTEST(fex_central, test_feat_exchange_central_rem_2)
+void test_feat_exchange_central_rem_2(void)
 {
 	/*
 	 * we could combine some of the following,
@@ -406,7 +368,7 @@ ZTEST(fex_central, test_feat_exchange_central_rem_2)
 		sys_put_le64(ut_exp_featureset[feat_count], ut_feature_rsp.features);
 
 		err = ull_cp_feature_exchange(&conn);
-		zassert_equal(err, BT_HCI_ERR_SUCCESS);
+		zassert_equal(err, BT_HCI_ERR_SUCCESS, NULL);
 
 		event_prepare(&conn);
 		lt_tx(LL_PERIPH_FEAT_XCHG, &conn, &remote_feature_req);
@@ -437,11 +399,11 @@ ZTEST(fex_central, test_feat_exchange_central_rem_2)
 
 	zassert_equal(conn.lll.event_counter, CENTRAL_NR_OF_EVENTS * (feat_to_test),
 		      "Wrong event-count %d\n", conn.lll.event_counter);
-	zassert_equal(llcp_ctx_buffers_free(), test_ctx_buffers_cnt(),
-		      "Free CTX buffers %d", llcp_ctx_buffers_free());
+	zassert_equal(ctx_buffers_free(), test_ctx_buffers_cnt(),
+		      "Free CTX buffers %d", ctx_buffers_free());
 }
 
-ZTEST(fex_periph, test_peripheral_feat_exchange_periph_loc)
+void test_peripheral_feat_exchange_periph_loc(void)
 {
 	uint64_t err;
 	uint64_t featureset;
@@ -469,7 +431,7 @@ ZTEST(fex_periph, test_peripheral_feat_exchange_periph_loc)
 
 	/* Initiate a Feature Exchange Procedure */
 	err = ull_cp_feature_exchange(&conn);
-	zassert_equal(err, BT_HCI_ERR_SUCCESS);
+	zassert_equal(err, BT_HCI_ERR_SUCCESS, NULL);
 
 	event_prepare(&conn);
 	/* Tx Queue should have one LL Control PDU */
@@ -495,11 +457,11 @@ ZTEST(fex_periph, test_peripheral_feat_exchange_periph_loc)
 	ut_rx_q_is_empty();
 	zassert_equal(conn.lll.event_counter, 2, "Wrong event-count %d\n",
 		      conn.lll.event_counter);
-	zassert_equal(llcp_ctx_buffers_free(), test_ctx_buffers_cnt(),
-		      "Free CTX buffers %d", llcp_ctx_buffers_free());
+	zassert_equal(ctx_buffers_free(), test_ctx_buffers_cnt(),
+		      "Free CTX buffers %d", ctx_buffers_free());
 }
 
-ZTEST(fex_periph, test_feat_exchange_periph_loc_unknown_rsp)
+void test_feat_exchange_periph_loc_unknown_rsp(void)
 {
 	uint64_t err;
 	uint64_t featureset;
@@ -530,7 +492,7 @@ ZTEST(fex_periph, test_feat_exchange_periph_loc_unknown_rsp)
 
 	event_prepare(&conn);
 	err = ull_cp_feature_exchange(&conn);
-	zassert_equal(err, BT_HCI_ERR_SUCCESS);
+	zassert_equal(err, BT_HCI_ERR_SUCCESS, NULL);
 	event_done(&conn);
 
 	event_prepare(&conn);
@@ -557,9 +519,37 @@ ZTEST(fex_periph, test_feat_exchange_periph_loc_unknown_rsp)
 	ut_rx_q_is_empty();
 	zassert_equal(conn.lll.event_counter, 3, "Wrong event-count %d\n",
 		      conn.lll.event_counter);
-	zassert_equal(llcp_ctx_buffers_free(), test_ctx_buffers_cnt(),
-		      "Free CTX buffers %d", llcp_ctx_buffers_free());
+	zassert_equal(ctx_buffers_free(), test_ctx_buffers_cnt(),
+		      "Free CTX buffers %d", ctx_buffers_free());
 }
 
-ZTEST_SUITE(fex_central, NULL, NULL, fex_setup, NULL, NULL);
-ZTEST_SUITE(fex_periph, NULL, NULL, fex_setup, NULL, NULL);
+void test_hci_main(void);
+
+void test_main(void)
+{
+	ztest_test_suite(feat_exchange_central,
+			 ztest_unit_test_setup_teardown(test_feat_exchange_central_loc, setup,
+							unit_test_noop),
+			 ztest_unit_test_setup_teardown(test_feat_exchange_central_loc_invalid_rsp,
+							setup, unit_test_noop),
+			 ztest_unit_test_setup_teardown(test_feat_exchange_central_loc_2, setup,
+							unit_test_noop),
+			 ztest_unit_test_setup_teardown(test_feat_exchange_central_rem, setup,
+							unit_test_noop),
+			 ztest_unit_test_setup_teardown(test_feat_exchange_central_rem_2, setup,
+							unit_test_noop));
+
+	ztest_test_suite(feat_exchange_peripheral,
+			 ztest_unit_test_setup_teardown(test_peripheral_feat_exchange_periph_loc,
+							setup, unit_test_noop));
+
+	ztest_test_suite(feat_exchange_unknown,
+			 ztest_unit_test_setup_teardown(test_feat_exchange_periph_loc_unknown_rsp,
+							setup, unit_test_noop));
+
+	ztest_run_test_suite(feat_exchange_central);
+	ztest_run_test_suite(feat_exchange_peripheral);
+	ztest_run_test_suite(feat_exchange_unknown);
+
+	test_hci_main();
+}

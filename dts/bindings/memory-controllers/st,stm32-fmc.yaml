@@ -32,14 +32,17 @@ compatible: "st,stm32-fmc"
 include: [base.yaml, pinctrl-device.yaml]
 
 properties:
-  reg:
-    required: true
+    reg:
+      required: true
 
-  clocks:
-    required: true
+    label:
+      required: true
 
-  pinctrl-0:
-    required: true
+    clocks:
+      required: true
 
-  pinctrl-names:
-    required: true
+    pinctrl-0:
+      required: true
+
+    pinctrl-names:
+      required: true

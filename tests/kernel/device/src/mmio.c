@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
+#include <ztest.h>
 #include <zephyr/device.h>
 
 #define DT_DRV_COMPAT	fakedriver
@@ -58,7 +58,7 @@ DEVICE_DEFINE(foo0, "foo0", foo_single_init, NULL,
  *
  * @ingroup kernel_device_tests
  */
-ZTEST(device, test_mmio_single)
+void test_mmio_single(void)
 {
 	struct z_device_mmio_rom *rom;
 	const struct device *dev = device_get_binding("foo0");
@@ -155,7 +155,7 @@ DEVICE_DEFINE(foo12, "foo12", foo_mult_init, NULL,
  *
  * @ingroup kernel_device_tests
  */
-ZTEST(device, test_mmio_multiple)
+void test_mmio_multiple(void)
 {
 	/* See comments for test_mmio_single */
 	const struct device *dev = device_get_binding("foo12");
@@ -218,7 +218,7 @@ DEVICE_MMIO_TOPLEVEL_STATIC(foo4, DT_DRV_INST(4));
  *
  * @ingroup kernel_device_tests
  */
-ZTEST(device, test_mmio_toplevel)
+void test_mmio_toplevel(void)
 {
 	mm_reg_t regs_foo3, regs_foo4;
 	const struct z_device_mmio_rom *rom_foo3, *rom_foo4;
@@ -259,7 +259,7 @@ ZTEST(device, test_mmio_toplevel)
  * Show that device_map() populates a memory address. We don't do anything else;
  * tests for k_map() will prove that virtual memory mapping actually works.
  */
-ZTEST(device, test_mmio_device_map)
+void test_mmio_device_map(void)
 {
 #ifdef DEVICE_MMIO_IS_IN_RAM
 	mm_reg_t regs = 0;

@@ -4,14 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
-#include <zephyr/interrupt_util.h>
-#include <zephyr/irq.h>
+#include <ztest.h>
+#include <interrupt_util.h>
 
 /*
  * Other arch has already been tested in testcase of gen_isr_table,
  * so we only test x86 series here.
  */
+#if defined(CONFIG_X86)
 
 #define TEST_IRQ_LINE_1	27
 #define TEST_IRQ_LINE_2	28
@@ -51,7 +51,7 @@ void isr_comm(const void *param)
  * @see IRQ_CONNECT(), irq_enable(), irq_disable(),
  * irq_unlock(),
  */
-ZTEST(interrupt_feature, test_isr_regular)
+void test_isr_regular(void)
 {
 	int trig_vec1, trig_vec2;
 
@@ -92,21 +92,6 @@ ZTEST(interrupt_feature, test_isr_regular)
 
 	irq_unlock(key);
 
-#ifdef CONFIG_BOARD_QEMU_X86
-	/* QEMU seems to have an issue in that interrupts seem to post on
-	 * the instruction after the 'sti' that is part of irq_unlock().  This
-	 * can cause an issue if the instruction after the 'sti' ends up looking
-	 * at the state that the ISR is suppose to update.  This has been shown
-	 * to happen when building this test for LLVM.
-	 *
-	 * Adding a nop instruction allows QEMU to post the ISR before any state
-	 * gets examined as a workaround.
-	 *
-	 * See GitHub issue zephyrproject-rtos/sdk-ng#629 for the qemu bug.
-	 */
-	arch_nop();
-#endif
-
 	/* interrupt serve after irq unlocked */
 	zassert_true(reg_int_executed[0] == 2 &&
 			reg_int_executed[1] == 2,
@@ -122,3 +107,9 @@ ZTEST(interrupt_feature, test_isr_regular)
 			"Both ISR should execute again(%d)(%d)",
 			reg_int_executed[0], reg_int_executed[1]);
 }
+#else
+void test_isr_regular(void)
+{
+	ztest_test_skip();
+}
+#endif /* end defined(CONFIG_X86) */

@@ -5,9 +5,9 @@
  */
 
 #include <zephyr/kernel.h>
-#include <zephyr/ztest.h>
+#include <ztest.h>
 
 ZTEST_USER(framework_tests, test_userspace_is_user)
 {
-	zassert_true(k_is_user_context());
+	zassert_true(k_is_user_context(), NULL);
 }

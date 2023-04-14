@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
+#include <ztest.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/interrupt_controller/gicv3_its.h>
 
@@ -34,10 +34,10 @@ static void lpi_irq_handle(const void *parameter)
 
 unsigned int vectors[ITS_TEST_NUM_DEVS][ITS_TEST_NUM_ITES];
 
-ZTEST(arm64_gicv3_its, test_gicv3_its_alloc)
+static void test_gicv3_its_alloc(void)
 {
 	int devn, event_id;
-	const struct device *const dev = DEVICE_DT_INST_GET(0);
+	const struct device *dev = DEVICE_DT_INST_GET(0);
 
 	zassert_false(dev == NULL, "");
 
@@ -57,10 +57,10 @@ ZTEST(arm64_gicv3_its, test_gicv3_its_alloc)
 	}
 }
 
-ZTEST(arm64_gicv3_its, test_gicv3_its_connect)
+static void test_gicv3_its_connect(void)
 {
 	int devn, event_id;
-	const struct device *const dev = DEVICE_DT_INST_GET(0);
+	const struct device *dev = DEVICE_DT_INST_GET(0);
 	unsigned int remain = 0;
 
 	zassert_false(dev == NULL, "");
@@ -78,9 +78,9 @@ ZTEST(arm64_gicv3_its, test_gicv3_its_connect)
 	}
 }
 
-ZTEST(arm64_gicv3_its, test_gicv3_its_irq_simple)
+static void test_gicv3_its_irq_simple(void)
 {
-	const struct device *const dev = DEVICE_DT_INST_GET(0);
+	const struct device *dev = DEVICE_DT_INST_GET(0);
 	unsigned int irqn = vectors[0][0];
 	unsigned int timeout;
 	int device_id = ITS_TEST_DEV(0);
@@ -101,9 +101,9 @@ ZTEST(arm64_gicv3_its, test_gicv3_its_irq_simple)
 			irqn, device_id, event_id);
 }
 
-ZTEST(arm64_gicv3_its, test_gicv3_its_irq_disable)
+static void test_gicv3_its_irq_disable(void)
 {
-	const struct device *const dev = DEVICE_DT_INST_GET(0);
+	const struct device *dev = DEVICE_DT_INST_GET(0);
 	unsigned int irqn = vectors[0][0];
 	unsigned int timeout;
 	int device_id = ITS_TEST_DEV(0);
@@ -140,10 +140,10 @@ ZTEST(arm64_gicv3_its, test_gicv3_its_irq_disable)
 			irqn, device_id, event_id);
 }
 
-ZTEST(arm64_gicv3_its, test_gicv3_its_irq)
+static void test_gicv3_its_irq(void)
 {
 	int devn, event_id;
-	const struct device *const dev = DEVICE_DT_INST_GET(0);
+	const struct device *dev = DEVICE_DT_INST_GET(0);
 	unsigned int timeout;
 	unsigned int remain = 0;
 
@@ -172,4 +172,13 @@ ZTEST(arm64_gicv3_its, test_gicv3_its_irq)
 	}
 }
 
-ZTEST_SUITE(arm64_gicv3_its, NULL, NULL, NULL, NULL, NULL);
+void test_main(void)
+{
+	ztest_test_suite(its_func,
+			 ztest_unit_test(test_gicv3_its_alloc),
+			 ztest_unit_test(test_gicv3_its_connect),
+			 ztest_unit_test(test_gicv3_its_irq_simple),
+			 ztest_unit_test(test_gicv3_its_irq_disable),
+			 ztest_unit_test(test_gicv3_its_irq));
+	ztest_run_test_suite(its_func);
+}

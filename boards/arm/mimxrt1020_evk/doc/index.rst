@@ -11,7 +11,8 @@ high-performance feature set in low-cost LQFP packages, further simplifying
 board design and layout for customers. The i.MX RT1020 runs on the Arm®
 Cortex®-M7 core at 500 MHz.
 
-.. image:: mimxrt1020_evk.jpg
+.. image:: ./mimxrt1020_evk.jpg
+   :width: 720px
    :align: center
    :alt: MIMXRT1020-EVK
 
@@ -62,12 +63,8 @@ these references:
 Supported Features
 ==================
 
-The mimxrt1020_evk board configuration supports the hardware features listed
-below.  For additional features not yet supported, please also refer to the
-:ref:`mimxrt1064_evk` , which is the superset board in NXP's i.MX RT10xx family.
-NXP prioritizes enabling the superset board with NXP's Full Platform Support for
-Zephyr.  Therefore, the mimxrt1064_evk board may have additional features
-already supported, which can also be re-used on this mimxrt1020_evk board:
+The mimxrt1020_evk board configuration supports the following hardware
+features:
 
 +-----------+------------+-------------------------------------+
 | Interface | Controller | Driver/Component                    |
@@ -96,10 +93,6 @@ already supported, which can also be re-used on this mimxrt1020_evk board:
 | ADC       | on-chip    | adc                                 |
 +-----------+------------+-------------------------------------+
 | GPT       | on-chip    | gpt                                 |
-+-----------+------------+-------------------------------------+
-| TRNG      | on-chip    | entropy                             |
-+-----------+------------+-------------------------------------+
-| FLEXSPI   | on-chip    | flash programming                   |
 +-----------+------------+-------------------------------------+
 
 The default configuration can be found in the defconfig file:
@@ -183,14 +176,8 @@ The MIMXRT1020 SoC has five pairs of pinmux/gpio controllers.
 System Clock
 ============
 
-The MIMXRT1020 SoC is configured to use SysTick as the system clock source,
-running at 500MHz.
-
-When power management is enabled, the 32 KHz low frequency
-oscillator on the board will be used as a source for the GPT timer to
-generate a system clock. This clock enables lower power states, at the
-cost of reduced resolution
-
+The MIMXRT1020 SoC is configured to use the 32 KHz low frequency oscillator on
+the board as a source for the GPT timer to generate a system clock.
 
 Serial Port
 ===========

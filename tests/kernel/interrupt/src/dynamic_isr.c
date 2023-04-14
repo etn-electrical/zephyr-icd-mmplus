@@ -4,8 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
-#include <zephyr/interrupt_util.h>
+#include <ztest.h>
+#include <interrupt_util.h>
+
+#if defined(CONFIG_DYNAMIC_INTERRUPTS)
 
 #define ISR_DYN_ARG	0xab249cfd
 
@@ -21,6 +23,7 @@ static void dyn_isr(const void *arg)
 
 #if defined(CONFIG_GEN_SW_ISR_TABLE)
 extern struct _isr_table_entry __sw_isr_table _sw_isr_table[];
+extern void z_irq_spurious(const void *unused);
 
 /**
  * @brief Test dynamic ISR installation
@@ -34,7 +37,7 @@ extern struct _isr_table_entry __sw_isr_table _sw_isr_table[];
  *
  * @see arch_irq_connect_dynamic()
  */
-ZTEST(interrupt_feature, test_isr_dynamic)
+void test_isr_dynamic(void)
 {
 	int i;
 	const void *argval;
@@ -67,7 +70,7 @@ ZTEST(interrupt_feature, test_isr_dynamic)
  */
 #if defined(CONFIG_X86)
 #define IV_IRQS 32	/* start of vectors available for x86 IRQs */
-#define TEST_IRQ_DYN_LINE 25
+#define TEST_IRQ_DYN_LINE 16
 
 #elif defined(CONFIG_ARCH_POSIX)
 #define TEST_IRQ_DYN_LINE 5
@@ -120,3 +123,11 @@ extern const void *x86_irq_args[];
 
 }
 #endif /* CONFIG_GEN_SW_ISR_TABLE */
+
+#else
+/* Skip the dynamic interrupt test for the platforms that do not support it */
+void test_isr_dynamic(void)
+{
+	ztest_test_skip();
+}
+#endif /* CONFIG_DYNAMIC_INTERRUPTS */

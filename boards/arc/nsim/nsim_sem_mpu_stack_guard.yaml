@@ -1,12 +1,10 @@
 identifier: nsim_sem_mpu_stack_guard
 name: SEM Nsim simulator
-type: sim
+type: mcu
 arch: arc
 simulation: nsim
-simulation_exec: nsimdrv
 toolchain:
   - zephyr
-  - cross-compile
   - arcmwdt
 testing:
   ignore_tags:

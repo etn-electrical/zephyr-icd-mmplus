@@ -16,7 +16,7 @@
  * Protect your eyes and do not look directly into those LEDs.
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 
 #include <zephyr/sys/printk.h>
 

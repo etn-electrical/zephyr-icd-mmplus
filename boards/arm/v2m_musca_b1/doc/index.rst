@@ -15,8 +15,10 @@ CPU and the following devices:
 - Cortex-M System Design Kit GPIO
 - Cortex-M System Design Kit UART
 
-.. image:: img/v2m_musca_b1.jpg
+.. image:: img/v2m_musca_b1.png
+     :width: 435px
      :align: center
+     :height: 362px
      :alt: ARM V2M Musca B1
 
 More information about the board can be found at the `V2M Musca B1 Website`_.
@@ -381,28 +383,28 @@ serial port:
 
 
 .. _V2M Musca B1 Website:
-   https://developer.arm.com/Tools%20and%20Software/Musca-B1%20Test%20Chip%20Board
+   https://developer.arm.com/products/system-design/development-boards/iot-test-chips-and-boards/musca-b-test-chip-board
 
 .. _Musca B1 Technical Reference Manual (TRM):
-   https://developer.arm.com/documentation/101312/latest/
+   http://infocenter.arm.com/help/topic/com.arm.doc.101312_0000_00_en/arm_musca_b1_test_chip_and_board_technical_reference_manual_101312_0000_00_en.pdf
 
 .. _DAPLink Website:
    https://github.com/ARMmbed/DAPLink
 
 .. _Cortex M33 Generic User Guide:
-   https://developer.arm.com/documentation/100235/latest/
+   http://infocenter.arm.com/help/topic/com.arm.doc.100235_0004_00_en/arm_cortex_m33_dgug_100235_0004_00_en.pdf
 
 .. _Trusted Firmware M Guide:
-   https://tf-m-user-guide.trustedfirmware.org/building/tfm_build_instruction.html
+   https://git.trustedfirmware.org/trusted-firmware-m.git/about/docs/user_guides/tfm_build_instruction.md
 
 .. _Corelink SSE-200 Subsystem:
-   https://developer.arm.com/documentation/dto0051/latest/subsystem-overview/about-the-sse-200
+   https://developer.arm.com/products/system-design/subsystems/corelink-sse-200-subsystem
 
 .. _Srecord Manual:
    http://srecord.sourceforge.net/man/man1/srec_cat.html
 
 .. _IDAU:
-   https://developer.arm.com/documentation/100690/latest/Attribution-units--SAU-and-IDAU-
+   https://developer.arm.com/docs/100690/latest/attribution-units-sau-and-idau
 
 .. _AMBA®:
    https://developer.arm.com/products/architecture/system-architectures/amba

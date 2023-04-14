@@ -9,4 +9,4 @@ description: |
 
 compatible: "plantower,pms7003"
 
-include: [sensor-device.yaml, uart-device.yaml]
+include: uart-device.yaml

@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <errno.h>
-
 #include <zephyr/drivers/mipi_dsi.h>
 
 ssize_t mipi_dsi_generic_read(const struct device *dev, uint8_t channel,

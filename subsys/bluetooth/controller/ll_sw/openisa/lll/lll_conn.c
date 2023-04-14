@@ -6,7 +6,6 @@
 
 #include <stdbool.h>
 #include <stddef.h>
-#include <string.h>
 
 #include <zephyr/toolchain.h>
 #include <soc.h>
@@ -21,7 +20,6 @@
 #include "util/memq.h"
 #include "util/mfifo.h"
 
-#include "pdu_vendor.h"
 #include "pdu.h"
 
 #include "lll.h"
@@ -32,6 +30,8 @@
 #include "lll_tim_internal.h"
 #include "lll_prof_internal.h"
 
+#define LOG_MODULE_NAME bt_ctlr_llsw_openisa_lll_conn
+#include "common/log.h"
 #include "hal/debug.h"
 
 static int init_reset(void);

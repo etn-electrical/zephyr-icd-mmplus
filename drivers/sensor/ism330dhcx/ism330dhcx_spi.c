@@ -20,10 +20,10 @@
 
 LOG_MODULE_DECLARE(ISM330DHCX, CONFIG_SENSOR_LOG_LEVEL);
 
-static int ism330dhcx_spi_read(const struct device *dev, uint8_t reg_addr, uint8_t *value,
-			       uint8_t len)
+static int ism330dhcx_spi_read(struct ism330dhcx_data *data, uint8_t reg_addr,
+			       uint8_t *value, uint8_t len)
 {
-	const struct ism330dhcx_config *cfg = dev->config;
+	const struct ism330dhcx_config *cfg = data->dev->config;
 	uint8_t buffer_tx[2] = { reg_addr | ISM330DHCX_SPI_READ, 0 };
 	const struct spi_buf tx_buf = {
 			.buf = buffer_tx,
@@ -60,10 +60,10 @@ static int ism330dhcx_spi_read(const struct device *dev, uint8_t reg_addr, uint8
 	return 0;
 }
 
-static int ism330dhcx_spi_write(const struct device *dev, uint8_t reg_addr, uint8_t *value,
-				uint8_t len)
+static int ism330dhcx_spi_write(struct ism330dhcx_data *data, uint8_t reg_addr,
+				uint8_t *value, uint8_t len)
 {
-	const struct ism330dhcx_config *cfg = dev->config;
+	const struct ism330dhcx_config *cfg = data->dev->config;
 	uint8_t buffer_tx[1] = { reg_addr & ~ISM330DHCX_SPI_READ };
 	const struct spi_buf tx_buf[2] = {
 		{
@@ -97,7 +97,7 @@ int ism330dhcx_spi_init(const struct device *dev)
 	struct ism330dhcx_data *data = dev->data;
 	const struct ism330dhcx_config *cfg = dev->config;
 
-	if (!spi_is_ready_dt(&cfg->spi)) {
+	if (!spi_is_ready(&cfg->spi)) {
 		LOG_ERR("SPI bus is not ready");
 		return -ENODEV;
 	};

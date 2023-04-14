@@ -1,16 +1,16 @@
 # SPDX-License-Identifier: Apache-2.0
 
-if(DEFINED ENV{ONEAPI_ROOT})
-  set_ifndef(ONEAPI_TOOLCHAIN_PATH $ENV{ONEAPI_ROOT})
+if($ENV{ONEAPI_ROOT})
+  set_ifndef(ONEAPI_TOOLCHAIN_PATH "$ENV{ONEAPI_ROOT}")
 else()
-  zephyr_get(ONEAPI_TOOLCHAIN_PATH)
+  set_ifndef(ONEAPI_TOOLCHAIN_PATH "$ENV{ONEAPI_TOOLCHAIN_PATH}")
 endif()
 
 # the default oneApi installation path is related to os
 string(TOLOWER ${CMAKE_HOST_SYSTEM_NAME} system)
 if(ONEAPI_TOOLCHAIN_PATH)
   set(TOOLCHAIN_HOME ${ONEAPI_TOOLCHAIN_PATH}/compiler/latest/${system}/bin/)
-  set(ONEAPI_LLVM_BIN_PATH ${ONEAPI_TOOLCHAIN_PATH}/compiler/latest/${system}/bin-llvm)
+  set(ONEAPI_PYTHON_PATH ${ONEAPI_TOOLCHAIN_PATH}/intelpython/latest/bin)
 endif()
 
 set(ONEAPI_TOOLCHAIN_PATH ${ONEAPI_TOOLCHAIN_PATH} CACHE PATH "oneApi install directory")
@@ -42,7 +42,5 @@ elseif(system STREQUAL "windows")
   add_compile_options(--target=${triple})
   add_link_options(--target=${triple})
 endif()
-
-set(TOOLCHAIN_HAS_NEWLIB OFF CACHE BOOL "True if toolchain supports newlib")
 
 message(STATUS "Found toolchain: host (clang/ld)")

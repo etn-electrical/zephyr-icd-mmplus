@@ -4,7 +4,7 @@
  */
 
 #include <zephyr/drivers/counter.h>
-#include <zephyr/ztest.h>
+#include <ztest.h>
 #include <zephyr/kernel.h>
 
 /*
@@ -12,22 +12,23 @@
  */
 
 #ifdef CONFIG_COUNTER_CMOS
-#define CTR_DEV		DT_COMPAT_GET_ANY_STATUS_OKAY(motorola_mc146818)
+#define DEVICE_LABEL "CMOS"
 #else
-#define CTR_DEV		DT_ALIAS(rtc_0)
+#define DEVICE_LABEL DT_LABEL(DT_ALIAS(rtc_0))
 #endif
 
 #define DELAY_MS 1200	/* pause 1.2 seconds should always pass */
 #define MIN_BOUND 1	/* counter must report at least MIN_BOUND .. */
 #define MAX_BOUND 2	/* .. but at most MAX_BOUND seconds elapsed */
 
-ZTEST(seconds_counter, test_seconds_rate)
+void test_seconds_rate(void)
 {
-	const struct device *const dev = DEVICE_DT_GET(CTR_DEV);
+	const struct device *dev;
 	uint32_t start, elapsed;
 	int err;
 
-	zassert_true(device_is_ready(dev), "counter device is not ready");
+	dev = device_get_binding(DEVICE_LABEL);
+	zassert_true(dev != NULL, "can't find counter device");
 
 	err = counter_get_value(dev, &start);
 	zassert_true(err == 0, "failed to read counter device");
@@ -42,4 +43,8 @@ ZTEST(seconds_counter, test_seconds_rate)
 	zassert_true(elapsed <= MAX_BOUND, "busted maximum bound");
 }
 
-ZTEST_SUITE(seconds_counter, NULL, NULL, NULL, NULL, NULL);
+void test_main(void)
+{
+	ztest_test_suite(test_seconds_counter, ztest_unit_test(test_seconds_rate));
+	ztest_run_test_suite(test_seconds_counter);
+}

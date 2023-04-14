@@ -1,7 +1,7 @@
 .. _mec2016evb_assy6797:
 
-Microchip MEC2016EVB ASSY6797
-#############################
+MEC2016EVB ASSY6797
+###################
 
 Overview
 ********
@@ -10,7 +10,8 @@ The MEC2016EVB_ASSY6797 kit is a development platform to evaluate the
 Microchip MEC1701X series microcontrollers. This board needs to be mated with
 part number MEC170X 144WFBA SOLDER DC ASSY 6801(cpu board) in order to operate.
 
-.. image:: mec2016evb_assy6797.jpg
+.. image:: ./mec2016evb_assy6797.jpg
+     :width: 500px
      :align: center
      :alt: MEC2016 EVB ASSY 6797
 

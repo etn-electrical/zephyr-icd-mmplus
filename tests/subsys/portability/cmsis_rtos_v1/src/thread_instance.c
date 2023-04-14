@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
+#include <ztest.h>
 #include <zephyr/kernel.h>
 #include <cmsis_os.h>
 
@@ -23,7 +23,7 @@ void thread_inst_check(void const *argument)
 
 osThreadDef(thread_inst_check, osPriorityNormal, 3, STACKSZ);
 
-ZTEST(thread_instance, test_thread_instances)
+void test_thread_instances(void)
 {
 	osThreadId id1, id2, id3, id4;
 	osStatus status;
@@ -50,4 +50,3 @@ ZTEST(thread_instance, test_thread_instances)
 	zassert_true(id4 != NULL, "Failed creating thread_inst_check");
 	zassert_true(id2 == id4, "Error creating thread_inst_check");
 }
-ZTEST_SUITE(thread_instance, NULL, NULL, NULL, NULL, NULL);

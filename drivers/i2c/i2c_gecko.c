@@ -8,7 +8,6 @@
 
 #include <errno.h>
 #include <zephyr/drivers/i2c.h>
-#include <zephyr/kernel.h>
 #include <zephyr/sys/util.h>
 #include <em_cmu.h>
 #include <em_i2c.h>
@@ -50,8 +49,8 @@ void i2c_gecko_config_pins(const struct device *dev,
 	I2C_TypeDef *base = DEV_BASE(dev);
 	const struct i2c_gecko_config *config = dev->config;
 
-	GPIO_PinModeSet(pin_scl->port, pin_scl->pin, pin_scl->mode, pin_scl->out);
-	GPIO_PinModeSet(pin_sda->port, pin_sda->pin, pin_sda->mode, pin_sda->out);
+	soc_gpio_configure(pin_scl);
+	soc_gpio_configure(pin_sda);
 
 #ifdef CONFIG_SOC_GECKO_HAS_INDIVIDUAL_PIN_LOCATION
 	base->ROUTEPEN = I2C_ROUTEPEN_SDAPEN | I2C_ROUTEPEN_SCLPEN;
@@ -79,7 +78,7 @@ static int i2c_gecko_configure(const struct device *dev,
 	I2C_Init_TypeDef i2cInit = I2C_INIT_DEFAULT;
 	uint32_t baudrate;
 
-	if (!(I2C_MODE_CONTROLLER & dev_config_raw)) {
+	if (!(I2C_MODE_MASTER & dev_config_raw)) {
 		return -EINVAL;
 	}
 
@@ -181,7 +180,7 @@ static int i2c_gecko_init(const struct device *dev)
 
 	bitrate_cfg = i2c_map_dt_bitrate(config->bitrate);
 
-	error = i2c_gecko_configure(dev, I2C_MODE_CONTROLLER | bitrate_cfg);
+	error = i2c_gecko_configure(dev, I2C_MODE_MASTER | bitrate_cfg);
 	if (error) {
 		return error;
 	}

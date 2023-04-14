@@ -33,8 +33,8 @@ static const struct in_addr all_routers = { { { 224, 0, 0, 2 } } };
 
 #define dbg_addr(action, pkt_str, src, dst)				\
 	NET_DBG("%s %s from %s to %s", action, pkt_str,			\
-		net_sprint_ipv4_addr(src),			\
-		net_sprint_ipv4_addr(dst));
+		log_strdup(net_sprint_ipv4_addr(src)),			\
+		log_strdup(net_sprint_ipv4_addr(dst)));
 
 #define dbg_addr_recv(pkt_str, src, dst) \
 	dbg_addr("Received", pkt_str, src, dst)
@@ -127,15 +127,7 @@ static int send_igmp_report(struct net_if *iface,
 	}
 
 	for (i = 0; i < NET_IF_MAX_IPV4_MADDR; i++) {
-		/* We don't need to send an IGMP membership report to the IGMP
-		 * all systems multicast address of 224.0.0.1 so skip over it.
-		 * Since the IGMP all systems multicast address is marked as
-		 * used and joined during init time, we have to check this
-		 * address separately to skip over it.
-		 */
-		if (!ipv4->mcast[i].is_used || !ipv4->mcast[i].is_joined ||
-			net_ipv4_addr_cmp_raw((uint8_t *)&ipv4->mcast[i].address.in_addr,
-					(uint8_t *)&all_systems)) {
+		if (!ipv4->mcast[i].is_used || !ipv4->mcast[i].is_joined) {
 			continue;
 		}
 
@@ -147,15 +139,7 @@ static int send_igmp_report(struct net_if *iface,
 	}
 
 	for (i = 0; i < NET_IF_MAX_IPV4_MADDR; i++) {
-		/* We don't need to send an IGMP membership report to the IGMP
-		 * all systems multicast address of 224.0.0.1 so skip over it.
-		 * Since the IGMP all systems multicast address is marked as
-		 * used and joined during init time, we have to check this
-		 * address separately to skip over it.
-		 */
-		if (!ipv4->mcast[i].is_used || !ipv4->mcast[i].is_joined ||
-			net_ipv4_addr_cmp_raw((uint8_t *)&ipv4->mcast[i].address.in_addr,
-					(uint8_t *)&all_systems)) {
+		if (!ipv4->mcast[i].is_used || !ipv4->mcast[i].is_joined) {
 			continue;
 		}
 
@@ -168,10 +152,10 @@ static int send_igmp_report(struct net_if *iface,
 			return -ENOMEM;
 		}
 
-		/* Send the IGMP V2 membership report to the group multicast
-		 * address, as per RFC 2236 Section 9.
+		/* TODO: send to arbitrary group address instead of
+		 * all_routers
 		 */
-		ret = igmp_v2_create_packet(pkt, &ipv4->mcast[i].address.in_addr,
+		ret = igmp_v2_create_packet(pkt, &all_routers,
 					    &ipv4->mcast[i].address.in_addr,
 					    NET_IPV4_IGMP_REPORT_V2);
 		if (ret < 0) {
@@ -258,13 +242,8 @@ static int igmp_send_generic(struct net_if *iface,
 		return -ENOMEM;
 	}
 
-	/* Send the IGMP V2 membership report to the group multicast
-	 * address, as per RFC 2236 Section 9. The leave report
-	 * should be sent to the ALL ROUTERS multicast address (224.0.0.2)
-	 */
-	ret = igmp_v2_create_packet(pkt,
-				join ? addr : &all_routers, addr,
-				join ? NET_IPV4_IGMP_REPORT_V2 : NET_IPV4_IGMP_LEAVE);
+	ret = igmp_v2_create_packet(pkt, &all_routers, addr,
+			join ? NET_IPV4_IGMP_REPORT_V2 : NET_IPV4_IGMP_LEAVE);
 	if (ret < 0) {
 		goto drop;
 	}
@@ -341,40 +320,4 @@ int net_ipv4_igmp_leave(struct net_if *iface, const struct in_addr *addr)
 					&maddr->address.in_addr,
 					sizeof(struct in_addr));
 	return ret;
-}
-
-void net_ipv4_igmp_init(struct net_if *iface)
-{
-	struct net_if_mcast_addr *maddr;
-
-	/* Ensure multicast addresses are available */
-	if (CONFIG_NET_IF_MCAST_IPV4_ADDR_COUNT < 1) {
-		return;
-	}
-
-	/* This code adds the IGMP all systems 224.0.0.1 multicast address
-	 * to the list of multicast addresses of the given interface.
-	 * The address is marked as joined. However, an IGMP membership
-	 * report is not generated for this address. Populating this
-	 * address in the list of multicast addresses of the interface
-	 * and marking it as joined is helpful for multicast hash filter
-	 * implementations that need a list of multicast addresses it needs
-	 * to add to the multicast hash filter after a multicast address
-	 * has been removed from the membership list.
-	 */
-	maddr = net_if_ipv4_maddr_lookup(&all_systems, &iface);
-	if (maddr && net_if_ipv4_maddr_is_joined(maddr)) {
-		return;
-	}
-
-	if (!maddr) {
-		maddr = net_if_ipv4_maddr_add(iface, &all_systems);
-		if (!maddr) {
-			return;
-		}
-	}
-
-	net_if_ipv4_maddr_join(maddr);
-
-	net_if_mcast_monitor(iface, &maddr->address, true);
 }

@@ -20,4 +20,3 @@ supported:
   - dac
   - pwm
   - rng
-  - eeprom

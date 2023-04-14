@@ -1,7 +1,7 @@
 .. _mec172xevb_assy6906:
 
-Microchip MEC172xEVB ASSY6906
-#############################
+MEC172xEVB ASSY6906
+###################
 
 Overview
 ********
@@ -11,7 +11,8 @@ Microchip MEC172X series microcontrollers. This board needs to be mated with
 part number MEC172x 144WFBGA SOLDER DC ASSY 6914 (cpu board) in order to operate.
 MEC172x and MEC152x SPI image formats are not compatible with each other.
 
-.. image:: mec172xevb_assy6906.jpg
+.. image:: ./mec172xevb_assy6906.png
+     :width: 600px
      :align: center
      :alt: MEC172X EVB ASSY 6906
 
@@ -313,7 +314,8 @@ Wiring
 
 #. Connect the SPI Dongle ASSY 6791 to ``J34`` in the EVB.
 
-   .. image:: spidongle_assy6791.jpg
+   .. image:: ./spidongle_assy6791.png
+        :width: 337px
         :align: center
         :alt: SPI DONGLE ASSY 6791 Connected
 
@@ -321,7 +323,8 @@ Wiring
    ``U3``. Make sure that your programmer's offset is 0x0.
    For programming you can use Dediprog SF100 or a similar tool for flashing SPI chips.
 
-   .. image:: dediprog_connector.jpg
+   .. image:: ./dediprog_connector.png
+        :width: 800px
         :align: center
         :alt: SF100 Connected
 
@@ -353,7 +356,8 @@ Wiring
 #. Apply power to the board via a micro-USB cable.
    Configure this option by using a jumper between ``JP30 7-8``.
 
-   .. image:: jp30_power_options.jpg
+   .. image:: ./jp30_power_options.png
+        :width: 600px
         :align: center
         :alt: Power Connection
 
@@ -396,7 +400,8 @@ Flashing
    .. note:: When west process started press Reset button ``S2`` and do not release it
     till the whole west process will not be finished successfully.
 
-   .. image:: Reset_Button.jpg
+   .. image:: ./Reset_Button.png
+        :width: 600px
         :align: center
         :alt: Reset Button
 
@@ -426,35 +431,6 @@ Troubleshooting
    from the main board Assy6906 and try again.
 
 #. If Dediprog can't detect the onboard flash, press the board's Reset button and try again.
-
-PCA9555 Enabling
-================
-#. To enable PCA9555PW and test the I2C on mec172xevb_assy6906, additional works are needed:
-
-   As the I2C slave device NXP pca95xx on mec172xevb_assy6906 is connected to I2C00 port,
-   however, I2C00 port is shared with UART2 RS232 to TTL converter used to catch serial log,
-   so it's not possible to use UART2 and I2C00 port simultaneously. We need to change to use
-   I2C01 port by making some jumpers setting as below:
-
-    +---------+---------+------------------------------------------+
-    |  Pin 1  | Pin 2   |                Comment                   |
-    +=========+=========+==========================================+
-    | JP49.1  | JP49.2  | Connect PCA9555 VCC to +3.3V_STBY        |
-    +---------+---------+------------------------------------------+
-    | JP53.1  | JP53.2  | Select address 0100b, which means 0x26   |
-    +---------+---------+------------------------------------------+
-    | JP12.13 | JP12.14 | Connect I2C01_SDA from CPU to header J20 |
-    +---------+---------+------------------------------------------+
-    | JP12.4  | JP12.5  | Connect I2C01_SCL from CPU to header J20 |
-    +---------+---------+------------------------------------------+
-    | JP77.7  | JP77.8  | External pull-up for I2C01_SDA           |
-    +---------+---------+------------------------------------------+
-    | JP77.9  | JP77.10 | External pull-up for I2C01_SCL           |
-    +---------+---------+------------------------------------------+
-    | JP58.1  | JP20.1  | Connect NXP PCA9555 SCL to I2C01         |
-    +---------+---------+------------------------------------------+
-    | JP58.3  | JP20.3  | Connect NXP PCA9555 SDA to I2C01         |
-    +---------+---------+------------------------------------------+
 
 References
 **********

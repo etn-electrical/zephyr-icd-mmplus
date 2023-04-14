@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <zephyr/drivers/gpio.h>
 
 /* 1000 msec = 1 sec */
@@ -23,7 +23,7 @@ void main(void)
 {
 	int ret;
 
-	if (!gpio_is_ready_dt(&led)) {
+	if (!device_is_ready(led.port)) {
 		return;
 	}
 

@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2019 Laird Connectivity
- * Copyright (c) 2023 Nordic Semiconductor ASA
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -54,10 +53,6 @@
 		led1 = &led2;
 		sw0 = &button1;
 		sw1 = &button2;
-		mcuboot-button0 = &button1;
-		mcuboot-led0 = &led1;
-		watchdog0 = &wdt0;
-		bbram0 = &extrtc0;
 	};
 };
 
@@ -93,14 +88,9 @@
 		/* MCP4725 not populated at factory */
 		compatible = "microchip,mcp4725";
 		reg = <0x60>;
+		label = "MCP4725";
 		#io-channel-cells = <1>;
 		status = "disabled";
-	};
-
-	extrtc0: mcp7940n@6f {
-		compatible = "microchip,mcp7940n";
-		reg = <0x6f>;
-		status = "okay";
 	};
 };
 

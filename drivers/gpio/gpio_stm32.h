@@ -12,12 +12,8 @@
  */
 
 #include <zephyr/drivers/clock_control/stm32_clock_control.h>
+#include <pinmux/pinmux_stm32.h>
 #include <zephyr/drivers/gpio.h>
-#if DT_HAS_COMPAT_STATUS_OKAY(st_stm32f1_pinctrl)
-#include <zephyr/dt-bindings/pinctrl/stm32f1-pinctrl.h>
-#else
-#include <zephyr/dt-bindings/pinctrl/stm32-pinctrl.h>
-#endif /* DT_HAS_COMPAT_STATUS_OKAY(st_stm32f1_pinctrl) */
 
 /* GPIO buses definitions */
 
@@ -209,18 +205,6 @@
 #define STM32_PINCFG_PULL_DOWN          STM32_PUPDR_PULL_DOWN
 #define STM32_PINCFG_FLOATING           STM32_PUPDR_NO_PULL
 #endif /* CONFIG_SOC_SERIES_STM32F1X */
-
-#if defined(CONFIG_GPIO_GET_CONFIG) && !defined(CONFIG_SOC_SERIES_STM32F1X)
-/**
- * @brief structure of a GPIO pin (stm32 LL values) use to get the configuration
- */
-struct gpio_stm32_pin {
-	unsigned int type; /* LL_GPIO_OUTPUT_PUSHPULL or LL_GPIO_OUTPUT_OPENDRAIN */
-	unsigned int pupd; /* LL_GPIO_PULL_NO or LL_GPIO_PULL_UP or LL_GPIO_PULL_DOWN */
-	unsigned int mode; /* LL_GPIO_MODE_INPUT or LL_GPIO_MODE_OUTPUT or other */
-	unsigned int out_state; /* 1 (high level) or 0 (low level) */
-};
-#endif /* CONFIG_GPIO_GET_CONFIG */
 
 /**
  * @brief configuration of GPIO device

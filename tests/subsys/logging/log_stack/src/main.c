@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
+#include <ztest.h>
 #include <zephyr/logging/log.h>
 
 /* The idea of this test is to estimate stack usage of logging messages. Each
@@ -26,11 +26,7 @@ static size_t hexdump_usage;
 static size_t more_args_usage;
 
 /* Stack increase margin. */
-#ifdef CONFIG_PICOLIBC
-#define STACK_USAGE_MARGIN 128
-#else
 #define STACK_USAGE_MARGIN 16
-#endif
 
 static void after(void *data)
 {
@@ -50,13 +46,13 @@ ZTEST_SUITE(test_log_stack, NULL, NULL, NULL, NULL, after);
 	\
 	k_msleep(100); \
 	err = k_thread_stack_space_get(k_current_get(), &unused); \
-	zassert_equal(err, 0); \
+	zassert_equal(err, 0, NULL); \
 	__DEBRACKET log_msg; \
 	\
 	k_msleep(100); \
 	\
 	err = k_thread_stack_space_get(k_current_get(), &unused2); \
-	zassert_equal(err, 0); \
+	zassert_equal(err, 0, NULL); \
 	\
 	usage = unused - unused2; \
 	PRINT("Stack increase due to log usage: %zu\n", usage); \
@@ -69,17 +65,17 @@ ZTEST_SUITE(test_log_stack, NULL, NULL, NULL, NULL, after);
 #define HEXDUMP_USAGE 120
 #define MORE_ARGS_USAGE 136
 #elif defined(CONFIG_LOG_MODE_IMMEDIATE) && !defined(CONFIG_NO_OPTIMIZATIONS)
-#define SIMPLE_USAGE 436
-#define HEXDUMP_USAGE 436
-#define MORE_ARGS_USAGE 452
+#define SIMPLE_USAGE 412
+#define HEXDUMP_USAGE 412
+#define MORE_ARGS_USAGE 428
 #elif !defined(CONFIG_LOG_MODE_IMMEDIATE) && defined(CONFIG_NO_OPTIMIZATIONS)
-#define SIMPLE_USAGE 168
-#define HEXDUMP_USAGE 168
-#define MORE_ARGS_USAGE 171
+#define SIMPLE_USAGE 152
+#define HEXDUMP_USAGE 152
+#define MORE_ARGS_USAGE 152
 #elif defined(CONFIG_LOG_MODE_IMMEDIATE) && defined(CONFIG_NO_OPTIMIZATIONS)
-#define SIMPLE_USAGE 911
-#define HEXDUMP_USAGE 911
-#define MORE_ARGS_USAGE 927
+#define SIMPLE_USAGE 783
+#define HEXDUMP_USAGE 783
+#define MORE_ARGS_USAGE 799
 #endif
 
 #elif defined(CONFIG_CPU_CORTEX_M3)
@@ -93,53 +89,53 @@ ZTEST_SUITE(test_log_stack, NULL, NULL, NULL, NULL, after);
 #define HEXDUMP_USAGE 388
 #define MORE_ARGS_USAGE 404
 #elif !defined(CONFIG_LOG_MODE_IMMEDIATE) && defined(CONFIG_NO_OPTIMIZATIONS)
-#define SIMPLE_USAGE 144
-#define HEXDUMP_USAGE 88
-#define MORE_ARGS_USAGE 144
+#define SIMPLE_USAGE 120
+#define HEXDUMP_USAGE 120
+#define MORE_ARGS_USAGE 120
 #elif defined(CONFIG_LOG_MODE_IMMEDIATE) && defined(CONFIG_NO_OPTIMIZATIONS)
-#define SIMPLE_USAGE 640
-#define HEXDUMP_USAGE 640
-#define MORE_ARGS_USAGE 656
+#define SIMPLE_USAGE 528
+#define HEXDUMP_USAGE 528
+#define MORE_ARGS_USAGE 544
 #endif
 
 #elif defined(CONFIG_X86) && !defined(CONFIG_X86_64)
 
 #if !defined(CONFIG_LOG_MODE_IMMEDIATE) && !defined(CONFIG_NO_OPTIMIZATIONS)
-#define SIMPLE_USAGE 72
-#define HEXDUMP_USAGE 68
-#define MORE_ARGS_USAGE 88
+#define SIMPLE_USAGE 48
+#define HEXDUMP_USAGE 48
+#define MORE_ARGS_USAGE 60
 #elif defined(CONFIG_LOG_MODE_IMMEDIATE) && !defined(CONFIG_NO_OPTIMIZATIONS)
-#define SIMPLE_USAGE 448
-#define HEXDUMP_USAGE 444
-#define MORE_ARGS_USAGE 484
+#define SIMPLE_USAGE 388
+#define HEXDUMP_USAGE 384
+#define MORE_ARGS_USAGE 416
 #elif !defined(CONFIG_LOG_MODE_IMMEDIATE) && defined(CONFIG_NO_OPTIMIZATIONS)
-#define SIMPLE_USAGE 288
-#define HEXDUMP_USAGE 272
-#define MORE_ARGS_USAGE 304
+#define SIMPLE_USAGE 224
+#define HEXDUMP_USAGE 224
+#define MORE_ARGS_USAGE 240
 #elif defined(CONFIG_LOG_MODE_IMMEDIATE) && defined(CONFIG_NO_OPTIMIZATIONS)
-#define SIMPLE_USAGE 988
-#define HEXDUMP_USAGE 972
-#define MORE_ARGS_USAGE 1020
+#define SIMPLE_USAGE 796
+#define HEXDUMP_USAGE 796
+#define MORE_ARGS_USAGE 828
 #endif
 
 #elif defined(CONFIG_X86_64)
 
 #if !defined(CONFIG_LOG_MODE_IMMEDIATE) && !defined(CONFIG_NO_OPTIMIZATIONS)
-#define SIMPLE_USAGE 168
+#define SIMPLE_USAGE 136
 #define HEXDUMP_USAGE 136
-#define MORE_ARGS_USAGE 200
+#define MORE_ARGS_USAGE 168
 #elif defined(CONFIG_LOG_MODE_IMMEDIATE) && !defined(CONFIG_NO_OPTIMIZATIONS)
-#define SIMPLE_USAGE 1120
-#define HEXDUMP_USAGE 1104
-#define MORE_ARGS_USAGE 1184
+#define SIMPLE_USAGE 1088
+#define HEXDUMP_USAGE 1088
+#define MORE_ARGS_USAGE 1152
 #elif !defined(CONFIG_LOG_MODE_IMMEDIATE) && defined(CONFIG_NO_OPTIMIZATIONS)
-#define SIMPLE_USAGE 576
-#define HEXDUMP_USAGE 576
-#define MORE_ARGS_USAGE 608
+#define SIMPLE_USAGE 528
+#define HEXDUMP_USAGE 528
+#define MORE_ARGS_USAGE 560
 #elif defined(CONFIG_LOG_MODE_IMMEDIATE) && defined(CONFIG_NO_OPTIMIZATIONS)
-#define SIMPLE_USAGE 1680
-#define HEXDUMP_USAGE 1680
-#define MORE_ARGS_USAGE 1744
+#define SIMPLE_USAGE 1440
+#define HEXDUMP_USAGE 1440
+#define MORE_ARGS_USAGE 1504
 #endif
 
 #elif defined(CONFIG_RISCV) && !defined(CONFIG_64BIT) && !defined(CONFIG_SMP)
@@ -149,17 +145,17 @@ ZTEST_SUITE(test_log_stack, NULL, NULL, NULL, NULL, after);
 #define HEXDUMP_USAGE 136
 #define MORE_ARGS_USAGE 152
 #elif defined(CONFIG_LOG_MODE_IMMEDIATE) && !defined(CONFIG_NO_OPTIMIZATIONS)
-#define SIMPLE_USAGE 504
-#define HEXDUMP_USAGE 504
-#define MORE_ARGS_USAGE 520
+#define SIMPLE_USAGE 456
+#define HEXDUMP_USAGE 456
+#define MORE_ARGS_USAGE 472
 #elif !defined(CONFIG_LOG_MODE_IMMEDIATE) && defined(CONFIG_NO_OPTIMIZATIONS)
-#define SIMPLE_USAGE 240
-#define HEXDUMP_USAGE 240
-#define MORE_ARGS_USAGE 240
+#define SIMPLE_USAGE 208
+#define HEXDUMP_USAGE 208
+#define MORE_ARGS_USAGE 208
 #elif defined(CONFIG_LOG_MODE_IMMEDIATE) && defined(CONFIG_NO_OPTIMIZATIONS)
-#define SIMPLE_USAGE 992
-#define HEXDUMP_USAGE 992
-#define MORE_ARGS_USAGE 1008
+#define SIMPLE_USAGE 844
+#define HEXDUMP_USAGE 844
+#define MORE_ARGS_USAGE 860
 #endif
 
 #elif defined(CONFIG_RISCV) && !defined(CONFIG_64BIT) && defined(CONFIG_SMP)
@@ -173,33 +169,33 @@ ZTEST_SUITE(test_log_stack, NULL, NULL, NULL, NULL, after);
 #define HEXDUMP_USAGE 456
 #define MORE_ARGS_USAGE 472
 #elif !defined(CONFIG_LOG_MODE_IMMEDIATE) && defined(CONFIG_NO_OPTIMIZATIONS)
-#define SIMPLE_USAGE 304
-#define HEXDUMP_USAGE 240
-#define MORE_ARGS_USAGE 240
+#define SIMPLE_USAGE 208
+#define HEXDUMP_USAGE 208
+#define MORE_ARGS_USAGE 208
 #elif defined(CONFIG_LOG_MODE_IMMEDIATE) && defined(CONFIG_NO_OPTIMIZATIONS)
-#define SIMPLE_USAGE 1008
-#define HEXDUMP_USAGE 1008
-#define MORE_ARGS_USAGE 1024
+#define SIMPLE_USAGE 876
+#define HEXDUMP_USAGE 848
+#define MORE_ARGS_USAGE 864
 #endif
 
 #elif defined(CONFIG_RISCV) && defined(CONFIG_64BIT) && defined(CONFIG_SMP)
 
 #if !defined(CONFIG_LOG_MODE_IMMEDIATE) && !defined(CONFIG_NO_OPTIMIZATIONS)
-#define SIMPLE_USAGE 200
+#define SIMPLE_USAGE 168
 #define HEXDUMP_USAGE 168
-#define MORE_ARGS_USAGE 232
+#define MORE_ARGS_USAGE 200
 #elif defined(CONFIG_LOG_MODE_IMMEDIATE) && !defined(CONFIG_NO_OPTIMIZATIONS)
-#define SIMPLE_USAGE 736
+#define SIMPLE_USAGE 704
 #define HEXDUMP_USAGE 768
-#define MORE_ARGS_USAGE 768
+#define MORE_ARGS_USAGE 736
 #elif !defined(CONFIG_LOG_MODE_IMMEDIATE) && defined(CONFIG_NO_OPTIMIZATIONS)
-#define SIMPLE_USAGE 320
-#define HEXDUMP_USAGE 320
-#define MORE_ARGS_USAGE 320
+#define SIMPLE_USAGE 272
+#define HEXDUMP_USAGE 272
+#define MORE_ARGS_USAGE 272
 #elif defined(CONFIG_LOG_MODE_IMMEDIATE) && defined(CONFIG_NO_OPTIMIZATIONS)
-#define SIMPLE_USAGE 1248
-#define HEXDUMP_USAGE 1248
-#define MORE_ARGS_USAGE 1280
+#define SIMPLE_USAGE 1040
+#define HEXDUMP_USAGE 1040
+#define MORE_ARGS_USAGE 1072
 #endif
 
 #elif defined(CONFIG_RISCV) && defined(CONFIG_64BIT)
@@ -213,13 +209,13 @@ ZTEST_SUITE(test_log_stack, NULL, NULL, NULL, NULL, after);
 #define HEXDUMP_USAGE 704
 #define MORE_ARGS_USAGE 736
 #elif !defined(CONFIG_LOG_MODE_IMMEDIATE) && defined(CONFIG_NO_OPTIMIZATIONS)
-#define SIMPLE_USAGE 320
-#define HEXDUMP_USAGE 320
-#define MORE_ARGS_USAGE 320
+#define SIMPLE_USAGE 272
+#define HEXDUMP_USAGE 272
+#define MORE_ARGS_USAGE 272
 #elif defined(CONFIG_LOG_MODE_IMMEDIATE) && defined(CONFIG_NO_OPTIMIZATIONS)
-#define SIMPLE_USAGE 1128
-#define HEXDUMP_USAGE 1128
-#define MORE_ARGS_USAGE 1160
+#define SIMPLE_USAGE 1040
+#define HEXDUMP_USAGE 1040
+#define MORE_ARGS_USAGE 1072
 #endif
 
 #elif defined(CONFIG_SPARC)
@@ -233,13 +229,13 @@ ZTEST_SUITE(test_log_stack, NULL, NULL, NULL, NULL, after);
 #define HEXDUMP_USAGE 849
 #define MORE_ARGS_USAGE 865
 #elif !defined(CONFIG_LOG_MODE_IMMEDIATE) && defined(CONFIG_NO_OPTIMIZATIONS)
-#define SIMPLE_USAGE 416
-#define HEXDUMP_USAGE 232
-#define MORE_ARGS_USAGE 416
+#define SIMPLE_USAGE 344
+#define HEXDUMP_USAGE 344
+#define MORE_ARGS_USAGE 344
 #elif defined(CONFIG_LOG_MODE_IMMEDIATE) && defined(CONFIG_NO_OPTIMIZATIONS)
-#define SIMPLE_USAGE 1544
-#define HEXDUMP_USAGE 1544
-#define MORE_ARGS_USAGE 1560
+#define SIMPLE_USAGE 1312
+#define HEXDUMP_USAGE 1312
+#define MORE_ARGS_USAGE 1328
 #endif
 
 #elif defined(CONFIG_XTENSA)
@@ -249,17 +245,17 @@ ZTEST_SUITE(test_log_stack, NULL, NULL, NULL, NULL, after);
 #define HEXDUMP_USAGE 168
 #define MORE_ARGS_USAGE 88
 #elif defined(CONFIG_LOG_MODE_IMMEDIATE) && !defined(CONFIG_NO_OPTIMIZATIONS)
-#define SIMPLE_USAGE 584
-#define HEXDUMP_USAGE 584
-#define MORE_ARGS_USAGE 600
+#define SIMPLE_USAGE 504
+#define HEXDUMP_USAGE 504
+#define MORE_ARGS_USAGE 520
 #elif !defined(CONFIG_LOG_MODE_IMMEDIATE) && defined(CONFIG_NO_OPTIMIZATIONS)
 #define SIMPLE_USAGE 336
 #define HEXDUMP_USAGE 336
 #define MORE_ARGS_USAGE 336
 #elif defined(CONFIG_LOG_MODE_IMMEDIATE) && defined(CONFIG_NO_OPTIMIZATIONS)
-#define SIMPLE_USAGE 1040
-#define HEXDUMP_USAGE 1040
-#define MORE_ARGS_USAGE 1056
+#define SIMPLE_USAGE 944
+#define HEXDUMP_USAGE 944
+#define MORE_ARGS_USAGE 960
 #endif
 
 #else

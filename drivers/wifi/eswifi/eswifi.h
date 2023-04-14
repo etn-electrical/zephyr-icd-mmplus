@@ -7,10 +7,10 @@
 #ifndef ZEPHYR_DRIVERS_WIFI_ESWIFI_ESWIFI_H_
 #define ZEPHYR_DRIVERS_WIFI_ESWIFI_ESWIFI_H_
 
+#include <zephyr/zephyr.h>
 #include <zephyr/kernel.h>
 #include <stdio.h>
 #include <zephyr/kernel_structs.h>
-#include <zephyr/drivers/gpio.h>
 
 #include <zephyr/net/wifi_mgmt.h>
 
@@ -22,6 +22,11 @@
 #define AT_OK_STR_LEN 8
 #define AT_RSP_DELIMITER "\r\n"
 #define AT_RSP_DELIMITER_LEN 2
+
+struct eswifi_gpio {
+	const struct device *dev;
+	unsigned int pin;
+};
 
 enum eswifi_security_type {
 	ESWIFI_SEC_OPEN,
@@ -54,14 +59,11 @@ struct eswifi_sta {
 
 struct eswifi_bus_ops;
 
-struct eswifi_cfg {
-	struct gpio_dt_spec resetn;
-	struct gpio_dt_spec wakeup;
-};
-
 struct eswifi_dev {
 	struct net_if *iface;
 	struct eswifi_bus_ops *bus;
+	struct eswifi_gpio resetn;
+	struct eswifi_gpio wakeup;
 	scan_result_cb_t scan_cb;
 	struct k_work_q work_q;
 	struct k_work request_work;
@@ -138,7 +140,6 @@ int __eswifi_socket_new(struct eswifi_dev *eswifi, int family, int type,
 			int proto, void *context);
 int __eswifi_off_start_client(struct eswifi_dev *eswifi,
 			      struct eswifi_off_socket *socket);
-int __eswifi_listen(struct eswifi_dev *eswifi, struct eswifi_off_socket *socket, int backlog);
 int __eswifi_accept(struct eswifi_dev *eswifi, struct eswifi_off_socket *socket);
 int __eswifi_bind(struct eswifi_dev *eswifi, struct eswifi_off_socket *socket,
 		  const struct sockaddr *addr, socklen_t addrlen);

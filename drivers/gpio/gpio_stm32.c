@@ -18,6 +18,8 @@
 #include <stm32_ll_system.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/clock_control/stm32_clock_control.h>
+#include <pinmux/pinmux_stm32.h>
+#include <zephyr/drivers/pinmux.h>
 #include <zephyr/sys/util.h>
 #include <zephyr/drivers/interrupt_controller/exti_stm32.h>
 #include <zephyr/pm/device.h>
@@ -25,7 +27,7 @@
 
 #include "stm32_hsem.h"
 #include "gpio_stm32.h"
-#include <zephyr/drivers/gpio/gpio_utils.h>
+#include "gpio_utils.h"
 
 /**
  * @brief Common GPIO driver for STM32 MCUs.
@@ -44,7 +46,7 @@ static void gpio_stm32_isr(int line, void *arg)
 /**
  * @brief Common gpio flags to custom flags
  */
-static int gpio_stm32_flags_to_conf(gpio_flags_t flags, int *pincfg)
+static int gpio_stm32_flags_to_conf(int flags, int *pincfg)
 {
 
 	if ((flags & GPIO_OUTPUT) != 0) {
@@ -88,48 +90,6 @@ static int gpio_stm32_flags_to_conf(gpio_flags_t flags, int *pincfg)
 
 	return 0;
 }
-
-#if defined(CONFIG_GPIO_GET_CONFIG) && !defined(CONFIG_SOC_SERIES_STM32F1X)
-/**
- * @brief Custom stm32 flags to zephyr
- */
-static int gpio_stm32_pincfg_to_flags(struct gpio_stm32_pin pin_cfg,
-				      gpio_flags_t *out_flags)
-{
-	gpio_flags_t flags = 0;
-
-	if (pin_cfg.mode == LL_GPIO_MODE_OUTPUT) {
-		flags |= GPIO_OUTPUT;
-		if (pin_cfg.type == LL_GPIO_OUTPUT_OPENDRAIN) {
-			flags |= GPIO_OPEN_DRAIN;
-		}
-	} else if (pin_cfg.mode == LL_GPIO_MODE_INPUT) {
-		flags |= GPIO_INPUT;
-#ifdef CONFIG_SOC_SERIES_STM32F1X
-	} else if (pin_cfg.mode == LL_GPIO_MODE_FLOATING) {
-		flags |= GPIO_INPUT;
-#endif
-	} else {
-		flags |= GPIO_DISCONNECTED;
-	}
-
-	if (pin_cfg.pupd == LL_GPIO_PULL_UP) {
-		flags |= GPIO_PULL_UP;
-	} else if (pin_cfg.pupd == LL_GPIO_PULL_DOWN) {
-		flags |= GPIO_PULL_DOWN;
-	}
-
-	if (pin_cfg.out_state != 0) {
-		flags |= GPIO_OUTPUT_HIGH;
-	} else {
-		flags |= GPIO_OUTPUT_LOW;
-	}
-
-	*out_flags = flags;
-
-	return 0;
-}
-#endif /* CONFIG_GPIO_GET_CONFIG */
 
 /**
  * @brief Translate pin to pinval that the LL library needs
@@ -275,7 +235,7 @@ static int gpio_stm32_clock_request(const struct device *dev, bool on)
 	__ASSERT_NO_MSG(dev != NULL);
 
 	/* enable clock for subsystem */
-	const struct device *const clk = DEVICE_DT_GET(STM32_CLOCK_CONTROL_NODE);
+	const struct device *clk = DEVICE_DT_GET(STM32_CLOCK_CONTROL_NODE);
 
 	if (on) {
 		ret = clock_control_on(clk,
@@ -383,7 +343,7 @@ static int gpio_stm32_enable_int(int port, int pin)
 	defined(CONFIG_SOC_SERIES_STM32L1X) || \
 	defined(CONFIG_SOC_SERIES_STM32L4X) || \
 	defined(CONFIG_SOC_SERIES_STM32G4X)
-	const struct device *const clk = DEVICE_DT_GET(STM32_CLOCK_CONTROL_NODE);
+	const struct device *clk = DEVICE_DT_GET(STM32_CLOCK_CONTROL_NODE);
 	struct stm32_pclken pclken = {
 #ifdef CONFIG_SOC_SERIES_STM32H7X
 		.bus = STM32_CLOCK_BUS_APB4,
@@ -550,8 +510,8 @@ static int gpio_stm32_config(const struct device *dev,
 
 	gpio_stm32_configure_raw(dev, pin, pincfg, 0);
 
-	/* Release clock only if pin is disconnected */
-	if (((flags & GPIO_OUTPUT) == 0) && ((flags & GPIO_INPUT) == 0)) {
+	/* Release clock only if configuration doesn't require bank writes */
+	if ((flags & GPIO_OUTPUT) == 0) {
 		err = pm_device_runtime_put(dev);
 		if (err < 0) {
 			return err;
@@ -560,36 +520,6 @@ static int gpio_stm32_config(const struct device *dev,
 
 	return 0;
 }
-
-#if defined(CONFIG_GPIO_GET_CONFIG) && !defined(CONFIG_SOC_SERIES_STM32F1X)
-/**
- * @brief Get configuration of pin
- */
-static int gpio_stm32_get_config(const struct device *dev,
-				 gpio_pin_t pin, gpio_flags_t *flags)
-{
-	const struct gpio_stm32_config *cfg = dev->config;
-	GPIO_TypeDef *gpio = (GPIO_TypeDef *)cfg->base;
-	struct gpio_stm32_pin pin_config;
-	int pin_ll;
-	int err;
-
-	err = pm_device_runtime_get(dev);
-	if (err < 0) {
-		return err;
-	}
-
-	pin_ll = stm32_pinval_get(pin);
-	pin_config.type = LL_GPIO_GetPinOutputType(gpio, pin_ll);
-	pin_config.pupd = LL_GPIO_GetPinPull(gpio, pin_ll);
-	pin_config.mode = LL_GPIO_GetPinMode(gpio, pin_ll);
-	pin_config.out_state = LL_GPIO_IsOutputPinSet(gpio, pin_ll);
-
-	gpio_stm32_pincfg_to_flags(pin_config, flags);
-
-	return pm_device_runtime_put(dev);
-}
-#endif /* CONFIG_GPIO_GET_CONFIG */
 
 static int gpio_stm32_pin_interrupt_configure(const struct device *dev,
 					      gpio_pin_t pin,
@@ -655,9 +585,6 @@ static int gpio_stm32_manage_callback(const struct device *dev,
 
 static const struct gpio_driver_api gpio_stm32_driver = {
 	.pin_configure = gpio_stm32_config,
-#if defined(CONFIG_GPIO_GET_CONFIG) && !defined(CONFIG_SOC_SERIES_STM32F1X)
-	.pin_get_config = gpio_stm32_get_config,
-#endif /* CONFIG_GPIO_GET_CONFIG */
 	.port_get_raw = gpio_stm32_port_get_raw,
 	.port_set_masked_raw = gpio_stm32_port_set_masked_raw,
 	.port_set_bits_raw = gpio_stm32_port_set_bits_raw,
@@ -702,12 +629,7 @@ static int gpio_stm32_init(const struct device *dev)
 
 	data->dev = dev;
 
-	if (!device_is_ready(DEVICE_DT_GET(STM32_CLOCK_CONTROL_NODE))) {
-		return -ENODEV;
-	}
-
-#if (defined(PWR_CR2_IOSV) || defined(PWR_SVMCR_IO2SV)) && \
-	DT_NODE_HAS_STATUS(DT_NODELABEL(gpiog), okay)
+#if defined(PWR_CR2_IOSV) && DT_NODE_HAS_STATUS(DT_NODELABEL(gpiog), okay)
 	z_stm32_hsem_lock(CFG_HW_RCC_SEMID, HSEM_LOCK_DEFAULT_RETRY);
 	/* Port G[15:2] requires external power supply */
 	/* Cf: L4/L5 RM, Chapter "Independent I/O supply rail" */

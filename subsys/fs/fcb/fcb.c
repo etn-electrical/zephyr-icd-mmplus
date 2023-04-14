@@ -101,6 +101,7 @@ fcb_init(int f_area_id, struct fcb *fcb)
 	int oldest = -1, newest = -1;
 	struct flash_sector *oldest_sector = NULL, *newest_sector = NULL;
 	struct fcb_disk_area fda;
+	const struct device *dev = NULL;
 	const struct flash_parameters *fparam;
 
 	if (!fcb->f_sectors || fcb->f_sector_cnt - fcb->f_scratch_cnt < 1) {
@@ -112,7 +113,8 @@ fcb_init(int f_area_id, struct fcb *fcb)
 		return -EINVAL;
 	}
 
-	fparam = flash_get_parameters(fcb->fap->fa_dev);
+	dev = device_get_binding(fcb->fap->fa_dev_name);
+	fparam = flash_get_parameters(dev);
 	fcb->f_erase_value = fparam->erase_value;
 
 	align = fcb_get_align(fcb);

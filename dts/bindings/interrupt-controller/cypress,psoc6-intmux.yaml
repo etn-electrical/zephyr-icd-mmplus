@@ -73,4 +73,7 @@ include: base.yaml
 
 properties:
   reg:
-    required: true
+      required: true
+
+  label:
+      required: true

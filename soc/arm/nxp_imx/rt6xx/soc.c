@@ -24,19 +24,12 @@
 #include <fsl_clock.h>
 #include <fsl_common.h>
 #include <fsl_device_registers.h>
-#include <fsl_cache.h>
-
-#ifdef CONFIG_FLASH_MCUX_FLEXSPI_XIP
-#include "flash_clock_setup.h"
-#endif
 
 #if CONFIG_USB_DC_NXP_LPCIP3511
 #include "usb_phy.h"
-#include "usb.h"
+#include "usb_dc_mcux.h"
 #endif
 
-/* Core clock frequency: 250105263Hz */
-#define CLOCK_INIT_CORE_CLOCK                     250105263U
 
 #define SYSTEM_IS_XIP_FLEXSPI() \
 	((((uint32_t)nxp_rt600_init >= 0x08000000U) &&		\
@@ -75,13 +68,10 @@ const clock_audio_pll_config_t g_audioPllConfig = {
 #define BOARD_USB_PHY_TXCAL45DM (0x06U)
 #endif
 
-/* System clock frequency. */
-extern uint32_t SystemCoreClock;
-/* Main stack pointer */
-extern char z_main_stack[];
-
 #ifdef CONFIG_NXP_IMX_RT6XX_BOOT_HEADER
+extern char z_main_stack[];
 extern char _flash_used[];
+
 extern void z_arm_reset(void);
 extern void z_arm_nmi(void);
 extern void z_arm_hard_fault(void);
@@ -145,7 +135,7 @@ static void usb_device_clock_init(void)
 	RESET_PeripheralReset(kUSBHS_DEVICE_RST_SHIFT_RSTn);
 	RESET_PeripheralReset(kUSBHS_HOST_RST_SHIFT_RSTn);
 	RESET_PeripheralReset(kUSBHS_SRAM_RST_SHIFT_RSTn);
-	/*Make sure USBHS ram buffer has power up*/
+	/*Make sure USDHC ram buffer has power up*/
 	POWER_DisablePD(kPDRUNCFG_APD_USBHS_SRAM);
 	POWER_DisablePD(kPDRUNCFG_PPD_USBHS_SRAM);
 	POWER_ApplyPD();
@@ -195,15 +185,6 @@ static ALWAYS_INLINE void clock_init(void)
 	/* Configure SFRO clock */
 	POWER_DisablePD(kPDRUNCFG_PD_SFRO);
 	CLOCK_EnableSfroClk();
-
-#ifdef CONFIG_FLASH_MCUX_FLEXSPI_XIP
-	/*
-	 * Call function flexspi_clock_safe_config() to move FlexSPI clock to a stable
-	 * clock source to avoid instruction/data fetch issue when updating PLL and Main
-	 * clock if XIP(execute code on FLEXSPI memory).
-	 */
-	flexspi_clock_safe_config();
-#endif
 
 	/* Let CPU run on FFRO for safe switching. */
 	CLOCK_AttachClk(kFFRO_to_MAIN_CLK);
@@ -282,7 +263,7 @@ static ALWAYS_INLINE void clock_init(void)
 	CLOCK_AttachClk(kNONE_to_WDT0_CLK);
 #endif
 
-#if DT_NODE_HAS_STATUS(DT_NODELABEL(usdhc0), okay) && CONFIG_IMX_USDHC
+#if DT_NODE_HAS_STATUS(DT_NODELABEL(usdhc1), okay) && CONFIG_IMX_USDHC
 	/* Make sure USDHC ram buffer has been power up*/
 	POWER_DisablePD(kPDRUNCFG_APD_USDHC0_SRAM);
 	POWER_DisablePD(kPDRUNCFG_PPD_USDHC0_SRAM);
@@ -299,26 +280,10 @@ static ALWAYS_INLINE void clock_init(void)
 
 	DT_FOREACH_STATUS_OKAY(nxp_lpc_ctimer, CTIMER_CLOCK_SETUP)
 
-#if (DT_NODE_HAS_COMPAT_STATUS(DT_NODELABEL(i3c0), nxp_mcux_i3c, okay))
-	CLOCK_AttachClk(kFFRO_to_I3C_CLK);
-	CLOCK_AttachClk(kLPOSC_to_I3C_TC_CLK);
-#endif
-
-#ifdef CONFIG_FLASH_MCUX_FLEXSPI_XIP
-	/*
-	 * Call function flexspi_setup_clock() to set user configured clock source/divider
-	 * for FlexSPI.
-	 */
-	flexspi_setup_clock(FLEXSPI, 1U, 9U);
-#endif
-
-	/* Set SystemCoreClock variable. */
-	SystemCoreClock = CLOCK_INIT_CORE_CLOCK;
-
 #endif /* CONFIG_SOC_MIMXRT685S_CM33 */
 }
 
-#if (DT_NODE_HAS_STATUS(DT_NODELABEL(usdhc0), okay) && CONFIG_IMX_USDHC)
+#if (DT_NODE_HAS_STATUS(DT_NODELABEL(usdhc1), okay) && CONFIG_IMX_USDHC)
 
 void imxrt_usdhc_pinmux(uint16_t nusdhc, bool init,
 	uint32_t speed, uint32_t strength)
@@ -352,6 +317,31 @@ static int nxp_rt600_init(const struct device *arg)
 	/* disable interrupts */
 	oldLevel = irq_lock();
 
+	/* Enable cache to accelerate boot. */
+	if (SYSTEM_IS_XIP_FLEXSPI() && (CACHE64_POLSEL->POLSEL == 0)) {
+		/*
+		 * Set command to invalidate all ways and write GO bit
+		 * to initiate command
+		 */
+		CACHE64->CCR = (CACHE64_CTRL_CCR_INVW1_MASK |
+					CACHE64_CTRL_CCR_INVW0_MASK);
+		CACHE64->CCR |= CACHE64_CTRL_CCR_GO_MASK;
+		/* Wait until the command completes */
+		while (CACHE64->CCR & CACHE64_CTRL_CCR_GO_MASK) {
+		}
+		/* Enable cache, enable write buffer */
+		CACHE64->CCR = (CACHE64_CTRL_CCR_ENWRBUF_MASK |
+						CACHE64_CTRL_CCR_ENCACHE_MASK);
+
+		/* Set whole FlexSPI0 space to write through. */
+		CACHE64_POLSEL->REG0_TOP = 0x07FFFC00U;
+		CACHE64_POLSEL->REG1_TOP = 0x0U;
+		CACHE64_POLSEL->POLSEL = 0x1U;
+
+		__ISB();
+		__DSB();
+	}
+
 	/* Initialize clock */
 	clock_init();
 
@@ -361,39 +351,10 @@ static int nxp_rt600_init(const struct device *arg)
 	 */
 	NMI_INIT();
 
-#ifndef CONFIG_IMXRT6XX_CODE_CACHE
-	CACHE64_DisableCache(CACHE64);
-#endif
-
 	/* restore interrupt state */
 	irq_unlock(oldLevel);
 
 	return 0;
 }
-
-#ifdef CONFIG_PLATFORM_SPECIFIC_INIT
-
-void z_arm_platform_init(void)
-{
-#ifndef CONFIG_NXP_IMX_RT6XX_BOOT_HEADER
-	/*
-	 * If boot did not proceed using a boot header, we should not assume
-	 * the core is in reset state. Disable the MPU and correctly
-	 * set the stack pointer, since we are about to push to
-	 * the stack when we call SystemInit
-	 */
-	 /* Clear stack limit registers */
-	 __set_MSPLIM(0);
-	 __set_PSPLIM(0);
-	/* Disable MPU */
-	 MPU->CTRL &= ~MPU_CTRL_ENABLE_Msk;
-	 /* Set stack pointer */
-	 __set_MSP((uint32_t)(z_main_stack + CONFIG_MAIN_STACK_SIZE));
-#endif /* !CONFIG_NXP_IMX_RT5XX_BOOT_HEADER */
-	/* This is provided by the SDK */
-	SystemInit();
-}
-
-#endif
 
 SYS_INIT(nxp_rt600_init, PRE_KERNEL_1, 0);

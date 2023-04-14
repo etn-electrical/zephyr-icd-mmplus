@@ -14,7 +14,7 @@
 #include <zephyr/drivers/i2c.h>
 #include <zephyr/drivers/spi.h>
 #include <zephyr/sys/byteorder.h>
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 
 #define LOG_LEVEL CONFIG_EEPROM_LOG_LEVEL
 #include <zephyr/logging/log.h>
@@ -353,7 +353,7 @@ static bool eeprom_at25_bus_is_ready(const struct device *dev)
 {
 	const struct eeprom_at2x_config *config = dev->config;
 
-	return spi_is_ready_dt(&config->bus.spi);
+	return spi_is_ready(&config->bus.spi);
 }
 
 static int eeprom_at25_rdsr(const struct device *dev, uint8_t *status)

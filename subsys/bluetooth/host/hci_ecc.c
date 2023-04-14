@@ -9,7 +9,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <zephyr/sys/atomic.h>
 #include <zephyr/debug/stack.h>
 #include <zephyr/sys/byteorder.h>
@@ -23,7 +23,9 @@
 #include <zephyr/bluetooth/hci.h>
 #include <zephyr/drivers/bluetooth/hci_driver.h>
 
-#include "common/bt_str.h"
+#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_DEBUG_HCI_CORE)
+#define LOG_MODULE_NAME bt_hci_ecc
+#include "common/log.h"
 
 #include "hci_ecc.h"
 #include "ecc.h"
@@ -34,14 +36,9 @@
 #else
 #include "hci_core.h"
 #endif
-#include "long_wq.h"
 
-#define LOG_LEVEL CONFIG_BT_HCI_CORE_LOG_LEVEL
-#include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(bt_hci_ecc);
-
-static void ecc_process(struct k_work *work);
-K_WORK_DEFINE(ecc_work, ecc_process);
+static struct k_thread ecc_thread_data;
+static K_KERNEL_STACK_DEFINE(ecc_thread_stack, CONFIG_BT_HCI_ECC_STACK_SIZE);
 
 /* based on Core Specification 4.2 Vol 3. Part H 2.3.5.6.1 */
 static const uint8_t debug_private_key_be[BT_PRIV_KEY_LEN] = {
@@ -63,6 +60,8 @@ enum {
 
 static ATOMIC_DEFINE(flags, NUM_FLAGS);
 
+static K_SEM_DEFINE(cmd_sem, 0, 1);
+
 static struct {
 	uint8_t private_key_be[BT_PRIV_KEY_LEN];
 
@@ -78,7 +77,7 @@ static void send_cmd_status(uint16_t opcode, uint8_t status)
 	struct bt_hci_evt_hdr *hdr;
 	struct net_buf *buf;
 
-	LOG_DBG("opcode %x status %x", opcode, status);
+	BT_DBG("opcode %x status %x", opcode, status);
 
 	buf = bt_buf_get_evt(BT_HCI_EVT_CMD_STATUS, false, K_FOREVER);
 	bt_buf_set_type(buf, BT_BUF_EVT);
@@ -107,7 +106,7 @@ static uint8_t generate_keys(void)
 		rc = uECC_make_key(ecc.public_key_be, ecc.private_key_be,
 				   &curve_secp256r1);
 		if (rc == TC_CRYPTO_FAIL) {
-			LOG_ERR("Failed to create ECC public/private pair");
+			BT_ERR("Failed to create ECC public/private pair");
 			return BT_HCI_ERR_UNSPECIFIED;
 		}
 
@@ -115,7 +114,7 @@ static uint8_t generate_keys(void)
 	} while (memcmp(ecc.private_key_be, debug_private_key_be, BT_PRIV_KEY_LEN) == 0);
 
 	if (IS_ENABLED(CONFIG_BT_LOG_SNIFFER_INFO)) {
-		LOG_INF("SC private key 0x%s", bt_hex(ecc.private_key_be, BT_PRIV_KEY_LEN));
+		BT_INFO("SC private key 0x%s", bt_hex(ecc.private_key_be, BT_PRIV_KEY_LEN));
 	}
 
 	return 0;
@@ -129,7 +128,7 @@ static void emulate_le_p256_public_key_cmd(void)
 	struct net_buf *buf;
 	uint8_t status;
 
-	LOG_DBG("");
+	BT_DBG("");
 
 	status = generate_keys();
 
@@ -171,7 +170,7 @@ static void emulate_le_generate_dhkey(void)
 
 	ret = uECC_valid_public_key(ecc.public_key_be, &curve_secp256r1);
 	if (ret < 0) {
-		LOG_ERR("public key is not valid (ret %d)", ret);
+		BT_ERR("public key is not valid (ret %d)", ret);
 		ret = TC_CRYPTO_FAIL;
 	} else {
 		bool use_debug = atomic_test_bit(flags, USE_DEBUG_KEY);
@@ -209,14 +208,18 @@ static void emulate_le_generate_dhkey(void)
 	bt_recv(buf);
 }
 
-static void ecc_process(struct k_work *work)
+static void ecc_thread(void *p1, void *p2, void *p3)
 {
-	if (atomic_test_bit(flags, PENDING_PUB_KEY)) {
-		emulate_le_p256_public_key_cmd();
-	} else if (atomic_test_bit(flags, PENDING_DHKEY)) {
-		emulate_le_generate_dhkey();
-	} else {
-		__ASSERT(0, "Unhandled ECC command");
+	while (true) {
+		k_sem_take(&cmd_sem, K_FOREVER);
+
+		if (atomic_test_bit(flags, PENDING_PUB_KEY)) {
+			emulate_le_p256_public_key_cmd();
+		} else if (atomic_test_bit(flags, PENDING_DHKEY)) {
+			emulate_le_generate_dhkey();
+		} else {
+			__ASSERT(0, "Unhandled ECC command");
+		}
 	}
 }
 
@@ -258,7 +261,7 @@ static uint8_t le_gen_dhkey(uint8_t *key, uint8_t key_type)
 	atomic_set_bit_to(flags, USE_DEBUG_KEY,
 			  key_type == BT_HCI_LE_KEY_TYPE_DEBUG);
 
-	bt_long_wq_submit(&ecc_work);
+	k_sem_give(&cmd_sem);
 
 	return BT_HCI_ERR_SUCCESS;
 }
@@ -298,7 +301,7 @@ static void le_p256_pub_key(struct net_buf *buf)
 	} else if (atomic_test_and_set_bit(flags, PENDING_PUB_KEY)) {
 		status = BT_HCI_ERR_CMD_DISALLOWED;
 	} else {
-		bt_long_wq_submit(&ecc_work);
+		k_sem_give(&cmd_sem);
 		status = BT_HCI_ERR_SUCCESS;
 	}
 
@@ -347,4 +350,17 @@ void bt_hci_ecc_supported_commands(uint8_t *supported_commands)
 int default_CSPRNG(uint8_t *dst, unsigned int len)
 {
 	return !bt_rand(dst, len);
+}
+
+void bt_hci_ecc_init(void)
+{
+	k_thread_create(&ecc_thread_data, ecc_thread_stack,
+			K_KERNEL_STACK_SIZEOF(ecc_thread_stack), ecc_thread,
+			NULL, NULL, NULL, K_PRIO_PREEMPT(10), 0, K_NO_WAIT);
+	k_thread_name_set(&ecc_thread_data, "BT ECC");
+}
+
+void bt_hci_ecc_deinit(void)
+{
+	k_thread_abort(&ecc_thread_data);
 }

@@ -917,13 +917,10 @@ static inline bool unschedule_locked(struct k_work_delayable *dwork)
 	bool ret = false;
 	struct k_work *work = &dwork->work;
 
-	/* If scheduled, try to cancel.  If it fails, that means the
-	 * callback has been dequeued and will inevitably run (or has
-	 * already run), so treat that as "undelayed" and return
-	 * false.
-	 */
+	/* If scheduled, try to cancel. */
 	if (flag_test_and_clear(&work->flags, K_WORK_DELAYED_BIT)) {
-		ret = z_abort_timeout(&dwork->timeout) == 0;
+		z_abort_timeout(&dwork->timeout);
+		ret = true;
 	}
 
 	return ret;

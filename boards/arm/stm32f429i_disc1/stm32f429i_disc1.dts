@@ -56,10 +56,6 @@
 	};
 };
 
-&clk_lsi {
-	status = "okay";
-};
-
 &clk_hse {
 	clock-frequency = <DT_FREQ_M(8)>;
 	status = "okay";
@@ -90,8 +86,6 @@
 };
 
 &rtc {
-	clocks = <&rcc STM32_CLOCK_BUS_APB1 0x10000000>,
-		 <&rcc STM32_SRC_LSI RTC_SEL(2)>;
 	status = "okay";
 };
 
@@ -124,6 +118,7 @@
 	cs-gpios = <&gpioc 2 GPIO_ACTIVE_LOW>;
 	ili9341: ili9341@0 {
 		compatible = "ilitek,ili9341";
+		label = "ILI9341";
 		spi-max-frequency = <5625000>;
 		reg = <0>;
 		cmd-data-gpios = <&gpiod 13 GPIO_ACTIVE_LOW>;
@@ -137,7 +132,7 @@
 		timctrlb = [00 00];
 		pwseqctrl = [64 03 12 81];
 		pumpratioctrl = [20];
-		disctrl = [08 82 27 04];
+		disctrl = [08 82 27];
 		vmctrl1 = [45 15];
 		vmctrl2 = [90];
 		enable3g = [00];

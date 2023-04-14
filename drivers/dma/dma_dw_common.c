@@ -179,8 +179,7 @@ int dw_dma_config(const struct device *dev, uint32_t channel,
 
 	/* default channel config */
 	chan_data->direction = cfg->channel_direction;
-	chan_data->cfg_lo = 0;
-	chan_data->cfg_hi = 0;
+
 
 	/* setup a list of lli structs. we don't need to allocate */
 	chan_data->lli = &dev_data->lli_pool[channel][0]; /* TODO allocate here */
@@ -263,11 +262,8 @@ int dw_dma_config(const struct device *dev, uint32_t channel,
 		LOG_DBG("dest data size: lli_desc %p, ctrl_lo %x", lli_desc, lli_desc->ctrl_lo);
 
 		lli_desc->ctrl_lo |= DW_CTLL_SRC_MSIZE(msize) |
-			DW_CTLL_DST_MSIZE(msize);
-
-		if (cfg->dma_callback) {
-			lli_desc->ctrl_lo |= DW_CTLL_INT_EN; /* enable interrupt */
-		}
+			DW_CTLL_DST_MSIZE(msize) |
+			DW_CTLL_INT_EN; /* enable interrupt */
 
 		LOG_DBG("msize, int_en: lli_desc %p, ctrl_lo %x", lli_desc, lli_desc->ctrl_lo);
 
@@ -296,7 +292,7 @@ int dw_dma_config(const struct device *dev, uint32_t channel,
 			/* Assign a hardware handshake interface (0-15) to the
 			 * destination of the channel
 			 */
-			chan_data->cfg_hi |= DW_CFGH_DST(cfg->dma_slot);
+			chan_data->cfg_hi |= DW_CFGH_DST_PER(cfg->dma_slot);
 			break;
 		case PERIPHERAL_TO_MEMORY:
 			lli_desc->ctrl_lo |= DW_CTLL_FC_P2M | DW_CTLL_SRC_FIX |
@@ -315,7 +311,7 @@ int dw_dma_config(const struct device *dev, uint32_t channel,
 			/* Assign a hardware handshake interface (0-15) to the
 			 * source of the channel
 			 */
-			chan_data->cfg_hi |= DW_CFGH_SRC(cfg->dma_slot);
+			chan_data->cfg_hi |= DW_CFGH_SRC_PER(cfg->dma_slot);
 			break;
 		default:
 			LOG_ERR("%s: dma %s channel %d invalid direction %d",
@@ -417,13 +413,6 @@ out:
 	return ret;
 }
 
-bool dw_dma_is_enabled(const struct device *dev, uint32_t channel)
-{
-	const struct dw_dma_dev_cfg *const dev_cfg = dev->config;
-
-	return dw_read(dev_cfg->base, DW_DMA_CHAN_EN) & DW_CHAN_MASK(channel);
-}
-
 int dw_dma_start(const struct device *dev, uint32_t channel)
 {
 	const struct dw_dma_dev_cfg *const dev_cfg = dev->config;
@@ -433,10 +422,6 @@ int dw_dma_start(const struct device *dev, uint32_t channel)
 	/* validate channel */
 	if (channel >= DW_MAX_CHAN) {
 		ret = -EINVAL;
-		goto out;
-	}
-
-	if (dw_dma_is_enabled(dev, channel)) {
 		goto out;
 	}
 
@@ -517,7 +502,6 @@ int dw_dma_stop(const struct device *dev, uint32_t channel)
 {
 	const struct dw_dma_dev_cfg *const dev_cfg = dev->config;
 	struct dw_dma_dev_data *dev_data = dev->data;
-	struct dw_dma_chan_data *chan_data = &dev_data->chan[channel];
 	int ret = 0;
 
 	if (channel >= DW_MAX_CHAN) {
@@ -525,9 +509,9 @@ int dw_dma_stop(const struct device *dev, uint32_t channel)
 		goto out;
 	}
 
-	if (!dw_dma_is_enabled(dev, channel) && chan_data->state != DW_DMA_SUSPENDED) {
-		goto out;
-	}
+#if defined(CONFIG_DMA_DW_HW_LLI) || defined(CONFIG_DMA_DW_SUSPEND_DRAIN)
+	struct dw_dma_chan_data *chan_data = &dev_data->chan[channel];
+#endif
 
 #ifdef CONFIG_DMA_DW_HW_LLI
 	struct dw_lli *lli = chan_data->lli;
@@ -549,13 +533,13 @@ int dw_dma_stop(const struct device *dev, uint32_t channel)
 	 * suspend it and drain the FIFO
 	 */
 	dw_write(dev_cfg->base, DW_CFG_LOW(channel),
-		 chan_data->cfg_lo | DW_CFGL_SUSPEND | DW_CFGL_DRAIN);
+		 dw_chan->cfg_lo | DW_CFGL_SUSPEND | DW_CFGL_DRAIN);
 
 	/* now we wait for FIFO to be empty */
-	bool timeout = WAIT_FOR(dw_read(dev_cfg->base, DW_CFG_LOW(channel)) & DW_CFGL_FIFO_EMPTY,
+	bool timeout = wait_for(dw_read(dev_cfg->base, DW_CFG_LOW(channel)) & DW_CFGL_FIFO_EMPTY,
 				DW_DMA_TIMEOUT, k_busy_wait(DW_DMA_TIMEOUT/10));
 	if (timeout) {
-		LOG_ERR("%s: dma %d channel drain time out", __func__, channel);
+		LOG_ERR("%s: dma %s channel drain time out", __func__, channel);
 	}
 #endif
 
@@ -570,7 +554,7 @@ int dw_dma_stop(const struct device *dev, uint32_t channel)
 	chan_data->state = DW_DMA_IDLE;
 
 out:
-	return ret;
+	return 0;
 }
 
 int dw_dma_resume(const struct device *dev, uint32_t channel)
@@ -731,7 +715,7 @@ static int dw_dma_avail_data_size(uint32_t base,
 		if (delta) {
 			size = chan_data->ptr_data.buffer_bytes;
 		} else {
-			LOG_DBG("%s size is 0!", __func__);
+			LOG_INF("%s size is 0!", __func__);
 		}
 	}
 
@@ -763,7 +747,7 @@ static int dw_dma_free_data_size(uint32_t base,
 		if (delta) {
 			size = chan_data->ptr_data.buffer_bytes;
 		} else {
-			LOG_DBG("%s size is 0!", __func__);
+			LOG_INF("%s size is 0!", __func__);
 		}
 	}
 
@@ -798,7 +782,7 @@ int dw_dma_get_status(const struct device *dev, uint32_t channel,
 #if CONFIG_DMA_DW_HW_LLI
 	if (!(dw_read(dev_cfg->base, DW_DMA_CHAN_EN) & DW_CHAN(channel))) {
 		LOG_ERR("xrun detected");
-		return -EPIPE;
+		return -ENODATA;
 	}
 #endif
 	return 0;

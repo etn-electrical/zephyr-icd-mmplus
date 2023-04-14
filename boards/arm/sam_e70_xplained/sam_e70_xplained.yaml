@@ -9,7 +9,6 @@ toolchain:
   - gnuarmemb
   - xtools
 supported:
-  - dma
   - netif:eth
   - adc
   - i2s
@@ -19,4 +18,5 @@ supported:
   - usb_device
   - pwm
   - can
+  - canfd
   - hwinfo

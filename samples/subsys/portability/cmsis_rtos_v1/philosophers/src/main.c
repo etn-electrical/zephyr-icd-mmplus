@@ -29,6 +29,7 @@
  */
 #include <zephyr/kernel.h>
 #include <cmsis_os.h>
+#include <zephyr/zephyr.h>
 
 #if defined(CONFIG_STDOUT_CONSOLE)
 #include <stdio.h>
@@ -100,24 +101,19 @@ static void print_phil_state(int id, const char *fmt, int32_t delay)
 	int prio = osThreadGetPriority(osThreadGetId());
 
 	set_phil_state_pos(id);
-#define STATE_LEN 80
-	char state[STATE_LEN];
-	int p = 0;
 
-	p += snprintk(state + p, STATE_LEN - p, "Philosopher %d [%s:%s%d] ",
-		     id, prio < 0 ? "C" : "P",
-		     prio < 0 ? "" : " ",
-		     prio);
+	printk("Philosopher %d [%s:%s%d] ",
+	       id, prio < 0 ? "C" : "P",
+	       prio < 0 ? "" : " ",
+	       prio);
 
 	if (delay) {
-		p += snprintk(state + p, STATE_LEN - p, fmt,
-			      delay < 1000 ? " " : "", delay);
+		printk(fmt, delay < 1000 ? " " : "", delay);
 	} else {
-		p += snprintk(state + p, STATE_LEN - p, fmt, "");
+		printk(fmt, "");
 	}
 
-	p += snprintk(state + p, STATE_LEN - p, "\n");
-	printk("%s", state);
+	printk("\n");
 }
 
 static int32_t get_random_delay(int id, int period_in_ms)

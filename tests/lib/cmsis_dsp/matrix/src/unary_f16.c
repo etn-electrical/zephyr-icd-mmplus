@@ -5,8 +5,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
-#include <zephyr/kernel.h>
+#include <ztest.h>
+#include <zephyr/zephyr.h>
 #include <stdlib.h>
 #include <arm_math_f16.h>
 #include "../../common/test_common.h"
@@ -121,11 +121,9 @@ static void test_op2(int op, const uint16_t *ref, size_t length)
 	free(output);
 }
 
-DEFINE_TEST_VARIANT3(matrix_unary_f16,
-	op2, arm_mat_add_f16, OP2_ADD,
+DEFINE_TEST_VARIANT3(op2, arm_mat_add_f16, OP2_ADD,
 	ref_add, ARRAY_SIZE(ref_add));
-DEFINE_TEST_VARIANT3(matrix_unary_f16,
-	op2, arm_mat_sub_f16, OP2_SUB,
+DEFINE_TEST_VARIANT3(op2, arm_mat_sub_f16, OP2_SUB,
 	ref_sub, ARRAY_SIZE(ref_sub));
 
 static void test_op1(int op, const uint16_t *ref, size_t length,
@@ -202,14 +200,12 @@ static void test_op1(int op, const uint16_t *ref, size_t length,
 	free(output);
 }
 
-DEFINE_TEST_VARIANT4(matrix_unary_f16,
-	op1, arm_mat_scale_f16, OP1_SCALE,
+DEFINE_TEST_VARIANT4(op1, arm_mat_scale_f16, OP1_SCALE,
 	ref_scale, ARRAY_SIZE(ref_scale), false);
-DEFINE_TEST_VARIANT4(matrix_unary_f16,
-	op1, arm_mat_trans_f16, OP1_TRANS,
+DEFINE_TEST_VARIANT4(op1, arm_mat_trans_f16, OP1_TRANS,
 	ref_trans, ARRAY_SIZE(ref_trans), true);
 
-ZTEST(matrix_unary_f16, test_arm_mat_inverse_f16)
+static void test_arm_mat_inverse_f16(void)
 {
 	size_t index;
 	size_t length = ARRAY_SIZE(ref_inv);
@@ -339,8 +335,7 @@ static void test_op2v(int op, const uint16_t *ref, size_t length)
 	free(output_buf);
 }
 
-DEFINE_TEST_VARIANT3(matrix_unary_f16,
-	op2v, arm_mat_vec_mult_f16, OP2V_VEC_MULT,
+DEFINE_TEST_VARIANT3(op2v, arm_mat_vec_mult_f16, OP2V_VEC_MULT,
 	ref_vec_mult, ARRAY_SIZE(ref_vec_mult));
 
 static void test_op1c(int op, const uint16_t *ref, size_t length, bool transpose)
@@ -413,11 +408,10 @@ static void test_op1c(int op, const uint16_t *ref, size_t length, bool transpose
 	free(output);
 }
 
-DEFINE_TEST_VARIANT4(matrix_unary_f16,
-	op1c, arm_mat_cmplx_trans_f16, OP1C_CMPLX_TRANS,
+DEFINE_TEST_VARIANT4(op1c, arm_mat_cmplx_trans_f16, OP1C_CMPLX_TRANS,
 	ref_cmplx_trans, ARRAY_SIZE(ref_cmplx_trans) / 2, true);
 
-ZTEST(matrix_unary_f16, test_arm_mat_cholesky_f16)
+static void test_arm_mat_cholesky_f16(void)
 {
 	size_t index;
 	size_t length = ARRAY_SIZE(ref_cholesky_dpo);
@@ -480,7 +474,7 @@ ZTEST(matrix_unary_f16, test_arm_mat_cholesky_f16)
 	free(output);
 }
 
-ZTEST(matrix_unary_f16, test_arm_mat_solve_upper_triangular_f16)
+static void test_arm_mat_solve_upper_triangular_f16(void)
 {
 	size_t index;
 	size_t length = ARRAY_SIZE(ref_uptriangular_dpo);
@@ -557,7 +551,7 @@ ZTEST(matrix_unary_f16, test_arm_mat_solve_upper_triangular_f16)
 	free(output);
 }
 
-ZTEST(matrix_unary_f16, test_arm_mat_solve_lower_triangular_f16)
+static void test_arm_mat_solve_lower_triangular_f16(void)
 {
 	size_t index;
 	size_t length = ARRAY_SIZE(ref_lotriangular_dpo);
@@ -634,4 +628,20 @@ ZTEST(matrix_unary_f16, test_arm_mat_solve_lower_triangular_f16)
 	free(output);
 }
 
-ZTEST_SUITE(matrix_unary_f16, NULL, NULL, NULL, NULL, NULL);
+void test_matrix_unary_f16(void)
+{
+	ztest_test_suite(matrix_unary_f16,
+		ztest_unit_test(test_op2_arm_mat_add_f16),
+		ztest_unit_test(test_op2_arm_mat_sub_f16),
+		ztest_unit_test(test_op1_arm_mat_scale_f16),
+		ztest_unit_test(test_op1_arm_mat_trans_f16),
+		ztest_unit_test(test_arm_mat_inverse_f16),
+		ztest_unit_test(test_op2v_arm_mat_vec_mult_f16),
+		ztest_unit_test(test_op1c_arm_mat_cmplx_trans_f16),
+		ztest_unit_test(test_arm_mat_cholesky_f16),
+		ztest_unit_test(test_arm_mat_solve_upper_triangular_f16),
+		ztest_unit_test(test_arm_mat_solve_lower_triangular_f16)
+		);
+
+	ztest_run_test_suite(matrix_unary_f16);
+}

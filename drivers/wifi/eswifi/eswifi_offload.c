@@ -7,6 +7,7 @@
 #include "eswifi_log.h"
 LOG_MODULE_DECLARE(LOG_MODULE_NAME);
 
+#include <zephyr/zephyr.h>
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
 #include <string.h>
@@ -397,7 +398,7 @@ static int eswifi_off_put(struct net_context *context)
 	}
 
 	if (--socket->usage <= 0) {
-		socket->context = NULL;
+		memset(socket, 0, sizeof(*socket));
 	}
 done:
 	eswifi_unlock(eswifi);
@@ -489,7 +490,6 @@ void eswifi_offload_async_msg(struct eswifi_dev *eswifi, char *msg, size_t len)
 		sin_addr = &peer->sin_addr;
 		memcpy(&sin_addr->s4_addr, ip, 4);
 		peer->sin_port = htons(port);
-		peer->sin_family = AF_INET;
 		socket->state = ESWIFI_SOCKET_STATE_CONNECTED;
 		socket->usage++;
 

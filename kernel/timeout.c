@@ -250,7 +250,7 @@ void sys_clock_announce(int32_t ticks)
 	 * timeouts and confuse apps), just increment the tick count
 	 * and return.
 	 */
-	if (IS_ENABLED(CONFIG_SMP) && (announce_remaining != 0)) {
+	if (IS_ENABLED(CONFIG_SMP) && announce_remaining != 0) {
 		announce_remaining += ticks;
 		k_spin_unlock(&timeout_lock, key);
 		return;
@@ -258,25 +258,22 @@ void sys_clock_announce(int32_t ticks)
 
 	announce_remaining = ticks;
 
-	struct _timeout *t = first();
-
-	for (t = first();
-	     (t != NULL) && (t->dticks <= announce_remaining);
-	     t = first()) {
+	while (first() != NULL && first()->dticks <= announce_remaining) {
+		struct _timeout *t = first();
 		int dt = t->dticks;
 
 		curr_tick += dt;
+		announce_remaining -= dt;
 		t->dticks = 0;
 		remove_timeout(t);
 
 		k_spin_unlock(&timeout_lock, key);
 		t->fn(t);
 		key = k_spin_lock(&timeout_lock);
-		announce_remaining -= dt;
 	}
 
-	if (t != NULL) {
-		t->dticks -= announce_remaining;
+	if (first() != NULL) {
+		first()->dticks -= announce_remaining;
 	}
 
 	curr_tick += announce_remaining;
@@ -292,7 +289,7 @@ int64_t sys_clock_tick_get(void)
 	uint64_t t = 0U;
 
 	LOCKED(&timeout_lock) {
-		t = curr_tick + elapsed();
+		t = curr_tick + sys_clock_elapsed();
 	}
 	return t;
 }
@@ -382,15 +379,3 @@ uint64_t sys_clock_timeout_end_calc(k_timeout_t timeout)
 		return sys_clock_tick_get() + MAX(1, dt);
 	}
 }
-
-#ifdef CONFIG_ZTEST
-void z_impl_sys_clock_tick_set(uint64_t tick)
-{
-	curr_tick = tick;
-}
-
-void z_vrfy_sys_clock_tick_set(uint64_t tick)
-{
-	z_impl_sys_clock_tick_set(tick);
-}
-#endif

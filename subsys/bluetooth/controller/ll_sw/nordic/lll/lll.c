@@ -14,7 +14,6 @@
 #include <zephyr/device.h>
 
 #include <zephyr/drivers/entropy.h>
-#include <zephyr/irq.h>
 
 #include "hal/swi.h"
 #include "hal/ccm.h"
@@ -33,6 +32,9 @@
 #include "lll_internal.h"
 #include "lll_prof_internal.h"
 
+#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_DEBUG_HCI_DRIVER)
+#define LOG_MODULE_NAME bt_ctlr_lll
+#include "common/log.h"
 #include "hal/debug.h"
 
 #if defined(CONFIG_BT_CTLR_ZLI)
@@ -57,7 +59,7 @@ static struct {
 } event;
 
 /* Entropy device */
-static const struct device *const dev_entropy = DEVICE_DT_GET(DT_NODELABEL(rng));
+static const struct device *dev_entropy;
 
 static int init_reset(void);
 #if defined(CONFIG_BT_CTLR_LOW_LAT_ULL_DONE)
@@ -161,7 +163,8 @@ int lll_init(void)
 	int err;
 
 	/* Get reference to entropy device */
-	if (!device_is_ready(dev_entropy)) {
+	dev_entropy = device_get_binding(DT_LABEL(DT_NODELABEL(rng)));
+	if (!dev_entropy) {
 		return -ENODEV;
 	}
 
@@ -199,34 +202,12 @@ int lll_init(void)
 	irq_enable(RADIO_IRQn);
 	irq_enable(RTC0_IRQn);
 	irq_enable(HAL_SWI_RADIO_IRQ);
-	if (IS_ENABLED(CONFIG_BT_CTLR_LOW_LAT) ||
-		(CONFIG_BT_CTLR_ULL_HIGH_PRIO != CONFIG_BT_CTLR_ULL_LOW_PRIO)) {
-		irq_enable(HAL_SWI_JOB_IRQ);
-	}
+#if defined(CONFIG_BT_CTLR_LOW_LAT) || \
+	(CONFIG_BT_CTLR_ULL_HIGH_PRIO != CONFIG_BT_CTLR_ULL_LOW_PRIO)
+	irq_enable(HAL_SWI_JOB_IRQ);
+#endif
 
 	radio_setup();
-
-	return 0;
-}
-
-int lll_deinit(void)
-{
-	int err;
-
-	/* Release clocks */
-	err = lll_clock_deinit();
-	if (err < 0) {
-		return err;
-	}
-
-	/* Disable IRQs */
-	irq_disable(RADIO_IRQn);
-	irq_disable(RTC0_IRQn);
-	irq_disable(HAL_SWI_RADIO_IRQ);
-	if (IS_ENABLED(CONFIG_BT_CTLR_LOW_LAT) ||
-		(CONFIG_BT_CTLR_ULL_HIGH_PRIO != CONFIG_BT_CTLR_ULL_LOW_PRIO)) {
-		irq_disable(HAL_SWI_JOB_IRQ);
-	}
 
 	return 0;
 }
@@ -331,6 +312,7 @@ int lll_done(void *param)
 	LL_ASSERT(!param || next);
 
 	/* check if current LLL event is done */
+	ull = NULL;
 	if (!param) {
 		/* Reset current event instance */
 		LL_ASSERT(event.curr.abort_cb);
@@ -345,8 +327,6 @@ int lll_done(void *param)
 
 		if (param) {
 			ull = HDR_LLL2ULL(param);
-		} else {
-			ull = NULL;
 		}
 
 		if (IS_ENABLED(CONFIG_BT_CTLR_LOW_LAT) &&
@@ -457,7 +437,7 @@ uint32_t lll_preempt_calc(struct ull_hdr *ull, uint8_t ticker_id,
 	uint32_t diff;
 
 	ticks_now = ticker_ticks_now_get();
-	diff = ticker_ticks_diff_get(ticks_now, ticks_at_event);
+	diff = ticks_now - ticks_at_event;
 	if (diff & BIT(HAL_TICKER_CNTR_MSBIT)) {
 		return 0;
 	}
@@ -470,13 +450,10 @@ uint32_t lll_preempt_calc(struct ull_hdr *ull, uint8_t ticker_id,
 		 *    duration.
 		 * 3. Increase the preempt to start ticks for future events.
 		 */
-		LL_ASSERT_MSG(false, "%s: Actual EVENT_OVERHEAD_START_US = %u",
-			      __func__, HAL_TICKER_TICKS_TO_US(diff));
-
-		return 1U;
+		return 1;
 	}
 
-	return 0U;
+	return 0;
 }
 
 void lll_chan_set(uint32_t chan)
@@ -555,28 +532,6 @@ void lll_isr_rx_status_reset(void)
 	radio_status_reset();
 	radio_tmr_status_reset();
 	radio_rssi_status_reset();
-
-	if (IS_ENABLED(HAL_RADIO_GPIO_HAVE_PA_PIN) ||
-	    IS_ENABLED(HAL_RADIO_GPIO_HAVE_LNA_PIN)) {
-		radio_gpio_pa_lna_disable();
-	}
-}
-
-void lll_isr_tx_sub_status_reset(void)
-{
-	radio_status_reset();
-	radio_tmr_tx_status_reset();
-
-	if (IS_ENABLED(HAL_RADIO_GPIO_HAVE_PA_PIN) ||
-	    IS_ENABLED(HAL_RADIO_GPIO_HAVE_LNA_PIN)) {
-		radio_gpio_pa_lna_disable();
-	}
-}
-
-void lll_isr_rx_sub_status_reset(void)
-{
-	radio_status_reset();
-	radio_tmr_rx_status_reset();
 
 	if (IS_ENABLED(HAL_RADIO_GPIO_HAVE_PA_PIN) ||
 	    IS_ENABLED(HAL_RADIO_GPIO_HAVE_LNA_PIN)) {
@@ -761,13 +716,10 @@ int lll_prepare_resolve(lll_is_abort_cb_t is_abort_cb, lll_abort_cb_t abort_cb,
 #if !defined(CONFIG_BT_CTLR_LOW_LAT)
 	uint32_t ret;
 
-	/* NOTE: preempt timeout started prior for the current event that has
-	 *       its prepare that is now invoked is not explicitly stopped here.
-	 *       If there is a next prepare event in pipeline, then the prior
-	 *       preempt timeout if started will be stopped before starting
-	 *       the new preempt timeout. Refer to implementation in
-	 *       preempt_ticker_start().
-	 */
+	/* Stop any scheduled preempt ticker */
+	ret = preempt_ticker_stop();
+	LL_ASSERT((ret == TICKER_STATUS_SUCCESS) ||
+		  (ret == TICKER_STATUS_BUSY));
 
 	/* Find next prepare needing preempt timeout to be setup */
 	do {

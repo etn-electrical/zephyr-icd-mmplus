@@ -19,7 +19,7 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(lpd880x);
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/spi.h>
 #include <zephyr/sys/util.h>
@@ -129,7 +129,7 @@ static int lpd880x_strip_init(const struct device *dev)
 {
 	const struct lpd880x_config *config = dev->config;
 
-	if (!spi_is_ready_dt(&config->bus)) {
+	if (!spi_is_ready(&config->bus)) {
 		LOG_ERR("SPI device %s not ready", config->bus.bus->name);
 		return -ENODEV;
 	}

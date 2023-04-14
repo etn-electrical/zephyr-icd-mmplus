@@ -29,13 +29,10 @@
 #define TIMER_DISABLE		0x0
 #define TIMER_ENABLE		0x1
 #define TIMER_UPTIME_LATCH	0x1
-#if defined(CONFIG_TEST)
-const int32_t z_sys_timer_irq_for_test = TIMER_IRQ;
-#endif
 
 static void litex_timer_irq_handler(const void *device)
 {
-	unsigned int key = irq_lock();
+	int key = irq_lock();
 
 	litex_write8(TIMER_EV, TIMER_EV_PENDING_ADDR);
 	sys_clock_announce(1);

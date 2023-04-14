@@ -302,7 +302,7 @@ SECTIONS
 
   .rodata : ALIGN(4)
   {
-    __rodata_region_start = ABSOLUTE(.);
+    _rodata_start = ABSOLUTE(.);
     *(.rodata)
     *(.rodata.*)
     *(.gnu.linkonce.r.*)
@@ -333,7 +333,7 @@ SECTIONS
     LONG(_bss_start)
     LONG(_bss_end)
     _bss_table_end = ABSOLUTE(.);
-    __rodata_region_end = ABSOLUTE(.);
+    _rodata_end = ABSOLUTE(.);
   } >sdram0 :sdram0_phdr
 
   .module_init : ALIGN(4)
@@ -376,7 +376,7 @@ SECTIONS
 
   .data : ALIGN(4)
   {
-    __data_start = ABSOLUTE(.);
+    _data_start = ABSOLUTE(.);
     *(.data)
     *(.data.*)
     *(.gnu.linkonce.d.*)
@@ -394,7 +394,7 @@ SECTIONS
     _trace_ctx_end = ABSOLUTE(.);
     . = ALIGN(4);
     *(.gna_model)
-    __data_end = ABSOLUTE(.);
+    _data_end = ABSOLUTE(.);
     . = ALIGN(4096);
   } >sdram0 :sdram0_phdr
 

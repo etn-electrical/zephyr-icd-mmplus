@@ -12,6 +12,7 @@ The board comes with 3 different USB connector options: USB Type-C plug,
 USB Type-C socket and USB Type-A plug.
 
 .. image:: img/serpente.jpg
+     :width: 640px
      :align: center
      :alt: Serpente Boards
 
@@ -116,10 +117,10 @@ References
 .. target-notes::
 
 .. _Serpente documentation:
-    https://www.solder.party/docs/serpente/r2/
+    https://serpente.solder.party/r2/
 
 .. _pinouts:
-    https://www.solder.party/docs/serpente/r2/pinout/
+    https://serpente.solder.party/r2/docs/pinout/
 
 .. _schematic:
-    https://www.solder.party/docs/serpente/r2/downloads/
+    https://serpente.solder.party/r2/docs/downloads/

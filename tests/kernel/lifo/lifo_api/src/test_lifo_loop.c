@@ -32,7 +32,7 @@ static void tlifo_get(struct k_lifo *plifo)
 	for (int i = LIST_LEN-1; i >= 0; i--) {
 		/**TESTPOINT: lifo get*/
 		rx_data = k_lifo_get(plifo, K_FOREVER);
-		zassert_equal(rx_data, (void *)&data[i]);
+		zassert_equal(rx_data, (void *)&data[i], NULL);
 	}
 }
 
@@ -96,7 +96,7 @@ static void tlifo_read_write(struct k_lifo *plifo)
  *
  * @see k_lifo_init(), k_fifo_put(), k_fifo_get()
  */
-ZTEST(lifo_loop, test_lifo_loop)
+void test_lifo_loop(void)
 {
 	k_lifo_init(&lifo);
 	for (int i = 0; i < LOOPS; i++) {
@@ -108,6 +108,3 @@ ZTEST(lifo_loop, test_lifo_loop)
 /**
  * @}
  */
-
-ZTEST_SUITE(lifo_loop, NULL, NULL,
-		ztest_simple_1cpu_before, ztest_simple_1cpu_after, NULL);

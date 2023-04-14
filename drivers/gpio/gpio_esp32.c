@@ -28,7 +28,7 @@
 #include <zephyr/kernel.h>
 #include <zephyr/sys/util.h>
 
-#include <zephyr/drivers/gpio/gpio_utils.h>
+#include "gpio_utils.h"
 
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(gpio_esp32, CONFIG_LOG_DEFAULT_LEVEL);
@@ -118,76 +118,38 @@ static int gpio_esp32_config(const struct device *dev,
 
 	if (flags & GPIO_PULL_UP) {
 		if (!rtc_gpio_is_valid_gpio(io_pin) || SOC_GPIO_SUPPORT_RTC_INDEPENDENT) {
+			gpio_ll_pulldown_dis(&GPIO, io_pin);
 			gpio_ll_pullup_en(&GPIO, io_pin);
 		} else {
 #if SOC_RTCIO_INPUT_OUTPUT_SUPPORTED
 			int rtcio_num = rtc_io_num_map[io_pin];
 
+			rtcio_hal_pulldown_disable(rtc_io_num_map[io_pin]);
+
 			if (rtc_io_desc[rtcio_num].pullup) {
-				rtcio_hal_pullup_enable(rtcio_num);
+				rtcio_hal_pullup_enable(rtc_io_num_map[io_pin]);
 			} else {
 				ret = -ENOTSUP;
 				goto end;
 			}
 #endif
 		}
-	} else {
+	} else if (flags & GPIO_PULL_DOWN) {
 		if (!rtc_gpio_is_valid_gpio(io_pin) || SOC_GPIO_SUPPORT_RTC_INDEPENDENT) {
 			gpio_ll_pullup_dis(&GPIO, io_pin);
-		} else {
-#if SOC_RTCIO_INPUT_OUTPUT_SUPPORTED
-			int rtcio_num = rtc_io_num_map[io_pin];
-
-			if (rtc_io_desc[rtcio_num].pullup) {
-				rtcio_hal_pullup_disable(rtcio_num);
-			}
-#else
-			ret = -ENOTSUP;
-			goto end;
-#endif
-		}
-	}
-
-	if (flags & GPIO_SINGLE_ENDED) {
-		if (flags & GPIO_LINE_OPEN_DRAIN) {
-			gpio_ll_od_enable(cfg->gpio_base, io_pin);
-		} else {
-			LOG_ERR("GPIO configuration not supported");
-			ret = -ENOTSUP;
-			goto end;
-		}
-	} else {
-		gpio_ll_od_disable(cfg->gpio_base, io_pin);
-	}
-
-	if (flags & GPIO_PULL_DOWN) {
-		if (!rtc_gpio_is_valid_gpio(io_pin) || SOC_GPIO_SUPPORT_RTC_INDEPENDENT) {
 			gpio_ll_pulldown_en(&GPIO, io_pin);
 		} else {
 #if SOC_RTCIO_INPUT_OUTPUT_SUPPORTED
 			int rtcio_num = rtc_io_num_map[io_pin];
 
-			if (rtc_io_desc[rtcio_num].pulldown) {
-				rtcio_hal_pulldown_enable(rtcio_num);
+			rtcio_hal_pulldown_enable(rtc_io_num_map[io_pin]);
+
+			if (rtc_io_desc[rtcio_num].pullup) {
+				rtcio_hal_pullup_disable(rtc_io_num_map[io_pin]);
 			} else {
 				ret = -ENOTSUP;
 				goto end;
 			}
-#endif
-		}
-	} else {
-		if (!rtc_gpio_is_valid_gpio(io_pin) || SOC_GPIO_SUPPORT_RTC_INDEPENDENT) {
-			gpio_ll_pulldown_dis(&GPIO, io_pin);
-		} else {
-#if SOC_RTCIO_INPUT_OUTPUT_SUPPORTED
-			int rtcio_num = rtc_io_num_map[io_pin];
-
-			if (rtc_io_desc[rtcio_num].pulldown) {
-				rtcio_hal_pulldown_disable(rtcio_num);
-			}
-#else
-			ret = -ENOTSUP;
-			goto end;
 #endif
 		}
 	}
@@ -198,6 +160,18 @@ static int gpio_esp32_config(const struct device *dev,
 			LOG_ERR("GPIO can only be used as input");
 			ret = -EINVAL;
 			goto end;
+		}
+
+		if (flags & GPIO_SINGLE_ENDED) {
+			if (flags & GPIO_LINE_OPEN_DRAIN) {
+				gpio_ll_od_enable(cfg->gpio_base, io_pin);
+			} else {
+				LOG_ERR("GPIO configuration not supported");
+				ret = -ENOTSUP;
+				goto end;
+			}
+		} else {
+			gpio_ll_od_disable(cfg->gpio_base, io_pin);
 		}
 
 		/*
@@ -235,23 +209,19 @@ static int gpio_esp32_config(const struct device *dev,
 			goto end;
 		}
 
-		gpio_ll_output_enable(&GPIO, io_pin);
-		esp_rom_gpio_matrix_out(io_pin, SIG_GPIO_OUT_IDX, false, false);
-
 		/* Set output pin initial value */
 		if (flags & GPIO_OUTPUT_INIT_HIGH) {
 			gpio_ll_set_level(cfg->gpio_base, io_pin, 1);
 		} else if (flags & GPIO_OUTPUT_INIT_LOW) {
 			gpio_ll_set_level(cfg->gpio_base, io_pin, 0);
 		}
-	} else {
-		gpio_ll_output_disable(&GPIO, io_pin);
+
+		gpio_ll_output_enable(&GPIO, io_pin);
+		esp_rom_gpio_matrix_out(io_pin, SIG_GPIO_OUT_IDX, false, false);
 	}
 
 	if (flags & GPIO_INPUT) {
 		gpio_ll_input_enable(&GPIO, io_pin);
-	} else {
-		gpio_ll_input_disable(&GPIO, io_pin);
 	}
 
 end:
@@ -394,12 +364,6 @@ static int gpio_esp32_pin_interrupt_configure(const struct device *port,
 	}
 
 	key = irq_lock();
-	if (cfg->gpio_port == 0) {
-		gpio_ll_clear_intr_status(cfg->gpio_base, BIT(pin));
-	} else {
-		gpio_ll_clear_intr_status_high(cfg->gpio_base, BIT(pin));
-	}
-
 	gpio_ll_set_intr_type(cfg->gpio_base, io_pin, intr_trig_mode);
 	gpio_ll_intr_enable_on_core(cfg->gpio_base, CPU_ID(), io_pin);
 	irq_unlock(key);
@@ -451,7 +415,7 @@ static void IRAM_ATTR gpio_esp32_fire_callbacks(const struct device *dev)
 	}
 }
 
-static void gpio_esp32_isr(void *param);
+static void IRAM_ATTR gpio_esp32_isr(void *param);
 
 static int gpio_esp32_init(const struct device *dev)
 {

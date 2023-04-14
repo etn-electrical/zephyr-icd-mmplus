@@ -35,20 +35,15 @@ FUNC_NORETURN void z_riscv_fatal_error(unsigned int reason,
 		LOG_ERR("     a0: " PR_REG "    t0: " PR_REG, esf->a0, esf->t0);
 		LOG_ERR("     a1: " PR_REG "    t1: " PR_REG, esf->a1, esf->t1);
 		LOG_ERR("     a2: " PR_REG "    t2: " PR_REG, esf->a2, esf->t2);
-#if defined(CONFIG_RISCV_ISA_RV32E)
-		LOG_ERR("     a3: " PR_REG, esf->a3);
-		LOG_ERR("     a4: " PR_REG, esf->a4);
-		LOG_ERR("     a5: " PR_REG, esf->a5);
-#else
 		LOG_ERR("     a3: " PR_REG "    t3: " PR_REG, esf->a3, esf->t3);
 		LOG_ERR("     a4: " PR_REG "    t4: " PR_REG, esf->a4, esf->t4);
 		LOG_ERR("     a5: " PR_REG "    t5: " PR_REG, esf->a5, esf->t5);
 		LOG_ERR("     a6: " PR_REG "    t6: " PR_REG, esf->a6, esf->t6);
 		LOG_ERR("     a7: " PR_REG, esf->a7);
-#endif /* CONFIG_RISCV_ISA_RV32E */
 #ifdef CONFIG_USERSPACE
 		LOG_ERR("     sp: " PR_REG, esf->sp);
 #endif
+		LOG_ERR("     tp: " PR_REG, esf->tp);
 		LOG_ERR("     ra: " PR_REG, esf->ra);
 		LOG_ERR("   mepc: " PR_REG, esf->mepc);
 		LOG_ERR("mstatus: " PR_REG, esf->mstatus);
@@ -59,7 +54,7 @@ FUNC_NORETURN void z_riscv_fatal_error(unsigned int reason,
 	CODE_UNREACHABLE;
 }
 
-static char *cause_str(unsigned long cause)
+static char *cause_str(ulong_t cause)
 {
 	switch (cause) {
 	case 0:
@@ -148,22 +143,22 @@ void _Fault(z_arch_esf_t *esf)
 	 * treated as recoverable.
 	 */
 	for (int i = 0; i < ARRAY_SIZE(exceptions); i++) {
-		unsigned long start = (unsigned long)exceptions[i].start;
-		unsigned long end = (unsigned long)exceptions[i].end;
+		ulong_t start = (ulong_t)exceptions[i].start;
+		ulong_t end = (ulong_t)exceptions[i].end;
 
 		if (esf->mepc >= start && esf->mepc < end) {
-			esf->mepc = (unsigned long)exceptions[i].fixup;
+			esf->mepc = (ulong_t)exceptions[i].fixup;
 			return;
 		}
 	}
 #endif /* CONFIG_USERSPACE */
 
-	unsigned long mcause;
+	ulong_t mcause;
 
 	__asm__ volatile("csrr %0, mcause" : "=r" (mcause));
 
 #ifndef CONFIG_SOC_OPENISA_RV32M1_RISCV32
-	unsigned long mtval;
+	ulong_t mtval;
 	__asm__ volatile("csrr %0, mtval" : "=r" (mtval));
 #endif
 

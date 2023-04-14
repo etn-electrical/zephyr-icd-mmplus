@@ -77,20 +77,12 @@ Command line execute response header fields:
     | ``3``  | ``9``        |  ``0``         |
     +--------+--------------+----------------+
 
-CBOR data of successful response:
+CBOR data of response:
 
 .. code-block:: none
 
     {
         (str)"o"            : (str)
-        (str)"ret"          : (int)
-    }
-
-In case of error the CBOR data takes the form:
-
-.. code-block:: none
-
-    {
         (str)"rc"           : (int)
     }
 
@@ -100,15 +92,8 @@ where:
     :align: center
 
     +-----------------------+---------------------------------------------------+
-    | "rc"                  | :ref:`mcumgr_smp_protocol_status_codes`           |
-    |                       | only appears if non-zero (error condition).       |
-    +-----------------------+---------------------------------------------------+
     | "o"                   | command output                                    |
     +-----------------------+---------------------------------------------------+
-    | "ret"                 | return code from shell command execution          |
+    | "rc"                  | either return code from shell command execution   |
+    |                       | or :ref:`mcumgr_smp_protocol_status_codes`        |
     +-----------------------+---------------------------------------------------+
-
-.. note::
-    In older versions of Zephyr, "rc" was used for both the mcumgr status code
-    and shell command execution return code, this legacy behaviour can be
-    restored by enabling :kconfig:option:`CONFIG_MCUMGR_GRP_SHELL_LEGACY_RC_RETURN_CODE`

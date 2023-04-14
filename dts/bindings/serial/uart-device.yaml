@@ -6,3 +6,7 @@
 include: base.yaml
 
 on-bus: uart
+
+properties:
+    label:
+      required: true

@@ -396,6 +396,7 @@ static void process_event(struct onoff_manager *mgr,
 
 			key = k_spin_lock(&mgr->lock);
 			mgr->flags &= ~ONOFF_FLAG_PROCESSING;
+			state = mgr->flags & ONOFF_STATE_MASK;
 		}
 
 		/* Process deferred events.  Completion takes priority

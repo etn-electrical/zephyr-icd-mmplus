@@ -8,6 +8,7 @@ tests:
     timeout: 80
   kernel.work.api.linker_generator:
     platform_allow: qemu_cortex_m3
-    tags: linker_generator
+    min_flash: 34
+    tags: kernel linker_generator
     extra_configs:
       - CONFIG_CMAKE_LINKER_GENERATOR=y

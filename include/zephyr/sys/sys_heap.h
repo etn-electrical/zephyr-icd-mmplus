@@ -9,7 +9,6 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <zephyr/types.h>
-#include <zephyr/sys/mem_stats.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -68,6 +67,12 @@ struct z_heap_stress_result {
 
 #ifdef CONFIG_SYS_HEAP_RUNTIME_STATS
 
+struct sys_heap_runtime_stats {
+	size_t free_bytes;
+	size_t allocated_bytes;
+	size_t max_allocated_bytes;
+};
+
 /**
  * @brief Get the runtime statistics of a sys_heap
  *
@@ -76,7 +81,7 @@ struct z_heap_stress_result {
  * @return -EINVAL if null pointers, otherwise 0
  */
 int sys_heap_runtime_stats_get(struct sys_heap *heap,
-		struct sys_memory_stats *stats);
+		struct sys_heap_runtime_stats *stats);
 
 /**
  * @brief Reset the maximum heap usage.

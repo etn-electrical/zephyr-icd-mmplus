@@ -9,9 +9,9 @@ LOG_MODULE_DECLARE(LOG_MODULE_NAME);
 
 #include <stdlib.h>
 #include <limits.h>
-#include <zephyr/posix/fcntl.h>
+#include <fcntl.h>
 
-#include <zephyr/kernel.h>
+#include <zephyr/zephyr.h>
 /* Define sockaddr, etc, before simplelink.h */
 #include <zephyr/net/socket_offload.h>
 

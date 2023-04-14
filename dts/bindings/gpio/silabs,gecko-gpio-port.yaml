@@ -5,15 +5,19 @@ compatible: "silabs,gecko-gpio-port"
 include: [gpio-controller.yaml, base.yaml]
 
 properties:
-  reg:
-    required: true
+    reg:
+      required: true
 
-  peripheral-id:
-    type: int
-    description: peripheral ID
+    label:
+      required: true
 
-  "#gpio-cells":
-    const: 2
+    peripheral-id:
+      type: int
+      required: true
+      description: peripheral ID
+
+    "#gpio-cells":
+      const: 2
 
 gpio-cells:
   - pin

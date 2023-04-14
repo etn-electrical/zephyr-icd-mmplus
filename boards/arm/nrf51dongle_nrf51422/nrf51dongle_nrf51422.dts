@@ -52,13 +52,12 @@
 		led1 = &led0_green;
 		led2 = &led0_blue;
 		pwm-led0 = &pwm_led0;
-		watchdog0 = &wdt0;
 	};
 };
 
 &sw_pwm {
 	status ="okay";
-	channel-gpios = <&gpio0 21 PWM_POLARITY_INVERTED>;
+	channel-gpios = <&gpio0 21 0>;
 	clock-prescaler = <8>;
 };
 
@@ -95,11 +94,15 @@
 		};
 		slot0_partition: partition@8000 {
 			label = "image-0";
-			reg = <0x00008000 0x1b000>;
+			reg = <0x00008000 0x1a000>;
 		};
-		slot1_partition: partition@23000 {
+		slot1_partition: partition@22000 {
 			label = "image-1";
-			reg = <0x00023000 0x1b000>;
+			reg = <0x00022000 0x1a000>;
+		};
+		scratch_partition: partition@3c000 {
+			label = "image-scratch";
+			reg = <0x0003c000 0x2000>;
 		};
 		storage_partition: partition@3e000 {
 			label = "storage";

@@ -27,12 +27,13 @@ extern "C" {
 #include <zephyr/bluetooth/conn.h>
 #include <zephyr/bluetooth/hci.h>
 
-/**
+/** @def BT_ISO_CHAN_SEND_RESERVE
  *  @brief Headroom needed for outgoing ISO SDUs
  */
 #define BT_ISO_CHAN_SEND_RESERVE BT_BUF_ISO_SIZE(0)
 
-/**
+/** @def BT_ISO_SDU_BUF_SIZE
+ *
  *  @brief Helper to calculate needed buffer size for ISO SDUs.
  *         Useful for creating buffer pools.
  *
@@ -46,9 +47,9 @@ extern "C" {
 #define BT_ISO_DATA_PATH_HCI        0x00
 
 /** Minimum interval value in microseconds */
-#define BT_ISO_SDU_INTERVAL_MIN     0x0000FFU
+#define BT_ISO_INTERVAL_MIN         0x0000FF
 /** Maximum interval value in microseconds */
-#define BT_ISO_SDU_INTERVAL_MAX     0x0FFFFFU
+#define BT_ISO_INTERVAL_MAX         0x0FFFFF
 /** Minimum latency value in milliseconds */
 #define BT_ISO_LATENCY_MIN          0x0005
 /** Maximum latency value in milliseconds */
@@ -85,12 +86,6 @@ extern "C" {
 #define BT_ISO_BIS_INDEX_MIN        0x01
 /** Highest BIS index */
 #define BT_ISO_BIS_INDEX_MAX        0x1F
-/** Omit time stamp when sending to controller
- *
- * Using this value will enqueue the ISO SDU in a FIFO manner, instead of
- * transmitting it at a specified timestamp.
- */
-#define BT_ISO_TIMESTAMP_NONE 0U
 
 /** @brief Life-span states of ISO channel. Used only by internal APIs
  *  dealing with setting channel to proper state depending on operational
@@ -99,8 +94,6 @@ extern "C" {
 enum bt_iso_state {
 	/** Channel disconnected */
 	BT_ISO_STATE_DISCONNECTED,
-	/** Channel is pending ACL encryption before connecting */
-	BT_ISO_STATE_ENCRYPT_PENDING,
 	/** Channel in connecting state */
 	BT_ISO_STATE_CONNECTING,
 	/** Channel ready for upper layer traffic on it */
@@ -126,16 +119,7 @@ struct bt_iso_chan {
 	/** Channel QoS reference */
 	struct bt_iso_chan_qos		*qos;
 	enum bt_iso_state		state;
-#if defined(CONFIG_BT_SMP)
-	/** @brief The required security level of the channel
-	 *
-	 * This value can be set as the central before connecting a CIS
-	 * with bt_iso_chan_connect().
-	 * The value is overwritten to @ref bt_iso_server::sec_level for the
-	 * peripheral once a channel has been accepted.
-	 */
 	bt_security_t			required_sec_level;
-#endif /* CONFIG_BT_SMP */
 	/** Node used internally by the stack */
 	sys_snode_t node;
 };
@@ -192,8 +176,8 @@ struct bt_iso_chan_path {
 	uint32_t			delay;
 	/** Codec Configuration length*/
 	uint8_t				cc_len;
-	/** Pointer to an array containing the Codec Configuration */
-	uint8_t				*cc;
+	/** Codec Configuration */
+	uint8_t				cc[0];
 };
 
 /** ISO packet status flag bits */
@@ -227,22 +211,10 @@ struct bt_iso_recv_info {
 	uint32_t ts;
 
 	/** ISO packet sequence number of the first fragment in the SDU */
-	uint16_t seq_num;
+	uint16_t sn;
 
 	/** ISO packet flags bitfield (BT_ISO_FLAGS_*) */
 	uint8_t flags;
-};
-
-/** @brief ISO Meta Data structure for transmitted ISO packets. */
-struct bt_iso_tx_info {
-	/** CIG reference point or BIG anchor point of a transmitted SDU, in microseconds. */
-	uint32_t ts;
-
-	/** Time offset, in microseconds */
-	uint32_t offset;
-
-	/** Packet sequence number */
-	uint16_t seq_num;
 };
 
 
@@ -262,7 +234,7 @@ struct bt_iso_cig_param {
 
 	/** @brief Channel interval in us.
 	 *
-	 *  Value range BT_ISO_SDU_INTERVAL_MIN - BT_ISO_SDU_INTERVAL_MAX.
+	 *  Value range BT_ISO_INTERVAL_MIN - BT_ISO_INTERVAL_MAX.
 	 */
 	uint32_t interval;
 
@@ -319,7 +291,7 @@ struct bt_iso_big_create_param {
 
 	/** @brief Channel interval in us.
 	 *
-	 *  Value range BT_ISO_SDU_INTERVAL_MIN - BT_ISO_SDU_INTERVAL_MAX.
+	 *  Value range BT_ISO_INTERVAL_MIN - BT_ISO_INTERVAL_MAX.
 	 */
 	uint32_t interval;
 
@@ -349,13 +321,6 @@ struct bt_iso_big_create_param {
 	 *
 	 *  The code used to derive the session key that is used to encrypt and
 	 *  decrypt BIS payloads.
-	 *
-	 *  If the value is a string or a the value is less than 16 octets,
-	 *  the remaining octets shall be 0.
-	 *
-	 *  Example:
-	 *    The string "Broadcast Code" shall be
-	 *    [42 72 6F 61 64 63 61 73 74 20 43 6F 64 65 00 00]
 	 */
 	uint8_t bcode[BT_ISO_BROADCAST_CODE_SIZE];
 };
@@ -403,13 +368,6 @@ struct bt_iso_big_sync_param {
 	 *
 	 *  The code used to derive the session key that is used to encrypt and
 	 *  decrypt BIS payloads.
-	 *
-	 *  If the value is a string or a the value is less than 16 octets,
-	 *  the remaining octets shall be 0.
-	 *
-	 *  Example:
-	 *    The string "Broadcast Code" shall be
-	 *    [42 72 6F 61 64 63 61 73 74 20 43 6F 64 65 00 00]
 	 */
 	uint8_t bcode[BT_ISO_BROADCAST_CODE_SIZE];
 };
@@ -477,7 +435,7 @@ struct bt_iso_chan_ops {
 	 *
 	 *  If this callback is provided it will be called whenever the
 	 *  channel is disconnected, including when a connection gets
-	 *  rejected or when setting security fails.
+	 *  rejected.
 	 *
 	 *  @param chan   The channel that has been Disconnected
 	 *  @param reason BT_HCI_ERR_* reason for the disconnection.
@@ -536,10 +494,8 @@ struct bt_iso_accept_info {
 
 /** @brief ISO Server structure. */
 struct bt_iso_server {
-#if defined(CONFIG_BT_SMP)
 	/** Required minimum security level */
 	bt_security_t		sec_level;
-#endif /* CONFIG_BT_SMP */
 
 	/** @brief Server accept callback
 	 *
@@ -631,26 +587,7 @@ int bt_iso_cig_terminate(struct bt_iso_cig *cig);
  *  @param param Pointer to a connect parameter array with the ISO and ACL pointers.
  *  @param count Number of connect parameters.
  *
- *  @retval 0 Successfully started the connecting procedure.
- *
- *  @retval -EINVAL Invalid parameters were supplied.
- *
- *  @retval -EBUSY Some ISO channels are already being connected.
- *          It is not possible to have multiple outstanding connection requests.
- *          May also be returned if @kconfig{CONFIG_BT_SMP} is enabled and a
- *          pairing procedure is already in progress.
- *
- *  @retval -ENOBUFS Not buffers available to send request to controller or if
- *          @kconfig{CONFIG_BT_SMP} is enabled and no more keys could be stored.
- *
- *  @retval -ENOMEM If @kconfig{CONFIG_BT_SMP} is enabled and no more keys
- *          could be stored.
- *
- *  @retval -EIO Controller rejected the request or if @kconfig{CONFIG_BT_SMP}
- *          is enabled and pairing has timed out.
- *
- *  @retval -ENOTCONN If @kconfig{CONFIG_BT_SMP} is enabled the ACL is not
- *          connected.
+ *  @return 0 in case of success or negative value in case of error.
  */
 int bt_iso_chan_connect(const struct bt_iso_connect_param *param, size_t count);
 
@@ -677,21 +614,12 @@ int bt_iso_chan_disconnect(struct bt_iso_chan *chan);
  *  @note Buffer ownership is transferred to the stack in case of success, in
  *  case of an error the caller retains the ownership of the buffer.
  *
- *  @param chan     Channel object.
- *  @param buf      Buffer containing data to be sent.
- *  @param seq_num  Packet Sequence number. This value shall be incremented for
- *                  each call to this function and at least once per SDU
- *                  interval for a specific channel.
- *  @param ts       Timestamp of the SDU in microseconds (us).
- *                  This value can be used to transmit multiple
- *                  SDUs in the same SDU interval in a CIG or BIG. Can be
- *                  omitted by using @ref BT_ISO_TIMESTAMP_NONE which will
- *                  simply enqueue the ISO SDU in a FIFO manner.
+ *  @param chan Channel object.
+ *  @param buf Buffer containing data to be sent.
  *
  *  @return Bytes sent in case of success or negative value in case of error.
  */
-int bt_iso_chan_send(struct bt_iso_chan *chan, struct net_buf *buf,
-		     uint16_t seq_num, uint32_t ts);
+int bt_iso_chan_send(struct bt_iso_chan *chan, struct net_buf *buf);
 
 struct bt_iso_unicast_tx_info {
 	/** The transport latency in us */
@@ -826,22 +754,6 @@ int bt_iso_chan_get_info(const struct bt_iso_chan *chan,
  *                               will be BT_ISO_CHAN_TYPE_NONE.
  */
 enum bt_iso_chan_type bt_iso_chan_get_type(const struct bt_iso_chan *chan);
-
-/** @brief Get ISO transmission timing info
- *
- *  @details Reads timing information for transmitted ISO packet on an ISO channel.
- *           The HCI_LE_Read_ISO_TX_Sync HCI command is used to retrieve this information
- *           from the controller.
- *
- *  @note An SDU must have already been successfully transmitted on the ISO channel
- *        for this function to return successfully.
- *
- *  @param[in]  chan Channel object.
- *  @param[out] info Transmit info object.
- *
- *  @return Zero on success or (negative) error code on failure.
- */
-int bt_iso_chan_get_tx_sync(const struct bt_iso_chan *chan, struct bt_iso_tx_info *info);
 
 /** @brief Creates a BIG as a broadcaster
  *

@@ -6,4 +6,4 @@ description: |
 
 compatible: "ams,ens210"
 
-include: [sensor-device.yaml, i2c-device.yaml]
+include: i2c-device.yaml

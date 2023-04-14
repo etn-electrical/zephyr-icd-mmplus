@@ -6,7 +6,7 @@
 config XLNX_PSTTC_TIMER
 	bool "Xilinx PS ttc timer support"
 	default y
-	depends on DT_HAS_XLNX_TTCPS_ENABLED
+	depends on SOC_XILINX_ZYNQMP
 	select TICKLESS_CAPABLE
 	help
 	  This module implements a kernel device driver for the Xilinx ZynqMP

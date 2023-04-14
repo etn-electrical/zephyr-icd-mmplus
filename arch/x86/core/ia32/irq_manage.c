@@ -18,6 +18,7 @@
 #include <zephyr/arch/cpu.h>
 #include <zephyr/kernel_structs.h>
 #include <zephyr/sys/__assert.h>
+#include <zephyr/sys/printk.h>
 #include <zephyr/irq.h>
 #include <zephyr/tracing/tracing.h>
 #include <kswap.h>
@@ -192,7 +193,7 @@ extern const struct pseudo_descriptor z_x86_idt;
 
 static void idt_vector_install(int vector, void *irq_handler)
 {
-	unsigned int key;
+	int key;
 
 	key = irq_lock();
 	z_init_irq_gate(&z_x86_idt.entries[vector], CODE_SEG,

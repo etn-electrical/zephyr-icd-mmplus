@@ -82,10 +82,12 @@ __syscall void log_panic(void);
 /**
  * @brief Process one pending log message.
  *
+ * @param bypass If true message is released without being processed.
+ *
  * @retval true There is more messages pending to be processed.
  * @retval false No messages pending.
  */
-__syscall bool log_process(void);
+__syscall bool log_process(bool bypass);
 
 /**
  * @brief Return number of buffered log messages.
@@ -112,17 +114,6 @@ uint32_t log_src_cnt_get(uint32_t domain_id);
  */
 const char *log_source_name_get(uint32_t domain_id, uint32_t source_id);
 
-/** @brief Return number of domains present in the system.
- *
- * There will be at least one local domain.
- *
- * @return Number of domains.
- */
-static inline uint8_t log_domains_count(void)
-{
-	return 1 + (IS_ENABLED(CONFIG_LOG_MULTIDOMAIN) ? z_log_ext_domain_count() : 0);
-}
-
 /** @brief Get name of the domain.
  *
  * @param domain_id Domain ID.
@@ -130,15 +121,6 @@ static inline uint8_t log_domains_count(void)
  * @return Domain name.
  */
 const char *log_domain_name_get(uint32_t domain_id);
-
-/**
- * @brief Function for finding source ID based on source name.
- *
- * @param name Source name
- *
- * @return Source ID or negative number when source ID is not found.
- */
-int log_source_id_get(const char *name);
 
 /**
  * @brief Get source filter for the provided backend.
@@ -206,6 +188,26 @@ const struct log_backend *log_backend_get_by_name(const char *backend_name);
 const struct log_backend *log_format_set_all_active_backends(size_t log_type);
 
 /**
+ * @brief Get current number of allocated buffers for string duplicates.
+ */
+uint32_t log_get_strdup_pool_current_utilization(void);
+
+/**
+ * @brief Get maximal number of simultaneously allocated buffers for string
+ *	  duplicates.
+ *
+ * Value can be used to determine pool size.
+ */
+uint32_t log_get_strdup_pool_utilization(void);
+
+/**
+ * @brief Get length of the longest string duplicated.
+ *
+ * Value can be used to determine buffer size in the string duplicates pool.
+ */
+uint32_t log_get_strdup_longest_string(void);
+
+/**
  * @brief Check if there is pending data to be processed by the logging subsystem.
  *
  * Function can be used to determine if all logs have been flushed. Function
@@ -216,7 +218,12 @@ const struct log_backend *log_format_set_all_active_backends(size_t log_type);
  */
 static inline bool log_data_pending(void)
 {
-	return IS_ENABLED(CONFIG_LOG_MODE_DEFERRED) ? z_log_msg_pending() : false;
+	if (IS_ENABLED(CONFIG_LOG_MODE_DEFERRED)) {
+		return IS_ENABLED(CONFIG_LOG2) ?
+			z_log_msg2_pending() : (log_msg_mem_get_used() > 0);
+	}
+
+	return false;
 }
 
 /**
@@ -264,7 +271,7 @@ int log_mem_get_max_usage(uint32_t *max);
 #define LOG_PROCESS() false
 #else /* !CONFIG_LOG_FRONTEND_ONLY */
 #define LOG_INIT() log_init()
-#define LOG_PROCESS() log_process()
+#define LOG_PROCESS() log_process(false)
 #endif /* !CONFIG_LOG_FRONTEND_ONLY */
 #else
 #define LOG_CORE_INIT() do { } while (false)

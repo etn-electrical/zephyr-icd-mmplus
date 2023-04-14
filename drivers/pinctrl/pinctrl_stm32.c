@@ -14,38 +14,12 @@
 #include <stm32_ll_gpio.h>
 #include <stm32_ll_system.h>
 
-/** Helper to extract IO port number from STM32PIN() encoded value */
-#define STM32_PORT(__pin) \
-	((__pin) >> 4)
-
-/** Helper to extract IO pin number from STM32PIN() encoded value */
-#define STM32_PIN(__pin) \
-	((__pin) & 0xf)
-
-/** Helper to extract IO port number from STM32_PINMUX() encoded value */
-#define STM32_DT_PINMUX_PORT(__pin) \
-	(((__pin) >> STM32_PORT_SHIFT) & STM32_PORT_MASK)
-
-/** Helper to extract IO pin number from STM32_PINMUX() encoded value */
-#define STM32_DT_PINMUX_LINE(__pin) \
-	(((__pin) >> STM32_LINE_SHIFT) & STM32_LINE_MASK)
-
-/** Helper to extract IO pin func from STM32_PINMUX() encoded value */
-#define STM32_DT_PINMUX_FUNC(__pin) \
-	(((__pin) >> STM32_MODE_SHIFT) & STM32_MODE_MASK)
-
-#if DT_HAS_COMPAT_STATUS_OKAY(st_stm32f1_pinctrl)
-/** Helper to extract IO pin remap from STM32_PINMUX() encoded value */
-#define STM32_DT_PINMUX_REMAP(__pin) \
-	(((__pin) >> STM32_REMAP_SHIFT) & STM32_REMAP_MASK)
-#endif
-
 /**
  * @brief Array containing pointers to each GPIO port.
  *
  * Entries will be NULL if the GPIO port is not enabled.
  */
-static const struct device *const gpio_ports[] = {
+static const struct device * const gpio_ports[] = {
 	DEVICE_DT_GET_OR_NULL(DT_NODELABEL(gpioa)),
 	DEVICE_DT_GET_OR_NULL(DT_NODELABEL(gpiob)),
 	DEVICE_DT_GET_OR_NULL(DT_NODELABEL(gpioc)),
@@ -262,7 +236,13 @@ int pinctrl_configure_pins(const pinctrl_soc_pin_t *pins, uint8_t pin_cnt,
 		} else if (STM32_DT_PINMUX_FUNC(mux) == STM32_ANALOG) {
 			pin_cgf = STM32_MODER_ANALOG_MODE;
 		} else if (STM32_DT_PINMUX_FUNC(mux) == STM32_GPIO) {
-			pin_cgf = pins[i].pincfg;
+			uint32_t gpio_out = pins[i].pincfg &
+						(STM32_ODR_MASK << STM32_ODR_SHIFT);
+			if (gpio_out != 0) {
+				pin_cgf = pins[i].pincfg | STM32_MODER_OUTPUT_MODE;
+			} else {
+				pin_cgf = pins[i].pincfg | STM32_MODER_INPUT_MODE;
+			}
 		} else {
 			/* Not supported */
 			__ASSERT_NO_MSG(STM32_DT_PINMUX_FUNC(mux));

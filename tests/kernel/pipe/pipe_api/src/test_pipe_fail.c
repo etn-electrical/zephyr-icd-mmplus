@@ -5,8 +5,8 @@
  */
 
 
-#include <zephyr/ztest.h>
-#include <zephyr/ztest_error_hook.h>
+#include <ztest.h>
+#include <ztest_error_hook.h>
 
 #define TIMEOUT K_MSEC(100)
 #define PIPE_LEN 8
@@ -23,11 +23,11 @@ static void put_fail(struct k_pipe *p)
 	/**TESTPOINT: pipe put returns -EIO*/
 	zassert_equal(k_pipe_put(p, data, PIPE_LEN, &wt_byte,
 				 1, K_NO_WAIT), -EIO, NULL);
-	zassert_false(wt_byte);
+	zassert_false(wt_byte, NULL);
 	/**TESTPOINT: pipe put returns -EAGAIN*/
 	zassert_equal(k_pipe_put(p, data, PIPE_LEN, &wt_byte,
 				 1, TIMEOUT), -EAGAIN, NULL);
-	zassert_true(wt_byte < 1);
+	zassert_true(wt_byte < 1, NULL);
 	zassert_equal(k_pipe_put(p, data, PIPE_LEN, &wt_byte,
 				 PIPE_LEN + 1, TIMEOUT), -EINVAL, NULL);
 
@@ -38,7 +38,7 @@ static void put_fail(struct k_pipe *p)
  * @ingroup kernel_pipe_tests
  * @see k_pipe_init(), k_pipe_put()
  */
-ZTEST(pipe_api_1cpu, test_pipe_put_fail)
+void test_pipe_put_fail(void)
 {
 	k_pipe_init(&put_get_pipe, data, PIPE_LEN);
 
@@ -50,16 +50,16 @@ ZTEST(pipe_api_1cpu, test_pipe_put_fail)
  * @see k_pipe_put()
  */
 #ifdef CONFIG_USERSPACE
-ZTEST_USER(pipe_api_1cpu, test_pipe_user_put_fail)
+void test_pipe_user_put_fail(void)
 {
 	struct k_pipe *p = k_object_alloc(K_OBJ_PIPE);
 
-	zassert_true(p != NULL);
-	zassert_false(k_pipe_alloc_init(p, PIPE_LEN));
+	zassert_true(p != NULL, NULL);
+	zassert_false(k_pipe_alloc_init(p, PIPE_LEN), NULL);
 	/* check the number of bytes that may be read from pipe. */
-	zassert_equal(k_pipe_read_avail(p), 0);
+	zassert_equal(k_pipe_read_avail(p), 0, NULL);
 	/* check the number of bytes that may be written to pipe.*/
-	zassert_equal(k_pipe_write_avail(p), PIPE_LEN);
+	zassert_equal(k_pipe_write_avail(p), PIPE_LEN, NULL);
 
 	put_fail(p);
 }
@@ -73,11 +73,11 @@ static void get_fail(struct k_pipe *p)
 	/**TESTPOINT: pipe put returns -EIO*/
 	zassert_equal(k_pipe_get(p, rx_data, PIPE_LEN, &rd_byte, 1,
 				 K_NO_WAIT), -EIO, NULL);
-	zassert_false(rd_byte);
+	zassert_false(rd_byte, NULL);
 	/**TESTPOINT: pipe put returns -EAGAIN*/
 	zassert_equal(k_pipe_get(p, rx_data, PIPE_LEN, &rd_byte, 1,
 				 TIMEOUT), -EAGAIN, NULL);
-	zassert_true(rd_byte < 1);
+	zassert_true(rd_byte < 1, NULL);
 	zassert_equal(k_pipe_get(p, rx_data, PIPE_LEN, &rd_byte, 1,
 				 TIMEOUT), -EAGAIN, NULL);
 }
@@ -87,7 +87,7 @@ static void get_fail(struct k_pipe *p)
  * @ingroup kernel_pipe_tests
  * @see k_pipe_init(), k_pipe_get()
  */
-ZTEST(pipe_api, test_pipe_get_fail)
+void test_pipe_get_fail(void)
 {
 	k_pipe_init(&put_get_pipe, data, PIPE_LEN);
 
@@ -103,12 +103,12 @@ static size_t unreach_byte;
  * @ingroup kernel_pipe_tests
  * @see k_pipe_alloc_init()
  */
-ZTEST_USER(pipe_api, test_pipe_user_get_fail)
+void test_pipe_user_get_fail(void)
 {
 	struct k_pipe *p = k_object_alloc(K_OBJ_PIPE);
 
-	zassert_true(p != NULL);
-	zassert_false(k_pipe_alloc_init(p, PIPE_LEN));
+	zassert_true(p != NULL, NULL);
+	zassert_false(k_pipe_alloc_init(p, PIPE_LEN), NULL);
 
 	get_fail(p);
 }
@@ -123,7 +123,7 @@ ZTEST_USER(pipe_api, test_pipe_user_get_fail)
  *
  * @see k_pipe_alloc_init()
  */
-ZTEST_USER(pipe_api, test_pipe_alloc_not_init)
+void test_pipe_alloc_not_init(void)
 {
 	struct k_pipe pipe;
 
@@ -141,7 +141,7 @@ ZTEST_USER(pipe_api, test_pipe_alloc_not_init)
  *
  * @see k_pipe_get()
  */
-ZTEST_USER(pipe_api, test_pipe_get_null)
+void test_pipe_get_null(void)
 {
 	unsigned char rx_data[PIPE_LEN];
 	size_t rd_byte = 0;
@@ -161,13 +161,13 @@ ZTEST_USER(pipe_api, test_pipe_get_null)
  *
  * @see k_pipe_get()
  */
-ZTEST_USER(pipe_api, test_pipe_get_unreach_data)
+void test_pipe_get_unreach_data(void)
 {
 	struct k_pipe *p = k_object_alloc(K_OBJ_PIPE);
 	size_t rd_byte = 0;
 
-	zassert_true(p != NULL);
-	zassert_false(k_pipe_alloc_init(p, PIPE_LEN));
+	zassert_true(p != NULL, NULL);
+	zassert_false(k_pipe_alloc_init(p, PIPE_LEN), NULL);
 
 	ztest_set_fault_valid(true);
 	k_pipe_get(p, user_unreach, PIPE_LEN,
@@ -185,13 +185,13 @@ ZTEST_USER(pipe_api, test_pipe_get_unreach_data)
  *
  * @see k_pipe_get()
  */
-ZTEST_USER(pipe_api, test_pipe_get_unreach_size)
+void test_pipe_get_unreach_size(void)
 {
 	struct k_pipe *p = k_object_alloc(K_OBJ_PIPE);
 	unsigned char rx_data[PIPE_LEN];
 
-	zassert_true(p != NULL);
-	zassert_false(k_pipe_alloc_init(p, PIPE_LEN));
+	zassert_true(p != NULL, NULL);
+	zassert_false(k_pipe_alloc_init(p, PIPE_LEN), NULL);
 
 	ztest_set_fault_valid(true);
 	k_pipe_get(p, rx_data, PIPE_LEN,
@@ -209,7 +209,7 @@ ZTEST_USER(pipe_api, test_pipe_get_unreach_size)
  *
  * @see k_pipe_put()
  */
-ZTEST_USER(pipe_api, test_pipe_put_null)
+void test_pipe_put_null(void)
 {
 	unsigned char tx_data = 0xa;
 	size_t to_wt = 0, wt_byte = 0;
@@ -229,13 +229,13 @@ ZTEST_USER(pipe_api, test_pipe_put_null)
  *
  * @see k_pipe_put()
  */
-ZTEST_USER(pipe_api, test_pipe_put_unreach_data)
+void test_pipe_put_unreach_data(void)
 {
 	struct k_pipe *p = k_object_alloc(K_OBJ_PIPE);
 	size_t to_wt = 0, wt_byte = 0;
 
-	zassert_true(p != NULL);
-	zassert_false(k_pipe_alloc_init(p, PIPE_LEN));
+	zassert_true(p != NULL, NULL);
+	zassert_false(k_pipe_alloc_init(p, PIPE_LEN), NULL);
 
 	ztest_set_fault_valid(true);
 	k_pipe_put(p, &user_unreach[0], to_wt,
@@ -253,14 +253,14 @@ ZTEST_USER(pipe_api, test_pipe_put_unreach_data)
  *
  * @see k_pipe_put()
  */
-ZTEST_USER(pipe_api, test_pipe_put_unreach_size)
+void test_pipe_put_unreach_size(void)
 {
 	struct k_pipe *p = k_object_alloc(K_OBJ_PIPE);
 	unsigned char tx_data = 0xa;
 	size_t to_wt = 0;
 
-	zassert_true(p != NULL);
-	zassert_false(k_pipe_alloc_init(p, PIPE_LEN));
+	zassert_true(p != NULL, NULL);
+	zassert_false(k_pipe_alloc_init(p, PIPE_LEN), NULL);
 
 	ztest_set_fault_valid(true);
 	k_pipe_put(p, &tx_data, to_wt,
@@ -277,7 +277,7 @@ ZTEST_USER(pipe_api, test_pipe_put_unreach_size)
  *
  * @see k_pipe_read_avail()
  */
-ZTEST_USER(pipe_api, test_pipe_read_avail_null)
+void test_pipe_read_avail_null(void)
 {
 	ztest_set_fault_valid(true);
 	k_pipe_read_avail(NULL);
@@ -293,7 +293,7 @@ ZTEST_USER(pipe_api, test_pipe_read_avail_null)
  *
  * @see k_pipe_write_avail()
  */
-ZTEST_USER(pipe_api, test_pipe_write_avail_null)
+void test_pipe_write_avail_null(void)
 {
 	ztest_set_fault_valid(true);
 	k_pipe_write_avail(NULL);

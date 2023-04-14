@@ -13,12 +13,7 @@ import pytest
 ZEPHYR_BASE = os.getenv("ZEPHYR_BASE")
 sys.path.insert(0, os.path.join(ZEPHYR_BASE, "scripts/pylib/twister"))
 
-from twisterlib.testplan import TestPlan
-from twisterlib.testinstance import TestInstance
-from twisterlib.testsuite import TestSuite
-from twisterlib.platform import Platform
-from twisterlib.quarantine import Quarantine
-
+from twisterlib import TestSuite, TestPlan, TestInstance, Platform
 
 def test_testplan_add_testsuites(class_testplan):
     """ Testing add_testcase function of Testsuite class in twister """
@@ -26,7 +21,6 @@ def test_testplan_add_testsuites(class_testplan):
     class_testplan.SAMPLE_FILENAME = 'test_sample_app.yaml'
     class_testplan.TESTSUITE_FILENAME = 'test_data.yaml'
     class_testplan.add_testsuites()
-
     tests_rel_dir = 'scripts/tests/twister/test_data/testsuites/tests/'
     expected_testsuites = ['test_b.check_1',
                           'test_b.check_2',
@@ -35,37 +29,34 @@ def test_testplan_add_testsuites(class_testplan):
                           'test_a.check_1',
                           'test_a.check_2',
                           'test_d.check_1',
-                          'sample_test.app',
-                          'test_config.main']
+                          'sample_test.app']
     testsuite_list = []
     for key in sorted(class_testplan.testsuites.keys()):
         testsuite_list.append(os.path.basename(os.path.normpath(key)))
     assert sorted(testsuite_list) == sorted(expected_testsuites)
 
     # Test 2 : Assert Testcase name is expected & all testsuites values are testcase class objects
-    suite = class_testplan.testsuites.get(tests_rel_dir + 'test_a/test_a.check_1')
-    assert suite.name == tests_rel_dir + 'test_a/test_a.check_1'
+    testcase = class_testplan.testsuites.get(tests_rel_dir + 'test_a/test_a.check_1')
+    assert testcase.name == tests_rel_dir + 'test_a/test_a.check_1'
     assert all(isinstance(n, TestSuite) for n in class_testplan.testsuites.values())
 
 @pytest.mark.parametrize("board_root_dir", [("board_config_file_not_exist"), ("board_config")])
-def test_add_configurations(test_data, class_env, board_root_dir):
+def test_add_configurations(test_data, class_testplan, board_root_dir):
     """ Testing add_configurations function of TestPlan class in Twister
     Test : Asserting on default platforms list
     """
-    class_env.board_roots = [os.path.abspath(test_data + board_root_dir)]
-    plan = TestPlan(class_env)
+    class_testplan.board_roots = os.path.abspath(test_data + board_root_dir)
+    suite = TestPlan(class_testplan.board_roots, class_testplan.roots, class_testplan.outdir)
     if board_root_dir == "board_config":
-        plan.add_configurations()
-        assert sorted(plan.default_platforms) == sorted(['demo_board_1', 'demo_board_3'])
+        suite.add_configurations()
+        assert sorted(suite.default_platforms) == sorted(['demo_board_1', 'demo_board_3'])
     elif board_root_dir == "board_config_file_not_exist":
-        plan.add_configurations()
-        assert sorted(plan.default_platforms) != sorted(['demo_board_1'])
+        suite.add_configurations()
+        assert sorted(suite.default_platforms) != sorted(['demo_board_1'])
 
-
-def test_get_all_testsuites(class_env, all_testsuites_dict):
+def test_get_all_testsuites(class_testplan, all_testsuites_dict):
     """ Testing get_all_testsuites function of TestPlan class in Twister """
-    plan = TestPlan(class_env)
-    plan.testsuites = all_testsuites_dict
+    class_testplan.testsuites = all_testsuites_dict
     expected_tests = ['sample_test.app', 'test_a.check_1.1a',
                       'test_a.check_1.1c',
                       'test_a.check_1.2a', 'test_a.check_1.2b',
@@ -76,14 +67,16 @@ def test_get_all_testsuites(class_env, all_testsuites_dict):
                       'test_a.check_2.unit_1a', 'test_a.check_2.unit_1b',
                       'test_b.check_1', 'test_b.check_2', 'test_c.check_1',
                       'test_c.check_2', 'test_d.check_1.unit_1a',
-                      'test_d.check_1.unit_1b', 'test_config.main']
-    assert sorted(plan.get_all_tests()) == sorted(expected_tests)
+                      'test_d.check_1.unit_1b']
+    tests = class_testplan.get_all_tests()
+    result = [c.name for c in tests]
+    assert len(class_testplan.get_all_tests()) == len(expected_tests)
+    assert sorted(result) == sorted(expected_tests)
 
-def test_get_platforms(class_env, platforms_list):
+def test_get_platforms(class_testplan, platforms_list):
     """ Testing get_platforms function of TestPlan class in Twister """
-    plan = TestPlan(class_env)
-    plan.platforms = platforms_list
-    platform = plan.get_platform("demo_board_1")
+    class_testplan.platforms = platforms_list
+    platform = class_testplan.get_platform("demo_board_1")
     assert isinstance(platform, Platform)
     assert platform.name == "demo_board_1"
 
@@ -106,20 +99,20 @@ TESTDATA_PART1 = [
 
 @pytest.mark.parametrize("tc_attribute, tc_value, plat_attribute, plat_value, expected_discards",
                          TESTDATA_PART1)
-def test_apply_filters_part1(class_env, all_testsuites_dict, platforms_list,
+def test_apply_filters_part1(class_testplan, all_testsuites_dict, platforms_list,
                              tc_attribute, tc_value, plat_attribute, plat_value, expected_discards):
     """ Testing apply_filters function of TestPlan class in Twister
-    Part 1: Response of apply_filters function have
+    Part 1: Response of apply_filters function (discard dictionary) have
             appropriate values according to the filters
     """
-    plan = TestPlan(class_env)
     if tc_attribute is None and plat_attribute is None:
-        plan.apply_filters()
+        class_testplan.apply_filters()
+        assert not class_testplan.discards
 
-    plan.platforms = platforms_list
-    plan.platform_names = [p.name for p in platforms_list]
-    plan.testsuites = all_testsuites_dict
-    for plat in plan.platforms:
+    class_testplan.platforms = platforms_list
+    class_testplan.platform_names = [p.name for p in platforms_list]
+    class_testplan.testsuites = all_testsuites_dict
+    for plat in class_testplan.platforms:
         if plat_attribute == "ignore_tags":
             plat.ignore_tags = plat_value
         if plat_attribute == "flash":
@@ -131,7 +124,7 @@ def test_apply_filters_part1(class_env, all_testsuites_dict, platforms_list,
             plat.env_satisfied = False
         if plat_attribute == "supported_toolchains":
             plat.supported_toolchains = plat_value
-    for _, testcase in plan.testsuites.items():
+    for _, testcase in class_testplan.testsuites.items():
         if tc_attribute == "toolchain_allow":
             testcase.toolchain_allow = tc_value
         if tc_attribute == "platform_allow":
@@ -154,22 +147,21 @@ def test_apply_filters_part1(class_env, all_testsuites_dict, platforms_list,
             testcase.min_ram = tc_value
 
     if tc_attribute == "build_on_all":
-        for _, testcase in plan.testsuites.items():
+        for _, testcase in class_testplan.testsuites.items():
             testcase.build_on_all = tc_value
-        plan.apply_filters(exclude_platform=['demo_board_1'])
+        class_testplan.apply_filters(exclude_platform=['demo_board_1'])
     elif plat_attribute == "supported_toolchains":
-        plan.apply_filters(force_toolchain=False,
+        class_testplan.apply_filters(force_toolchain=False,
                                                  exclude_platform=['demo_board_1'],
                                                  platform=['demo_board_2'])
     elif tc_attribute is None and plat_attribute is None:
-        plan.apply_filters()
+        class_testplan.apply_filters()
     else:
-        plan.apply_filters(exclude_platform=['demo_board_1'],
+        class_testplan.apply_filters(exclude_platform=['demo_board_1'],
                                                  platform=['demo_board_2'])
 
-    filtered_instances = list(filter(lambda item:  item.status == "filtered", plan.instances.values()))
-    for d in filtered_instances:
-        assert d.reason == expected_discards
+    for x in [expected_discards]:
+        assert x in class_testplan.discards.values()
 
 TESTDATA_PART2 = [
     ("runnable", "True", "Not runnable on device"),
@@ -201,9 +193,9 @@ def test_apply_filters_part2(class_testplan, all_testsuites_dict,
             ]
         }
     class_testplan.apply_filters(**kwargs)
-    filtered_instances = list(filter(lambda item:  item.status == "filtered", class_testplan.instances.values()))
-    for d in filtered_instances:
-        assert d.reason == expected_discards
+    assert class_testplan.discards
+    for d in class_testplan.discards.values():
+        assert d == expected_discards
 
 
 TESTDATA_PART3 = [
@@ -231,107 +223,24 @@ def test_apply_filters_part3(class_testplan, all_testsuites_dict, platforms_list
         testcase.min_flash = tc_min_flash
     class_testplan.apply_filters(exclude_platform=['demo_board_1'],
                                              platform=['demo_board_2'])
+    assert not class_testplan.discards
 
-    filtered_instances = list(filter(lambda item:  item.status == "filtered", class_testplan.instances.values()))
-    assert not filtered_instances
-
-def test_add_instances(test_data, class_env, all_testsuites_dict, platforms_list):
+def test_add_instances(test_data, class_testplan, all_testsuites_dict, platforms_list):
     """ Testing add_instances() function of TestPlan class in Twister
     Test 1: instances dictionary keys have expected values (Platform Name + Testcase Name)
     Test 2: Values of 'instances' dictionary in Testsuite class are an
 	        instance of 'TestInstance' class
     Test 3: Values of 'instances' dictionary have expected values.
     """
-    class_env.outdir = test_data
-    plan = TestPlan(class_env)
-    plan.platforms = platforms_list
-    platform = plan.get_platform("demo_board_2")
+    class_testplan.outdir = test_data
+    class_testplan.platforms = platforms_list
+    platform = class_testplan.get_platform("demo_board_2")
     instance_list = []
     for _, testcase in all_testsuites_dict.items():
-        instance = TestInstance(testcase, platform, class_env.outdir)
+        instance = TestInstance(testcase, platform, class_testplan.outdir)
         instance_list.append(instance)
-    plan.add_instances(instance_list)
-    assert list(plan.instances.keys()) == \
+    class_testplan.add_instances(instance_list)
+    assert list(class_testplan.instances.keys()) == \
 		   [platform.name + '/' + s for s in list(all_testsuites_dict.keys())]
-    assert all(isinstance(n, TestInstance) for n in list(plan.instances.values()))
-    assert list(plan.instances.values()) == instance_list
-
-
-QUARANTINE_BASIC = {
-    'demo_board_1/scripts/tests/twister/test_data/testsuites/tests/test_a/test_a.check_1' : 'a1 on board_1 and board_3',
-    'demo_board_3/scripts/tests/twister/test_data/testsuites/tests/test_a/test_a.check_1' : 'a1 on board_1 and board_3'
-}
-
-QUARANTINE_WITH_REGEXP = {
-    'demo_board_2/scripts/tests/twister/test_data/testsuites/tests/test_a/test_a.check_2' : 'a2 and c2 on x86',
-    'demo_board_1/scripts/tests/twister/test_data/testsuites/tests/test_d/test_d.check_1' : 'all test_d',
-    'demo_board_3/scripts/tests/twister/test_data/testsuites/tests/test_d/test_d.check_1' : 'all test_d',
-    'demo_board_2/scripts/tests/twister/test_data/testsuites/tests/test_d/test_d.check_1' : 'all test_d',
-    'demo_board_2/scripts/tests/twister/test_data/testsuites/tests/test_c/test_c.check_2' : 'a2 and c2 on x86'
-}
-
-QUARANTINE_PLATFORM = {
-    'demo_board_3/scripts/tests/twister/test_data/testsuites/tests/test_a/test_a.check_1' : 'all on board_3',
-    'demo_board_3/scripts/tests/twister/test_data/testsuites/tests/test_a/test_a.check_2' : 'all on board_3',
-    'demo_board_3/scripts/tests/twister/test_data/testsuites/tests/test_d/test_d.check_1' : 'all on board_3',
-    'demo_board_3/scripts/tests/twister/test_data/testsuites/tests/test_b/test_b.check_1' : 'all on board_3',
-    'demo_board_3/scripts/tests/twister/test_data/testsuites/tests/test_b/test_b.check_2' : 'all on board_3',
-    'demo_board_3/scripts/tests/twister/test_data/testsuites/tests/test_c/test_c.check_1' : 'all on board_3',
-    'demo_board_3/scripts/tests/twister/test_data/testsuites/tests/test_c/test_c.check_2' : 'all on board_3',
-    'demo_board_3/scripts/tests/twister/test_data/testsuites/tests/test_config/test_config.main' : 'all on board_3'
-}
-
-QUARANTINE_MULTIFILES = {
-    **QUARANTINE_BASIC,
-    **QUARANTINE_WITH_REGEXP
-}
-
-@pytest.mark.parametrize(
-    ("quarantine_files, quarantine_verify, expected_val"),
-    [
-        (['basic.yaml'], False, QUARANTINE_BASIC),
-        (['with_regexp.yaml'], False, QUARANTINE_WITH_REGEXP),
-        (['with_regexp.yaml'], True, QUARANTINE_WITH_REGEXP),
-        (['platform.yaml'], False, QUARANTINE_PLATFORM),
-        (['basic.yaml', 'with_regexp.yaml'], False, QUARANTINE_MULTIFILES),
-        (['empty.yaml'], False, {})
-    ],
-    ids=[
-        'basic',
-        'with_regexp',
-        'quarantine_verify',
-        'platform',
-        'multifiles',
-        'empty'
-    ])
-def test_quarantine(class_testplan, platforms_list, test_data,
-                    quarantine_files, quarantine_verify, expected_val):
-    """ Testing quarantine feature in Twister
-    """
-    class_testplan.options.all = True
-    class_testplan.platforms = platforms_list
-    class_testplan.platform_names = [p.name for p in platforms_list]
-    class_testplan.TESTSUITE_FILENAME = 'test_data.yaml'
-    class_testplan.add_testsuites()
-
-    quarantine_list = [
-        os.path.join(test_data, 'quarantines', quarantine_file) for quarantine_file in quarantine_files
-    ]
-    class_testplan.quarantine = Quarantine(quarantine_list)
-    class_testplan.options.quarantine_verify = quarantine_verify
-    class_testplan.apply_filters()
-
-    for testname, instance in class_testplan.instances.items():
-        if quarantine_verify:
-            if testname in expected_val:
-                assert not instance.status
-            else:
-                assert instance.status == 'filtered'
-                assert instance.reason == "Not under quarantine"
-        else:
-            print(testname)
-            if testname in expected_val:
-                assert instance.status == 'filtered'
-                assert instance.reason == "Quarantine: " + expected_val[testname]
-            else:
-                assert not instance.status
+    assert all(isinstance(n, TestInstance) for n in list(class_testplan.instances.values()))
+    assert list(class_testplan.instances.values()) == instance_list

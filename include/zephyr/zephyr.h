@@ -7,8 +7,14 @@
 #ifndef ZEPHYR_INCLUDE_ZEPHYR_H_
 #define ZEPHYR_INCLUDE_ZEPHYR_H_
 
-#include <zephyr/kernel.h>
+/*
+ * Applications can identify whether they are built for Zephyr by
+ * macro below. (It may be already defined by a makefile or toolchain.)
+ */
+#ifndef __ZEPHYR__
+#define __ZEPHYR__
+#endif
 
-#warning "<zephyr/zephyr.h> is deprecated, include <zephyr/kernel.h> instead"
+#include <zephyr/kernel.h>
 
 #endif /* ZEPHYR_INCLUDE_ZEPHYR_H_ */
