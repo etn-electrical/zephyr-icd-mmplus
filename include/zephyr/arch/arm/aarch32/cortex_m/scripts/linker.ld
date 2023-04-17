@@ -11,20 +11,32 @@
  * Linker script for the Cortex-M platforms.
  */
 
-#include <zephyr/linker/sections.h>
-#include <zephyr/devicetree.h>
+#include <autoconf.h>
+#include <linker/sections.h>
+#include <devicetree.h>
 
-#include <zephyr/linker/devicetree_regions.h>
-#include <zephyr/linker/linker-defs.h>
-#include <zephyr/linker/linker-tool.h>
+#include <linker/devicetree_regions.h>
+#include <linker/linker-defs.h>
+#include <linker/linker-tool.h>
 
 /* physical address of RAM */
 #ifdef CONFIG_XIP
+#ifdef CONFIG_VECT_REGION
+  #define VECT_REGION    VECT
+#endif
 #define ROMABLE_REGION FLASH
 #define RAMABLE_REGION SRAM
 #else
+#ifdef CONFIG_VECT_REGION
+  #define VECT_REGION    VECT
+#endif
 #define ROMABLE_REGION SRAM
 #define RAMABLE_REGION SRAM
+#endif
+
+#ifdef CONFIG_VECT_REGION
+  #define VECT_ADDR CONFIG_VECT_BASE_ADDRESS
+  #define VECT_SIZE CONFIG_VECT_SIZE
 #endif
 
 #if !defined(CONFIG_XIP) && (CONFIG_FLASH_SIZE == 0)
@@ -78,9 +90,27 @@ _region_min_align = 4;
 
 MEMORY
     {
+#ifdef CONFIG_VECT_REGION
+    VECT      	  	  (rx) : ORIGIN = VECT_ADDR, LENGTH = VECT_SIZE
+#endif
     FLASH (rx) : ORIGIN = ROM_ADDR, LENGTH = ROM_SIZE
     SRAM  (wx) : ORIGIN = RAM_ADDR, LENGTH = RAM_SIZE
-    LINKER_DT_REGIONS()
+    /* TI CCFG Registers */
+    LINKER_DT_REGION_FROM_NODE(DT_NODELABEL(ti_ccfg_partition), rwx)
+    /* Data & Instruction Tightly Coupled Memory */
+    LINKER_DT_REGION_FROM_NODE(DT_CHOSEN(zephyr_itcm), rw)
+    LINKER_DT_REGION_FROM_NODE(DT_CHOSEN(zephyr_dtcm), rw)
+    /* STM32 Core Coupled Memory */
+    LINKER_DT_REGION_FROM_NODE(DT_CHOSEN(zephyr_ccm), rw)
+    /* STM32WB IPC RAM */
+    LINKER_DT_REGION_FROM_NODE(DT_NODELABEL(sram1), rw)
+    LINKER_DT_REGION_FROM_NODE(DT_NODELABEL(sram2), rw)
+    /* STM32 alternate RAM configurations */
+    LINKER_DT_REGION_FROM_NODE(DT_NODELABEL(sram3), rw)
+    LINKER_DT_REGION_FROM_NODE(DT_NODELABEL(sram4), rw)
+    LINKER_DT_REGION_FROM_NODE(DT_NODELABEL(sdram1), rw)
+    LINKER_DT_REGION_FROM_NODE(DT_NODELABEL(sdram2), rw)
+    LINKER_DT_REGION_FROM_NODE(DT_NODELABEL(backup_sram), rw)
     /* Used by and documented in include/linker/intlist.ld */
     IDT_LIST (wx) : ORIGIN = 0xFFFFF7FF, LENGTH = 2K
     }
@@ -90,7 +120,7 @@ ENTRY(CONFIG_KERNEL_ENTRY)
 SECTIONS
     {
 
-#include <zephyr/linker/rel-sections.ld>
+#include <linker/rel-sections.ld>
 
     /*
      * .plt and .iplt are here according to 'arm-zephyr-elf-ld --verbose',
@@ -105,11 +135,13 @@ SECTIONS
 	{
 	*(.iplt)
 	}
-
+#ifdef CONFIG_VECT_REGION
+    GROUP_START(VECT_REGION)
+#else
     GROUP_START(ROMABLE_REGION)
 
 	__rom_region_start = ROM_ADDR;
-
+#endif
     SECTION_PROLOGUE(rom_start,,)
 	{
 
@@ -119,7 +151,17 @@ SECTIONS
  */
 #include <snippets-rom-start.ld>
 
+#ifdef CONFIG_VECT_REGION
+	} GROUP_LINK_IN(VECT_REGION)
+
+GROUP_END(VECT_REGION)
+
+GROUP_START(ROMABLE_REGION)
+
+	__rom_region_start = ROM_ADDR;
+#else
 	} GROUP_LINK_IN(ROMABLE_REGION)
+#endif
 
 #ifdef CONFIG_CODE_DATA_RELOCATION
 
@@ -131,7 +173,7 @@ SECTIONS
 	{
 	__text_region_start = .;
 
-#include <zephyr/linker/kobject-text.ld>
+#include <linker/kobject-text.ld>
 
 	*(.text)
 	*(".text.*")
@@ -175,8 +217,8 @@ SECTIONS
 
 	__rodata_region_start = .;
 
-#include <zephyr/linker/common-rom.ld>
-#include <zephyr/linker/thread-local-storage.ld>
+#include <linker/common-rom.ld>
+#include <linker/thread-local-storage.ld>
 
     SECTION_PROLOGUE(_RODATA_SECTION_NAME,,)
 	{
@@ -189,7 +231,7 @@ SECTIONS
  */
 #include <snippets-rodata.ld>
 
-#include <zephyr/linker/kobject-rom.ld>
+#include <linker/kobject-rom.ld>
 
 	/*
 	 * For XIP images, in order to avoid the situation when __data_rom_start
@@ -204,7 +246,7 @@ SECTIONS
 	. = ALIGN(4);
 	} GROUP_LINK_IN(ROMABLE_REGION)
 
-#include <zephyr/linker/cplusplus-rom.ld>
+#include <linker/cplusplus-rom.ld>
 
 	__rodata_region_end = .;
 	MPU_ALIGN(__rodata_region_end -__rom_region_start);
@@ -272,7 +314,7 @@ SECTIONS
 	__bss_end = ALIGN(4);
 	} GROUP_DATA_LINK_IN(RAMABLE_REGION, RAMABLE_REGION)
 
-#include <zephyr/linker/common-noinit.ld>
+#include <linker/common-noinit.ld>
 
 #endif  /* CONFIG_USERSPACE */
 
@@ -302,10 +344,10 @@ SECTIONS
 
     __data_region_load_start = LOADADDR(_DATA_SECTION_NAME);
 
-#include <zephyr/linker/common-ram.ld>
-#include <zephyr/linker/kobject-data.ld>
+#include <linker/common-ram.ld>
+#include <linker/kobject-data.ld>
 
-#include <zephyr/linker/cplusplus-ram.ld>
+#include <linker/cplusplus-ram.ld>
 
 /* Located in generated directory. This file is populated by the
  * zephyr_linker_sources() Cmake function.
@@ -426,7 +468,7 @@ GROUP_END(DTCM)
  */
 #include <snippets-sections.ld>
 
-#include <zephyr/linker/debug-sections.ld>
+#include <linker/debug-sections.ld>
 
     /DISCARD/ : { *(.note.GNU-stack) }
 
@@ -435,9 +477,6 @@ GROUP_END(DTCM)
 	KEEP(*(.ARM.attributes))
 	KEEP(*(.gnu.attributes))
 	}
-
-    /* Sections generated from 'zephyr,memory-region' nodes */
-    LINKER_DT_SECTIONS()
 
 /* Must be last in romable region */
 SECTION_PROLOGUE(.last_section,(NOLOAD),)

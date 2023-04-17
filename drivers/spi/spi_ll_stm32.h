@@ -11,15 +11,8 @@
 
 typedef void (*irq_config_func_t)(const struct device *port);
 
-/* This symbol takes the value 1 if one of the device instances */
-/* is configured in dts with an optional clock */
-#if STM32_DT_INST_DEV_OPT_CLOCK_SUPPORT
-#define STM32_SPI_OPT_CLOCK_SUPPORT 1
-#else
-#define STM32_SPI_OPT_CLOCK_SUPPORT 0
-#endif
-
 struct spi_stm32_config {
+	struct stm32_pclken pclken;
 	SPI_TypeDef *spi;
 	const struct pinctrl_dev_config *pcfg;
 #ifdef CONFIG_SPI_STM32_INTERRUPT
@@ -28,8 +21,6 @@ struct spi_stm32_config {
 #if DT_HAS_COMPAT_STATUS_OKAY(st_stm32_spi_subghz)
 	bool use_subghzspi_nss;
 #endif
-	size_t pclk_len;
-	const struct stm32_pclken *pclken;
 };
 
 #ifdef CONFIG_SPI_STM32_DMA
@@ -68,7 +59,7 @@ struct spi_stm32_data {
 #ifdef CONFIG_SPI_STM32_DMA
 static inline uint32_t ll_func_dma_get_reg_addr(SPI_TypeDef *spi, uint32_t location)
 {
-#if defined(CONFIG_SOC_SERIES_STM32H7X)
+#if defined(CONFIG_SOC_SERIES_STM32H7X) || defined(CONFIG_SOC_SERIES_STM32MP1X)
 	if (location == SPI_STM32_DMA_TX) {
 		/* use direct register location until the LL_SPI_DMA_GetTxRegAddr exists */
 		return (uint32_t)&(spi->TXDR);

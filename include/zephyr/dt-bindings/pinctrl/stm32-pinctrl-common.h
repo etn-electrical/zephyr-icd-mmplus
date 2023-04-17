@@ -21,11 +21,15 @@
 #define	STM32_PORTH 7
 #define	STM32_PORTI 8
 #define	STM32_PORTJ 9
-#define	STM32_PORTK 10	/* IO port K */
+#define	STM32_PORTK 10
+#define	STM32_PORTZ 11	/* IO port Z */
 
 #ifndef STM32_PORTS_MAX
 #define STM32_PORTS_MAX (STM32_PORTK + 1)
 #endif
+
+#define STM32_PINMUX_FUNC_GPIO 0
+#define STM32_PINMUX_FUNC_ANALOG (STM32_PINMUX_FUNC_ALT_MAX)
 
 /**
  * @brief helper macro to encode an IO port pin in a numerical format
