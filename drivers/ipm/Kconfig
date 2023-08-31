@@ -10,15 +10,12 @@ if IPM
 
 config IPM_MHU
 	bool "IPM MHU driver"
-	default y
-	depends on DT_HAS_ARM_MHU_ENABLED
 	help
 	  Driver for SSE 200 MHU (Message Handling Unit)
 
 config IPM_NRFX
 	bool "IPM NRF driver"
-	default y
-	depends on DT_HAS_NORDIC_NRF_IPC_ENABLED
+	depends on HAS_HW_NRF_IPC
 	select NRFX_IPC
 	help
 	  Driver for Nordic nRF messaging unit, based
@@ -33,8 +30,7 @@ config IPM_NRF_SINGLE_INSTANCE
 
 config ESP32_SOFT_IPM
 	bool "ESP32 Software IPM driver"
-	default y
-	depends on DT_HAS_ESPRESSIF_ESP32_IPM_ENABLED
+	depends on ESP32_NETWORK_CORE || SOC_ESP32_NET
 	help
 	  Interprocessor driver for ESP32 when using AMP.
 

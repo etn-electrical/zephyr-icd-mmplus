@@ -11,13 +11,12 @@
 #include <zephyr/drivers/spi.h>
 #include <zephyr/sys/util.h>
 #include <soc.h>
-#if defined(CONFIG_PINCTRL)
+#if IS_ENABLED(CONFIG_PINCTRL)
 #include <zephyr/drivers/pinctrl.h>
 #endif
 
 #define LOG_LEVEL CONFIG_SPI_LOG_LEVEL
 #include <zephyr/logging/log.h>
-#include <zephyr/irq.h>
 LOG_MODULE_REGISTER(spi_pl022);
 
 #include "spi_context.h"
@@ -245,10 +244,10 @@ LOG_MODULE_REGISTER(spi_pl022);
 struct spi_pl022_cfg {
 	const uint32_t reg;
 	const uint32_t pclk;
-#if defined(CONFIG_PINCTRL)
+#if IS_ENABLED(CONFIG_PINCTRL)
 	const struct pinctrl_dev_config *pincfg;
 #endif
-#if defined(CONFIG_SPI_PL022_INTERRUPT)
+#if IS_ENABLED(CONFIG_SPI_PL022_INTERRUPT)
 	void (*irq_config)(const struct device *port);
 #endif
 };
@@ -350,7 +349,7 @@ static int spi_pl022_configure(const struct device *dev,
 	SSP_WRITE_REG(SSP_CR0(cfg->reg), cr0);
 	SSP_WRITE_REG(SSP_CR1(cfg->reg), cr1);
 
-#if defined(CONFIG_SPI_PL022_INTERRUPT)
+#if IS_ENABLED(CONFIG_SPI_PL022_INTERRUPT)
 	SSP_WRITE_REG(SSP_IMSC(cfg->reg),
 			SSP_IMSC_MASK_RORIM | SSP_IMSC_MASK_RTIM | SSP_IMSC_MASK_RXIM);
 #endif
@@ -365,7 +364,7 @@ static inline bool spi_pl022_transfer_ongoing(struct spi_pl022_data *data)
 	return spi_context_tx_on(&data->ctx) || spi_context_rx_on(&data->ctx);
 }
 
-#if defined(CONFIG_SPI_PL022_INTERRUPT)
+#if IS_ENABLED(CONFIG_SPI_PL022_INTERRUPT)
 
 static void spi_pl022_async_xfer(const struct device *dev)
 {
@@ -537,7 +536,7 @@ static int spi_pl022_transceive_impl(const struct device *dev,
 
 	spi_context_cs_control(ctx, true);
 
-#if defined(CONFIG_SPI_PL022_INTERRUPT)
+#if IS_ENABLED(CONFIG_SPI_PL022_INTERRUPT)
 	spi_pl022_start_async_xfer(dev);
 	ret = spi_context_wait_for_completion(ctx);
 #else
@@ -570,7 +569,7 @@ static int spi_pl022_transceive(const struct device *dev,
 	return spi_pl022_transceive_impl(dev, config, tx_bufs, rx_bufs, NULL, NULL);
 }
 
-#if defined(CONFIG_SPI_ASYNC)
+#if IS_ENABLED(CONFIG_SPI_ASYNC)
 
 static int spi_pl022_transceive_async(const struct device *dev,
 				      const struct spi_config *config,
@@ -596,7 +595,7 @@ static int spi_pl022_release(const struct device *dev,
 
 static struct spi_driver_api spi_pl022_api = {
 	.transceive = spi_pl022_transceive,
-#if defined(CONFIG_SPI_ASYNC)
+#if IS_ENABLED(CONFIG_SPI_ASYNC)
 	.transceive_async = spi_pl022_transceive_async,
 #endif
 	.release = spi_pl022_release
@@ -613,7 +612,7 @@ static int spi_pl022_init(const struct device *dev)
 	struct spi_pl022_data *data = dev->data;
 	int ret;
 
-#if defined(CONFIG_PINCTRL)
+#if IS_ENABLED(CONFIG_PINCTRL)
 	const struct spi_pl022_cfg *cfg = dev->config;
 
 	ret = pinctrl_apply_state(cfg->pincfg, PINCTRL_STATE_DEFAULT);
@@ -623,7 +622,7 @@ static int spi_pl022_init(const struct device *dev)
 	}
 #endif
 
-#if defined(CONFIG_SPI_PL022_INTERRUPT)
+#if IS_ENABLED(CONFIG_SPI_PL022_INTERRUPT)
 	cfg->irq_config(dev);
 #endif
 
@@ -645,7 +644,7 @@ static int spi_pl022_init(const struct device *dev)
 	return 0;
 }
 
-#if defined(CONFIG_PINCTRL)
+#if IS_ENABLED(CONFIG_PINCTRL)
 #define PINCTRL_DEFINE(n) PINCTRL_DT_INST_DEFINE(n);
 #define PINCTRL_INIT(n) .pincfg = PINCTRL_DT_INST_DEV_CONFIG_GET(n),
 #else
@@ -653,7 +652,7 @@ static int spi_pl022_init(const struct device *dev)
 #define PINCTRL_INIT(n)
 #endif /* CONFIG_PINCTRL */
 
-#if defined(CONFIG_SPI_PL022_INTERRUPT)
+#if IS_ENABLED(CONFIG_SPI_PL022_INTERRUPT)
 #define DECLARE_IRQ_CONFIGURE(idx)					 \
 	static void spi_pl022_irq_config_##idx(const struct device *dev) \
 	{								 \

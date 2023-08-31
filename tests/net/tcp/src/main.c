@@ -712,13 +712,7 @@ static void test_tcp_recv_cb(struct net_context *context,
 	if (status && status != -ECONNRESET) {
 		zassert_true(false, "failed to recv the data");
 	}
-
-	if (pkt) {
-		net_pkt_unref(pkt);
-	}
 }
-
-static struct net_context *accepted_ctx;
 
 static void test_tcp_accept_cb(struct net_context *ctx,
 			       struct sockaddr *addr,
@@ -732,10 +726,6 @@ static void test_tcp_accept_cb(struct net_context *ctx,
 
 	/* set callback on newly created context */
 	ctx->recv_cb = test_tcp_recv_cb;
-	accepted_ctx = ctx;
-
-	/* Ref the context on the app behalf. */
-	net_context_ref(ctx);
 
 	test_sem_give();
 }
@@ -765,8 +755,6 @@ ZTEST(net_tcp, test_server_ipv4)
 		zassert_true(false, "Failed to get net_context");
 	}
 
-	net_context_ref(ctx);
-
 	ret = net_context_bind(ctx, (struct sockaddr *)&my_addr_s,
 			       sizeof(struct sockaddr_in));
 	if (ret < 0) {
@@ -802,11 +790,7 @@ ZTEST(net_tcp, test_server_ipv4)
 	/* Trigger the peer to send FIN after timeout */
 	k_work_reschedule(&test_server, K_NO_WAIT);
 
-	/* Let the receiving thread run */
-	k_msleep(50);
-
 	net_context_put(ctx);
-	net_context_put(accepted_ctx);
 }
 
 /* Test case scenario IPv4
@@ -834,8 +818,6 @@ ZTEST(net_tcp, test_server_with_options_ipv4)
 		zassert_true(false, "Failed to get net_context");
 	}
 
-	net_context_ref(ctx);
-
 	ret = net_context_bind(ctx, (struct sockaddr *)&my_addr_s,
 			       sizeof(struct sockaddr_in));
 	if (ret < 0) {
@@ -871,11 +853,7 @@ ZTEST(net_tcp, test_server_with_options_ipv4)
 	/* Trigger the peer to send FIN after timeout */
 	k_work_reschedule(&test_server, K_NO_WAIT);
 
-	/* Let the receiving thread run */
-	k_msleep(50);
-
 	net_context_put(ctx);
-	net_context_put(accepted_ctx);
 }
 
 /* Test case scenario IPv6
@@ -902,8 +880,6 @@ ZTEST(net_tcp, test_server_ipv6)
 	if (ret < 0) {
 		zassert_true(false, "Failed to get net_context");
 	}
-
-	net_context_ref(ctx);
 
 	ret = net_context_bind(ctx, (struct sockaddr *)&my_addr_v6_s,
 			       sizeof(struct sockaddr_in6));
@@ -940,11 +916,7 @@ ZTEST(net_tcp, test_server_ipv6)
 	/* Trigger the peer to send FIN after timeout */
 	k_work_reschedule(&test_server, K_NO_WAIT);
 
-	/* Let the receiving thread run */
-	k_msleep(50);
-
 	net_context_put(ctx);
-	net_context_put(accepted_ctx);
 }
 
 static void handle_syn_resend(void)
@@ -977,8 +949,6 @@ ZTEST(net_tcp, test_client_syn_resend)
 	if (ret < 0) {
 		zassert_true(false, "Failed to get net_context");
 	}
-
-	net_context_ref(ctx);
 
 	ret = net_context_connect(ctx, (struct sockaddr *)&peer_addr_s,
 				  sizeof(struct sockaddr_in),
@@ -1105,7 +1075,7 @@ ZTEST(net_tcp, test_client_fin_wait_2_ipv4)
 	/* Peer will release the semaphore after it sends ACK for data */
 	test_sem_take(K_MSEC(100), __LINE__);
 
-	net_context_put(ctx);
+	net_tcp_put(ctx);
 
 	/* Peer will release the semaphore after it receives
 	 * proper ACK to FIN | ACK
@@ -1155,7 +1125,6 @@ static void handle_client_closing_test(sa_family_t af, struct tcphdr *th)
 	case T_CLOSING:
 		test_verify_flags(th, ACK);
 		t_state = T_FIN_ACK;
-		seq++;
 		reply = prepare_ack_packet(af, htons(MY_PORT), th->th_sport);
 		break;
 	default:
@@ -1227,7 +1196,7 @@ ZTEST(net_tcp, test_client_closing_ipv6)
 	/* Peer will release the semaphore after it sends ACK for data */
 	test_sem_take(K_MSEC(100), __LINE__);
 
-	net_context_put(ctx);
+	net_tcp_put(ctx);
 
 	/* Peer will release the semaphore after it receives
 	 * proper ACK to FIN | ACK
@@ -1255,8 +1224,6 @@ static struct net_context *create_server_socket(uint32_t my_seq,
 	if (ret < 0) {
 		zassert_true(false, "Failed to get net_context");
 	}
-
-	net_context_ref(ctx);
 
 	ret = net_context_bind(ctx, (struct sockaddr *)&my_addr_v6_s,
 			       sizeof(struct sockaddr_in6));
@@ -1342,8 +1309,7 @@ static void check_rst_succeed(struct net_context *ctx,
 		      "RST packet skipped (before %d, after %d)",
 		      rsterr_before, rsterr_after);
 
-	net_context_put(ctx);
-	net_context_put(accepted_ctx);
+	net_tcp_put(ctx);
 }
 
 ZTEST(net_tcp, test_client_invalid_rst)
@@ -1366,7 +1332,7 @@ ZTEST(net_tcp, test_client_invalid_rst)
 	check_rst_succeed(NULL, 0);
 	check_rst_succeed(NULL, 1);
 
-	/* net_context is released within check_rst_succeed() */
+	net_tcp_put(ctx);
 }
 
 #define MAX_DATA 100
@@ -1465,14 +1431,12 @@ static void checklist_based_out_of_order_test(struct out_of_order_check_struct *
 	}
 }
 
-static void test_server_recv_out_of_order_data(void)
+ZTEST(net_tcp, test_server_recv_out_of_order_data)
 {
 	/* Only run the tests if queueing is enabled */
 	if (CONFIG_NET_TCP_RECV_QUEUE_TIMEOUT == 0) {
 		return;
 	}
-
-	k_sem_reset(&test_sem);
 
 	/* Start the sequence numbering so that we will wrap it (just for
 	 * testing purposes)
@@ -1502,11 +1466,8 @@ struct out_of_order_check_struct reorder_timeout_list[] = {
  * test_server_recv_out_of_order_data(), so this test must be run after that
  * test.
  */
-static void test_server_timeout_out_of_order_data(void)
+ZTEST(net_tcp, test_server_timeout_out_of_order_data)
 {
-	struct net_pkt *rst;
-	int ret;
-
 	if (CONFIG_NET_TCP_RECV_QUEUE_TIMEOUT == 0) {
 		return;
 	}
@@ -1517,26 +1478,7 @@ static void test_server_timeout_out_of_order_data(void)
 					  ARRAY_SIZE(reorder_timeout_list),
 					  OUT_OF_ORDER_SEQ_INIT + 1);
 
-	/* Just send a RST packet to abort the underlying connection, so that
-	 * the testcase does not need to implement full TCP closing handshake.
-	 */
-	seq = expected_ack + 1;
-	rst = prepare_rst_packet(AF_INET6, htons(MY_PORT), htons(PEER_PORT));
-
-	ret = net_recv_data(iface, rst);
-	zassert_true(ret == 0, "recv data failed (%d)", ret);
-
-	/* Let the receiving thread run */
-	k_msleep(50);
-
-	net_context_put(ooo_ctx);
-	net_context_put(accepted_ctx);
-}
-
-ZTEST(net_tcp, test_server_out_of_order_data)
-{
-	test_server_recv_out_of_order_data();
-	test_server_timeout_out_of_order_data();
+	net_tcp_put(ooo_ctx);
 }
 
 ZTEST_SUITE(net_tcp, NULL, presetup, NULL, NULL, NULL);

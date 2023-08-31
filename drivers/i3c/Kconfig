@@ -99,6 +99,5 @@ config I3C_CONTROLLER_INIT_PRIORITY
 comment "Device Drivers"
 
 rsource "Kconfig.nxp"
-rsource "Kconfig.cdns"
 
 endif # I3C

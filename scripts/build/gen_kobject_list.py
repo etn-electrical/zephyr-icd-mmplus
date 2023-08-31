@@ -111,9 +111,7 @@ kobjects = OrderedDict([
     ("ztest_suite_node", ("CONFIG_ZTEST", True, False)),
     ("ztest_suite_stats", ("CONFIG_ZTEST", True, False)),
     ("ztest_unit_test", ("CONFIG_ZTEST_NEW_API", True, False)),
-    ("ztest_test_rule", ("CONFIG_ZTEST_NEW_API", True, False)),
-    ("rtio", ("CONFIG_RTIO", False, False)),
-    ("rtio_iodev", ("CONFIG_RTIO", False, False))
+    ("ztest_test_rule", ("CONFIG_ZTEST_NEW_API", True, False))
 ])
 
 def kobject_to_enum(kobj):
@@ -981,7 +979,7 @@ def parse_args():
 
     parser = argparse.ArgumentParser(
         description=__doc__,
-        formatter_class=argparse.RawDescriptionHelpFormatter, allow_abbrev=False)
+        formatter_class=argparse.RawDescriptionHelpFormatter)
 
     parser.add_argument("-k", "--kernel", required=False,
                         help="Input zephyr ELF binary")

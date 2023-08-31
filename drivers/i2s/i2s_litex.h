@@ -10,7 +10,6 @@
 #include <zephyr/device.h>
 #include <zephyr/drivers/i2s.h>
 #include <zephyr/devicetree.h>
-#include <zephyr/kernel.h>
 
 /* i2s configuration mask*/
 #define I2S_CONF_FORMAT_OFFSET 0

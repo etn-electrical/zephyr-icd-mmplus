@@ -74,6 +74,20 @@ osStatus_t osMutexAcquire(osMutexId_t mutex_id, uint32_t timeout)
 		return osErrorISR;
 	}
 
+	if (mutex->z_mutex.lock_count == 0U ||
+	    mutex->z_mutex.owner == _current) {
+	}
+
+	/* Throw an error if the mutex is not configured to be recursive and
+	 * the current thread is trying to acquire the mutex again.
+	 */
+	if ((mutex->state & osMutexRecursive) == 0U) {
+		if ((mutex->z_mutex.owner == _current) &&
+		    (mutex->z_mutex.lock_count != 0U)) {
+			return osErrorResource;
+		}
+	}
+
 	if (timeout == osWaitForever) {
 		status = k_mutex_lock(&mutex->z_mutex, K_FOREVER);
 	} else if (timeout == 0U) {
@@ -83,10 +97,10 @@ osStatus_t osMutexAcquire(osMutexId_t mutex_id, uint32_t timeout)
 				      K_TICKS(timeout));
 	}
 
-	if (timeout != 0 && (status == -EAGAIN || status == -EBUSY)) {
-		return osErrorTimeout;
-	} else if (status != 0) {
+	if (status == -EBUSY) {
 		return osErrorResource;
+	} else if (status == -EAGAIN) {
+		return osErrorTimeout;
 	} else {
 		return osOK;
 	}
@@ -107,9 +121,13 @@ osStatus_t osMutexRelease(osMutexId_t mutex_id)
 		return osErrorISR;
 	}
 
-	if (k_mutex_unlock(&mutex->z_mutex) != 0) {
+	/* Mutex was not obtained before or was not owned by current thread */
+	if ((mutex->z_mutex.lock_count == 0U) ||
+	    (mutex->z_mutex.owner != _current)) {
 		return osErrorResource;
 	}
+
+	k_mutex_unlock(&mutex->z_mutex);
 
 	return osOK;
 }

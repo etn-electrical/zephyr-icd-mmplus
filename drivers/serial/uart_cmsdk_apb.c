@@ -19,7 +19,6 @@
 #include <zephyr/init.h>
 #include <zephyr/drivers/uart.h>
 #include <zephyr/linker/sections.h>
-#include <zephyr/irq.h>
 
 /* UART registers struct */
 struct uart_cmsdk_apb {

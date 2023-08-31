@@ -5,7 +5,6 @@
  */
 
 #include <zephyr/device.h>
-#include <zephyr/arch/arm/aarch32/nmi.h>
 
 static int arm_designstart_init(const struct device *arg)
 {

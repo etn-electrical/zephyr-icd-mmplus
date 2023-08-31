@@ -133,19 +133,21 @@
 		};
 
 		gmac0: ethernet@ff700000 {
-			compatible = "snps,ethernet-cyclonev";
+			compatible = "altr,socfpga-stmmac", "snps,dwmac-3.70a",
+			"snps,dwmac", "snps,designware-ethernet";
 			reg = <0xff700000 0x2000>;
 			interrupts = <0 115 4 IRQ_DEFAULT_PRIORITY>;
-			emac-index = <0>;
+			local-mac-address = [00 00 00 00 00 00];
 			status = "disabled";
 		};
 
 		gmac1: ethernet@ff702000 {
-			compatible = "snps,ethernet-cyclonev";
+			compatible = "altr,socfpga-stmmac", "snps,dwmac-3.70a",
+			"snps,dwmac", "snps,designware-ethernet";
 			reg = <0xff702000 0x2000>;
 			interrupts = <0 120 4 IRQ_DEFAULT_PRIORITY>;
-			emac-index = <1>;
-			status = "disabled";
+			local-mac-address = [00 00 00 00 00 00];
+			status = "okay";
 		};
 
 		gpio0: gpio@ff708000 {

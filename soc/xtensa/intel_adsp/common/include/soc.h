@@ -11,7 +11,40 @@
 #include <zephyr/arch/xtensa/cache.h>
 #include <zephyr/linker/sections.h>
 
-#include <adsp_interrupt.h>
+/* macros related to interrupt handling */
+#define XTENSA_IRQ_NUM_SHIFT			0
+#define CAVS_IRQ_NUM_SHIFT			8
+#define XTENSA_IRQ_NUM_MASK			0xff
+#define CAVS_IRQ_NUM_MASK			0xff
+
+/*
+ * IRQs are mapped on 2 levels. 3rd and 4th level are left as 0x00.
+ *
+ * 1. Peripheral Register bit offset.
+ * 2. CAVS logic bit offset.
+ */
+#define XTENSA_IRQ_NUMBER(_irq) \
+	((_irq >> XTENSA_IRQ_NUM_SHIFT) & XTENSA_IRQ_NUM_MASK)
+#define CAVS_IRQ_NUMBER(_irq) \
+	(((_irq >> CAVS_IRQ_NUM_SHIFT) & CAVS_IRQ_NUM_MASK) - 1)
+
+/* Macro that aggregates the bi-level interrupt into an IRQ number */
+#define SOC_AGGREGATE_IRQ(cavs_irq, core_irq)		\
+	( \
+	 ((core_irq & XTENSA_IRQ_NUM_MASK) << XTENSA_IRQ_NUM_SHIFT) | \
+	 (((cavs_irq + 1) & CAVS_IRQ_NUM_MASK) << CAVS_IRQ_NUM_SHIFT) \
+	)
+
+#define CAVS_L2_AGG_INT_LEVEL2			DT_IRQN(DT_INST(0, intel_cavs_intc))
+#define CAVS_L2_AGG_INT_LEVEL3			DT_IRQN(DT_INST(1, intel_cavs_intc))
+#define CAVS_L2_AGG_INT_LEVEL4			DT_IRQN(DT_INST(2, intel_cavs_intc))
+#define CAVS_L2_AGG_INT_LEVEL5			DT_IRQN(DT_INST(3, intel_cavs_intc))
+
+#define CAVS_ICTL_INT_CPU_OFFSET(x)		(0x40 * x)
+
+#define SSP_MN_DIV_SIZE				(8)
+#define SSP_MN_DIV_BASE(x)			\
+	(0x00078D00 + ((x) * SSP_MN_DIV_SIZE))
 
 /* DSP Wall Clock Timers (0 and 1) */
 #define DSP_WCT_IRQ(x) \
@@ -21,11 +54,13 @@
 #define DSP_WCT_CS_TT(x)			BIT(4 + x)
 
 
+extern void soc_trace_init(void);
+
 extern void z_soc_mp_asm_entry(void);
 extern void soc_mp_startup(uint32_t cpu);
 extern void soc_start_core(int cpu_num);
 
-extern bool soc_cpus_active[CONFIG_MP_MAX_NUM_CPUS];
+extern bool soc_cpus_active[CONFIG_MP_NUM_CPUS];
 
 /* Legacy cache APIs still used in a few places */
 #define SOC_DCACHE_FLUSH(addr, size)		\
@@ -69,8 +104,8 @@ static ALWAYS_INLINE void z_idelay(int n)
 /* memcopy used by boot loader */
 static ALWAYS_INLINE void bmemcpy(void *dest, void *src, size_t bytes)
 {
-	volatile uint32_t *d = (uint32_t *)dest;
-	volatile uint32_t *s = (uint32_t *)src;
+	uint32_t *d = (uint32_t *)dest;
+	uint32_t *s = (uint32_t *)src;
 
 	z_xtensa_cache_inv(src, bytes);
 	for (size_t i = 0; i < (bytes >> 2); i++)
@@ -82,7 +117,7 @@ static ALWAYS_INLINE void bmemcpy(void *dest, void *src, size_t bytes)
 /* bzero used by bootloader */
 static ALWAYS_INLINE void bbzero(void *dest, size_t bytes)
 {
-	volatile uint32_t *d = (uint32_t *)dest;
+	uint32_t *d = (uint32_t *)dest;
 
 	for (size_t i = 0; i < (bytes >> 2); i++)
 		d[i] = 0;

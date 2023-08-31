@@ -12,9 +12,10 @@ static uint32_t state;
 
 static uint32_t next(void)
 {
-	state ^= (state<<13);
-	state ^= (state>>17);
-	return state ^= (state<<5);
+	uint32_t num = state;
+
+	state = 1664525 * num + 1013904223;
+	return num;
 }
 
 void nrf_802154_random_init(void)

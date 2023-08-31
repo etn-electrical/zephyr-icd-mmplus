@@ -1,8 +1,6 @@
 tests:
   coredump.logging_backend:
-    tags: coredump
-    ignore_faults: true
-    ignore_qemu_crash: true
+    tags: ignore_faults ignore_qemu_crash
     filter: CONFIG_ARCH_SUPPORTS_COREDUMP
     platform_exclude: acrn_ehl_crb
     harness: console

@@ -24,15 +24,15 @@
 	leds {
 		compatible = "gpio-leds";
 		led: led_0 {
-			gpios = <&porta 17 GPIO_ACTIVE_LOW>;
+			gpios = <&porta 17 0>;
 			label = "LED";
 		};
 		rx_led: led_1 {
-			gpios = <&porta 18 GPIO_ACTIVE_LOW>;
+			gpios = <&porta 18 0>;
 			label = "RX_LED";
 		};
 		tx_led: led_2 {
-			gpios = <&porta 19 GPIO_ACTIVE_LOW>;
+			gpios = <&porta 19 0>;
 			label = "TX_LED";
 		};
 	};

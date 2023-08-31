@@ -114,14 +114,13 @@ int pm_device_runtime_put(const struct device *dev);
  * this case, the function will be blocking (equivalent to
  * pm_device_runtime_put()).
  *
- * @funcprops \pre_kernel_ok, \async, \isr_ok
+ * @funcprops \pre_kernel_ok, \async
  *
  * @param dev Device instance.
  *
  * @retval 0 If it succeeds. In case device runtime PM is not enabled or not
  * available this function will be a no-op and will also return 0.
  * @retval -ENOTSUP If the device does not support PM.
- * @retval -EBUSY If the device is busy.
  * @retval -EALREADY If device is already suspended (can only happen if get/put
  * calls are unbalanced).
  *
@@ -144,43 +143,12 @@ int pm_device_runtime_put_async(const struct device *dev);
 bool pm_device_runtime_is_enabled(const struct device *dev);
 
 #else
-
-static inline int pm_device_runtime_enable(const struct device *dev)
-{
-	ARG_UNUSED(dev);
-	return 0;
-}
-
-static inline int pm_device_runtime_disable(const struct device *dev)
-{
-	ARG_UNUSED(dev);
-	return 0;
-}
-
-static inline int pm_device_runtime_get(const struct device *dev)
-{
-	ARG_UNUSED(dev);
-	return 0;
-}
-
-static inline int pm_device_runtime_put(const struct device *dev)
-{
-	ARG_UNUSED(dev);
-	return 0;
-}
-
-static inline int pm_device_runtime_put_async(const struct device *dev)
-{
-	ARG_UNUSED(dev);
-	return 0;
-}
-
-static inline bool pm_device_runtime_is_enabled(const struct device *dev)
-{
-	ARG_UNUSED(dev);
-	return false;
-}
-
+static inline int pm_device_runtime_enable(const struct device *dev) { return -ENOSYS; }
+static inline int pm_device_runtime_disable(const struct device *dev) { return -ENOSYS; }
+static inline int pm_device_runtime_get(const struct device *dev) { return 0; }
+static inline int pm_device_runtime_put(const struct device *dev) { return 0; }
+static inline int pm_device_runtime_put_async(const struct device *dev) { return 0; }
+static inline bool pm_device_runtime_is_enabled(const struct device *dev) { return false; }
 #endif
 
 /** @} */

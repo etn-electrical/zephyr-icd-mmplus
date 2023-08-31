@@ -15,11 +15,11 @@ Peripherals
    dac.rst
    display/index.rst
    dma.rst
+   ec_host_cmd_periph.rst
    edac/index.rst
    eeprom.rst
    entropy.rst
    flash.rst
-   fuel_gauge.rst
    gna.rst
    gpio.rst
    hwinfo.rst
@@ -30,6 +30,7 @@ Peripherals
    kscan.rst
    led.rst
    mbox.rst
+   pinmux.rst
    pwm.rst
    ps2.rst
    peci.rst
@@ -41,7 +42,6 @@ Peripherals
    spi.rst
    tcpc.rst
    uart.rst
-   usbc_vbus.rst
    mdio.rst
    watchdog.rst
    video.rst

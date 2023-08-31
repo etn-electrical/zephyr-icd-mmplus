@@ -28,4 +28,8 @@
 #include <gen_offset.h>
 #include <kernel_offsets.h>
 
+#if defined(CONFIG_FPU_SHARING)
+GEN_OFFSET_SYM(_thread_arch_t, excNestCount);
+#endif
+
 GEN_ABS_SYM_END

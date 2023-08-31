@@ -16,7 +16,6 @@
 #ifndef ZEPHYR_INCLUDE_DRIVERS_KB_SCAN_H_
 #define ZEPHYR_INCLUDE_DRIVERS_KB_SCAN_H_
 
-#include <errno.h>
 #include <zephyr/types.h>
 #include <stddef.h>
 #include <zephyr/device.h>

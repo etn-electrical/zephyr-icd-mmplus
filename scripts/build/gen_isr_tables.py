@@ -105,7 +105,7 @@ def parse_args():
     global args
 
     parser = argparse.ArgumentParser(description=__doc__,
-            formatter_class=argparse.RawDescriptionHelpFormatter, allow_abbrev=False)
+            formatter_class=argparse.RawDescriptionHelpFormatter)
 
     parser.add_argument("-e", "--big-endian", action="store_true",
             help="Target encodes data in big-endian format (little endian is "

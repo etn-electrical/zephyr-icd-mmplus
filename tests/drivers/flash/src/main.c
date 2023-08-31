@@ -10,10 +10,8 @@
 #include <zephyr/devicetree.h>
 #include <zephyr/storage/flash_map.h>
 
-#if defined(CONFIG_NORDIC_QSPI_NOR)
-#define TEST_AREA_DEV_NODE	DT_INST(0, nordic_qspi_nor)
-#elif defined(CONFIG_SPI_NOR)
-#define TEST_AREA_DEV_NODE	DT_INST(0, jedec_spi_nor)
+#if (CONFIG_NORDIC_QSPI_NOR - 0)
+/* Nothing here */
 #elif defined(CONFIG_TRUSTED_EXECUTION_NONSECURE)
 /* SoC embedded NVM */
 #define TEST_AREA	slot1_ns_partition
@@ -30,10 +28,11 @@
 #define TEST_AREA_MAX		(TEST_AREA_OFFSET + TEST_AREA_SIZE)
 #define TEST_AREA_DEVICE	FIXED_PARTITION_DEVICE(TEST_AREA)
 
-#elif defined(TEST_AREA_DEV_NODE)
-
-#define TEST_AREA_DEVICE	DEVICE_DT_GET(TEST_AREA_DEV_NODE)
+#elif (CONFIG_NORDIC_QSPI_NOR - 0)
+#define TEST_AREA_DEVICE	DEVICE_DT_GET(DT_INST(0, nordic_qspi_nor))
 #define TEST_AREA_OFFSET	0xff000
+
+#define TEST_AREA_DEV_NODE	DT_INST(0, nordic_qspi_nor)
 
 #if DT_NODE_HAS_PROP(TEST_AREA_DEV_NODE, size_in_bytes)
 #define TEST_AREA_MAX DT_PROP(TEST_AREA_DEV_NODE, size_in_bytes)
@@ -92,12 +91,9 @@ static void *flash_driver_setup(void)
 	}
 
 	if (!is_buf_clear) {
-		/* Erase a nb of pages aligned to the EXPECTED_SIZE */
+		/* erase page */
 		rc = flash_erase(flash_dev, page_info.start_offset,
-				(page_info.size *
-				((EXPECTED_SIZE + page_info.size - 1)
-				/ page_info.size)));
-
+				 page_info.size);
 		zassert_equal(rc, 0, "Flash memory not properly erased");
 	}
 

@@ -14,8 +14,9 @@
 #include "usb_descriptor.h"
 #include <zephyr/drivers/hwinfo.h>
 
+#define LOG_LEVEL CONFIG_USB_DEVICE_LOG_LEVEL
 #include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(usb_descriptor, CONFIG_USB_DEVICE_LOG_LEVEL);
+LOG_MODULE_REGISTER(usb_descriptor);
 
 /*
  * The last index of the initializer_string without null character is:

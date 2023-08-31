@@ -8,7 +8,6 @@
 
 #include <zephyr/devicetree.h>
 #include <zephyr/device.h>
-#include <zephyr/kernel.h>
 
 #include <zephyr/drivers/clock_control/lpc11u6x_clock_control.h>
 

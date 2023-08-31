@@ -21,8 +21,6 @@
 #include "util/dbuf.h"
 #include "util/mayfly.h"
 
-#include "pdu_df.h"
-#include "pdu_vendor.h"
 #include "pdu.h"
 
 #include "lll.h"
@@ -46,6 +44,9 @@
 
 #include "ll_feat.h"
 
+#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_DEBUG_HCI_DRIVER)
+#define LOG_MODULE_NAME bt_ctlr_lll_scan_aux
+#include "common/log.h"
 #include <soc.h>
 #include <ull_scan_types.h>
 #include "hal/debug.h"
@@ -680,7 +681,8 @@ static void isr_done(void *param)
 		node_rx->hdr.rx_ftr.param = lll;
 		node_rx->hdr.rx_ftr.aux_failed = 1U;
 
-		ull_rx_put_sched(node_rx->hdr.link, node_rx);
+		ull_rx_put(node_rx->hdr.link, node_rx);
+		ull_rx_sched();
 
 	} else if (!trx_cnt) {
 		struct event_done_extra *e;
@@ -862,7 +864,8 @@ isr_rx_do_close:
 			 */
 			node_rx->hdr.rx_ftr.param = lll;
 
-			ull_rx_put_sched(node_rx->hdr.link, node_rx);
+			ull_rx_put(node_rx->hdr.link, node_rx);
+			ull_rx_sched();
 		}
 
 		/* Check if LLL scheduled auxiliary PDU reception by scan
@@ -1210,7 +1213,8 @@ static int isr_rx_pdu(struct lll_scan *lll, struct lll_scan_aux *lll_aux,
 
 		ftr->aux_lll_sched = 0U;
 
-		ull_rx_put_sched(node_rx->hdr.link, node_rx);
+		ull_rx_put(node_rx->hdr.link, node_rx);
+		ull_rx_sched();
 
 		return 0;
 
@@ -1287,7 +1291,9 @@ static int isr_rx_pdu(struct lll_scan *lll, struct lll_scan_aux *lll_aux,
 
 		node_rx->hdr.type = NODE_RX_TYPE_EXT_AUX_REPORT;
 
-		ull_rx_put_sched(node_rx->hdr.link, node_rx);
+		ull_rx_put(node_rx->hdr.link, node_rx);
+
+		ull_rx_sched();
 
 		/* Next aux scan is scheduled from LLL, we already handled radio
 		 * disable so prevent caller from doing it again.
@@ -1295,10 +1301,6 @@ static int isr_rx_pdu(struct lll_scan *lll, struct lll_scan_aux *lll_aux,
 		if (ftr->aux_lll_sched) {
 			if (!lll_aux) {
 				lll->is_aux_sched = 1U;
-			}
-
-			if (IS_ENABLED(CONFIG_BT_CTLR_PROFILE_ISR)) {
-				lll_prof_cputime_capture();
 			}
 
 			return 0;
@@ -1320,10 +1322,6 @@ static void isr_tx(struct lll_scan_aux *lll_aux, void *pdu_rx,
 {
 	uint32_t hcto;
 
-	if (IS_ENABLED(CONFIG_BT_CTLR_PROFILE_ISR)) {
-		lll_prof_latency_capture();
-	}
-
 	/* Clear radio tx status and events */
 	lll_isr_tx_status_reset();
 
@@ -1334,10 +1332,6 @@ static void isr_tx(struct lll_scan_aux *lll_aux, void *pdu_rx,
 
 	/* assert if radio packet ptr is not set and radio started rx */
 	LL_ASSERT(!radio_is_ready());
-
-	if (IS_ENABLED(CONFIG_BT_CTLR_PROFILE_ISR)) {
-		lll_prof_cputime_capture();
-	}
 
 #if defined(CONFIG_BT_CTLR_PRIVACY)
 	if (ull_filter_lll_rl_enabled()) {
@@ -1559,11 +1553,8 @@ static void isr_rx_connect_rsp(void *param)
 #endif /* CONFIG_BT_CTLR_PRIVACY */
 
 isr_rx_do_close:
-	if (IS_ENABLED(CONFIG_BT_CTLR_PROFILE_ISR)) {
-		lll_prof_cputime_capture();
-	}
-
-	ull_rx_put_sched(rx->hdr.link, rx);
+	ull_rx_put(rx->hdr.link, rx);
+	ull_rx_sched();
 
 	if (lll->lll_aux) {
 		struct node_rx_pdu *node_rx;
@@ -1576,7 +1567,8 @@ isr_rx_do_close:
 
 		node_rx->hdr.rx_ftr.param = lll->lll_aux;
 
-		ull_rx_put_sched(node_rx->hdr.link, node_rx);
+		ull_rx_put(node_rx->hdr.link, node_rx);
+		ull_rx_sched();
 
 		radio_isr_set(lll_scan_isr_resume, lll);
 	} else {
@@ -1584,10 +1576,6 @@ isr_rx_do_close:
 	}
 
 	radio_disable();
-
-	if (IS_ENABLED(CONFIG_BT_CTLR_PROFILE_ISR)) {
-		lll_prof_send();
-	}
 }
 
 static bool isr_rx_connect_rsp_check(struct lll_scan *lll,

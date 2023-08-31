@@ -9,7 +9,6 @@
 
 #define LOG_LEVEL CONFIG_PCIE_EP_LOG_LEVEL
 #include <zephyr/logging/log.h>
-#include <zephyr/irq.h>
 LOG_MODULE_REGISTER(iproc_pcie);
 
 #include "pcie_ep_iproc.h"

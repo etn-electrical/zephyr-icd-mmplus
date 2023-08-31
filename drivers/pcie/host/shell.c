@@ -147,7 +147,7 @@ static void show(const struct shell *sh, pcie_bdf_t bdf, bool dump)
 
 	data = pcie_conf_read(bdf, PCIE_CONF_ID);
 
-	if (!PCIE_ID_IS_VALID(data)) {
+	if (data == PCIE_ID_NONE) {
 		return;
 	}
 
@@ -186,37 +186,18 @@ static void show(const struct shell *sh, pcie_bdf_t bdf, bool dump)
 	}
 }
 
-struct scan_cb_data {
-	const struct shell *sh;
-	bool dump;
-};
-
-static bool scan_cb(pcie_bdf_t bdf, pcie_id_t id, void *cb_data)
-{
-	struct scan_cb_data *data = cb_data;
-
-	show(data->sh, bdf, data->dump);
-
-	return true;
-}
-
 static int cmd_pcie_ls(const struct shell *sh, size_t argc, char **argv)
 {
 	pcie_bdf_t bdf = PCIE_BDF_NONE;
-	struct scan_cb_data data = {
-		.sh = sh,
-		.dump = false,
-	};
-	struct pcie_scan_opt scan_opt = {
-		.cb = scan_cb,
-		.cb_data = &data,
-		.flags = (PCIE_SCAN_RECURSIVE | PCIE_SCAN_CB_ALL),
-	};
+	bool dump = false;
+	int bus;
+	int dev;
+	int func;
 
 	for (int i = 1; i < argc; i++) {
 		/* Check dump argument */
 		if (strncmp(argv[i], "dump", 4) == 0) {
-			data.dump = true;
+			dump = true;
 			continue;
 		}
 
@@ -233,11 +214,17 @@ static int cmd_pcie_ls(const struct shell *sh, size_t argc, char **argv)
 
 	/* Show only specified device */
 	if (bdf != PCIE_BDF_NONE) {
-		show(sh, bdf, data.dump);
+		show(sh, bdf, dump);
 		return 0;
 	}
 
-	pcie_scan(&scan_opt);
+	for (bus = 0; bus <= PCIE_MAX_BUS; ++bus) {
+		for (dev = 0; dev <= PCIE_MAX_DEV; ++dev) {
+			for (func = 0; func <= PCIE_MAX_FUNC; ++func) {
+				show(sh, PCIE_BDF(bus, dev, func), dump);
+			}
+		}
+	}
 
 	return 0;
 }

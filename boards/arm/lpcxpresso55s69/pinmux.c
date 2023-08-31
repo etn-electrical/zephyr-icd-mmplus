@@ -4,7 +4,6 @@
  */
 
 #include <zephyr/init.h>
-#include <zephyr/devicetree.h>
 #include <fsl_common.h>
 #include <fsl_iocon.h>
 #include <soc.h>

@@ -22,8 +22,6 @@
 
 #include "ticker/ticker.h"
 
-#include "pdu_df.h"
-#include "lll/pdu_vendor.h"
 #include "pdu.h"
 
 #include "lll.h"
@@ -48,6 +46,9 @@
 
 #include "ll.h"
 
+#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_DEBUG_HCI_DRIVER)
+#define LOG_MODULE_NAME bt_ctlr_ull_sync
+#include "common/log.h"
 #include <soc.h>
 #include "hal/debug.h"
 
@@ -337,10 +338,10 @@ uint8_t ll_sync_create_cancel(void **rx)
 		LL_ASSERT(sync_handle <= UINT8_MAX);
 
 		/* Sync is not established yet, so stop sync ticker */
-		const int err =
-			ull_ticker_stop_with_mark((TICKER_ID_SCAN_SYNC_BASE +
-						   (uint8_t)sync_handle),
-						  sync, &sync->lll);
+		int err = ull_ticker_stop_with_mark(
+			TICKER_ID_SCAN_SYNC_BASE + (uint8_t)sync_handle, sync, &sync->lll);
+
+		LL_ASSERT(err == 0 || err == -EALREADY);
 		if (err != 0 && err != -EALREADY) {
 			return BT_HCI_ERR_CMD_DISALLOWED;
 		}
@@ -617,9 +618,6 @@ void ull_sync_setup_addr_check(struct ll_scan_set *scan, uint8_t addr_type,
 			 */
 			scan->periodic.adv_addr_type = addr_type;
 
-			/* Mark it as identity address from RPA (0x02, 0x03) */
-			scan->periodic.adv_addr_type += 2U;
-
 			/* Address matched */
 			scan->periodic.state = LL_SYNC_STATE_ADDR_MATCH;
 		}
@@ -636,9 +634,6 @@ void ull_sync_setup_addr_check(struct ll_scan_set *scan, uint8_t addr_type,
 		ll_rl_id_addr_get(rl_idx, &addr_type, addr);
 		if ((addr_type == scan->periodic.adv_addr_type) &&
 		    !memcmp(addr, scan->periodic.adv_addr, BDADDR_SIZE)) {
-			/* Mark it as identity address from RPA (0x02, 0x03) */
-			scan->periodic.adv_addr_type += 2U;
-
 			/* Identity address matched */
 			scan->periodic.state = LL_SYNC_STATE_ADDR_MATCH;
 		}
@@ -704,7 +699,7 @@ void ull_sync_setup(struct ll_scan_set *scan, struct ll_scan_aux_set *aux,
 	/* Remember the peer address.
 	 * NOTE: Peer identity address is copied here when privacy is enable.
 	 */
-	sync->peer_id_addr_type = scan->periodic.adv_addr_type & 0x01;
+	sync->peer_id_addr_type = scan->periodic.adv_addr_type;
 	(void)memcpy(sync->peer_id_addr, scan->periodic.adv_addr,
 		     sizeof(sync->peer_id_addr));
 #endif /* CONFIG_BT_CTLR_CHECK_SAME_PEER_SYNC ||
@@ -723,26 +718,6 @@ void ull_sync_setup(struct ll_scan_set *scan, struct ll_scan_aux_set *aux,
 	/* Convert fromm 10ms units to interval units */
 	sync->timeout_reload = RADIO_SYNC_EVENTS((sync->timeout * 10U *
 						  USEC_PER_MSEC), interval_us);
-
-	/* Adjust Skip value so that there is minimum of 6 events that can be
-	 * listened to before Sync_Timeout occurs.
-	 * The adjustment of the skip value is controller implementation
-	 * specific and not specified by the Bluetooth Core Specification v5.3.
-	 * The Controller `may` use the Skip value, and the implementation here
-	 * covers a case where Skip value could lead to less events being
-	 * listened to until Sync_Timeout. Listening to more consecutive events
-	 * before Sync_Timeout increases probability of retaining the Periodic
-	 * Synchronization.
-	 */
-	if (sync->timeout_reload > CONN_ESTAB_COUNTDOWN) {
-		uint16_t skip_max = sync->timeout_reload - CONN_ESTAB_COUNTDOWN;
-
-		if (sync->skip > skip_max) {
-			sync->skip = skip_max;
-		}
-	} else {
-		sync->skip = 0U;
-	}
 
 	sync->sync_expire = CONN_ESTAB_COUNTDOWN;
 
@@ -959,7 +934,8 @@ void ull_sync_established_report(memq_link_t *link, struct node_rx_hdr *rx)
 		 * setup.
 		 */
 
-		ll_rx_put_sched(rx_establ->hdr.link, rx_establ);
+		ll_rx_put(rx_establ->hdr.link, rx_establ);
+		ll_rx_sched();
 	}
 
 #if defined(CONFIG_BT_CTLR_SYNC_PERIODIC_CTE_TYPE_FILTERING)
@@ -983,7 +959,8 @@ void ull_sync_established_report(memq_link_t *link, struct node_rx_hdr *rx)
 		ull_scan_aux_setup(link, rx);
 	} else {
 		rx->type = NODE_RX_TYPE_RELEASE;
-		ll_rx_put_sched(link, rx);
+		ll_rx_put(link, rx);
+		ll_rx_sched();
 	}
 }
 
@@ -1373,7 +1350,8 @@ static void sync_expire(void *param)
 	/* NOTE: footer param has already been populated during sync setup */
 
 	/* Enqueue the sync failed to established towards ULL context */
-	ll_rx_put_sched(rx->hdr.link, rx);
+	ll_rx_put(rx->hdr.link, rx);
+	ll_rx_sched();
 }
 
 static void ticker_stop_sync_lost_op_cb(uint32_t status, void *param)
@@ -1418,7 +1396,8 @@ static void sync_lost(void *param)
 	rx->hdr.rx_ftr.param = sync;
 
 	/* Enqueue the sync lost towards ULL context */
-	ll_rx_put_sched(rx->hdr.link, rx);
+	ll_rx_put(rx->hdr.link, rx);
+	ll_rx_sched();
 }
 
 #if defined(CONFIG_BT_CTLR_CHECK_SAME_PEER_SYNC)

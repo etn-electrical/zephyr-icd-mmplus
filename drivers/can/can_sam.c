@@ -10,7 +10,6 @@
 #include <soc.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
-#include <zephyr/irq.h>
 
 #include "can_mcan.h"
 

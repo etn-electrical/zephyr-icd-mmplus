@@ -77,8 +77,6 @@ already supported, which can also be re-used on this lpcxpresso55s36 board:
 +-----------+------------+-------------------------------------+
 | PWM       | on-chip    | pwm                                 |
 +-----------+------------+-------------------------------------+
-| CSS       | on-chip    | entropy                             |
-+-----------+------------+-------------------------------------+
 
 Other hardware features are not currently enabled.
 

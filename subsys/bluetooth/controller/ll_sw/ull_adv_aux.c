@@ -21,8 +21,6 @@
 
 #include "ticker/ticker.h"
 
-#include "pdu_df.h"
-#include "lll/pdu_vendor.h"
 #include "pdu.h"
 
 #include "lll.h"
@@ -45,6 +43,9 @@
 
 #include "ll.h"
 
+#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_DEBUG_HCI_DRIVER)
+#define LOG_MODULE_NAME bt_ctlr_ull_adv_aux
+#include "common/log.h"
 #include "hal/debug.h"
 
 static int init_reset(void);
@@ -52,10 +53,8 @@ static int init_reset(void);
 #if (CONFIG_BT_CTLR_ADV_AUX_SET > 0)
 static inline struct ll_adv_aux_set *aux_acquire(void);
 static inline void aux_release(struct ll_adv_aux_set *aux);
-static uint32_t aux_time_get(const struct ll_adv_aux_set *aux,
-			     const struct pdu_adv *pdu,
-			     uint8_t pdu_len, uint8_t pdu_scan_len);
-static uint32_t aux_time_min_get(const struct ll_adv_aux_set *aux);
+static uint32_t aux_time_get(struct ll_adv_aux_set *aux, struct pdu_adv *pdu,
+			     struct pdu_adv *pdu_scan);
 static uint8_t aux_time_update(struct ll_adv_aux_set *aux, struct pdu_adv *pdu,
 			       struct pdu_adv *pdu_scan);
 static void mfy_aux_offset_get(void *param);
@@ -133,9 +132,12 @@ uint8_t ll_adv_aux_ad_data_set(uint8_t handle, uint8_t op, uint8_t frag_pref,
 		return BT_HCI_ERR_CMD_DISALLOWED;
 	}
 
-	/* Reject len > 191 bytes if chain PDUs unsupported */
+	/* Reject first, intermediate, last operation and len > 191 bytes if
+	 * chain PDUs unsupported.
+	 */
 	if (!IS_ENABLED(CONFIG_BT_CTLR_ADV_AUX_PDU_LINK) &&
-	    (len > PDU_AC_EXT_AD_DATA_LEN_MAX)) {
+	    ((op < BT_HCI_LE_EXT_ADV_OP_COMPLETE_DATA) ||
+	     (len > PDU_AC_EXT_AD_DATA_LEN_MAX))) {
 		return BT_HCI_ERR_CMD_DISALLOWED;
 	}
 
@@ -147,9 +149,8 @@ uint8_t ll_adv_aux_ad_data_set(uint8_t handle, uint8_t op, uint8_t frag_pref,
 	 * set new data.
 	 */
 	val_ptr = hdr_data;
-	if ((IS_ENABLED(CONFIG_BT_CTLR_ADV_AUX_PDU_LINK) && (
-	     op == BT_HCI_LE_EXT_ADV_OP_INTERM_FRAG ||
-	     op == BT_HCI_LE_EXT_ADV_OP_LAST_FRAG)) ||
+	if (op == BT_HCI_LE_EXT_ADV_OP_INTERM_FRAG ||
+	    op == BT_HCI_LE_EXT_ADV_OP_LAST_FRAG ||
 	    op == BT_HCI_LE_EXT_ADV_OP_UNCHANGED_DATA) {
 		*val_ptr++ = 0U;
 		(void)memset((void *)val_ptr, 0U,
@@ -159,9 +160,7 @@ uint8_t ll_adv_aux_ad_data_set(uint8_t handle, uint8_t op, uint8_t frag_pref,
 		(void)memcpy(val_ptr, &data, sizeof(data));
 	}
 
-	if ((!IS_ENABLED(CONFIG_BT_CTLR_ADV_AUX_PDU_LINK) &&
-	     (op == BT_HCI_LE_EXT_ADV_OP_COMPLETE_DATA ||
-	      op == BT_HCI_LE_EXT_ADV_OP_FIRST_FRAG)) ||
+	if (!IS_ENABLED(CONFIG_BT_CTLR_ADV_AUX_PDU_LINK) ||
 	    (op == BT_HCI_LE_EXT_ADV_OP_UNCHANGED_DATA)) {
 		err = ull_adv_aux_hdr_set_clear(adv,
 						ULL_ADV_PDU_HDR_FIELD_AD_DATA,
@@ -177,13 +176,16 @@ uint8_t ll_adv_aux_ad_data_set(uint8_t handle, uint8_t op, uint8_t frag_pref,
 		/* local variables not used due to overflow being 0 */
 		pdu_prev = NULL;
 		pdu = NULL;
-	} else if (op == BT_HCI_LE_EXT_ADV_OP_FIRST_FRAG ||
-		    op == BT_HCI_LE_EXT_ADV_OP_COMPLETE_DATA) {
+#endif /* CONFIG_BT_CTLR_ADV_AUX_PDU_LINK */
+	} else if (!IS_ENABLED(CONFIG_BT_CTLR_ADV_AUX_PDU_LINK) ||
+		   (op == BT_HCI_LE_EXT_ADV_OP_FIRST_FRAG ||
+		    op == BT_HCI_LE_EXT_ADV_OP_COMPLETE_DATA)) {
 		/* Add AD Data and remove any prior presence of Aux Ptr */
 		err = ull_adv_aux_hdr_set_clear(adv,
 						ULL_ADV_PDU_HDR_FIELD_AD_DATA,
 						ULL_ADV_PDU_HDR_FIELD_AUX_PTR,
 						hdr_data, &pri_idx, &sec_idx);
+#if defined(CONFIG_BT_CTLR_ADV_AUX_PDU_LINK)
 		if (err == BT_HCI_ERR_PACKET_TOO_LONG) {
 			ad_len_overflow =
 				hdr_data[ULL_ADV_HDR_DATA_DATA_PTR_OFFSET +
@@ -380,17 +382,8 @@ uint8_t ll_adv_aux_ad_data_set(uint8_t handle, uint8_t op, uint8_t frag_pref,
 			/* No AD data in chain PDU */
 			ad_len_chain = 0U;
 		}
+#endif /* CONFIG_BT_CTLR_ADV_AUX_PDU_LINK */
 	}
-#else /* !CONFIG_BT_CTLR_ADV_AUX_PDU_LINK */
-	} else {
-		/* Append new fragment */
-		err = ull_adv_aux_hdr_set_clear(adv,
-						ULL_ADV_PDU_HDR_FIELD_AD_DATA_APPEND,
-						0U, hdr_data, &pri_idx,
-						&sec_idx);
-	}
-#endif /* !CONFIG_BT_CTLR_ADV_AUX_PDU_LINK */
-
 	if (err) {
 		return err;
 	}
@@ -603,9 +596,7 @@ uint8_t ll_adv_aux_ad_data_set(uint8_t handle, uint8_t op, uint8_t frag_pref,
 			 *       Advertising sets are non-overlapping
 			 *       for the same event interval.
 			 */
-			ticks_anchor =
-				ticker_ticks_now_get() +
-				HAL_TICKER_US_TO_TICKS(EVENT_OVERHEAD_START_US);
+			ticks_anchor = ticker_ticks_now_get();
 
 			ticks_slot_overhead =
 				ull_adv_aux_evt_init(aux, &ticks_anchor);
@@ -635,8 +626,7 @@ uint8_t ll_adv_aux_ad_data_set(uint8_t handle, uint8_t op, uint8_t frag_pref,
 
 	lll_adv_aux_data_enqueue(adv->lll.aux, sec_idx);
 
-	if (!IS_ENABLED(CONFIG_BT_CTLR_ADV_AUX_PDU_LINK) ||
-	    op == BT_HCI_LE_EXT_ADV_OP_FIRST_FRAG ||
+	if (op == BT_HCI_LE_EXT_ADV_OP_FIRST_FRAG ||
 	    op == BT_HCI_LE_EXT_ADV_OP_COMPLETE_DATA ||
 	    op == BT_HCI_LE_EXT_ADV_OP_UNCHANGED_DATA) {
 		lll_adv_data_enqueue(&adv->lll, pri_idx);
@@ -727,7 +717,7 @@ uint8_t ll_adv_aux_sr_data_set(uint8_t handle, uint8_t op, uint8_t frag_pref,
 	sr_pdu_prev = lll_adv_scan_rsp_peek(lll);
 
 	/* Get reference to next scan response  PDU */
-	sr_pdu = lll_adv_aux_scan_rsp_alloc(lll, &sr_idx);
+	sr_pdu = lll_adv_scan_rsp_alloc(lll, &sr_idx);
 
 	/* Prepare the AD data as parameter to update in PDU */
 	/* Use length = 0 and NULL pointer to retain old data in the PDU.
@@ -737,9 +727,8 @@ uint8_t ll_adv_aux_sr_data_set(uint8_t handle, uint8_t op, uint8_t frag_pref,
 	 * set new data.
 	 */
 	val_ptr = hdr_data;
-	if ((IS_ENABLED(CONFIG_BT_CTLR_ADV_AUX_PDU_LINK) && (
-	     op == BT_HCI_LE_EXT_ADV_OP_INTERM_FRAG ||
-	     op == BT_HCI_LE_EXT_ADV_OP_LAST_FRAG)) ||
+	if (op == BT_HCI_LE_EXT_ADV_OP_INTERM_FRAG ||
+	    op == BT_HCI_LE_EXT_ADV_OP_LAST_FRAG ||
 	    op == BT_HCI_LE_EXT_ADV_OP_UNCHANGED_DATA) {
 		*val_ptr++ = 0U;
 		(void)memset((void *)val_ptr, 0U,
@@ -816,24 +805,13 @@ uint8_t ll_adv_aux_sr_data_set(uint8_t handle, uint8_t op, uint8_t frag_pref,
 				     sizeof(struct pdu_adv_adi *));
 		}
 
-		if (op == BT_HCI_LE_EXT_ADV_OP_INTERM_FRAG ||
-		    op == BT_HCI_LE_EXT_ADV_OP_LAST_FRAG) {
-			/* Append fragment to existing data */
-			hdr_add_fields |= ULL_ADV_PDU_HDR_FIELD_ADVA |
-					  ULL_ADV_PDU_HDR_FIELD_AD_DATA_APPEND;
-			err = ull_adv_aux_pdu_set_clear(adv, sr_pdu_prev, sr_pdu,
-							hdr_add_fields,
-							0,
-							hdr_data);
-		} else {
-			/* Add AD Data and remove any prior presence of Aux Ptr */
-			hdr_add_fields |= ULL_ADV_PDU_HDR_FIELD_ADVA |
-					  ULL_ADV_PDU_HDR_FIELD_AD_DATA;
-			err = ull_adv_aux_pdu_set_clear(adv, sr_pdu_prev, sr_pdu,
+		/* Add AD Data and remove any prior presence of Aux Ptr */
+		hdr_add_fields |= ULL_ADV_PDU_HDR_FIELD_ADVA |
+				  ULL_ADV_PDU_HDR_FIELD_AD_DATA;
+		err = ull_adv_aux_pdu_set_clear(adv, sr_pdu_prev, sr_pdu,
 						hdr_add_fields,
 						ULL_ADV_PDU_HDR_FIELD_AUX_PTR,
 						hdr_data);
-		}
 #if defined(CONFIG_BT_CTLR_ADV_AUX_PDU_LINK)
 		if (err == BT_HCI_ERR_PACKET_TOO_LONG) {
 			uint8_t ad_len_offset;
@@ -1214,10 +1192,7 @@ uint8_t ll_adv_aux_sr_data_set(uint8_t handle, uint8_t op, uint8_t frag_pref,
 #endif /* CONFIG_BT_CTLR_ADV_AUX_PDU_LINK */
 
 sr_data_set_did_update:
-	if ((!IS_ENABLED(CONFIG_BT_CTLR_ADV_AUX_PDU_LINK) &&
-	     (op == BT_HCI_LE_EXT_ADV_OP_INTERM_FRAG ||
-	      op == BT_HCI_LE_EXT_ADV_OP_LAST_FRAG)) ||
-	    (op == BT_HCI_LE_EXT_ADV_OP_FIRST_FRAG) ||
+	if ((op == BT_HCI_LE_EXT_ADV_OP_FIRST_FRAG) ||
 	    (op == BT_HCI_LE_EXT_ADV_OP_COMPLETE_DATA)) {
 		/* NOTE: No update to primary channel PDU time reservation  */
 
@@ -1423,8 +1398,6 @@ uint8_t ull_adv_aux_hdr_set_clear(struct ll_adv_set *adv,
 	struct pdu_adv_aux_ptr *aux_ptr;
 	uint8_t pri_len, sec_len_prev;
 	struct lll_adv_aux *lll_aux;
-	uint8_t *ad_fragment = NULL;
-	uint8_t ad_fragment_len = 0;
 	struct ll_adv_aux_set *aux;
 	struct pdu_adv_adi *adi;
 	struct lll_adv *lll;
@@ -1754,16 +1727,6 @@ uint8_t ull_adv_aux_hdr_set_clear(struct ll_adv_set *adv,
 			ad_len = ad_len_prev;
 			ad_data = sec_dptr_prev;
 		}
-	} else if (sec_hdr_add_fields & ULL_ADV_PDU_HDR_FIELD_AD_DATA_APPEND) {
-		/* Calc the previous AD data length in auxiliary PDU */
-		ad_len = sec_pdu_prev->len - sec_len_prev;
-		ad_data = sec_dptr_prev;
-
-		/* Append the new ad data fragment */
-		ad_fragment_len = *(uint8_t *)hdr_data;
-		hdr_data = (uint8_t *)hdr_data + sizeof(ad_fragment_len);
-		(void)memcpy(&ad_fragment, hdr_data, sizeof(ad_fragment));
-		hdr_data = (uint8_t *)hdr_data + sizeof(ad_fragment);
 	} else if (!(sec_hdr_rem_fields & ULL_ADV_PDU_HDR_FIELD_AD_DATA)) {
 		/* Calc the previous AD data length in auxiliary PDU */
 		ad_len = sec_pdu_prev->len - sec_len_prev;
@@ -1774,13 +1737,13 @@ uint8_t ull_adv_aux_hdr_set_clear(struct ll_adv_set *adv,
 	}
 
 	/* Check Max Advertising Data Length */
-	if (ad_len + ad_fragment_len > CONFIG_BT_CTLR_ADV_DATA_LEN_MAX) {
+	if (ad_len > CONFIG_BT_CTLR_ADV_DATA_LEN_MAX) {
 		return BT_HCI_ERR_MEM_CAPACITY_EXCEEDED;
 	}
 
 	/* Check AdvData overflow */
 	/* TODO: need aux_chain_ind support */
-	if ((sec_len + ad_len + ad_fragment_len) > PDU_AC_PAYLOAD_SIZE_MAX) {
+	if ((sec_len + ad_len) > PDU_AC_PAYLOAD_SIZE_MAX) {
 		/* return excess length */
 		*(uint8_t *)hdr_data = sec_len + ad_len -
 				       PDU_AC_PAYLOAD_SIZE_MAX;
@@ -1804,7 +1767,7 @@ uint8_t ull_adv_aux_hdr_set_clear(struct ll_adv_set *adv,
 
 	/* set the secondary PDU len */
 	ull_adv_aux_hdr_len_fill(sec_com_hdr, sec_len);
-	sec_pdu->len = sec_len + ad_len + ad_fragment_len;
+	sec_pdu->len = sec_len + ad_len;
 
 	/* Start filling pri and sec PDU payload based on flags from here
 	 * ==============================================================
@@ -1813,10 +1776,6 @@ uint8_t ull_adv_aux_hdr_set_clear(struct ll_adv_set *adv,
 	/* No AdvData in primary channel PDU */
 	/* Fill AdvData in secondary PDU */
 	(void)memmove(sec_dptr, ad_data, ad_len);
-
-	if (ad_fragment) {
-		(void)memcpy(sec_dptr + ad_len, ad_fragment, ad_fragment_len);
-	}
 
 	/* Early exit if no flags set */
 	if (!sec_com_hdr->ext_hdr_len) {
@@ -1982,8 +1941,6 @@ uint8_t ull_adv_aux_pdu_set_clear(struct ll_adv_set *adv,
 	struct pdu_adv_com_ext_adv *com_hdr, *com_hdr_prev;
 	struct pdu_adv_ext_hdr hdr = { 0 }, hdr_prev = { 0 };
 	struct pdu_adv_aux_ptr *aux_ptr, *aux_ptr_prev;
-	uint8_t *ad_fragment = NULL;
-	uint8_t ad_fragment_len = 0;
 	uint8_t *dptr, *dptr_prev;
 	struct pdu_adv_adi *adi;
 	uint8_t acad_len_prev;
@@ -2227,15 +2184,6 @@ uint8_t ull_adv_aux_pdu_set_clear(struct ll_adv_set *adv,
 			ad_len = ad_len_prev;
 			ad_data = dptr_prev;
 		}
-	} else if (hdr_add_fields & ULL_ADV_PDU_HDR_FIELD_AD_DATA_APPEND) {
-		ad_len = pdu_prev->len - len_prev;
-		ad_data = dptr_prev;
-
-		/* Append the new ad data fragment */
-		ad_fragment_len = *(uint8_t *)hdr_data;
-		hdr_data = (uint8_t *)hdr_data + sizeof(ad_fragment_len);
-		(void)memcpy(&ad_fragment, hdr_data, sizeof(ad_fragment));
-		hdr_data = (uint8_t *)hdr_data + sizeof(ad_fragment);
 	} else if (!(hdr_rem_fields & ULL_ADV_PDU_HDR_FIELD_AD_DATA)) {
 		ad_len = pdu_prev->len - len_prev;
 		ad_data = dptr_prev;
@@ -2245,12 +2193,12 @@ uint8_t ull_adv_aux_pdu_set_clear(struct ll_adv_set *adv,
 	}
 
 	/* Check Max Advertising Data Length */
-	if (ad_len + ad_fragment_len > CONFIG_BT_CTLR_ADV_DATA_LEN_MAX) {
+	if (ad_len > CONFIG_BT_CTLR_ADV_DATA_LEN_MAX) {
 		return BT_HCI_ERR_MEM_CAPACITY_EXCEEDED;
 	}
 
 	/* Check AdvData overflow */
-	if ((len + ad_len + ad_fragment_len) > PDU_AC_PAYLOAD_SIZE_MAX) {
+	if ((len + ad_len) > PDU_AC_PAYLOAD_SIZE_MAX) {
 		/* return excess length */
 		*(uint8_t *)hdr_data = len + ad_len -
 				       PDU_AC_PAYLOAD_SIZE_MAX;
@@ -2263,7 +2211,7 @@ uint8_t ull_adv_aux_pdu_set_clear(struct ll_adv_set *adv,
 
 	/* set the tertiary extended header and PDU length */
 	ull_adv_aux_hdr_len_fill(com_hdr, len);
-	pdu->len = len + ad_len + ad_fragment_len;
+	pdu->len = len + ad_len;
 
 	/* Start filling tertiary PDU payload based on flags from here
 	 * ==============================================================
@@ -2271,10 +2219,6 @@ uint8_t ull_adv_aux_pdu_set_clear(struct ll_adv_set *adv,
 
 	/* Fill AdvData in tertiary PDU */
 	(void)memmove(dptr, ad_data, ad_len);
-
-	if (ad_fragment) {
-		(void)memcpy(dptr + ad_len, ad_fragment, ad_fragment_len);
-	}
 
 	/* Early exit if no flags set */
 	if (!com_hdr->ext_hdr_len) {
@@ -2426,9 +2370,19 @@ uint32_t ull_adv_aux_evt_init(struct ll_adv_aux_set *aux,
 			      uint32_t *ticks_anchor)
 {
 	uint32_t ticks_slot_overhead;
+	struct lll_adv_aux *lll_aux;
+	struct pdu_adv *pdu_scan;
+	struct pdu_adv *pdu;
+	struct lll_adv *lll;
 	uint32_t time_us;
 
-	time_us = aux_time_min_get(aux);
+	lll_aux = &aux->lll;
+	lll = lll_aux->adv;
+	pdu = lll_adv_aux_data_peek(lll_aux);
+	pdu_scan = lll_adv_scan_rsp_peek(lll);
+
+	/* Calculate the PDU Tx Time and hence the radio event length */
+	time_us = aux_time_get(aux, pdu, pdu_scan);
 
 	/* TODO: active_to_start feature port */
 	aux->ull.ticks_active_to_start = 0;
@@ -2466,8 +2420,7 @@ uint32_t ull_adv_aux_evt_init(struct ll_adv_aux_set *aux,
 		*ticks_anchor = ticks_anchor_aux;
 		*ticks_anchor += HAL_TICKER_US_TO_TICKS(
 					MAX(EVENT_MAFS_US,
-					    EVENT_OVERHEAD_START_US) -
-					EVENT_OVERHEAD_START_US +
+					    EVENT_OVERHEAD_START_US) +
 					(EVENT_TICKER_RES_MARGIN_US << 1));
 	}
 #endif /* CONFIG_BT_CTLR_SCHED_ADVANCED */
@@ -2537,7 +2490,7 @@ struct ll_adv_aux_set *ull_adv_aux_acquire(struct lll_adv *lll)
 	lll_aux->adv = lll;
 
 	lll_adv_data_reset(&lll_aux->data);
-	err = lll_adv_aux_data_init(&lll_aux->data);
+	err = lll_adv_data_init(&lll_aux->data);
 	if (err) {
 		return NULL;
 	}
@@ -2580,11 +2533,51 @@ struct ll_adv_aux_set *ull_adv_aux_get(uint8_t handle)
 uint32_t ull_adv_aux_time_get(const struct ll_adv_aux_set *aux, uint8_t pdu_len,
 			      uint8_t pdu_scan_len)
 {
+	const struct lll_adv_aux *lll_aux;
+	const struct lll_adv *lll;
 	const struct pdu_adv *pdu;
+	uint32_t time_us;
 
-	pdu = lll_adv_aux_data_peek(&aux->lll);
+	lll_aux = &aux->lll;
+	lll = lll_aux->adv;
 
-	return aux_time_get(aux, pdu, pdu_len, pdu_scan_len);
+	if (IS_ENABLED(CONFIG_BT_CTLR_ADV_RESERVE_MAX) &&
+	    (lll->phy_s == PHY_CODED)) {
+		pdu_len = PDU_AC_EXT_PAYLOAD_OVERHEAD;
+		pdu_scan_len = PDU_AC_EXT_PAYLOAD_OVERHEAD;
+	}
+
+	/* NOTE: 16-bit values are sufficient for minimum radio event time
+	 *       reservation, 32-bit are used here so that reservations for
+	 *       whole back-to-back chaining of PDUs can be accomodated where
+	 *       the required microseconds could overflow 16-bits, example,
+	 *       back-to-back chained Coded PHY PDUs.
+	 */
+	time_us = PDU_AC_US(pdu_len, lll->phy_s, lll->phy_flags) +
+		  EVENT_OVERHEAD_START_US + EVENT_OVERHEAD_END_US;
+
+	pdu = lll_adv_aux_data_peek(lll_aux);
+	if ((pdu->adv_ext_ind.adv_mode & BT_HCI_LE_ADV_PROP_CONN) ==
+	    BT_HCI_LE_ADV_PROP_CONN) {
+		const uint16_t conn_req_us =
+			PDU_AC_MAX_US((INITA_SIZE + ADVA_SIZE + LLDATA_SIZE),
+				      lll->phy_s);
+		const uint16_t conn_rsp_us =
+			PDU_AC_US((PDU_AC_EXT_HEADER_SIZE_MIN + ADVA_SIZE +
+				   TARGETA_SIZE), lll->phy_s, lll->phy_flags);
+
+		time_us += EVENT_IFS_MAX_US * 2 + conn_req_us + conn_rsp_us;
+	} else if ((pdu->adv_ext_ind.adv_mode & BT_HCI_LE_ADV_PROP_SCAN) ==
+		   BT_HCI_LE_ADV_PROP_SCAN) {
+		const uint16_t scan_req_us  =
+			PDU_AC_MAX_US((SCANA_SIZE + ADVA_SIZE), lll->phy_s);
+		const uint16_t scan_rsp_us =
+			PDU_AC_US(pdu_scan_len, lll->phy_s, lll->phy_flags);
+
+		time_us += EVENT_IFS_MAX_US * 2 + scan_req_us + scan_rsp_us;
+	}
+
+	return time_us;
 }
 
 void ull_adv_aux_offset_get(struct ll_adv_set *adv)
@@ -2829,22 +2822,12 @@ static inline void aux_release(struct ll_adv_aux_set *aux)
 	mem_release(aux, &adv_aux_free);
 }
 
-static uint32_t aux_time_get(const struct ll_adv_aux_set *aux,
-			     const struct pdu_adv *pdu,
-			     uint8_t pdu_len, uint8_t pdu_scan_len)
+static uint32_t aux_time_get(struct ll_adv_aux_set *aux, struct pdu_adv *pdu,
+			     struct pdu_adv *pdu_scan)
 {
-	const struct lll_adv_aux *lll_aux;
-	const struct lll_adv *lll;
+	struct lll_adv_aux *lll_aux;
+	struct lll_adv *lll;
 	uint32_t time_us;
-
-	lll_aux = &aux->lll;
-	lll = lll_aux->adv;
-
-	if (IS_ENABLED(CONFIG_BT_CTLR_ADV_RESERVE_MAX) &&
-	    (lll->phy_s == PHY_CODED)) {
-		pdu_len = PDU_AC_EXT_PAYLOAD_OVERHEAD;
-		pdu_scan_len = PDU_AC_EXT_PAYLOAD_OVERHEAD;
-	}
 
 	/* NOTE: 16-bit values are sufficient for minimum radio event time
 	 *       reservation, 32-bit are used here so that reservations for
@@ -2852,7 +2835,9 @@ static uint32_t aux_time_get(const struct ll_adv_aux_set *aux,
 	 *       the required microseconds could overflow 16-bits, example,
 	 *       back-to-back chained Coded PHY PDUs.
 	 */
-	time_us = PDU_AC_US(pdu_len, lll->phy_s, lll->phy_flags) +
+	lll_aux = &aux->lll;
+	lll = lll_aux->adv;
+	time_us = PDU_AC_US(pdu->len, lll->phy_s, lll->phy_flags) +
 		  EVENT_OVERHEAD_START_US + EVENT_OVERHEAD_END_US;
 
 	if ((pdu->adv_ext_ind.adv_mode & BT_HCI_LE_ADV_PROP_CONN) ==
@@ -2870,50 +2855,12 @@ static uint32_t aux_time_get(const struct ll_adv_aux_set *aux,
 		const uint16_t scan_req_us  =
 			PDU_AC_MAX_US((SCANA_SIZE + ADVA_SIZE), lll->phy_s);
 		const uint16_t scan_rsp_us =
-			PDU_AC_US(pdu_scan_len, lll->phy_s, lll->phy_flags);
+			PDU_AC_US(pdu_scan->len, lll->phy_s, lll->phy_flags);
 
 		time_us += EVENT_IFS_MAX_US * 2 + scan_req_us + scan_rsp_us;
-
-		/* FIXME: Calculate additional time reservations for scan
-		 *        response chain PDUs, if any.
-		 */
-	} else {
-		/* Non-connectable Non-Scannable */
-
-		/* FIXME: Calculate additional time reservations for chain PDUs,
-		 *        if any.
-		 */
 	}
 
 	return time_us;
-}
-
-static uint32_t aux_time_min_get(const struct ll_adv_aux_set *aux)
-{
-	const struct lll_adv_aux *lll_aux;
-	const struct pdu_adv *pdu_scan;
-	const struct lll_adv *lll;
-	const struct pdu_adv *pdu;
-	uint8_t pdu_scan_len;
-	uint8_t pdu_len;
-
-	lll_aux = &aux->lll;
-	lll = lll_aux->adv;
-	pdu = lll_adv_aux_data_peek(lll_aux);
-	pdu_scan = lll_adv_scan_rsp_peek(lll);
-
-	/* Calculate the PDU Tx Time and hence the radio event length,
-	 * Always use maximum length for common extended header format so that
-	 * ACAD could be update when periodic advertising is active and the
-	 * time reservation need not be updated everytime avoiding overlapping
-	 * with other active states/roles.
-	 */
-	pdu_len = pdu->len - pdu->adv_ext_ind.ext_hdr_len -
-		  PDU_AC_EXT_HEADER_SIZE_MIN + PDU_AC_EXT_HEADER_SIZE_MAX;
-	pdu_scan_len = pdu_scan->len - pdu_scan->adv_ext_ind.ext_hdr_len -
-		       PDU_AC_EXT_HEADER_SIZE_MIN + PDU_AC_EXT_HEADER_SIZE_MAX;
-
-	return aux_time_get(aux, pdu, pdu_len, pdu_scan_len);
 }
 
 static uint8_t aux_time_update(struct ll_adv_aux_set *aux, struct pdu_adv *pdu,
@@ -2926,7 +2873,7 @@ static uint8_t aux_time_update(struct ll_adv_aux_set *aux, struct pdu_adv *pdu,
 	uint32_t time_us;
 	uint32_t ret;
 
-	time_us = aux_time_min_get(aux);
+	time_us = aux_time_get(aux, pdu, pdu_scan);
 	time_ticks = HAL_TICKER_US_TO_TICKS(time_us);
 	if (aux->ull.ticks_slot > time_ticks) {
 		ticks_minus = aux->ull.ticks_slot - time_ticks;

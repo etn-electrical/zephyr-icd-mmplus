@@ -57,7 +57,7 @@
 	};
 
 	lcd_backlight_en {
-		compatible = "regulator-fixed";
+		compatible = "regulator-fixed-sync", "regulator-fixed";
 		regulator-name = "lcd_backlight_enable";
 		enable-gpios = <&gpio0 14 GPIO_ACTIVE_HIGH>;
 		regulator-boot-on;

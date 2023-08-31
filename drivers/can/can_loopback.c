@@ -14,6 +14,8 @@
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 
+#include "can_utils.h"
+
 LOG_MODULE_REGISTER(can_loopback, CONFIG_CAN_LOG_LEVEL);
 
 struct can_loopback_frame {
@@ -31,29 +33,27 @@ struct can_loopback_filter {
 struct can_loopback_data {
 	struct can_loopback_filter filters[CONFIG_CAN_MAX_FILTER];
 	struct k_mutex mtx;
+	bool loopback;
 	struct k_msgq tx_msgq;
 	char msgq_buffer[CONFIG_CAN_LOOPBACK_TX_MSGQ_SIZE * sizeof(struct can_loopback_frame)];
 	struct k_thread tx_thread_data;
 	bool started;
-	bool loopback;
-#ifdef CONFIG_CAN_FD_MODE
-	bool fd;
-#endif /* CONFIG_CAN_FD_MODE */
 
 	K_KERNEL_STACK_MEMBER(tx_thread_stack,
 		      CONFIG_CAN_LOOPBACK_TX_THREAD_STACK_SIZE);
 };
 
-static void receive_frame(const struct device *dev,
-			  const struct can_frame *frame,
-			  struct can_loopback_filter *filter)
+static void dispatch_frame(const struct device *dev,
+			   const struct can_frame *frame,
+			   struct can_loopback_filter *filter)
 {
 	struct can_frame frame_tmp = *frame;
 
 	LOG_DBG("Receiving %d bytes. Id: 0x%x, ID type: %s %s",
 		frame->dlc, frame->id,
-		(frame->flags & CAN_FRAME_IDE) != 0 ? "extended" : "standard",
-		(frame->flags & CAN_FRAME_RTR) != 0 ? ", RTR frame" : "");
+		frame->id_type == CAN_STANDARD_IDENTIFIER ?
+				  "standard" : "extended",
+		frame->rtr == CAN_DATAFRAME ? "" : ", RTR frame");
 
 	filter->rx_cb(dev, &frame_tmp, filter->cb_arg);
 }
@@ -64,34 +64,24 @@ static void tx_thread(void *arg1, void *arg2, void *arg3)
 	struct can_loopback_data *data = dev->data;
 	struct can_loopback_frame frame;
 	struct can_loopback_filter *filter;
-	int ret;
 
 	ARG_UNUSED(arg2);
 	ARG_UNUSED(arg3);
 
 	while (1) {
-		ret = k_msgq_get(&data->tx_msgq, &frame, K_FOREVER);
-		if (ret < 0) {
-			LOG_DBG("Pend on TX queue returned without valid frame (err %d)", ret);
-			continue;
-		}
-		frame.cb(dev, 0, frame.cb_arg);
-
-		if (!data->loopback) {
-			continue;
-		}
-
+		k_msgq_get(&data->tx_msgq, &frame, K_FOREVER);
 		k_mutex_lock(&data->mtx, K_FOREVER);
 
 		for (int i = 0; i < CONFIG_CAN_MAX_FILTER; i++) {
 			filter = &data->filters[i];
-			if (filter->rx_cb != NULL &&
-			    can_frame_matches_filter(&frame.frame, &filter->filter)) {
-				receive_frame(dev, &frame.frame, filter);
+			if (filter->rx_cb &&
+			    can_utils_filter_match(&frame.frame, &filter->filter)) {
+				dispatch_frame(dev, &frame.frame, filter);
 			}
 		}
 
 		k_mutex_unlock(&data->mtx);
+		frame.cb(dev, 0, frame.cb_arg);
 	}
 }
 
@@ -109,29 +99,15 @@ static int can_loopback_send(const struct device *dev,
 
 	LOG_DBG("Sending %d bytes on %s. Id: 0x%x, ID type: %s %s",
 		frame->dlc, dev->name, frame->id,
-		(frame->flags & CAN_FRAME_IDE) != 0 ? "extended" : "standard",
-		(frame->flags & CAN_FRAME_RTR) != 0 ? ", RTR frame" : "");
+		frame->id_type == CAN_STANDARD_IDENTIFIER ?
+				  "standard" : "extended",
+		frame->rtr == CAN_DATAFRAME ? "" : ", RTR frame");
 
 #ifdef CONFIG_CAN_FD_MODE
-	if ((frame->flags & ~(CAN_FRAME_IDE | CAN_FRAME_RTR |
-		CAN_FRAME_FDF | CAN_FRAME_BRS)) != 0) {
-		LOG_ERR("unsupported CAN frame flags 0x%02x", frame->flags);
-		return -ENOTSUP;
-	}
-
-	if ((frame->flags & CAN_FRAME_FDF) != 0) {
-		if (!data->fd) {
-			return -ENOTSUP;
-		}
-
+	if (frame->fd != 0) {
 		max_dlc = CANFD_MAX_DLC;
 	}
-#else /* CONFIG_CAN_FD_MODE */
-	if ((frame->flags & ~(CAN_FRAME_IDE | CAN_FRAME_RTR)) != 0) {
-		LOG_ERR("unsupported CAN frame flags 0x%02x", frame->flags);
-		return -ENOTSUP;
-	}
-#endif /* !CONFIG_CAN_FD_MODE */
+#endif /* CONFIG_CAN_FD_MODE */
 
 	if (frame->dlc > max_dlc) {
 		LOG_ERR("DLC of %d exceeds maximum (%d)", frame->dlc, max_dlc);
@@ -142,17 +118,17 @@ static int can_loopback_send(const struct device *dev,
 		return -ENETDOWN;
 	}
 
+	if (!data->loopback) {
+		return 0;
+	}
+
 	loopback_frame.frame = *frame;
 	loopback_frame.cb = callback;
 	loopback_frame.cb_arg = user_data;
 
 	ret = k_msgq_put(&data->tx_msgq, &loopback_frame, timeout);
-	if (ret < 0) {
-		LOG_DBG("TX queue full (err %d)", ret);
-		return -EAGAIN;
-	}
 
-	return 0;
+	return  ret ? -EAGAIN : 0;
 }
 
 
@@ -174,17 +150,14 @@ static int can_loopback_add_rx_filter(const struct device *dev, can_rx_callback_
 	struct can_loopback_filter *loopback_filter;
 	int filter_id;
 
-	LOG_DBG("Setting filter ID: 0x%x, mask: 0x%x", filter->id, filter->mask);
-
-#ifdef CONFIG_CAN_FD_MODE
-	if ((filter->flags & ~(CAN_FILTER_IDE | CAN_FILTER_DATA |
-							CAN_FILTER_RTR | CAN_FILTER_FDF)) != 0) {
-#else
-	if ((filter->flags & ~(CAN_FILTER_IDE | CAN_FILTER_DATA | CAN_FILTER_RTR)) != 0) {
-#endif
-		LOG_ERR("unsupported CAN filter flags 0x%02x", filter->flags);
-		return -ENOTSUP;
-	}
+	LOG_DBG("Setting filter ID: 0x%x, mask: 0x%x", filter->id,
+		    filter->id_mask);
+	LOG_DBG("Filter type: %s ID %s mask",
+		filter->id_type == CAN_STANDARD_IDENTIFIER ?
+				   "standard" : "extended",
+		((filter->id_type && (filter->id_mask == CAN_STD_ID_MASK)) ||
+		(!filter->id_type && (filter->id_mask == CAN_EXT_ID_MASK))) ?
+		"with" : "without");
 
 	k_mutex_lock(&data->mtx, K_FOREVER);
 	filter_id = get_free_filter(data->filters);
@@ -210,11 +183,6 @@ static int can_loopback_add_rx_filter(const struct device *dev, can_rx_callback_
 static void can_loopback_remove_rx_filter(const struct device *dev, int filter_id)
 {
 	struct can_loopback_data *data = dev->data;
-
-	if (filter_id >= ARRAY_SIZE(data->filters)) {
-		LOG_ERR("filter ID %d out-of-bounds", filter_id);
-		return;
-	}
 
 	LOG_DBG("Remove filter ID: %d", filter_id);
 	k_mutex_lock(&data->mtx, K_FOREVER);
@@ -258,8 +226,6 @@ static int can_loopback_stop(const struct device *dev)
 
 	data->started = false;
 
-	k_msgq_purge(&data->tx_msgq);
-
 	return 0;
 }
 
@@ -276,8 +242,6 @@ static int can_loopback_set_mode(const struct device *dev, can_mode_t mode)
 		LOG_ERR("unsupported mode: 0x%08x", mode);
 		return -ENOTSUP;
 	}
-
-	data->fd = (mode & CAN_MODE_FD) != 0;
 #else
 	if ((mode & ~(CAN_MODE_LOOPBACK)) != 0) {
 		LOG_ERR("unsupported mode: 0x%08x", mode);
@@ -285,8 +249,7 @@ static int can_loopback_set_mode(const struct device *dev, can_mode_t mode)
 	}
 #endif /* CONFIG_CAN_FD_MODE */
 
-	data->loopback = (mode & CAN_MODE_LOOPBACK) != 0;
-
+	data->loopback = (mode & CAN_MODE_LOOPBACK) != 0 ? 1 : 0;
 	return 0;
 }
 
@@ -372,9 +335,9 @@ static int can_loopback_get_core_clock(const struct device *dev, uint32_t *rate)
 	return 0;
 }
 
-static int can_loopback_get_max_filters(const struct device *dev, bool ide)
+static int can_loopback_get_max_filters(const struct device *dev, enum can_ide id_type)
 {
-	ARG_UNUSED(ide);
+	ARG_UNUSED(id_type);
 
 	return CONFIG_CAN_MAX_FILTER;
 }

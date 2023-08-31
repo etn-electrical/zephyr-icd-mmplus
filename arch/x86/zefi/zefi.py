@@ -142,7 +142,7 @@ def build_elf(elf_file, include_dirs):
 def parse_args():
     parser = argparse.ArgumentParser(
         description=__doc__,
-        formatter_class=argparse.RawDescriptionHelpFormatter, allow_abbrev=False)
+        formatter_class=argparse.RawDescriptionHelpFormatter)
 
     parser.add_argument("-c", "--compiler", required=True, help="Compiler to be used")
     parser.add_argument("-o", "--objcopy", required=True, help="objcopy to be used")

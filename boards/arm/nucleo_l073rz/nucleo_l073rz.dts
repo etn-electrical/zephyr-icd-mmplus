@@ -18,6 +18,7 @@
 		zephyr,shell-uart = &usart2;
 		zephyr,sram = &sram0;
 		zephyr,flash = &flash0;
+		zephyr,entropy = &rng;
 	};
 
 	leds {
@@ -60,7 +61,6 @@
 		sw0 = &user_button;
 		pwm-led0 = &green_pwm_led;
 		watchdog0 = &iwdg;
-		eeprom-0 = &eeprom;
 	};
 };
 
@@ -75,10 +75,6 @@
 };
 
 &clk_lsi {
-	status = "okay";
-};
-
-&clk_hsi48 {
 	status = "okay";
 };
 
@@ -161,9 +157,5 @@
 };
 
 &rng {
-	status = "okay";
-};
-
-&eeprom {
 	status = "okay";
 };

@@ -36,14 +36,14 @@
 			/* GPIO241/CMP_VOUT0/PWM0_ALT on schematic,
 			 * LED4 on silkscreen.
 			 */
-			gpios = <MCHP_GPIO_DECODE_241 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio_240_276 1 GPIO_ACTIVE_HIGH>;
 			label = "LED 4";
 		};
 		led3: led_1 {
 			/* GPIO175/CMP_VOUT1/PWM8_ALT on schematic,
 			 * LED5 on silkscreen.
 			 */
-			gpios = <MCHP_GPIO_DECODE_175 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio_140_176 29 GPIO_ACTIVE_HIGH>;
 			label = "LED 5";
 		};
 	};
@@ -66,7 +66,6 @@
 &cpu0 {
 	clock-frequency = <96000000>;
 	status = "okay";
-	cpu-power-states = <&idle &suspend_to_ram>;
 };
 
 /* Initialize ECIA. Does not initialize child devices */
@@ -102,9 +101,7 @@
 	status = "okay";
 	pinctrl-0 = <&adc00_gpio200 &adc03_gpio203
 		     &adc04_gpio204 &adc05_gpio205>;
-	pinctrl-1 = <&adc00_gpio200_sleep &adc03_gpio203_sleep
-		     &adc04_gpio204_sleep &adc05_gpio205_sleep>;
-	pinctrl-names = "default", "sleep";
+	pinctrl-names = "default";
 };
 
 &espi0 {
@@ -208,11 +205,10 @@
 
 &spi0 {
 	status = "okay";
-	compatible = "microchip,xec-qmspi-ldma";
 	clock-frequency = <4000000>;
 	lines = <4>;
-	chip-select = <0>;
-	port-sel = <0>; /* Shared SPI */
+	chip_select = <0>;
+	port_sel = <0>; /* Shared SPI */
 
 	pinctrl-0 = < &shd_cs0_n_gpio055
 		      &shd_clk_gpio056

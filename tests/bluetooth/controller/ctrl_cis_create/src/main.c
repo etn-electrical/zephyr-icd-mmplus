@@ -6,6 +6,7 @@
 
 #include <zephyr/types.h>
 #include <zephyr/ztest.h>
+#include "kconfig.h"
 
 #include <zephyr/bluetooth/hci.h>
 #include <zephyr/sys/byteorder.h>
@@ -18,14 +19,12 @@
 #include "util/memq.h"
 #include "util/dbuf.h"
 
-#include "pdu_df.h"
-#include "lll/pdu_vendor.h"
 #include "pdu.h"
 #include "ll.h"
 #include "ll_settings.h"
 
 #include "lll.h"
-#include "lll/lll_df_types.h"
+#include "lll_df_types.h"
 #include "lll_conn_iso.h"
 #include "lll_conn.h"
 
@@ -42,9 +41,9 @@
 #include "helper_pdu.h"
 #include "helper_util.h"
 
-static struct ll_conn conn;
+struct ll_conn conn;
 
-static void cis_create_setup(void *data)
+static void setup(void)
 {
 	test_setup(&conn);
 }
@@ -114,7 +113,7 @@ static struct pdu_data_llctrl_cis_ind remote_cis_ind = {
  *    |      LE CIS ESTABLISHED   |                           |
  *    |<--------------------------|                           |
  */
-ZTEST(cis_create, test_cc_create_periph_rem_host_accept)
+static void test_cc_create_periph_rem_host_accept(void)
 {
 	struct node_tx *tx;
 	struct node_rx_pdu *ntf;
@@ -205,6 +204,9 @@ ZTEST(cis_create, test_cc_create_periph_rem_host_accept)
 	/* Done */
 	event_done(&conn);
 
+	/* There should NOT be a host notification */
+	ut_rx_q_is_empty();
+
 	/* Prepare */
 	event_prepare(&conn);
 
@@ -215,8 +217,8 @@ ZTEST(cis_create, test_cc_create_periph_rem_host_accept)
 	/* Done */
 	event_done(&conn);
 
-	zassert_equal(llcp_ctx_buffers_free(), test_ctx_buffers_cnt(),
-		      "Free CTX buffers %d", llcp_ctx_buffers_free());
+	zassert_equal(ctx_buffers_free(), test_ctx_buffers_cnt(),
+		      "Free CTX buffers %d", ctx_buffers_free());
 }
 
 /*
@@ -240,7 +242,7 @@ ZTEST(cis_create, test_cc_create_periph_rem_host_accept)
  *    |                           |-------------------------->|
  *    |                           |                           |
  */
-ZTEST(cis_create, test_cc_create_periph_rem_host_reject)
+static void test_cc_create_periph_rem_host_reject(void)
 {
 	struct node_tx *tx;
 	struct node_rx_pdu *ntf;
@@ -286,8 +288,8 @@ ZTEST(cis_create, test_cc_create_periph_rem_host_reject)
 	/* Done */
 	event_done(&conn);
 
-	zassert_equal(llcp_ctx_buffers_free(), test_ctx_buffers_cnt(),
-		      "Free CTX buffers %d", llcp_ctx_buffers_free());
+	zassert_equal(ctx_buffers_free(), test_ctx_buffers_cnt(),
+		      "Free CTX buffers %d", ctx_buffers_free());
 }
 
 /*
@@ -314,7 +316,7 @@ ZTEST(cis_create, test_cc_create_periph_rem_host_reject)
  *    |                           |-------------------------->|
  *    |                           |                           |
  */
-ZTEST(cis_create, test_cc_create_periph_rem_host_accept_to)
+static void test_cc_create_periph_rem_host_accept_to(void)
 {
 	struct node_tx *tx;
 	struct node_rx_pdu *ntf;
@@ -366,8 +368,8 @@ ZTEST(cis_create, test_cc_create_periph_rem_host_accept_to)
 	/* Done */
 	event_done(&conn);
 
-	zassert_equal(llcp_ctx_buffers_free(), test_ctx_buffers_cnt(),
-		      "Free CTX buffers %d", llcp_ctx_buffers_free());
+	zassert_equal(ctx_buffers_free(), test_ctx_buffers_cnt(),
+		      "Free CTX buffers %d", ctx_buffers_free());
 }
 
 /*
@@ -390,7 +392,7 @@ ZTEST(cis_create, test_cc_create_periph_rem_host_accept_to)
  *    |                 |------------------------------>|
  *    |                 |                               |
  */
-ZTEST(cis_create, test_cc_create_periph_rem_invalid_phy)
+static void test_cc_create_periph_rem_invalid_phy(void)
 {
 	static struct pdu_data_llctrl_cis_req remote_cis_req_invalid_phy = {
 		.cig_id           =   0x01,
@@ -445,8 +447,22 @@ ZTEST(cis_create, test_cc_create_periph_rem_invalid_phy)
 	/* Done */
 	event_done(&conn);
 
-	zassert_equal(llcp_ctx_buffers_free(), test_ctx_buffers_cnt(),
-		      "Free CTX buffers %d", llcp_ctx_buffers_free());
+	zassert_equal(ctx_buffers_free(), test_ctx_buffers_cnt(),
+		      "Free CTX buffers %d", ctx_buffers_free());
 }
 
-ZTEST_SUITE(cis_create, NULL, NULL, cis_create_setup, NULL, NULL);
+void test_main(void)
+{
+	ztest_test_suite(
+		cis_create,
+		ztest_unit_test_setup_teardown(test_cc_create_periph_rem_host_accept, setup,
+					       unit_test_noop),
+		ztest_unit_test_setup_teardown(test_cc_create_periph_rem_host_reject, setup,
+					       unit_test_noop),
+		ztest_unit_test_setup_teardown(test_cc_create_periph_rem_host_accept_to, setup,
+					       unit_test_noop),
+		ztest_unit_test_setup_teardown(test_cc_create_periph_rem_invalid_phy, setup,
+					       unit_test_noop));
+
+	ztest_run_test_suite(cis_create);
+}

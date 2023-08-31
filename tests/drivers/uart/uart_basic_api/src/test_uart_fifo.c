@@ -45,7 +45,6 @@ static void uart_fifo_callback(const struct device *dev, void *user_data)
 {
 	uint8_t recvData;
 	static int tx_data_idx;
-	int ret;
 
 	ARG_UNUSED(user_data);
 
@@ -65,15 +64,10 @@ static void uart_fifo_callback(const struct device *dev, void *user_data)
 		 * be able to put at least one byte into a FIFO. If not,
 		 * well, we'll fail test.
 		 */
-		ret = uart_fifo_fill(dev, (uint8_t *)&fifo_data[tx_data_idx],
-				     DATA_SIZE - char_sent);
-		if (ret > 0) {
+		if (uart_fifo_fill(dev,
+				   (uint8_t *)&fifo_data[tx_data_idx++], 1) > 0) {
 			data_transmitted = true;
-			char_sent += ret;
-			tx_data_idx += ret;
-		} else {
-			uart_irq_tx_disable(dev);
-			return;
+			char_sent++;
 		}
 
 		if (tx_data_idx == DATA_SIZE) {

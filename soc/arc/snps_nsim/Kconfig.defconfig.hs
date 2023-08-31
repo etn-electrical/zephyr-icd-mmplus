@@ -30,7 +30,4 @@ config ARC_FIRQ
 config CACHE_MANAGEMENT
 	default y
 
-config ARC_MPU_VER
-	default 3
-
 endif # SOC_NSIM_HS

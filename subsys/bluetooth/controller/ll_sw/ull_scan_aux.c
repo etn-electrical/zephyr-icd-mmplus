@@ -18,8 +18,6 @@
 
 #include "ticker/ticker.h"
 
-#include "pdu_df.h"
-#include "lll/pdu_vendor.h"
 #include "pdu.h"
 
 #include "lll.h"
@@ -40,8 +38,9 @@
 #include "ull_sync_iso_internal.h"
 #include "ull_df_internal.h"
 
-#include <zephyr/bluetooth/hci.h>
-
+#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_DEBUG_HCI_DRIVER)
+#define LOG_MODULE_NAME bt_ctlr_ull_scan_aux
+#include "common/log.h"
 #include <soc.h>
 #include "hal/debug.h"
 
@@ -568,7 +567,8 @@ void ull_scan_aux_setup(memq_link_t *link, struct node_rx_hdr *rx)
 			sync_lll->lll_aux = lll_aux;
 
 			/* In sync context, dispatch immediately */
-			ll_rx_put_sched(link, rx);
+			ll_rx_put(link, rx);
+			ll_rx_sched();
 		} else {
 			lll->lll_aux = lll_aux;
 		}
@@ -746,7 +746,8 @@ ull_scan_aux_rx_flush:
 
 			LL_ASSERT(sync_lll);
 
-			ll_rx_put_sched(link, rx);
+			ll_rx_put(link, rx);
+			ll_rx_sched();
 
 			sync = HDR_LLL2ULL(sync_lll);
 			if (unlikely(sync->is_stop && sync_lll->lll_aux)) {
@@ -1205,7 +1206,8 @@ static void aux_sync_partial(void *param)
 	LL_ASSERT(rx);
 	rx->rx_ftr.aux_sched = 1U;
 
-	ll_rx_put_sched(rx->link, rx);
+	ll_rx_put(rx->link, rx);
+	ll_rx_sched();
 }
 
 static void aux_sync_incomplete(void *param)

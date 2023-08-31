@@ -26,11 +26,8 @@
  */
 #define WDT_ALLOW_CALLBACK 0
 #elif DT_HAS_COMPAT_STATUS_OKAY(raspberrypi_pico_watchdog)
+#define WDT_MAX_WINDOW  600000U
 #define WDT_ALLOW_CALLBACK 0
-#elif DT_HAS_COMPAT_STATUS_OKAY(gd_gd32_wwdgt)
-#define WDT_MAX_WINDOW 24U
-#define WDT_MIN_WINDOW 18U
-#define WDG_FEED_INTERVAL 12U
 #endif
 
 #ifndef WDT_ALLOW_CALLBACK
@@ -39,14 +36,6 @@
 
 #ifndef WDT_MAX_WINDOW
 #define WDT_MAX_WINDOW  1000U
-#endif
-
-#ifndef WDT_MIN_WINDOW
-#define WDT_MIN_WINDOW  0U
-#endif
-
-#ifndef WDG_FEED_INTERVAL
-#define WDG_FEED_INTERVAL 50U
 #endif
 
 #if WDT_ALLOW_CALLBACK
@@ -83,7 +72,7 @@ void main(void)
 		.flags = WDT_FLAG_RESET_SOC,
 
 		/* Expire watchdog after max window */
-		.window.min = WDT_MIN_WINDOW,
+		.window.min = 0U,
 		.window.max = WDT_MAX_WINDOW,
 	};
 
@@ -114,16 +103,12 @@ void main(void)
 		return;
 	}
 
-#if WDT_MIN_WINDOW != 0
-	/* Wait opening window. */
-	k_msleep(WDT_MIN_WINDOW);
-#endif
 	/* Feeding watchdog. */
 	printk("Feeding watchdog %d times\n", WDT_FEED_TRIES);
 	for (int i = 0; i < WDT_FEED_TRIES; ++i) {
 		printk("Feeding watchdog...\n");
 		wdt_feed(wdt, wdt_channel_id);
-		k_sleep(K_MSEC(WDG_FEED_INTERVAL));
+		k_sleep(K_MSEC(50));
 	}
 
 	/* Waiting for the SoC reset. */

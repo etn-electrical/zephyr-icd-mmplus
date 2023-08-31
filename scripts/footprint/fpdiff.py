@@ -27,7 +27,7 @@ importer = DictImporter()
 
 def parse_args():
     parser = argparse.ArgumentParser(
-                description="Compare footprint sizes of two builds.", allow_abbrev=False)
+                description="Compare footprint sizes of two builds.")
     parser.add_argument("file1", help="First file")
     parser.add_argument("file2", help="Second file")
 

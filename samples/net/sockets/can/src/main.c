@@ -32,9 +32,11 @@ static struct k_thread rx_data;
 #define CLOSE_PERIOD 15
 
 static const struct can_filter zfilter = {
-	.flags = CAN_FILTER_DATA,
+	.id_type = CAN_STANDARD_IDENTIFIER,
+	.rtr = CAN_DATAFRAME,
 	.id = 0x1,
-	.mask = CAN_STD_ID_MASK
+	.rtr_mask = 1,
+	.id_mask = CAN_STD_ID_MASK
 };
 
 static struct socketcan_filter sfilter;
@@ -46,8 +48,10 @@ static void tx(int *can_fd)
 	struct socketcan_frame sframe = {0};
 	int ret, i;
 
-	zframe.id = 0x1;
 	zframe.dlc = 8U;
+	zframe.id_type = CAN_STANDARD_IDENTIFIER;
+	zframe.id = 0x1;
+	zframe.rtr = CAN_DATAFRAME;
 
 	for (i = 0; i < zframe.dlc; i++) {
 		zframe.data[i] = 0xF0 | i;
@@ -124,15 +128,10 @@ static void rx(int *can_fd, int *do_close_period,
 
 		socketcan_to_can_frame(&sframe, &zframe);
 
-		LOG_INF("[%d] CAN frame: IDE 0x%x RTR 0x%x ID 0x%x DLC 0x%x",
-			fd,
-			(zframe.flags & CAN_FRAME_IDE) != 0 ? 1 : 0,
-			(zframe.flags & CAN_FRAME_RTR) != 0 ? 1 : 0,
-			zframe.id, zframe.dlc);
+		LOG_INF("[%d] CAN frame: type 0x%x RTR 0x%x EID 0x%x DLC 0x%x",
+			fd, zframe.id_type, zframe.rtr, zframe.id, zframe.dlc);
 
-		if ((zframe.flags & CAN_FRAME_RTR) != 0) {
-			LOG_INF("[%d] EXT Remote frame received", fd);
-		} else {
+		if (!zframe.rtr) {
 			if (zframe.dlc > 8) {
 				data = (uint8_t *)zframe.data_32;
 			} else {
@@ -140,6 +139,8 @@ static void rx(int *can_fd, int *do_close_period,
 			}
 
 			LOG_HEXDUMP_INF(data, zframe.dlc, "Data");
+		} else {
+			LOG_INF("[%d] EXT Remote frame received", fd);
 		}
 
 		if (POINTER_TO_INT(do_close_period) > 0) {

@@ -14,7 +14,6 @@ LOG_MODULE_REGISTER(adc_mchp_xec);
 #include <zephyr/drivers/pinctrl.h>
 #include <soc.h>
 #include <errno.h>
-#include <zephyr/irq.h>
 
 #define ADC_CONTEXT_USES_KERNEL_TIMER
 #include "adc_context.h"

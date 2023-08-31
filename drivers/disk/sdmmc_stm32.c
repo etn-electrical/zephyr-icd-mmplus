@@ -12,9 +12,7 @@
 #include <zephyr/drivers/clock_control/stm32_clock_control.h>
 #include <zephyr/drivers/pinctrl.h>
 #include <zephyr/drivers/gpio.h>
-#include <zephyr/drivers/reset.h>
 #include <zephyr/logging/log.h>
-#include <zephyr/irq.h>
 #include <soc.h>
 #include <stm32_ll_rcc.h>
 
@@ -48,7 +46,7 @@ typedef void (*irq_config_func_t)(const struct device *dev);
 
 #if STM32_SDMMC_USE_DMA
 
-static const uint32_t table_priority[] = {
+uint32_t table_priority[] = {
 	DMA_PRIORITY_LOW,
 	DMA_PRIORITY_MEDIUM,
 	DMA_PRIORITY_HIGH,
@@ -74,9 +72,8 @@ struct stm32_sdmmc_priv {
 	struct gpio_callback cd_cb;
 	struct gpio_dt_spec cd;
 	struct gpio_dt_spec pe;
-	struct stm32_pclken *pclken;
+	struct stm32_pclken pclken;
 	const struct pinctrl_dev_config *pcfg;
-	const struct reset_dt_spec reset;
 
 #if STM32_SDMMC_USE_DMA
 	struct sdmmc_dma_stream dma_rx;
@@ -134,36 +131,39 @@ static int stm32_sdmmc_clock_enable(struct stm32_sdmmc_priv *priv)
 {
 	const struct device *clock;
 
-	/* HSI48 Clock is enabled through using the device tree */
+#if CONFIG_SOC_SERIES_STM32L4X
+	LL_RCC_PLLSAI1_Disable();
+	/* Configure PLLSA11 to enable 48M domain */
+	LL_RCC_PLLSAI1_ConfigDomain_48M(LL_RCC_PLLSOURCE_HSI,
+					LL_RCC_PLLM_DIV_1,
+					8, LL_RCC_PLLSAI1Q_DIV_8);
+
+	/* Enable PLLSA1 */
+	LL_RCC_PLLSAI1_Enable();
+
+	/*  Enable PLLSAI1 output mapped on 48MHz domain clock */
+	LL_RCC_PLLSAI1_EnableDomain_48M();
+
+	/* Wait for PLLSA1 ready flag */
+	while (LL_RCC_PLLSAI1_IsReady() != 1)
+		;
+
+	LL_RCC_SetSDMMCClockSource(LL_RCC_SDMMC1_CLKSOURCE_PLLSAI1);
+#endif
+
+#if defined(CONFIG_SOC_SERIES_STM32L5X) || \
+	defined(CONFIG_SOC_SERIES_STM32U5X)
+	/* By default the SDMMC clock source is set to 0 --> 48MHz, must be enabled */
+	LL_RCC_HSI48_Enable();
+	while (!LL_RCC_HSI48_IsReady()) {
+	}
+#endif /* CONFIG_SOC_SERIES_STM32L5X ||
+	* CONFIG_SOC_SERIES_STM32U5X
+	*/
 	clock = DEVICE_DT_GET(STM32_CLOCK_CONTROL_NODE);
 
-	if (DT_INST_NUM_CLOCKS(0) > 1) {
-		if (clock_control_configure(clock,
-					    (clock_control_subsys_t *)&priv->pclken[1],
-					    NULL) != 0) {
-			LOG_ERR("Failed to enable SDMMC domain clock");
-			return -EIO;
-		}
-	}
-
-	if (IS_ENABLED(CONFIG_SDMMC_STM32_CLOCK_CHECK)) {
-		uint32_t sdmmc_clock_rate;
-
-		if (clock_control_get_rate(clock,
-					   (clock_control_subsys_t *)&priv->pclken[1],
-					   &sdmmc_clock_rate) != 0) {
-			LOG_ERR("Failed to get SDMMC domain clock rate");
-			return -EIO;
-		}
-
-		if (sdmmc_clock_rate != MHZ(48)) {
-			LOG_ERR("SDMMC Clock is not 48MHz (%d)", sdmmc_clock_rate);
-			return -ENOTSUP;
-		}
-	}
-
 	/* Enable the APB clock for stm32_sdmmc */
-	return clock_control_on(clock, (clock_control_subsys_t *)&priv->pclken[0]);
+	return clock_control_on(clock, (clock_control_subsys_t *)&priv->pclken);
 }
 
 static int stm32_sdmmc_clock_disable(struct stm32_sdmmc_priv *priv)
@@ -241,7 +241,7 @@ static int stm32_sdmmc_dma_init(struct stm32_sdmmc_priv *priv)
 	HAL_DMA_DeInit(&dma_tx_handle);
 	HAL_DMA_Init(&dma_tx_handle);
 
-	err = stm32_sdmmc_configure_dma(&dma_rx_handle, &priv->dma_rx);
+	stm32_sdmmc_configure_dma(&dma_rx_handle, &priv->dma_rx);
 	if (err) {
 		LOG_ERR("failed to init rx dma");
 		return err;
@@ -270,22 +270,12 @@ static int stm32_sdmmc_access_init(struct disk_info *disk)
 	}
 
 #if STM32_SDMMC_USE_DMA
-	err = stm32_sdmmc_dma_init(priv);
-	if (err) {
-		LOG_ERR("DMA init failed");
-		return err;
-	}
+	stm32_sdmmc_dma_init(priv);
 #endif
 
 	err = stm32_sdmmc_clock_enable(priv);
 	if (err) {
 		LOG_ERR("failed to init clocks");
-		return err;
-	}
-
-	err = reset_line_toggle_dt(&priv->reset);
-	if (err) {
-		LOG_ERR("failed to reset peripheral");
 		return err;
 	}
 
@@ -326,7 +316,7 @@ static int stm32_sdmmc_access_read(struct disk_info *disk, uint8_t *data_buf,
 
 	k_sem_take(&priv->thread_lock, K_FOREVER);
 
-#if STM32_SDMMC_USE_DMA || IS_ENABLED(DT_PROP(DT_DRV_INST(0), idma))
+#if STM32_SDMMC_USE_DMA
 	err = HAL_SD_ReadBlocks_DMA(&priv->hsd, data_buf, start_sector,
 				num_sector);
 #else
@@ -365,7 +355,7 @@ static int stm32_sdmmc_access_write(struct disk_info *disk,
 
 	k_sem_take(&priv->thread_lock, K_FOREVER);
 
-#if STM32_SDMMC_USE_DMA || IS_ENABLED(DT_PROP(DT_DRV_INST(0), idma))
+#if STM32_SDMMC_USE_DMA
 	err = HAL_SD_WriteBlocks_DMA(&priv->hsd, (uint8_t *)data_buf, start_sector,
 				 num_sector);
 #else
@@ -583,11 +573,6 @@ static int disk_stm32_sdmmc_init(const struct device *dev)
 		return -ENODEV;
 	}
 
-	if (!device_is_ready(priv->reset.dev)) {
-		LOG_ERR("reset control device not ready");
-		return -ENODEV;
-	}
-
 	k_work_init(&priv->work, stm32_sdmmc_cd_handler);
 
 	/* Configure dt provided device signals when available */
@@ -682,8 +667,6 @@ static void stm32_sdmmc_irq_config_func(const struct device *dev)
 #define SDMMC_BUS_WIDTH SDMMC_BUS_WIDE_8B
 #endif /* DT_INST_PROP(0, bus_width) */
 
-static struct stm32_pclken pclken_sdmmc[] = STM32_DT_INST_CLOCKS(0);
-
 static struct stm32_sdmmc_priv stm32_sdmmc_priv_1 = {
 	.irq_config = stm32_sdmmc_irq_config_func,
 	.hsd = {
@@ -696,15 +679,17 @@ static struct stm32_sdmmc_priv stm32_sdmmc_priv_1 = {
 #if DT_INST_NODE_HAS_PROP(0, pwr_gpios)
 	.pe = GPIO_DT_SPEC_INST_GET(0, pwr_gpios),
 #endif
-	.pclken = pclken_sdmmc,
+	.pclken = {
+		.bus = DT_INST_CLOCKS_CELL(0, bus),
+		.enr = DT_INST_CLOCKS_CELL(0, bits),
+	},
 	.pcfg = PINCTRL_DT_INST_DEV_CONFIG_GET(0),
-	.reset = RESET_DT_SPEC_INST_GET(0),
 	SDMMC_DMA_CHANNEL(rx, RX)
 	SDMMC_DMA_CHANNEL(tx, TX)
 };
 
 DEVICE_DT_INST_DEFINE(0, disk_stm32_sdmmc_init, NULL,
 		    &stm32_sdmmc_priv_1, NULL, POST_KERNEL,
-		    CONFIG_SD_INIT_PRIORITY,
+		    CONFIG_SDMMC_INIT_PRIORITY,
 		    NULL);
 #endif

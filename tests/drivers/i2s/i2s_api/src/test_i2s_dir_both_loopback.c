@@ -18,7 +18,7 @@
 static ZTEST_DMEM const struct device *dev_i2s;
 static ZTEST_DMEM bool dir_both_supported;
 
-ZTEST_USER(i2s_dir_both_loopback, test_i2s_dir_both_transfer_configure_0)
+void test_i2s_dir_both_transfer_configure_0(void)
 {
 	int ret;
 
@@ -47,7 +47,7 @@ ZTEST_USER(i2s_dir_both_loopback, test_i2s_dir_both_transfer_configure_0)
  * - Sending / receiving a short sequence of data returns success.
  * - DRAIN trigger empties the transmit queue and stops both streams.
  */
-ZTEST_USER(i2s_dir_both_loopback, test_i2s_dir_both_transfer_short)
+void test_i2s_dir_both_transfer_short(void)
 {
 	if (!dir_both_supported) {
 		TC_PRINT("I2S_DIR_BOTH value is not supported.\n");
@@ -102,7 +102,7 @@ ZTEST_USER(i2s_dir_both_loopback, test_i2s_dir_both_transfer_short)
  * - Sending / receiving a long sequence of data returns success.
  * - DRAIN trigger empties the transmit queue and stops both streams.
  */
-ZTEST_USER(i2s_dir_both_loopback, test_i2s_dir_both_transfer_long)
+void test_i2s_dir_both_transfer_long(void)
 {
 	if (!dir_both_supported) {
 		TC_PRINT("I2S_DIR_BOTH value is not supported.\n");
@@ -147,7 +147,7 @@ ZTEST_USER(i2s_dir_both_loopback, test_i2s_dir_both_transfer_long)
  *   consecutive START trigger restarts transfer / reception with the next data
  *   block.
  */
-ZTEST_USER(i2s_dir_both_loopback, test_i2s_dir_both_transfer_restart)
+void test_i2s_dir_both_transfer_restart(void)
 {
 	if (!dir_both_supported) {
 		TC_PRINT("I2S_DIR_BOTH value is not supported.\n");
@@ -212,7 +212,7 @@ ZTEST_USER(i2s_dir_both_loopback, test_i2s_dir_both_transfer_restart)
  * - Sending PREPARE trigger after the RX buffer overrun occurred changes
  *   the interface state to READY.
  */
-ZTEST_USER(i2s_dir_both_loopback, test_i2s_dir_both_transfer_rx_overrun)
+void test_i2s_dir_both_transfer_rx_overrun(void)
 {
 	if (!dir_both_supported) {
 		TC_PRINT("I2S_DIR_BOTH value is not supported.\n");
@@ -281,7 +281,7 @@ ZTEST_USER(i2s_dir_both_loopback, test_i2s_dir_both_transfer_rx_overrun)
  * - Sending PREPARE trigger after the TX buffer underrun occurred changes
  *   the interface state to READY.
  */
-ZTEST_USER(i2s_dir_both_loopback, test_i2s_dir_both_transfer_tx_underrun)
+void test_i2s_dir_both_transfer_tx_underrun(void)
 {
 	if (!dir_both_supported) {
 		TC_PRINT("I2S_DIR_BOTH value is not supported.\n");

@@ -22,8 +22,6 @@
 
 #include "ticker/ticker.h"
 
-#include "pdu_df.h"
-#include "lll/pdu_vendor.h"
 #include "pdu.h"
 
 #include "lll.h"
@@ -50,7 +48,7 @@
 #include "ull_internal.h"
 #include "ull_adv_internal.h"
 #include "ull_conn_internal.h"
-#include "ull_peripheral_internal.h"
+#include "ull_periph_internal.h"
 
 #include "ll.h"
 
@@ -62,6 +60,9 @@
 #include "ull_llcp.h"
 #endif
 
+#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_DEBUG_HCI_DRIVER)
+#define LOG_MODULE_NAME bt_ctlr_ull_periph
+#include "common/log.h"
 #include "hal/debug.h"
 
 static void invalid_release(struct ull_hdr *hdr, struct lll_conn *lll,
@@ -85,7 +86,6 @@ void ull_periph_setup(struct node_rx_hdr *rx, struct node_rx_ftr *ftr,
 	struct ll_adv_set *adv;
 	uint32_t ticker_status;
 	uint8_t peer_addr_type;
-	uint32_t ticks_at_stop;
 	uint16_t win_delay_us;
 	struct node_rx_cc *cc;
 	struct ll_conn *conn;
@@ -93,6 +93,7 @@ void ull_periph_setup(struct node_rx_hdr *rx, struct node_rx_ftr *ftr,
 	uint16_t max_rx_time;
 	uint16_t win_offset;
 	memq_link_t *link;
+	uint16_t timeout;
 	uint8_t chan_sel;
 	void *node;
 
@@ -205,7 +206,9 @@ void ull_periph_setup(struct node_rx_hdr *rx, struct node_rx_ftr *ftr,
 		CONN_INT_UNIT_US;
 
 	/* procedure timeouts */
-	conn->supervision_timeout = sys_le16_to_cpu(pdu_adv->connect_ind.timeout);
+	timeout = sys_le16_to_cpu(pdu_adv->connect_ind.timeout);
+	conn->supervision_reload =
+		RADIO_CONN_EVENTS((timeout * 10U * 1000U), conn_interval_us);
 
 #if defined(CONFIG_BT_LL_SW_LLCP_LEGACY)
 	conn->procedure_reload =
@@ -215,17 +218,9 @@ void ull_periph_setup(struct node_rx_hdr *rx, struct node_rx_ftr *ftr,
 	ull_cp_prt_reload_set(conn, conn_interval_us);
 #endif /* CONFIG_BT_LL_SW_LLCP_LEGACY */
 
-#if !defined(CONFIG_BT_LL_SW_LLCP_LEGACY)
-#if defined(CONFIG_BT_CTLR_CONN_ISO)
-	uint16_t conn_accept_timeout;
-
-	(void)ll_conn_iso_accept_timeout_get(&conn_accept_timeout);
-	conn->connect_accept_to = conn_accept_timeout * 625U;
-#else
+#if (!defined(CONFIG_BT_LL_SW_LLCP_LEGACY))
 	conn->connect_accept_to = DEFAULT_CONNECTION_ACCEPT_TIMEOUT_US;
-#endif /* CONFIG_BT_CTLR_CONN_ISO */
-#endif /* !CONFIG_BT_LL_SW_LLCP_LEGACY */
-
+#endif /* !defined(CONFIG_BT_LL_SW_LLCP_LEGACY) */
 #if defined(CONFIG_BT_CTLR_LE_PING)
 	/* APTO in no. of connection events */
 	conn->apto_reload = RADIO_CONN_EVENTS((30 * 1000 * 1000),
@@ -285,7 +280,7 @@ void ull_periph_setup(struct node_rx_hdr *rx, struct node_rx_ftr *ftr,
 
 	cc->interval = lll->interval;
 	cc->latency = lll->latency;
-	cc->timeout = conn->supervision_timeout;
+	cc->timeout = timeout;
 	cc->sca = conn->periph.sca;
 
 	lll->handle = ll_conn_handle_get(conn);
@@ -351,7 +346,8 @@ void ull_periph_setup(struct node_rx_hdr *rx, struct node_rx_ftr *ftr,
 	}
 #endif
 
-	ll_rx_put_sched(link, rx);
+	ll_rx_put(link, rx);
+	ll_rx_sched();
 
 #if defined(CONFIG_BT_CTLR_DATA_LENGTH)
 #if defined(CONFIG_BT_CTLR_PHY)
@@ -443,13 +439,9 @@ void ull_periph_setup(struct node_rx_hdr *rx, struct node_rx_ftr *ftr,
 
 	/* Stop Advertiser */
 	ticker_id_adv = TICKER_ID_ADV_BASE + ull_adv_handle_get(adv);
-	ticks_at_stop = ftr->ticks_anchor +
-			HAL_TICKER_US_TO_TICKS(conn_offset_us) -
-			ticks_slot_offset;
-	ticker_status = ticker_stop_abs(TICKER_INSTANCE_ID_CTLR,
-					TICKER_USER_ID_ULL_HIGH,
-					ticker_id_adv, ticks_at_stop,
-					ticker_op_stop_adv_cb, adv);
+	ticker_status = ticker_stop(TICKER_INSTANCE_ID_CTLR,
+				    TICKER_USER_ID_ULL_HIGH,
+				    ticker_id_adv, ticker_op_stop_adv_cb, adv);
 	ticker_op_stop_adv_cb(ticker_status, adv);
 
 	/* Stop Direct Adv Stop */
@@ -672,7 +664,8 @@ static void invalid_release(struct ull_hdr *hdr, struct lll_conn *lll,
 	}
 
 	/* Enqueue connection or CSA event to be release */
-	ll_rx_put_sched(link, rx);
+	ll_rx_put(link, rx);
+	ll_rx_sched();
 }
 
 static void ticker_op_stop_adv_cb(uint32_t status, void *param)

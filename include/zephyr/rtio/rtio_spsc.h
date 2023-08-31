@@ -75,9 +75,11 @@ struct rtio_spsc {
 /**
  * @brief Statically initialize an rtio_spsc
  *
+ * @param name Name of the spsc symbol to be provided
+ * @param type Type stored in the spsc
  * @param sz Size of the spsc, must be power of 2 (ex: 2, 4, 8)
  */
-#define RTIO_SPSC_INITIALIZER(sz)		  \
+#define RTIO_SPSC_INITIALIZER(name, type, sz)	  \
 	{ ._spsc = {				  \
 		  .acquire = 0,			  \
 		  .consume = 0,			  \
@@ -108,7 +110,7 @@ struct rtio_spsc {
  * @param sz Size of the spsc, must be power of 2 (ex: 2, 4, 8)
  */
 #define RTIO_SPSC_DEFINE(name, type, sz)                                                           \
-	RTIO_SPSC_DECLARE(name, type, sz) name = RTIO_SPSC_INITIALIZER(sz);
+	RTIO_SPSC_DECLARE(name, type, sz) name = RTIO_SPSC_INITIALIZER(name, type, sz);
 
 /**
  * @brief Size of the SPSC queue
@@ -192,18 +194,6 @@ struct rtio_spsc {
 	})
 
 /**
- * @brief Drop all previously acquired elements
- *
- * This makes all previous acquired elements available to be acquired again
- *
- * @param spsc SPSC to drop all previously acquired elements or do nothing
- */
-#define rtio_spsc_drop_all(spsc)		\
-	do {					\
-		(spsc)->_spsc.acquire = 0;	\
-	} while (false)
-
-/**
  * @brief Consume an element from the spsc
  *
  * @param spsc Spsc to consume from
@@ -231,32 +221,6 @@ struct rtio_spsc {
 			(spsc)->_spsc.consume -= 1;                                                \
 			atomic_add(&(spsc)->_spsc.out, 1);                                         \
 		}                                                                                  \
-	})
-
-
-/**
- * @brief Release all consumed elements
- *
- * @param spsc SPSC to release consumed elements or do nothing
- */
-#define rtio_spsc_release_all(spsc)                                                                \
-	({                                                                                         \
-		if ((spsc)->_spsc.consume > 0) {                                                   \
-			unsigned long consumed = (spsc)->_spsc.consume;                            \
-			(spsc)->_spsc.consume = 0;                                                 \
-			atomic_add(&(spsc)->_spsc.out, consumed);                                  \
-		}                                                                                  \
-	})
-
-/**
- * @brief Count of acquirable in spsc
- *
- * @param spsc SPSC to get item count for
- */
-#define rtio_spsc_acquirable(spsc)                                                                 \
-	({                                                                                         \
-		(((spsc)->_spsc.in + (spsc)->_spsc.acquire) - (spsc)->_spsc.out) -                 \
-			rtio_spsc_size(spsc);                                                      \
 	})
 
 /**

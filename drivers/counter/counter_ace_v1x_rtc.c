@@ -4,15 +4,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/device.h>
-#include <zephyr/devicetree.h>
+#include <device.h>
+#include <devicetree.h>
 #include <zephyr/drivers/counter.h>
-#include <zephyr/kernel.h>
 #include <soc.h>
+#include <ace_v1x-regs.h>
 #include <counter/counter_ace_v1x_rtc_regs.h>
 
 static int counter_ace_v1x_rtc_get_value(const struct device *dev,
-		uint64_t *value)
+		int64_t *value)
 {
 	ARG_UNUSED(dev);
 
@@ -24,8 +24,6 @@ static int counter_ace_v1x_rtc_get_value(const struct device *dev,
 	} while (hi0 != hi1);
 
 	*value = (((uint64_t)hi0) << 32) | lo;
-
-	return 0;
 }
 
 int counter_ace_v1x_rtc_init(const struct device *dev)

@@ -13,7 +13,3 @@ toolchain:
   - xtools
 supported:
   - pwm
-  - watchdog
-  - counter
-  - dma
-  - spi

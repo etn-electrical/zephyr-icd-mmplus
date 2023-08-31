@@ -54,11 +54,9 @@ int flash_img_buffered_write(struct flash_img_context *ctx, const uint8_t *data,
 	}
 
 #ifdef CONFIG_IMG_ERASE_PROGRESSIVELY
-	ssize_t status_offset = boot_get_trailer_status_offset(
-		ctx->flash_area->fa_size);
 	rc = stream_flash_erase_page(&ctx->stream,
 				ctx->flash_area->fa_off +
-				status_offset);
+				BOOT_TRAILER_IMG_STATUS_OFFS(ctx->flash_area));
 	if (rc) {
 		return rc;
 	}

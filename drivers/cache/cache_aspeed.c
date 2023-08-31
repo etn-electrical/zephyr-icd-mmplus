@@ -35,7 +35,7 @@
 
 #define ICACHE_CLEAN		BIT(2)
 #define DCACHE_CLEAN		BIT(1)
-#define CACHE_ENABLE		BIT(0)
+#define CACHE_EANABLE		BIT(0)
 
 /* cache size = 32B * 128 = 4KB */
 #define CACHE_LINE_SIZE_LOG2	5
@@ -62,7 +62,7 @@ static void aspeed_cache_init(void)
 	syscon_write_reg(dev, CACHE_AREA_CTRL_REG, GENMASK(end_bit, start_bit));
 
 	/* enable cache */
-	syscon_write_reg(dev, CACHE_FUNC_CTRL_REG, CACHE_ENABLE);
+	syscon_write_reg(dev, CACHE_FUNC_CTRL_REG, CACHE_EANABLE);
 }
 
 /**
@@ -129,12 +129,13 @@ void cache_instr_disable(void)
 	syscon_write_reg(dev, CACHE_FUNC_CTRL_REG, 0);
 }
 
-int cache_data_invd_all(void)
+int cache_data_all(int op)
 {
 	const struct device *const dev = DEVICE_DT_GET(DT_NODELABEL(syscon));
 	uint32_t ctrl;
 	unsigned int key = 0;
 
+	ARG_UNUSED(op);
 	syscon_read_reg(dev, CACHE_FUNC_CTRL_REG, &ctrl);
 
 	/* enter critical section */
@@ -158,11 +159,13 @@ int cache_data_invd_all(void)
 	return 0;
 }
 
-int cache_data_invd_range(void *addr, size_t size)
+int cache_data_range(void *addr, size_t size, int op)
 {
 	uint32_t aligned_addr, i, n;
 	const struct device *const dev = DEVICE_DT_GET(DT_NODELABEL(syscon));
 	unsigned int key = 0;
+
+	ARG_UNUSED(op);
 
 	if (((uint32_t)addr < CACHED_SRAM_ADDR) ||
 	    ((uint32_t)addr > CACHED_SRAM_END)) {
@@ -191,11 +194,13 @@ int cache_data_invd_range(void *addr, size_t size)
 	return 0;
 }
 
-int cache_instr_invd_all(void)
+int cache_instr_all(int op)
 {
 	const struct device *const dev = DEVICE_DT_GET(DT_NODELABEL(syscon));
 	uint32_t ctrl;
 	unsigned int key = 0;
+
+	ARG_UNUSED(op);
 
 	syscon_read_reg(dev, CACHE_FUNC_CTRL_REG, &ctrl);
 
@@ -219,11 +224,13 @@ int cache_instr_invd_all(void)
 	return 0;
 }
 
-int cache_instr_invd_range(void *addr, size_t size)
+int cache_instr_range(void *addr, size_t size, int op)
 {
 	uint32_t aligned_addr, i, n;
 	const struct device *const dev = DEVICE_DT_GET(DT_NODELABEL(syscon));
 	unsigned int key = 0;
+
+	ARG_UNUSED(op);
 
 	if (((uint32_t)addr < CACHED_SRAM_ADDR) ||
 	    ((uint32_t)addr > CACHED_SRAM_END)) {
@@ -252,59 +259,6 @@ int cache_instr_invd_range(void *addr, size_t size)
 	return 0;
 }
 
-int cache_data_flush_all(void)
-{
-	return -ENOTSUP;
-}
-
-int cache_data_flush_and_invd_all(void)
-{
-	return -ENOTSUP;
-}
-
-int cache_data_flush_range(void *addr, size_t size)
-{
-	ARG_UNUSED(addr);
-	ARG_UNUSED(size);
-
-	return -ENOTSUP;
-}
-
-int cache_data_flush_and_invd_range(void *addr, size_t size)
-{
-	ARG_UNUSED(addr);
-	ARG_UNUSED(size);
-
-	return -ENOTSUP;
-}
-
-int cache_instr_flush_all(void)
-{
-	return -ENOTSUP;
-}
-
-int cache_instr_flush_and_invd_all(void)
-{
-	return -ENOTSUP;
-}
-
-int cache_instr_flush_range(void *addr, size_t size)
-{
-	ARG_UNUSED(addr);
-	ARG_UNUSED(size);
-
-	return -ENOTSUP;
-}
-
-int cache_instr_flush_and_invd_range(void *addr, size_t size)
-{
-	ARG_UNUSED(addr);
-	ARG_UNUSED(size);
-
-	return -ENOTSUP;
-}
-
-
 #ifdef CONFIG_DCACHE_LINE_SIZE_DETECT
 size_t cache_data_line_size_get(void)
 {
@@ -313,7 +267,7 @@ size_t cache_data_line_size_get(void)
 
 	syscon_read_reg(dev, CACHE_FUNC_CTRL_REG, &ctrl);
 
-	return (ctrl & CACHE_ENABLE) ? CACHE_LINE_SIZE : 0;
+	return (ctrl & CACHE_EANABLE) ? CACHE_LINE_SIZE : 0;
 }
 #endif /* CONFIG_DCACHE_LINE_SIZE_DETECT */
 
@@ -325,6 +279,6 @@ size_t cache_instr_line_size_get(void)
 
 	syscon_read_reg(dev, CACHE_FUNC_CTRL_REG, &ctrl);
 
-	return (ctrl & CCHE_EANABLE) ? CACHE_LINE_SIZE : 0;
+	return (ctrl & CACHE_EANABLE) ? CACHE_LINE_SIZE : 0;
 }
 #endif /* CONFIG_ICACHE_LINE_SIZE_DETECT */

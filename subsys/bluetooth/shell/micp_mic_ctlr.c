@@ -299,20 +299,12 @@ static int cmd_micp_mic_ctlr_unmute(const struct shell *sh, size_t argc,
 static int cmd_micp_mic_ctlr_aics_input_state_get(const struct shell *sh,
 						size_t argc, char **argv)
 {
-	unsigned long index;
-	int result = 0;
-
-	index = shell_strtoul(argv[1], 0, &result);
-	if (result != 0) {
-		shell_error(sh, "Could not parse index: %d", result);
-
-		return -ENOEXEC;
-	}
+	int result;
+	int index = strtol(argv[1], NULL, 0);
 
 	if (index >= micp_included.aics_cnt) {
-		shell_error(sh, "Index shall be less than %u, was %lu",
+		shell_error(sh, "Index shall be less than %u, was %u",
 			    micp_included.aics_cnt, index);
-
 		return -ENOEXEC;
 	}
 
@@ -331,20 +323,12 @@ static int cmd_micp_mic_ctlr_aics_input_state_get(const struct shell *sh,
 static int cmd_micp_mic_ctlr_aics_gain_setting_get(const struct shell *sh,
 						 size_t argc, char **argv)
 {
-	unsigned long index;
-	int result = 0;
-
-	index = shell_strtoul(argv[1], 0, &result);
-	if (result != 0) {
-		shell_error(sh, "Could not parse index: %d", result);
-
-		return -ENOEXEC;
-	}
+	int result;
+	int index = strtol(argv[1], NULL, 0);
 
 	if (index >= micp_included.aics_cnt) {
-		shell_error(sh, "Index shall be less than %u, was %lu",
+		shell_error(sh, "Index shall be less than %u, was %u",
 			    micp_included.aics_cnt, index);
-
 		return -ENOEXEC;
 	}
 
@@ -363,20 +347,12 @@ static int cmd_micp_mic_ctlr_aics_gain_setting_get(const struct shell *sh,
 static int cmd_micp_mic_ctlr_aics_input_type_get(const struct shell *sh,
 					       size_t argc, char **argv)
 {
-	unsigned long index;
-	int result = 0;
-
-	index = shell_strtoul(argv[1], 0, &result);
-	if (result != 0) {
-		shell_error(sh, "Could not parse index: %d", result);
-
-		return -ENOEXEC;
-	}
+	int result;
+	int index = strtol(argv[1], NULL, 0);
 
 	if (index >= micp_included.aics_cnt) {
-		shell_error(sh, "Index shall be less than %u, was %lu",
+		shell_error(sh, "Index shall be less than %u, was %u",
 			    micp_included.aics_cnt, index);
-
 		return -ENOEXEC;
 	}
 
@@ -395,20 +371,12 @@ static int cmd_micp_mic_ctlr_aics_input_type_get(const struct shell *sh,
 static int cmd_micp_mic_ctlr_aics_input_status_get(const struct shell *sh,
 						 size_t argc, char **argv)
 {
-	unsigned long index;
-	int result = 0;
-
-	index = shell_strtoul(argv[1], 0, &result);
-	if (result != 0) {
-		shell_error(sh, "Could not parse index: %d", result);
-
-		return -ENOEXEC;
-	}
+	int result;
+	int index = strtol(argv[1], NULL, 0);
 
 	if (index >= micp_included.aics_cnt) {
-		shell_error(sh, "Index shall be less than %u, was %lu",
+		shell_error(sh, "Index shall be less than %u, was %u",
 			    micp_included.aics_cnt, index);
-
 		return -ENOEXEC;
 	}
 
@@ -427,21 +395,17 @@ static int cmd_micp_mic_ctlr_aics_input_status_get(const struct shell *sh,
 static int cmd_micp_mic_ctlr_aics_input_unmute(const struct shell *sh,
 					     size_t argc, char **argv)
 {
-	unsigned long index;
-	int result = 0;
+	int result;
+	int index = strtol(argv[1], NULL, 0);
 
-	index = shell_strtoul(argv[1], 0, &result);
-	if (result != 0) {
-		shell_error(sh, "Could not parse index: %d", result);
-
+	if (index >= micp_included.aics_cnt) {
+		shell_error(sh, "Index shall be less than %u, was %u",
+			    micp_included.aics_cnt, index);
 		return -ENOEXEC;
 	}
 
-	if (index >= micp_included.aics_cnt) {
-		shell_error(sh, "Index shall be less than %u, was %lu",
-			    micp_included.aics_cnt, index);
-
-		return -ENOEXEC;
+	if (mic_ctlr == NULL) {
+		return -ENOENT;
 	}
 
 	result = bt_aics_unmute(micp_included.aics[index]);
@@ -455,20 +419,12 @@ static int cmd_micp_mic_ctlr_aics_input_unmute(const struct shell *sh,
 static int cmd_micp_mic_ctlr_aics_input_mute(const struct shell *sh,
 					   size_t argc, char **argv)
 {
-	unsigned long index;
-	int result = 0;
-
-	index = shell_strtoul(argv[1], 0, &result);
-	if (result != 0) {
-		shell_error(sh, "Could not parse index: %d", result);
-
-		return -ENOEXEC;
-	}
+	int result;
+	int index = strtol(argv[1], NULL, 0);
 
 	if (index >= micp_included.aics_cnt) {
-		shell_error(sh, "Index shall be less than %u, was %lu",
+		shell_error(sh, "Index shall be less than %u, was %u",
 			    micp_included.aics_cnt, index);
-
 		return -ENOEXEC;
 	}
 
@@ -487,20 +443,12 @@ static int cmd_micp_mic_ctlr_aics_input_mute(const struct shell *sh,
 static int cmd_micp_mic_ctlr_aics_manual_input_gain_set(const struct shell *sh,
 						      size_t argc, char **argv)
 {
-	unsigned long index;
-	int result = 0;
-
-	index = shell_strtoul(argv[1], 0, &result);
-	if (result != 0) {
-		shell_error(sh, "Could not parse index: %d", result);
-
-		return -ENOEXEC;
-	}
+	int result;
+	int index = strtol(argv[1], NULL, 0);
 
 	if (index >= micp_included.aics_cnt) {
-		shell_error(sh, "Index shall be less than %u, was %lu",
+		shell_error(sh, "Index shall be less than %u, was %u",
 			    micp_included.aics_cnt, index);
-
 		return -ENOEXEC;
 	}
 
@@ -520,20 +468,12 @@ static int cmd_micp_mic_ctlr_aics_automatic_input_gain_set(const struct shell *s
 							 size_t argc,
 							 char **argv)
 {
-	unsigned long index;
-	int result = 0;
-
-	index = shell_strtoul(argv[1], 0, &result);
-	if (result != 0) {
-		shell_error(sh, "Could not parse index: %d", result);
-
-		return -ENOEXEC;
-	}
+	int result;
+	int index = strtol(argv[1], NULL, 0);
 
 	if (index >= micp_included.aics_cnt) {
-		shell_error(sh, "Index shall be less than %u, was %lu",
+		shell_error(sh, "Index shall be less than %u, was %u",
 			    micp_included.aics_cnt, index);
-
 		return -ENOEXEC;
 	}
 
@@ -552,35 +492,19 @@ static int cmd_micp_mic_ctlr_aics_automatic_input_gain_set(const struct shell *s
 static int cmd_micp_mic_ctlr_aics_gain_set(const struct shell *sh, size_t argc,
 					 char **argv)
 {
-	unsigned long index;
-	int result = 0;
-	long gain;
-
-	index = shell_strtoul(argv[1], 0, &result);
-	if (result != 0) {
-		shell_error(sh, "Could not parse index: %d", result);
-
-		return -ENOEXEC;
-	}
+	int result;
+	int index = strtol(argv[1], NULL, 0);
+	int gain = strtol(argv[2], NULL, 0);
 
 	if (index >= micp_included.aics_cnt) {
-		shell_error(sh, "Index shall be less than %u, was %lu",
+		shell_error(sh, "Index shall be less than %u, was %u",
 			    micp_included.aics_cnt, index);
-
-		return -ENOEXEC;
-	}
-
-	gain = shell_strtol(argv[2], 0, &result);
-	if (result != 0) {
-		shell_error(sh, "Could not parse gain: %d", result);
-
 		return -ENOEXEC;
 	}
 
 	if (gain > INT8_MAX || gain < INT8_MIN) {
-		shell_error(sh, "Gain shall be %d-%d, was %ld",
+		shell_error(sh, "Offset shall be %d-%d, was %d",
 			    INT8_MIN, INT8_MAX, gain);
-
 		return -ENOEXEC;
 	}
 
@@ -599,20 +523,12 @@ static int cmd_micp_mic_ctlr_aics_gain_set(const struct shell *sh, size_t argc,
 static int cmd_micp_mic_ctlr_aics_input_description_get(const struct shell *sh,
 						      size_t argc, char **argv)
 {
-	unsigned long index;
-	int result = 0;
-
-	index = shell_strtoul(argv[1], 0, &result);
-	if (result != 0) {
-		shell_error(sh, "Could not parse index: %d", result);
-
-		return -ENOEXEC;
-	}
+	int result;
+	int index = strtol(argv[1], NULL, 0);
 
 	if (index >= micp_included.aics_cnt) {
-		shell_error(sh, "Index shall be less than %u, was %lu",
+		shell_error(sh, "Index shall be less than %u, was %u",
 			    micp_included.aics_cnt, index);
-
 		return -ENOEXEC;
 	}
 
@@ -631,20 +547,13 @@ static int cmd_micp_mic_ctlr_aics_input_description_get(const struct shell *sh,
 static int cmd_micp_mic_ctlr_aics_input_description_set(const struct shell *sh,
 						      size_t argc, char **argv)
 {
-	unsigned long index;
-	int result = 0;
-
-	index = shell_strtoul(argv[1], 0, &result);
-	if (result != 0) {
-		shell_error(sh, "Could not parse index: %d", result);
-
-		return -ENOEXEC;
-	}
+	int result;
+	int index = strtol(argv[1], NULL, 0);
+	char *description = argv[2];
 
 	if (index >= micp_included.aics_cnt) {
-		shell_error(sh, "Index shall be less than %u, was %lu",
+		shell_error(sh, "Index shall be less than %u, was %u",
 			    micp_included.aics_cnt, index);
-
 		return -ENOEXEC;
 	}
 
@@ -652,7 +561,8 @@ static int cmd_micp_mic_ctlr_aics_input_description_set(const struct shell *sh,
 		return -ENOENT;
 	}
 
-	result = bt_aics_description_set(micp_included.aics[index], argv[2]);
+	result = bt_aics_description_set(micp_included.aics[index],
+					      description);
 	if (result != 0) {
 		shell_print(sh, "Fail: %d", result);
 	}

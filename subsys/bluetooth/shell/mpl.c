@@ -19,31 +19,17 @@
 #include <zephyr/bluetooth/audio/media_proxy.h>
 #include "../audio/mpl_internal.h"
 
-#include <zephyr/logging/log.h>
-
-LOG_MODULE_REGISTER(bt_mpl_shell, CONFIG_BT_MPL_LOG_LEVEL);
+#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_DEBUG_MPL)
+#define LOG_MODULE_NAME bt_mpl_shell
+#include "common/log.h"
 
 #if defined(CONFIG_BT_MPL)
 
-#if defined(CONFIG_BT_MPL_LOG_LEVEL_DBG) && defined(CONFIG_BT_TESTING)
+#if defined(CONFIG_BT_DEBUG_MPL) && defined(CONFIG_BT_TESTING)
 int cmd_mpl_test_set_media_state(const struct shell *sh, size_t argc,
 				 char *argv[])
 {
-	unsigned long state;
-	int err = 0;
-
-	state = shell_strtoul(argv[1], 0, &err);
-	if (err != 0) {
-		shell_error(sh, "Could not parse state: %d", err);
-
-		return -ENOEXEC;
-	}
-
-	if (state > UINT8_MAX) {
-		shell_error(sh, "Invalid state %lu", state);
-
-		return -ENOEXEC;
-	}
+	uint8_t state = strtol(argv[1], NULL, 0);
 
 	mpl_test_media_state_set(state);
 
@@ -59,9 +45,9 @@ int cmd_mpl_test_unset_parent_group(const struct shell *sh, size_t argc,
 	return 0;
 }
 #endif /* CONFIG_BT_MPL_OBJECTS */
-#endif /* CONFIG_BT_MPL_LOG_LEVEL_DBG && CONFIG_BT_TESTING */
+#endif /* CONFIG_BT_DEBUG_MPL && CONFIG_BT_TESTING */
 
-#if defined(CONFIG_BT_MPL_LOG_LEVEL_DBG)
+#if defined(CONFIG_BT_DEBUG_MPL)
 int cmd_mpl_debug_dump_state(const struct shell *sh, size_t argc,
 			     char *argv[])
 {
@@ -69,7 +55,7 @@ int cmd_mpl_debug_dump_state(const struct shell *sh, size_t argc,
 
 	return 0;
 }
-#endif /* CONFIG_BT_MPL_LOG_LEVEL_DBG */
+#endif /* CONFIG_BT_DEBUG_MPL */
 
 int cmd_media_proxy_pl_init(const struct shell *sh, size_t argc, char *argv[])
 {
@@ -86,21 +72,6 @@ int cmd_media_proxy_pl_init(const struct shell *sh, size_t argc, char *argv[])
 	return err;
 }
 
-int cmd_mpl_test_player_name_cb(const struct shell *sh, size_t argc,
-				char *argv[])
-{
-	mpl_test_player_name_changed_cb();
-
-	return 0;
-}
-
-int cmd_mpl_test_player_icon_url_cb(const struct shell *sh, size_t argc,
-				    char *argv[])
-{
-	mpl_test_player_icon_url_changed_cb();
-
-	return 0;
-}
 
 int cmd_mpl_test_track_changed_cb(const struct shell *sh, size_t argc,
 				  char *argv[])
@@ -212,7 +183,7 @@ static int cmd_mpl(const struct shell *sh, size_t argc, char **argv)
 }
 
 SHELL_STATIC_SUBCMD_SET_CREATE(mpl_cmds,
-#if defined(CONFIG_BT_MPL_LOG_LEVEL_DBG) && defined(CONFIG_BT_TESTING)
+#if defined(CONFIG_BT_DEBUG_MPL) && defined(CONFIG_BT_TESTING)
 	SHELL_CMD_ARG(test_set_media_state, NULL,
 		      "Set the media player state (test) <state>",
 		      cmd_mpl_test_set_media_state, 2, 0),
@@ -221,21 +192,15 @@ SHELL_STATIC_SUBCMD_SET_CREATE(mpl_cmds,
 		      "Set current group to be its own parent (test)",
 		      cmd_mpl_test_unset_parent_group, 1, 0),
 #endif /* CONFIG_BT_MPL_OBJECTS */
-#endif /* CONFIG_BT_MPL_LOG_LEVEL_DBG && CONFIG_BT_TESTING */
-#if defined(CONFIG_BT_MPL_LOG_LEVEL_DBG)
+#endif /* CONFIG_BT_DEBUG_MPL && CONFIG_BT_TESTING */
+#if defined(CONFIG_BT_DEBUG_MPL)
 	SHELL_CMD_ARG(debug_dump_state, NULL,
 		      "Dump media player's state as debug output (debug)",
 		      cmd_mpl_debug_dump_state, 1, 0),
-#endif /* CONFIG_BT_MPL_LOG_LEVEL_DBG */
+#endif /* CONFIG_BT_DEBUG_MPL */
 	SHELL_CMD_ARG(init, NULL,
 		      "Initialize media player",
 		      cmd_media_proxy_pl_init, 1, 0),
-	SHELL_CMD_ARG(player_name_changed_cb, NULL,
-		      "Trigger Player Name changed callback (test)",
-		      cmd_mpl_test_player_name_cb, 1, 0),
-	SHELL_CMD_ARG(player_icon_url_changed_cb, NULL,
-		      "Trigger Player icon URL changed callback (test)",
-		      cmd_mpl_test_player_icon_url_cb, 1, 0),
 	SHELL_CMD_ARG(track_changed_cb, NULL,
 		      "Trigger Track Changed callback (test)",
 		      cmd_mpl_test_track_changed_cb, 1, 0),

@@ -48,7 +48,7 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME, CONFIG_OPENTHREAD_L2_LOG_LEVEL);
 #define FRAME_TYPE_MASK 0x07
 #define FRAME_TYPE_ACK 0x02
 
-#if defined(CONFIG_NET_TC_THREAD_COOPERATIVE)
+#if IS_ENABLED(CONFIG_NET_TC_THREAD_COOPERATIVE)
 #define OT_WORKER_PRIORITY K_PRIO_COOP(CONFIG_OPENTHREAD_THREAD_PRIORITY)
 #else
 #define OT_WORKER_PRIORITY K_PRIO_PREEMPT(CONFIG_OPENTHREAD_THREAD_PRIORITY)
@@ -83,8 +83,7 @@ static const struct device *const radio_dev =
 	DEVICE_DT_GET(DT_CHOSEN(zephyr_ieee802154));
 static struct ieee802154_radio_api *radio_api;
 
-/* Get the default tx output power from Kconfig */
-static int8_t tx_power = CONFIG_OPENTHREAD_DEFAULT_TX_POWER;
+static int8_t tx_power;
 static uint16_t channel;
 static bool promiscuous;
 
@@ -240,8 +239,7 @@ static void dataInit(void)
 	tx_pkt = net_pkt_alloc(K_NO_WAIT);
 	__ASSERT_NO_MSG(tx_pkt != NULL);
 
-	tx_payload = net_pkt_get_reserve_tx_data(IEEE802154_MAX_PHY_PACKET_SIZE,
-						 K_NO_WAIT);
+	tx_payload = net_pkt_get_reserve_tx_data(K_NO_WAIT);
 	__ASSERT_NO_MSG(tx_payload != NULL);
 
 	net_pkt_append_buffer(tx_pkt, tx_payload);
@@ -631,8 +629,9 @@ otError otPlatRadioSleep(otInstance *aInstance)
 	    sState == OT_RADIO_STATE_RECEIVE ||
 	    sState == OT_RADIO_STATE_TRANSMIT) {
 		error = OT_ERROR_NONE;
-		radio_api->stop(radio_dev);
-		sState = OT_RADIO_STATE_SLEEP;
+		if (radio_api->stop(radio_dev)) {
+			sState = OT_RADIO_STATE_SLEEP;
+		}
 	}
 
 	return error;
@@ -672,36 +671,6 @@ otError otPlatRadioReceiveAt(otInstance *aInstance, uint8_t aChannel,
 	return result ? OT_ERROR_FAILED : OT_ERROR_NONE;
 }
 #endif
-
-otError platformRadioTransmitCarrier(otInstance *aInstance, bool aEnable)
-{
-	if (radio_api->continuous_carrier == NULL) {
-		return OT_ERROR_NOT_IMPLEMENTED;
-	}
-
-	if ((aEnable) && (sState == OT_RADIO_STATE_RECEIVE)) {
-		radio_api->set_txpower(radio_dev, get_transmit_power_for_channel(channel));
-
-		if (radio_api->continuous_carrier(radio_dev) != 0) {
-			return OT_ERROR_FAILED;
-		}
-
-		sState = OT_RADIO_STATE_TRANSMIT;
-	} else if ((!aEnable) && (sState == OT_RADIO_STATE_TRANSMIT)) {
-		return otPlatRadioReceive(aInstance, channel);
-	} else {
-		return OT_ERROR_INVALID_STATE;
-	}
-
-	return OT_ERROR_NONE;
-}
-
-otRadioState otPlatRadioGetState(otInstance *aInstance)
-{
-	ARG_UNUSED(aInstance);
-
-	return sState;
-}
 
 otError otPlatRadioTransmit(otInstance *aInstance, otRadioFrame *aPacket)
 {
@@ -839,10 +808,6 @@ void otPlatRadioSetPromiscuous(otInstance *aInstance, bool aEnable)
 	LOG_DBG("PromiscuousMode=%d", aEnable ? 1 : 0);
 
 	promiscuous = aEnable;
-	/* TODO: Should check whether the radio driver actually supports
-	 *       promiscuous mode, see net_if_l2(iface)->get_flags() and
-	 *       ieee802154_get_hw_capabilities(iface).
-	 */
 	radio_api->configure(radio_dev, IEEE802154_CONFIG_PROMISCUOUS, &config);
 }
 
@@ -1074,20 +1039,16 @@ void otPlatRadioSetMacKey(otInstance *aInstance, uint8_t aKeyIdMode, uint8_t aKe
 #if defined(CONFIG_OPENTHREAD_PLATFORM_KEYS_EXPORTABLE_ENABLE)
 	__ASSERT_NO_MSG(aKeyType == OT_KEY_TYPE_KEY_REF);
 	size_t keyLen;
-	otError error;
 
-	error = otPlatCryptoExportKey(aPrevKey->mKeyMaterial.mKeyRef,
-				      (uint8_t *)aPrevKey->mKeyMaterial.mKey.m8, OT_MAC_KEY_SIZE,
-				      &keyLen);
-	__ASSERT_NO_MSG(error == OT_ERROR_NONE);
-	error = otPlatCryptoExportKey(aCurrKey->mKeyMaterial.mKeyRef,
-				      (uint8_t *)aCurrKey->mKeyMaterial.mKey.m8, OT_MAC_KEY_SIZE,
-				      &keyLen);
-	__ASSERT_NO_MSG(error == OT_ERROR_NONE);
-	error = otPlatCryptoExportKey(aNextKey->mKeyMaterial.mKeyRef,
-				      (uint8_t *)aNextKey->mKeyMaterial.mKey.m8, OT_MAC_KEY_SIZE,
-				      &keyLen);
-	__ASSERT_NO_MSG(error == OT_ERROR_NONE);
+	__ASSERT_NO_MSG(otPlatCryptoExportKey(aPrevKey->mKeyMaterial.mKeyRef,
+					      (uint8_t *)aPrevKey->mKeyMaterial.mKey.m8,
+					      OT_MAC_KEY_SIZE, &keyLen) == OT_ERROR_NONE);
+	__ASSERT_NO_MSG(otPlatCryptoExportKey(aCurrKey->mKeyMaterial.mKeyRef,
+					      (uint8_t *)aCurrKey->mKeyMaterial.mKey.m8,
+					      OT_MAC_KEY_SIZE, &keyLen) == OT_ERROR_NONE);
+	__ASSERT_NO_MSG(otPlatCryptoExportKey(aNextKey->mKeyMaterial.mKeyRef,
+					      (uint8_t *)aNextKey->mKeyMaterial.mKey.m8,
+					      OT_MAC_KEY_SIZE, &keyLen) == OT_ERROR_NONE);
 #else
 	__ASSERT_NO_MSG(aKeyType == OT_KEY_TYPE_LITERAL_KEY);
 #endif

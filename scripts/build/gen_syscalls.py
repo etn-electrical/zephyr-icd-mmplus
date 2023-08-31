@@ -387,7 +387,7 @@ def parse_args():
     global args
     parser = argparse.ArgumentParser(
         description=__doc__,
-        formatter_class=argparse.RawDescriptionHelpFormatter, allow_abbrev=False)
+        formatter_class=argparse.RawDescriptionHelpFormatter)
 
     parser.add_argument("-i", "--json-file", required=True,
                         help="Read syscall information from json file")

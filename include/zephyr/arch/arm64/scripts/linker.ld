@@ -20,10 +20,11 @@
 /* physical address of RAM */
 #ifdef CONFIG_XIP
   #define ROMABLE_REGION FLASH
+  #define RAMABLE_REGION SRAM
 #else
-  #define ROMABLE_REGION RAM
+  #define ROMABLE_REGION SRAM
+  #define RAMABLE_REGION SRAM
 #endif
-#define RAMABLE_REGION RAM
 
 #if !defined(CONFIG_XIP) && (CONFIG_FLASH_SIZE == 0)
   #define ROM_ADDR RAM_ADDR
@@ -59,7 +60,7 @@
 MEMORY
 {
     FLASH     (rx) : ORIGIN = ROM_ADDR, LENGTH = ROM_SIZE
-    RAM       (wx) : ORIGIN = RAM_ADDR, LENGTH = RAM_SIZE
+    SRAM      (wx) : ORIGIN = RAM_ADDR, LENGTH = RAM_SIZE
     /* Used by and documented in include/linker/intlist.ld */
     IDT_LIST  (wx) : ORIGIN = 0xFFFFF7FF, LENGTH = 2K
 }
@@ -127,7 +128,7 @@ SECTIONS
     __text_region_end = .;
     __text_region_size = __text_region_end - __text_region_start;
 
-#if defined (CONFIG_CPP)
+#if defined (CONFIG_CPLUSPLUS)
     SECTION_PROLOGUE(.ARM.extab,,)
     {
         /*
@@ -202,7 +203,7 @@ SECTIONS
     GROUP_START(RAMABLE_REGION)
 
     . = RAM_ADDR;
-    /* Align the start of image RAM with the
+    /* Align the start of image SRAM with the
      * minimum granularity required by MMU.
      */
     . = ALIGN(_region_min_align);
@@ -322,17 +323,12 @@ SECTIONS
 
 
     /* Must be last in romable region */
-    SECTION_PROLOGUE(.last_section,,)
+    SECTION_PROLOGUE(.last_section,(NOLOAD),)
     {
-#ifdef CONFIG_LINKER_LAST_SECTION_ID
-      /* Fill last section with a word to ensure location counter and actual rom
-       * region data usage match. */
-      LONG(CONFIG_LINKER_LAST_SECTION_ID_PATTERN)
-#endif
     } GROUP_ROM_LINK_IN(RAMABLE_REGION, ROMABLE_REGION)
 
     /* To provide the image size as a const expression,
      * calculate this value here. */
-    _flash_used = LOADADDR(.last_section) + SIZEOF(.last_section) - __rom_region_start;
+    _flash_used = LOADADDR(.last_section) - __rom_region_start;
 
 }

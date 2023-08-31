@@ -12,8 +12,7 @@ NRF52 simulated board (BabbleSim)
 Overview
 ********
 
-This is a :ref:`POSIX architecture<Posix arch>`
-based simulated NRF52 board which uses `BabbleSim`_ to simulate the radio
+This is a simulated NRF52 board which uses `BabbleSim`_ to simulate the radio
 activity.
 This board models some of the NRF52 SOC peripherals:
 
@@ -27,9 +26,12 @@ This board models some of the NRF52 SOC peripherals:
 * PPI (Programmable Peripheral Interconnect)
 
 The nrf52_bsim board definition uses the POSIX architecture to
-run applications natively on the development system, this has the benefit of
-providing native code execution performance and easy debugging using
-native tools, but inherits :ref:`its limitations <posix_arch_limitations>`.
+run applications natively on the development system.  As with
+the ``native_posix`` board, this has the benefit of providing
+native code execution performance and easy debugging using
+native tools, but has the same drawbacks.  Please refer to
+:ref:`Native Posix's important limitations <native_important_limitations>`
+for more details.
 
 .. _BabbleSim:
    https://BabbleSim.github.io
@@ -39,10 +41,17 @@ native tools, but inherits :ref:`its limitations <posix_arch_limitations>`.
 Building and running
 **********************
 
-This board requires the host 32 bit C library. See
-:ref:`POSIX Arch dependencies<posix_arch_deps>`.
+.. note::
 
-To target this board you also need to have `BabbleSim`_ compiled in your system.
+   You must have the 32-bit C library installed in your system
+   (in Ubuntu 16.04 install the gcc-multilib package)
+
+.. note::
+
+   This will **not** work in Windows Subsystem for Linux (WSL) because WSL
+   does not support native 32-bit binaries.
+
+To target this board you need to have `BabbleSim`_ compiled in your system.
 If you do not have it yet, in `its web page <https://BabbleSim.github.io>`_
 you can find instructions on how to
 `fetch <https://babblesim.github.io/fetching.html>`_ and
@@ -147,20 +156,12 @@ Run them with ``-help`` for more information.
 You can find more information about how to run BabbleSim simulations in
 `this BabbleSim example <https://babblesim.github.io/example_2g4.html>`_.
 
-Debugging, coverage and address sanitizer
-*****************************************
+Debugging
+**********
 
-Just like with :ref:`native_posix<native_posix_debug>`, the resulting
-executables are Linux native applications.
+Just like native_posix, the resulting executables are Linux native applications.
 Therefore they can be debugged or instrumented with the same tools as any other
 native application, like for example ``gdb`` or ``valgrind``.
-
-The same
-:ref:`code coverage analysis means from the POSIX arch<coverage_posix>`
-are inherited in this board.
-Similarly, the
-:ref:`address sanitizers can be used as in native_posix<native_posix_asan>`.
-
 
 Note that BabbleSim will run fine if one or several of its components are
 being run in a debugger or instrumented. For example, pausing a device in a

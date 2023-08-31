@@ -8,10 +8,9 @@
 
 #include <zephyr/device.h>
 #include <zephyr/drivers/gpio.h>
-#include <zephyr/irq.h>
 #include <zephyr/sys/sys_io.h>
 
-#include <zephyr/drivers/gpio/gpio_utils.h>
+#include "gpio_utils.h"
 
 /* AXI GPIO v2 register offsets (See Xilinx PG144 for details) */
 #define GPIO_DATA_OFFSET  0x0000

@@ -19,6 +19,7 @@ properties:
 
   zephyr,memory-region-mpu:
     type: string
+    required: false
     enum:
       - "RAM"
       - "RAM_NOCACHE"

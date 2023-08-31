@@ -103,13 +103,10 @@ static int kwx_init(const struct device *arg)
 	return 0;
 }
 
-#ifdef CONFIG_PLATFORM_SPECIFIC_INIT
-
-void z_arm_platform_init(void)
+void z_arm_watchdog_init(void)
 {
-	SystemInit();
+	/* Disable the watchdog */
+	SIM->COPC = 0;
 }
-
-#endif /* CONFIG_PLATFORM_SPECIFIC_INIT */
 
 SYS_INIT(kwx_init, PRE_KERNEL_1, 0);

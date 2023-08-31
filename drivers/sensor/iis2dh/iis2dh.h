@@ -16,7 +16,6 @@
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/sys/util.h>
 #include <zephyr/drivers/sensor.h>
-#include <zephyr/kernel.h>
 #include "iis2dh_reg.h"
 
 /*

@@ -69,7 +69,6 @@ extern void __soc_handle_irq(unsigned long mcause);
 
 static inline void arch_isr_direct_footer(int swap)
 {
-	ARG_UNUSED(swap);
 	unsigned long mcause;
 
 	/* Get the IRQ number */

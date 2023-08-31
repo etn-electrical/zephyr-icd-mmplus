@@ -10,7 +10,6 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <zephyr/irq.h>
 #include "board_soc.h"
 
 /**

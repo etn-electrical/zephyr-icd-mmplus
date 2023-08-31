@@ -21,7 +21,6 @@ Samples and Demos
    drivers/drivers.rst
    application_development/*
    shields/*
-   cpp/*
    posix/*
    kernel/*
    tfm_integration/tfm_integration.rst

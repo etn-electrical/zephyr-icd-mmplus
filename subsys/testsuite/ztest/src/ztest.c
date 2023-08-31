@@ -83,12 +83,15 @@ static int cleanup_test(struct unit_test *test)
 }
 
 #ifdef KERNEL
-
-#if defined(CONFIG_SMP) && (CONFIG_MP_MAX_NUM_CPUS > 1)
-#define MAX_NUM_CPUHOLD (CONFIG_MP_MAX_NUM_CPUS - 1)
+#ifdef CONFIG_SMP
+#define NUM_CPUHOLD (CONFIG_MP_NUM_CPUS - 1)
+#else
+#define NUM_CPUHOLD 0
+#endif
 #define CPUHOLD_STACK_SZ (512 + CONFIG_TEST_EXTRA_STACK_SIZE)
-static struct k_thread cpuhold_threads[MAX_NUM_CPUHOLD];
-K_KERNEL_STACK_ARRAY_DEFINE(cpuhold_stacks, MAX_NUM_CPUHOLD, CPUHOLD_STACK_SZ);
+
+static struct k_thread cpuhold_threads[NUM_CPUHOLD];
+K_KERNEL_STACK_ARRAY_DEFINE(cpuhold_stacks, NUM_CPUHOLD, CPUHOLD_STACK_SZ);
 static struct k_sem cpuhold_sem;
 volatile int cpuhold_active;
 
@@ -107,14 +110,15 @@ static void cpu_hold(void *arg1, void *arg2, void *arg3)
 
 	k_sem_give(&cpuhold_sem);
 
-#if (defined(CONFIG_ARM64) || defined(CONFIG_RISCV)) && defined(CONFIG_FPU_SHARING)
+#if defined(CONFIG_ARM64) && defined(CONFIG_FPU_SHARING)
 	/*
 	 * We'll be spinning with IRQs disabled. The flush-your-FPU request
 	 * IPI will never be serviced during that time. Therefore we flush
 	 * the FPU preemptively here to prevent any other CPU waiting after
 	 * this CPU forever and deadlock the system.
 	 */
-	k_float_disable(_current_cpu->arch.fpu_owner);
+	extern void z_arm64_flush_local_fpu(void);
+	z_arm64_flush_local_fpu();
 #endif
 
 	while (cpuhold_active) {
@@ -127,17 +131,13 @@ static void cpu_hold(void *arg1, void *arg2, void *arg3)
 	 * logic views it as one "job") and cause other test failures.
 	 */
 	dt = k_uptime_get_32() - start_ms;
-	zassert_true(dt < CONFIG_ZTEST_CPU_HOLD_TIME_MS,
+	zassert_true(dt < 3000,
 		     "1cpu test took too long (%d ms)", dt);
 	arch_irq_unlock(key);
 }
-#endif /* CONFIG_SMP && (CONFIG_MP_MAX_NUM_CPUS > 1) */
 
 void z_impl_z_test_1cpu_start(void)
 {
-#if defined(CONFIG_SMP) && (CONFIG_MP_MAX_NUM_CPUS > 1)
-	unsigned int num_cpus = arch_num_cpus();
-
 	cpuhold_active = 1;
 #ifdef CONFIG_THREAD_NAME
 	char tname[CONFIG_THREAD_MAX_NAME_LEN];
@@ -146,8 +146,12 @@ void z_impl_z_test_1cpu_start(void)
 
 	/* Spawn N-1 threads to "hold" the other CPUs, waiting for
 	 * each to signal us that it's locked and spinning.
+	 *
+	 * Note that NUM_CPUHOLD can be a value that causes coverity
+	 * to flag the following loop as DEADCODE so suppress the warning.
 	 */
-	for (int i = 0; i < num_cpus - 1; i++)  {
+	/* coverity[DEADCODE] */
+	for (int i = 0; i < NUM_CPUHOLD; i++)  {
 		k_thread_create(&cpuhold_threads[i],
 				cpuhold_stacks[i], CPUHOLD_STACK_SZ,
 				(k_thread_entry_t) cpu_hold, NULL, NULL, NULL,
@@ -158,23 +162,19 @@ void z_impl_z_test_1cpu_start(void)
 #endif
 		k_sem_take(&cpuhold_sem, K_FOREVER);
 	}
-#endif
 }
 
 void z_impl_z_test_1cpu_stop(void)
 {
-#if defined(CONFIG_SMP) && (CONFIG_MP_MAX_NUM_CPUS > 1)
-	unsigned int num_cpus = arch_num_cpus();
-
 	cpuhold_active = 0;
 
 	/* Note that NUM_CPUHOLD can be a value that causes coverity
 	 * to flag the following loop as DEADCODE so suppress the warning.
 	 */
-	for (int i = 0; i < num_cpus - 1; i++)  {
+	/* coverity[DEADCODE] */
+	for (int i = 0; i < NUM_CPUHOLD; i++)  {
 		k_thread_abort(&cpuhold_threads[i]);
 	}
-#endif
 }
 
 #ifdef CONFIG_USERSPACE

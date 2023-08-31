@@ -15,7 +15,6 @@
 #include "esp_cpu.h"
 #include "esp_timer.h"
 #include "esp_spi_flash.h"
-#include "esp_clk_internal.h"
 #include <soc/interrupt_reg.h>
 #include <zephyr/drivers/interrupt_controller/intc_esp32c3.h>
 
@@ -81,11 +80,6 @@ void __attribute__((section(".iram1"))) __esp_platform_start(void)
 	 */
 	REG_CLR_BIT(SYSTEM_WIFI_CLK_EN_REG, SYSTEM_WIFI_CLK_SDIOSLAVE_EN);
 	SET_PERI_REG_MASK(SYSTEM_WIFI_CLK_EN_REG, SYSTEM_WIFI_CLK_EN);
-
-	/* Configures the CPU clock, RTC slow and fast clocks, and performs
-	 * RTC slow clock calibration.
-	 */
-	esp_clk_init();
 
 	esp_timer_early_init();
 

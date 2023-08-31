@@ -247,8 +247,6 @@ enable=
     deprecated-str-translate-call,
     deprecated-itertools-function,
     deprecated-types-field,
-    # Custom Zephyr check scripts
-    zephyr-arg-parse,
 
 [SIMILARITIES]
 

@@ -19,7 +19,6 @@
 #include <zephyr/drivers/pinctrl.h>
 #endif
 #include <zephyr/sys_clock.h>
-#include <zephyr/irq.h>
 
 LOG_MODULE_REGISTER(spi_mcux_flexcomm, CONFIG_SPI_LOG_LEVEL);
 

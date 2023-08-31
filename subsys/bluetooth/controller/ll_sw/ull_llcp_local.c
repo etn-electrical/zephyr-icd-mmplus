@@ -16,13 +16,9 @@
 #include "util/util.h"
 #include "util/mem.h"
 #include "util/memq.h"
-#include "util/mayfly.h"
 #include "util/dbuf.h"
 
-#include "pdu_df.h"
-#include "lll/pdu_vendor.h"
 #include "pdu.h"
-
 #include "ll.h"
 #include "ll_settings.h"
 
@@ -43,9 +39,13 @@
 #include "ull_llcp_internal.h"
 #include "ull_conn_internal.h"
 
+#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_DEBUG_HCI_DRIVER)
+#define LOG_MODULE_NAME bt_ctlr_ull_llcp_local
+#include "common/log.h"
 #include <soc.h>
 #include "hal/debug.h"
 
+static void lr_check_done(struct ll_conn *conn, struct proc_ctx *ctx);
 static struct proc_ctx *lr_dequeue(struct ll_conn *conn);
 
 /* LLCP Local Request FSM State */
@@ -71,7 +71,7 @@ enum {
 	LR_EVT_DISCONNECT,
 };
 
-void llcp_lr_check_done(struct ll_conn *conn, struct proc_ctx *ctx)
+static void lr_check_done(struct ll_conn *conn, struct proc_ctx *ctx)
 {
 	if (ctx->done) {
 		struct proc_ctx *ctx_header;
@@ -84,35 +84,6 @@ void llcp_lr_check_done(struct ll_conn *conn, struct proc_ctx *ctx)
 		llcp_proc_ctx_release(ctx);
 	}
 }
-
-/*
- * LLCP Local Request Shared Data Locking
- */
-
-static ALWAYS_INLINE uint32_t shared_data_access_lock(void)
-{
-	bool enabled;
-
-	if (mayfly_is_running()) {
-		/* We are in Mayfly context, nothing to be done */
-		return false;
-	}
-
-	/* We are in thread context and have to disable TICKER_USER_ID_ULL_HIGH */
-	enabled = mayfly_is_enabled(TICKER_USER_ID_THREAD, TICKER_USER_ID_ULL_HIGH) != 0U;
-	mayfly_enable(TICKER_USER_ID_THREAD, TICKER_USER_ID_ULL_HIGH, 0U);
-
-	return enabled;
-}
-
-static ALWAYS_INLINE void shared_data_access_unlock(bool key)
-{
-	if (key) {
-		/* We are in thread context and have to reenable TICKER_USER_ID_ULL_HIGH */
-		mayfly_enable(TICKER_USER_ID_THREAD, TICKER_USER_ID_ULL_HIGH, 1U);
-	}
-}
-
 /*
  * LLCP Local Request FSM
  */
@@ -124,48 +95,22 @@ static void lr_set_state(struct ll_conn *conn, enum lr_state state)
 
 void llcp_lr_enqueue(struct ll_conn *conn, struct proc_ctx *ctx)
 {
-	/* This function is called from both Thread and Mayfly (ISR),
-	 * make sure only a single context have access at a time.
-	 */
-
-	bool key = shared_data_access_lock();
-
 	sys_slist_append(&conn->llcp.local.pend_proc_list, &ctx->node);
-
-	shared_data_access_unlock(key);
 }
 
 static struct proc_ctx *lr_dequeue(struct ll_conn *conn)
 {
-	/* This function is called from both Thread and Mayfly (ISR),
-	 * make sure only a single context have access at a time.
-	 */
-
 	struct proc_ctx *ctx;
 
-	bool key = shared_data_access_lock();
-
 	ctx = (struct proc_ctx *)sys_slist_get(&conn->llcp.local.pend_proc_list);
-
-	shared_data_access_unlock(key);
-
 	return ctx;
 }
 
 struct proc_ctx *llcp_lr_peek(struct ll_conn *conn)
 {
-	/* This function is called from both Thread and Mayfly (ISR),
-	 * make sure only a single context have access at a time.
-	 */
-
 	struct proc_ctx *ctx;
 
-	bool key = shared_data_access_lock();
-
 	ctx = (struct proc_ctx *)sys_slist_peek_head(&conn->llcp.local.pend_proc_list);
-
-	shared_data_access_unlock(key);
-
 	return ctx;
 }
 
@@ -256,23 +201,13 @@ void llcp_lr_rx(struct ll_conn *conn, struct proc_ctx *ctx, struct node_rx_pdu *
 		llcp_lp_comm_rx(conn, ctx, rx);
 		break;
 #endif /* defined(CONFIG_BT_CTLR_CENTRAL_ISO) || defined(CONFIG_BT_CTLR_PERIPHERAL_ISO) */
-#if defined(CONFIG_BT_CTLR_CENTRAL_ISO)
-	case PROC_CIS_CREATE:
-		llcp_lp_cc_rx(conn, ctx, rx);
-		break;
-#endif /* defined(CONFIG_BT_CTLR_CENTRAL_ISO) */
-#if defined(CONFIG_BT_CTLR_SCA_UPDATE)
-	case PROC_SCA_UPDATE:
-		llcp_lp_comm_rx(conn, ctx, rx);
-		break;
-#endif /* CONFIG_BT_CTLR_SCA_UPDATE */
 	default:
 		/* Unknown procedure */
 		LL_ASSERT(0);
 		break;
 	}
 
-	llcp_lr_check_done(conn, ctx);
+	lr_check_done(conn, ctx);
 }
 
 void llcp_lr_tx_ack(struct ll_conn *conn, struct proc_ctx *ctx, struct node_tx *tx)
@@ -305,7 +240,7 @@ void llcp_lr_tx_ack(struct ll_conn *conn, struct proc_ctx *ctx, struct node_tx *
 		break;
 		/* Ignore tx_ack */
 	}
-	llcp_lr_check_done(conn, ctx);
+	lr_check_done(conn, ctx);
 }
 
 void llcp_lr_tx_ntf(struct ll_conn *conn, struct proc_ctx *ctx)
@@ -321,7 +256,7 @@ void llcp_lr_tx_ntf(struct ll_conn *conn, struct proc_ctx *ctx)
 		break;
 	}
 
-	llcp_lr_check_done(conn, ctx);
+	lr_check_done(conn, ctx);
 }
 
 static void lr_act_run(struct ll_conn *conn)
@@ -381,28 +316,18 @@ static void lr_act_run(struct ll_conn *conn)
 		llcp_lp_comm_run(conn, ctx, NULL);
 		break;
 #endif /* CONFIG_BT_CTLR_DF_CONN_CTE_REQ */
-#if defined(CONFIG_BT_CTLR_CENTRAL_ISO)
-	case PROC_CIS_CREATE:
-		llcp_lp_cc_run(conn, ctx, NULL);
-		break;
-#endif /* CONFIG_BT_CTLR_CENTRAL_ISO */
 #if defined(CONFIG_BT_CTLR_CENTRAL_ISO) || defined(CONFIG_BT_CTLR_PERIPHERAL_ISO)
 	case PROC_CIS_TERMINATE:
 		llcp_lp_comm_run(conn, ctx, NULL);
 		break;
 #endif /* defined(CONFIG_BT_CTLR_CENTRAL_ISO) || defined(CONFIG_BT_CTLR_PERIPHERAL_ISO) */
-#if defined(CONFIG_BT_CTLR_SCA_UPDATE)
-	case PROC_SCA_UPDATE:
-		llcp_lp_comm_run(conn, ctx, NULL);
-		break;
-#endif /* CONFIG_BT_CTLR_DF_CONN_CTE_REQ */
 	default:
 		/* Unknown procedure */
 		LL_ASSERT(0);
 		break;
 	}
 
-	llcp_lr_check_done(conn, ctx);
+	lr_check_done(conn, ctx);
 }
 
 static void lr_act_complete(struct ll_conn *conn)
@@ -462,13 +387,8 @@ static void lr_st_idle(struct ll_conn *conn, uint8_t evt, void *param)
 	case LR_EVT_RUN:
 		ctx = llcp_lr_peek(conn);
 		if (ctx) {
-			/*
-			 * since the call to lr_act_run may release the context we need to remember
-			 * which procedure we are running
-			 */
-			const enum llcp_proc curr_proc = ctx->proc;
 			lr_act_run(conn);
-			if (curr_proc != PROC_TERMINATE) {
+			if (ctx->proc != PROC_TERMINATE) {
 				lr_set_state(conn, LR_STATE_ACTIVE);
 			} else {
 				lr_set_state(conn, LR_STATE_TERMINATE);
@@ -600,19 +520,48 @@ void llcp_lr_abort(struct ll_conn *conn)
 
 #ifdef ZTEST_UNITTEST
 
-bool llcp_lr_is_disconnected(struct ll_conn *conn)
+bool lr_is_disconnected(struct ll_conn *conn)
 {
 	return conn->llcp.local.state == LR_STATE_DISCONNECT;
 }
 
-bool llcp_lr_is_idle(struct ll_conn *conn)
+bool lr_is_idle(struct ll_conn *conn)
 {
 	return conn->llcp.local.state == LR_STATE_IDLE;
 }
 
-struct proc_ctx *llcp_lr_dequeue(struct ll_conn *conn)
+void test_int_local_pending_requests(void)
 {
-	return lr_dequeue(conn);
+	struct ll_conn conn;
+	struct proc_ctx *peek_ctx;
+	struct proc_ctx *dequeue_ctx;
+	struct proc_ctx ctx;
+
+	ull_cp_init();
+	ull_tx_q_init(&conn.tx_q);
+	ull_llcp_init(&conn);
+
+	peek_ctx = llcp_lr_peek(&conn);
+	zassert_is_null(peek_ctx, NULL);
+
+	dequeue_ctx = lr_dequeue(&conn);
+	zassert_is_null(dequeue_ctx, NULL);
+
+	llcp_lr_enqueue(&conn, &ctx);
+	peek_ctx = (struct proc_ctx *)sys_slist_peek_head(&conn.llcp.local.pend_proc_list);
+	zassert_equal_ptr(peek_ctx, &ctx, NULL);
+
+	peek_ctx = llcp_lr_peek(&conn);
+	zassert_equal_ptr(peek_ctx, &ctx, NULL);
+
+	dequeue_ctx = lr_dequeue(&conn);
+	zassert_equal_ptr(dequeue_ctx, &ctx, NULL);
+
+	peek_ctx = llcp_lr_peek(&conn);
+	zassert_is_null(peek_ctx, NULL);
+
+	dequeue_ctx = lr_dequeue(&conn);
+	zassert_is_null(dequeue_ctx, NULL);
 }
 
 #endif

@@ -7,4 +7,4 @@ description: |
 
 compatible: "asahi-kasei,ak8975"
 
-include: [sensor-device.yaml, i2c-device.yaml]
+include: i2c-device.yaml

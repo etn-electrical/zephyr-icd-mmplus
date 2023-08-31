@@ -5,7 +5,6 @@
 
 #include <zephyr/device.h>
 #include <zephyr/init.h>
-#include <zephyr/irq.h>
 
 static int gd32f4xx_soc_init(const struct device *dev)
 {

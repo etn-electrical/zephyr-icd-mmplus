@@ -47,7 +47,6 @@ zephyr_library_sources_ifdef(
 
 if(CONFIG_SOC_OPENISA_RV32M1_RISCV32)
   zephyr_library_include_directories(
-    ll_sw
     ll_sw/openisa
     hci/openisa
     )

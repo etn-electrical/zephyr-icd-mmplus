@@ -17,4 +17,3 @@ supported:
   - hwinfo
   - watchdog
   - pwm
-  - flash

@@ -397,7 +397,7 @@ static int eswifi_off_put(struct net_context *context)
 	}
 
 	if (--socket->usage <= 0) {
-		socket->context = NULL;
+		memset(socket, 0, sizeof(*socket));
 	}
 done:
 	eswifi_unlock(eswifi);

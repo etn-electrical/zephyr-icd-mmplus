@@ -11,5 +11,6 @@ include:
       - label
 
 properties:
-  label:
-    type: string
+    label:
+        type: string
+        required: false

@@ -44,13 +44,18 @@
 #define main(...) _posix_zephyr_main(__VA_ARGS__)
 #endif
 
-#if defined(__cplusplus) && defined(CONFIG_CPP_MAIN)
+#ifdef __cplusplus
+extern "C" {
+#endif
 /* To be able to define main() in C++ code we need to have its prototype
  * defined somewhere visibly. Otherwise name mangling will prevent the linker
  * from finding it. Zephyr assumes a void main(void) prototype and therefore
  * this will be the prototype after renaming:
  */
-extern "C" int _posix_zephyr_main(void);
+void _posix_zephyr_main(void);
+
+#ifdef __cplusplus
+}
 #endif
 
 #ifdef CONFIG_POSIX_API

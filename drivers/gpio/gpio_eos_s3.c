@@ -8,13 +8,12 @@
 
 #include <errno.h>
 #include <zephyr/drivers/gpio.h>
-#include <zephyr/irq.h>
 #include <soc.h>
 #include <eoss3_hal_gpio.h>
 #include <eoss3_hal_pads.h>
 #include <eoss3_hal_pad_config.h>
 
-#include <zephyr/drivers/gpio/gpio_utils.h>
+#include "gpio_utils.h"
 
 #define MAX_GPIOS		8U
 #define GPIOS_MASK		(BIT(MAX_GPIOS) - 1)

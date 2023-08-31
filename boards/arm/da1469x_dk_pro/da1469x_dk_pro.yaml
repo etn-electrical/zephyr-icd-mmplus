@@ -10,4 +10,3 @@ toolchain:
 supported:
   - arduino_gpio
   - gpio
-  - watchdog

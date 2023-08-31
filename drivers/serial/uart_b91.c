@@ -10,7 +10,6 @@
 #include <zephyr/device.h>
 #include <zephyr/drivers/uart.h>
 #include <zephyr/drivers/pinctrl.h>
-#include <zephyr/irq.h>
 
 
 /* Driver dts compatibility: telink,b91_uart */

@@ -45,8 +45,7 @@ static struct ipc_ept_cfg ept_cfg = {
 
 nrf_802154_ser_err_t nrf_802154_backend_init(void)
 {
-	const struct device *const ipc_instance =
-		DEVICE_DT_GET(DT_CHOSEN(nordic_802154_spinel_ipc));
+	const struct device *const ipc_instance = DEVICE_DT_GET(DT_NODELABEL(ipc0));
 	int err;
 
 	err = ipc_service_open_instance(ipc_instance);

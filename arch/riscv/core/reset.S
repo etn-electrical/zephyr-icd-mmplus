@@ -39,9 +39,14 @@ SECTION_FUNC(reset, __reset)
  */
 SECTION_FUNC(TEXT, __initialize)
 	csrr a0, mhartid
-	li t0, CONFIG_RV_BOOT_HART
-	beq a0, t0, boot_first_core
-	j boot_secondary_core
+	beqz a0, boot_first_core
+
+	li t0, CONFIG_MP_NUM_CPUS
+	blt a0, t0, boot_secondary_core
+
+loop_unconfigured_cores:
+	wfi
+	j loop_unconfigured_cores
 
 boot_first_core:
 
@@ -92,7 +97,6 @@ aa_loop:
 	call _PrepC
 
 boot_secondary_core:
-#if CONFIG_MP_MAX_NUM_CPUS > 1
 	la t0, riscv_cpu_wake_flag
 	lr t0, 0(t0)
 	bne a0, t0, boot_secondary_core
@@ -104,10 +108,3 @@ boot_secondary_core:
 	la t0, riscv_cpu_wake_flag
 	sr zero, 0(t0)
 	j z_riscv_secondary_cpu_init
-#else
-	j loop_unconfigured_cores
-#endif
-
-loop_unconfigured_cores:
-	wfi
-	j loop_unconfigured_cores

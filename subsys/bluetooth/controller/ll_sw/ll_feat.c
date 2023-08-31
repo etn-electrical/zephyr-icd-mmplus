@@ -13,8 +13,6 @@
 
 #include "hal/ccm.h"
 
-#include "pdu_df.h"
-#include "lll/pdu_vendor.h"
 #include "pdu.h"
 
 #include "lll.h"
@@ -26,8 +24,9 @@
 #include "ll_feat.h"
 #include "ll_settings.h"
 
-#include <zephyr/bluetooth/hci.h>
-
+#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_DEBUG_HCI_DRIVER)
+#define LOG_MODULE_NAME bt_ctlr_ll_feat
+#include "common/log.h"
 #include "hal/debug.h"
 
 #if defined(CONFIG_BT_CTLR_SET_HOST_FEATURE)

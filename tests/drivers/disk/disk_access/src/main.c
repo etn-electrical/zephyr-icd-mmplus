@@ -14,10 +14,8 @@
 #include <zephyr/storage/disk_access.h>
 #include <zephyr/device.h>
 
-#if defined(CONFIG_DISK_DRIVER_SDMMC)
+#if IS_ENABLED(CONFIG_DISK_DRIVER_SDMMC)
 #define DISK_NAME CONFIG_SDMMC_VOLUME_NAME
-#elif IS_ENABLED(CONFIG_DISK_DRIVER_MMC)
-#define DISK_NAME CONFIG_MMC_VOLUME_NAME
 #elif IS_ENABLED(CONFIG_DISK_DRIVER_RAM)
 #define DISK_NAME CONFIG_DISK_RAM_VOLUME_NAME
 #else
@@ -96,12 +94,7 @@ static void test_sector_read(uint8_t *buf, uint32_t num_sectors)
 	rc = read_sector(buf, 0, num_sectors);
 	zassert_equal(rc, 0, "Failed to read from sector zero");
 	/* Read from a sector in the "middle" of the disk */
-	if (disk_sector_count / 2 > num_sectors) {
-		sector = disk_sector_count / 2 - num_sectors;
-	} else {
-		sector = 0;
-	}
-
+	sector = MAX(((disk_sector_count / 2) - num_sectors), 0);
 	rc = read_sector(buf, sector, num_sectors);
 	zassert_equal(rc, 0, "Failed to read from mid disk sector");
 	/* Read from the last sector */
@@ -154,12 +147,7 @@ static void test_sector_write(uint8_t *wbuf, uint8_t *rbuf, uint32_t num_sectors
 	rc = write_sector_checked(wbuf, rbuf, 0, num_sectors);
 	zassert_equal(rc, 0, "Failed to write to sector zero");
 	/* Write to a sector in the "middle" of the disk */
-	if (disk_sector_count / 2 > num_sectors) {
-		sector = disk_sector_count / 2 - num_sectors;
-	} else {
-		sector = 0;
-	}
-
+	sector = MAX(((disk_sector_count / 2) - num_sectors), 0);
 	rc = write_sector_checked(wbuf, rbuf, sector, num_sectors);
 	zassert_equal(rc, 0, "Failed to write to mid disk sector");
 	/* Write to the last sector */

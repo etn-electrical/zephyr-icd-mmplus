@@ -8,3 +8,9 @@ project(functional_fcb)
 target_sources(app PRIVATE settings_test_fcb.c)
 
 add_subdirectory(../src func_test_bindir)
+
+if(TEST)
+	target_compile_definitions(app PRIVATE
+		-DTEST_${TEST}
+		)
+endif()

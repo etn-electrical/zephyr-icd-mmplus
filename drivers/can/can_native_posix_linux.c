@@ -17,6 +17,7 @@
 #include <zephyr/net/socketcan.h>
 #include <zephyr/net/socketcan_utils.h>
 
+#include "can_utils.h"
 #include "can_native_posix_linux_socketcan.h"
 
 LOG_MODULE_REGISTER(can_npl, CONFIG_CAN_LOG_LEVEL);
@@ -59,7 +60,8 @@ static void dispatch_frame(const struct device *dev, struct can_frame *frame)
 			continue;
 		}
 
-		if (!can_frame_matches_filter(frame, &data->filters[filter_id].filter)) {
+		if (!can_utils_filter_match(frame,
+					    &data->filters[filter_id].filter)) {
 			continue;
 		}
 
@@ -107,8 +109,9 @@ static void rx_thread(void *arg1, void *arg2, void *arg3)
 
 			LOG_DBG("Received %d bytes. Id: 0x%x, ID type: %s %s",
 				frame.dlc, frame.id,
-				(frame.flags & CAN_FRAME_IDE) != 0 ? "extended" : "standard",
-				(frame.flags & CAN_FRAME_RTR) != 0 ? ", RTR frame" : "");
+				frame.id_type == CAN_STANDARD_IDENTIFIER ?
+						"standard" : "extended",
+				frame.rtr == CAN_DATAFRAME ? "" : ", RTR frame");
 
 			dispatch_frame(dev, &frame);
 		}
@@ -129,32 +132,18 @@ static int can_npl_send(const struct device *dev, const struct can_frame *frame,
 
 	LOG_DBG("Sending %d bytes on %s. Id: 0x%x, ID type: %s %s",
 		frame->dlc, dev->name, frame->id,
-		(frame->flags & CAN_FRAME_IDE) != 0 ? "extended" : "standard",
-		(frame->flags & CAN_FRAME_RTR) != 0 ? ", RTR frame" : "");
+		frame->id_type == CAN_STANDARD_IDENTIFIER ?
+				  "standard" : "extended",
+		frame->rtr == CAN_DATAFRAME ? "" : ", RTR frame");
 
 	__ASSERT_NO_MSG(callback != NULL);
 
 #ifdef CONFIG_CAN_FD_MODE
-	if ((frame->flags & ~(CAN_FRAME_IDE | CAN_FRAME_RTR |
-		CAN_FRAME_FDF | CAN_FRAME_BRS)) != 0) {
-		LOG_ERR("unsupported CAN frame flags 0x%02x", frame->flags);
-		return -ENOTSUP;
-	}
-
-	if ((frame->flags & CAN_FRAME_FDF) != 0) {
-		if (!data->mode_fd) {
-			return -ENOTSUP;
-		}
-
+	if (data->mode_fd && frame->fd == 1) {
 		max_dlc = CANFD_MAX_DLC;
 		mtu = CANFD_MTU;
 	}
-#else /* CONFIG_CAN_FD_MODE */
-	if ((frame->flags & ~(CAN_FRAME_IDE | CAN_FRAME_RTR)) != 0) {
-		LOG_ERR("unsupported CAN frame flags 0x%02x", frame->flags);
-		return -ENOTSUP;
-	}
-#endif /* !CONFIG_CAN_FD_MODE */
+#endif /* CONFIG_CAN_FD_MODE */
 
 	if (frame->dlc > max_dlc) {
 		LOG_ERR("DLC of %d exceeds maximum (%d)", frame->dlc, max_dlc);
@@ -195,17 +184,13 @@ static int can_npl_add_rx_filter(const struct device *dev, can_rx_callback_t cb,
 	int filter_id = -ENOSPC;
 
 	LOG_DBG("Setting filter ID: 0x%x, mask: 0x%x", filter->id,
-		filter->mask);
-
-#ifdef CONFIG_CAN_FD_MODE
-	if ((filter->flags & ~(CAN_FILTER_IDE | CAN_FILTER_DATA |
-							CAN_FILTER_RTR | CAN_FILTER_FDF)) != 0) {
-#else
-	if ((filter->flags & ~(CAN_FILTER_IDE | CAN_FILTER_DATA | CAN_FILTER_RTR)) != 0) {
-#endif
-		LOG_ERR("unsupported CAN filter flags 0x%02x", filter->flags);
-		return -ENOTSUP;
-	}
+		    filter->id_mask);
+	LOG_DBG("Filter type: %s ID %s mask",
+		filter->id_type == CAN_STANDARD_IDENTIFIER ?
+				   "standard" : "extended",
+		((filter->id_type && (filter->id_mask == CAN_STD_ID_MASK)) ||
+		(!filter->id_type && (filter->id_mask == CAN_EXT_ID_MASK))) ?
+		"with" : "without");
 
 	k_mutex_lock(&data->filter_mutex, K_FOREVER);
 
@@ -399,9 +384,9 @@ static int can_npl_get_core_clock(const struct device *dev, uint32_t *rate)
 	return 0;
 }
 
-static int can_npl_get_max_filters(const struct device *dev, bool ide)
+static int can_npl_get_max_filters(const struct device *dev, enum can_ide id_type)
 {
-	ARG_UNUSED(ide);
+	ARG_UNUSED(id_type);
 
 	return CONFIG_CAN_MAX_FILTER;
 }

@@ -8,6 +8,7 @@ compatible: "cdns,tensilica-xtensa-lx7"
 include: cpu.yaml
 
 properties:
-  clock-source:
-    type: int
-    description: cpu clock source
+    clock-source:
+      type: int
+      description: cpu clock source
+      required: false

@@ -14,7 +14,6 @@
 #include <fsl_i2s.h>
 #include <fsl_dma.h>
 #include <zephyr/logging/log.h>
-#include <zephyr/irq.h>
 #ifdef CONFIG_PINCTRL
 #include <zephyr/drivers/pinctrl.h>
 #endif

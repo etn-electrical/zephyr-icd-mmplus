@@ -6,3 +6,7 @@ description: EDAC In-Band Error Correcting Code (IBECC)
 compatible: "intel,ibecc"
 
 include: base.yaml
+
+properties:
+    reg:
+      required: false

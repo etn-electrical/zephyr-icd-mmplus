@@ -20,7 +20,6 @@
 		zephyr,sram = &sram0;
 		zephyr,flash = &flash0;
 		zephyr,code-partition = &slot0_partition;
-		zephyr,canbus = &can1;
 	};
 
 	power-states {
@@ -69,10 +68,6 @@
 	status = "okay";
 };
 
-&clk_hsi48 {
-	status = "okay";
-};
-
 &pll {
 	div-m = <1>;
 	mul-n = <8>;
@@ -111,8 +106,6 @@ zephyr_udc0: &usb {
 };
 
 &rtc {
-	clocks = <&rcc STM32_CLOCK_BUS_APB1 0x00000400>,
-		 <&rcc STM32_SRC_LSI RTC_SEL(2)>;
 	status = "okay";
 };
 
@@ -182,16 +175,6 @@ zephyr_udc0: &usb {
 	status = "okay";
 	pinctrl-0 = <&dac1_out1_pa4>;
 	pinctrl-names = "default";
-};
-
-&can1 {
-	clocks = <&rcc STM32_CLOCK_BUS_APB1 0x00001000>,
-		 <&rcc STM32_SRC_PLL_Q FDCAN_SEL(1)>;
-	pinctrl-0 = <&fdcan1_rx_pa11 &fdcan1_tx_pa12>;
-	pinctrl-names = "default";
-	bus-speed = <125000>;
-	bus-speed-data = <1000000>;
-	status = "okay";
 };
 
 &flash0 {

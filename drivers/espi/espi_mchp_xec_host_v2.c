@@ -17,7 +17,6 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/sys_io.h>
 #include <zephyr/sys/util.h>
-#include <zephyr/irq.h>
 #include "espi_utils.h"
 #include "espi_mchp_xec_v2.h"
 
@@ -719,9 +718,6 @@ static int ecust_rd_req(const struct device *dev,
 #ifdef CONFIG_ESPI_PERIPHERAL_EC_HOST_CMD
 	case ECUSTOM_HOST_CMD_GET_PARAM_MEMORY:
 		*data = (uint32_t)ec_host_cmd_sram;
-		break;
-	case ECUSTOM_HOST_CMD_GET_PARAM_MEMORY_SIZE:
-		*data = CONFIG_ESPI_XEC_PERIPHERAL_HOST_CMD_PARAM_SIZE;
 		break;
 #endif
 	default:

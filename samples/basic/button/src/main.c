@@ -42,7 +42,7 @@ void main(void)
 {
 	int ret;
 
-	if (!gpio_is_ready_dt(&button)) {
+	if (!device_is_ready(button.port)) {
 		printk("Error: button device %s is not ready\n",
 		       button.port->name);
 		return;

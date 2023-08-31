@@ -28,6 +28,9 @@ config SMP
 config XTENSA_TIMER
 	default n
 
+config INTEL_ADSP_TIMER
+	default y
+
 config KERNEL_ENTRY
 	default "_MainEntry"
 

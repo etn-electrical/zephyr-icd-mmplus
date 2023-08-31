@@ -4,5 +4,3 @@ tests:
     tags: bluetooth
     slow: true
     timeout: 360
-    integration_platforms:
-      - nrf51dk_nrf51422

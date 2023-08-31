@@ -29,12 +29,17 @@ struct flash_context {
 
 #ifndef CONFIG_SOC_FLASH_NRF_RADIO_SYNC_NONE
 
-/* The timeout is multiplied by CONFIG_SOC_FLASH_NRF_TIMEOUT_MULTIPLIER/10
- * because switching tasks may take a significant portion of time.
+#if defined(CONFIG_SOC_FLASH_NRF_PARTIAL_ERASE)
+/* The timeout is multiplied by 1.5 because switching tasks may take
+ * significant portion of time.
  */
 #define FLASH_TIMEOUT_MS ((FLASH_PAGE_ERASE_MAX_TIME_US) * \
-			  (FLASH_PAGE_MAX_CNT) / 1000 * \
-			  CONFIG_SOC_FLASH_NRF_TIMEOUT_MULTIPLIER / 10)
+			  (FLASH_PAGE_MAX_CNT) / 1000 * 15 / 10)
+#else
+
+#define FLASH_TIMEOUT_MS ((FLASH_PAGE_ERASE_MAX_TIME_US) * \
+			  (FLASH_PAGE_MAX_CNT) / 1000)
+#endif /* CONFIG_SOC_FLASH_NRF_PARTIAL_ERASE */
 
 /**
  * @defgroup nrf_flash_sync sync backend API

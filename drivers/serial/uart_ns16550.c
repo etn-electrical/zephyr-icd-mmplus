@@ -32,13 +32,8 @@
 #include <zephyr/pm/policy.h>
 #include <zephyr/sys/sys_io.h>
 #include <zephyr/spinlock.h>
-#include <zephyr/irq.h>
 
-#if defined(CONFIG_PINCTRL)
-#include <zephyr/drivers/pinctrl.h>
-#endif
-
-#include <zephyr/drivers/serial/uart_ns16550.h>
+#include "uart_ns16550.h"
 
 #define INST_HAS_PCP_HELPER(inst) DT_INST_NODE_HAS_PROP(inst, pcp) ||
 #define INST_HAS_DLF_HELPER(inst) DT_INST_NODE_HAS_PROP(inst, dlf) ||
@@ -241,10 +236,9 @@ struct uart_ns16550_device_config {
 #endif
 	uint8_t reg_interval;
 #if DT_ANY_INST_ON_BUS_STATUS_OKAY(pcie)
-	struct pcie_dev *pcie;
-#endif
-#if defined(CONFIG_PINCTRL)
-	const struct pinctrl_dev_config *pincfg;
+	bool pcie;
+	pcie_bdf_t pcie_bdf;
+	pcie_id_t pcie_id;
 #endif
 };
 
@@ -335,24 +329,18 @@ static int uart_ns16550_configure(const struct device *dev,
 	ARG_UNUSED(dev_data);
 	ARG_UNUSED(dev_cfg);
 
-#if defined(CONFIG_PINCTRL)
-	if (dev_cfg->pincfg != NULL) {
-		pinctrl_apply_state(dev_cfg->pincfg, PINCTRL_STATE_DEFAULT);
-	}
-#endif
-
 #ifndef CONFIG_UART_NS16550_ACCESS_IOPORT
 #if DT_ANY_INST_ON_BUS_STATUS_OKAY(pcie)
 	if (dev_cfg->pcie) {
-		struct pcie_bar mbar;
+		struct pcie_mbar mbar;
 
-		if (dev_cfg->pcie->bdf == PCIE_BDF_NONE) {
+		if (!pcie_probe(dev_cfg->pcie_bdf, dev_cfg->pcie_id)) {
 			ret = -EINVAL;
 			goto out;
 		}
 
-		pcie_probe_mbar(dev_cfg->pcie->bdf, 0, &mbar);
-		pcie_set_cmd(dev_cfg->pcie->bdf, PCIE_CONF_CMDSTAT_MEM, true);
+		pcie_probe_mbar(dev_cfg->pcie_bdf, 0, &mbar);
+		pcie_set_cmd(dev_cfg->pcie_bdf, PCIE_CONF_CMDSTAT_MEM, true);
 
 		device_map(DEVICE_MMIO_RAM_PTR(dev), mbar.phys_addr, mbar.size,
 			   K_MEM_CACHE_NONE);
@@ -1072,21 +1060,21 @@ static const struct uart_driver_api uart_ns16550_driver_api = {
 #define UART_NS16550_IRQ_CONFIG_PCIE1(n)                                      \
 	static void irq_config_func##n(const struct device *dev)              \
 	{                                                                     \
+		ARG_UNUSED(dev);                                              \
 		BUILD_ASSERT(DT_INST_IRQN(n) == PCIE_IRQ_DETECT,              \
 			     "Only runtime IRQ configuration is supported");  \
 		BUILD_ASSERT(IS_ENABLED(CONFIG_DYNAMIC_INTERRUPTS),           \
 			     "NS16550 PCIe requires dynamic interrupts");     \
-		const struct uart_ns16550_device_config *dev_cfg = dev->config;\
-		unsigned int irq = pcie_alloc_irq(dev_cfg->pcie->bdf);        \
+		unsigned int irq = pcie_alloc_irq(DT_INST_REG_ADDR(n));       \
 		if (irq == PCIE_CONF_INTR_IRQ_NONE) {                         \
 			return;                                               \
 		}                                                             \
-		pcie_connect_dynamic_irq(dev_cfg->pcie->bdf, irq,	      \
+		pcie_connect_dynamic_irq(DT_INST_REG_ADDR(n), irq,	      \
 				     DT_INST_IRQ(n, priority),		      \
 				    (void (*)(const void *))uart_ns16550_isr, \
 				    DEVICE_DT_INST_GET(n),                    \
 				    UART_NS16550_IRQ_FLAGS(n));               \
-		pcie_irq_enable(dev_cfg->pcie->bdf, irq);                    \
+		pcie_irq_enable(DT_INST_REG_ADDR(n), irq);                    \
 	}
 
 #ifdef CONFIG_UART_NS16550_ACCESS_IOPORT
@@ -1120,14 +1108,12 @@ static const struct uart_driver_api uart_ns16550_driver_api = {
 #endif
 
 #define DEV_CONFIG_PCIE0(n)
-#define DEV_CONFIG_PCIE1(n) DEVICE_PCIE_INST_INIT(n, pcie)
+#define DEV_CONFIG_PCIE1(n)              \
+	.pcie = true,                    \
+	.pcie_bdf = DT_INST_REG_ADDR(n), \
+	.pcie_id = DT_INST_REG_SIZE(n),
 #define DEV_CONFIG_PCIE_INIT(n) \
 	_CONCAT(DEV_CONFIG_PCIE, DT_INST_ON_BUS(n, pcie))(n)
-
-#define DEV_DECLARE_PCIE0(n)
-#define DEV_DECLARE_PCIE1(n) DEVICE_PCIE_INST_DECLARE(n)
-#define DEV_PCIE_DECLARE(n) \
-	_CONCAT(DEV_DECLARE_PCIE, DT_INST_ON_BUS(n, pcie))(n)
 
 #define DEV_DATA_FLOW_CTRL0 UART_CFG_FLOW_CTRL_NONE
 #define DEV_DATA_FLOW_CTRL1 UART_CFG_FLOW_CTRL_RTS_CTS
@@ -1142,9 +1128,6 @@ static const struct uart_driver_api uart_ns16550_driver_api = {
 
 #define UART_NS16550_DEVICE_INIT(n)                                                  \
 	UART_NS16550_IRQ_FUNC_DECLARE(n);                                            \
-	DEV_PCIE_DECLARE(n);                                                         \
-	IF_ENABLED(DT_INST_NODE_HAS_PROP(n, pinctrl_0),                              \
-		(PINCTRL_DT_INST_DEFINE(n)));                                        \
 	static const struct uart_ns16550_device_config uart_ns16550_dev_cfg_##n = {  \
 		DEV_CONFIG_REG_INIT(n)                                               \
 		COND_CODE_1(DT_INST_NODE_HAS_PROP(n, clock_frequency), (             \
@@ -1162,8 +1145,6 @@ static const struct uart_driver_api uart_ns16550_driver_api = {
 		DEV_CONFIG_PCP_INIT(n)                                               \
 		.reg_interval = (1 << DT_INST_PROP(n, reg_shift)),                   \
 		DEV_CONFIG_PCIE_INIT(n)                                              \
-		IF_ENABLED(DT_INST_NODE_HAS_PROP(n, pinctrl_0),                      \
-			(.pincfg = PINCTRL_DT_DEV_CONFIG_GET(DT_DRV_INST(n)),))      \
 	};                                                                           \
 	static struct uart_ns16550_dev_data uart_ns16550_dev_data_##n = {            \
 		.uart_config.baudrate = DT_INST_PROP_OR(n, current_speed, 0),        \

@@ -18,7 +18,6 @@
 #include <zephyr/drivers/dma/dma_stm32.h>
 
 #include <zephyr/logging/log.h>
-#include <zephyr/irq.h>
 LOG_MODULE_REGISTER(dma_stm32, CONFIG_DMA_LOG_LEVEL);
 
 #if DT_HAS_COMPAT_STATUS_OKAY(st_stm32_dma_v1)
@@ -53,13 +52,13 @@ LOG_MODULE_REGISTER(dma_stm32, CONFIG_DMA_LOG_LEVEL);
 #endif
 #endif /* DT_NODE_HAS_STATUS(DT_DRV_INST(1), okay) */
 
-static const uint32_t table_m_size[] = {
+static uint32_t table_m_size[] = {
 	LL_DMA_MDATAALIGN_BYTE,
 	LL_DMA_MDATAALIGN_HALFWORD,
 	LL_DMA_MDATAALIGN_WORD,
 };
 
-static const uint32_t table_p_size[] = {
+static uint32_t table_p_size[] = {
 	LL_DMA_PDATAALIGN_BYTE,
 	LL_DMA_PDATAALIGN_HALFWORD,
 	LL_DMA_PDATAALIGN_WORD,
@@ -450,7 +449,7 @@ DMA_STM32_EXPORT_API int dma_stm32_configure(const struct device *dev,
 	DMA_InitStruct.PeriphBurst = stm32_dma_get_pburst(config,
 							stream->source_periph);
 
-#if !defined(CONFIG_SOC_SERIES_STM32H7X) && !defined(CONFIG_SOC_SERIES_STM32MP1X)
+#if !defined(CONFIG_SOC_SERIES_STM32H7X)
 	if (config->channel_direction != MEMORY_TO_MEMORY) {
 		if (config->dma_slot >= 8) {
 			LOG_ERR("dma slot error.");
@@ -573,11 +572,6 @@ DMA_STM32_EXPORT_API int dma_stm32_start(const struct device *dev, uint32_t id)
 		return -EINVAL;
 	}
 
-	/* Repeated start : return now if channel is already started */
-	if (stm32_dma_is_enabled_stream(dma, id)) {
-		return 0;
-	}
-
 	/* When starting the dma, the stream is busy before enabling */
 	stream = &config->streams[id];
 	stream->busy = true;
@@ -601,13 +595,7 @@ DMA_STM32_EXPORT_API int dma_stm32_stop(const struct device *dev, uint32_t id)
 		return -EINVAL;
 	}
 
-	/* Repeated stop : return now if channel is already stopped */
-	if (!stm32_dma_is_enabled_stream(dma, id)) {
-		return 0;
-	}
-
-#if !defined(CONFIG_DMAMUX_STM32) \
-	|| defined(CONFIG_SOC_SERIES_STM32H7X) || defined(CONFIG_SOC_SERIES_STM32MP1X)
+#if !defined(CONFIG_DMAMUX_STM32) || defined(CONFIG_SOC_SERIES_STM32H7X)
 	LL_DMA_DisableIT_TC(dma, dma_stm32_id_to_stream(id));
 #endif /* CONFIG_DMAMUX_STM32 */
 

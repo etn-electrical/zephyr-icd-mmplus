@@ -9,8 +9,6 @@
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/i2c.h>
 #include <zephyr/drivers/pinctrl.h>
-#include <zephyr/irq.h>
-#include <zephyr/kernel.h>
 #include <zephyr/pm/policy.h>
 #include <errno.h>
 #include <soc.h>
@@ -854,13 +852,13 @@ static int i2c_enhance_transfer(const struct device *dev,
 				uint8_t num_msgs, uint16_t addr)
 {
 	struct i2c_enhance_data *data = dev->data;
-	int ret;
+
+	data->num_msgs = num_msgs;
+	data->addr_16bit = addr;
 
 	/* Lock mutex of i2c controller */
 	k_mutex_lock(&data->mutex, K_FOREVER);
 
-	data->num_msgs = num_msgs;
-	data->addr_16bit = addr;
 	/*
 	 * If the transaction of write to read is divided into two
 	 * transfers, the repeat start transfer uses this flag to
@@ -876,8 +874,6 @@ static int i2c_enhance_transfer(const struct device *dev,
 			 * (No external pull-up), drop the transaction.
 			 */
 			if (i2c_bus_not_available(dev)) {
-				/* Unlock mutex of i2c controller */
-				k_mutex_unlock(&data->mutex);
 				return -EIO;
 			}
 		}
@@ -891,12 +887,11 @@ static int i2c_enhance_transfer(const struct device *dev,
 	{
 		data->err = i2c_enhance_pio_transfer(dev, msgs);
 	}
-	/* Save return value. */
-	ret = i2c_parsing_return_value(dev);
+
 	/* Unlock mutex of i2c controller */
 	k_mutex_unlock(&data->mutex);
 
-	return ret;
+	return i2c_parsing_return_value(dev);
 }
 
 static void i2c_enhance_isr(void *arg)

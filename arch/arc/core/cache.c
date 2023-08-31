@@ -40,6 +40,7 @@ size_t sys_cache_line_size;
 #define DC_CTRL_INDIRECT_ACCESS      0x20 /* indirect access mode */
 #define DC_CTRL_OP_SUCCEEDED         0x4  /* d-cache operation succeeded */
 
+
 static bool dcache_available(void)
 {
 	unsigned long val = z_arc_v2_aux_reg_read(_ARC_V2_D_CACHE_BUILD);
@@ -60,12 +61,7 @@ void arch_dcache_enable(void)
 	dcache_dc_ctrl(DC_CTRL_DC_ENABLE);
 }
 
-void arch_dcache_disable(void)
-{
-	/* nothing */
-}
-
-int arch_dcache_flush_range(void *start_addr_ptr, size_t size)
+static void arch_dcache_flush(void *start_addr_ptr, size_t size)
 {
 	size_t line_size = sys_cache_data_line_size_get();
 	uintptr_t start_addr = (uintptr_t)start_addr_ptr;
@@ -73,7 +69,7 @@ int arch_dcache_flush_range(void *start_addr_ptr, size_t size)
 	unsigned int key;
 
 	if (!dcache_available() || (size == 0U) || line_size == 0U) {
-		return -ENOTSUP;
+		return;
 	}
 
 	end_addr = start_addr + size;
@@ -99,10 +95,9 @@ int arch_dcache_flush_range(void *start_addr_ptr, size_t size)
 
 	arch_irq_unlock(key); /* --exit critical section-- */
 
-	return 0;
 }
 
-int arch_dcache_invd_range(void *start_addr_ptr, size_t size)
+static void arch_dcache_invd(void *start_addr_ptr, size_t size)
 {
 	size_t line_size = sys_cache_data_line_size_get();
 	uintptr_t start_addr = (uintptr_t)start_addr_ptr;
@@ -110,7 +105,7 @@ int arch_dcache_invd_range(void *start_addr_ptr, size_t size)
 	unsigned int key;
 
 	if (!dcache_available() || (size == 0U) || line_size == 0U) {
-		return -ENOTSUP;
+		return;
 	}
 	end_addr = start_addr + size;
 	start_addr = ROUND_DOWN(start_addr, line_size);
@@ -125,26 +120,36 @@ int arch_dcache_invd_range(void *start_addr_ptr, size_t size)
 		start_addr += line_size;
 	} while (start_addr < end_addr);
 	irq_unlock(key); /* -exit critical section- */
+}
+
+int arch_dcache_range(void *addr, size_t size, int op)
+{
+	if (op == K_CACHE_INVD) {
+		/*
+		 * TODO: On invalidate we can contextually flush by setting the
+		 * DC_CTRL_INVALID_FLUSH bit
+		 */
+		arch_dcache_invd(addr, size);
+	} else if (op == K_CACHE_WB) {
+		arch_dcache_flush(addr, size);
+	} else {
+		return -ENOTSUP;
+	}
 
 	return 0;
 }
 
-int arch_dcache_flush_and_invd_range(void *start_addr_ptr, size_t size)
+int arch_icache_range(void *addr, size_t size, int op)
 {
 	return -ENOTSUP;
 }
 
-int arch_dcache_flush_all(void)
+int arch_dcache_all(int op)
 {
 	return -ENOTSUP;
 }
 
-int arch_dcache_invd_all(void)
-{
-	return -ENOTSUP;
-}
-
-int arch_dcache_flush_and_invd_all(void)
+int arch_icache_all(int op)
 {
 	return -ENOTSUP;
 }
@@ -166,55 +171,6 @@ size_t arch_dcache_line_size_get(void)
 	return sys_cache_line_size;
 }
 #endif
-
-void arch_icache_enable(void)
-{
-	/* nothing */
-}
-
-void arch_icache_disable(void)
-{
-	/* nothing */
-}
-
-int arch_icache_flush_all(void)
-{
-	return -ENOTSUP;
-}
-
-int arch_icache_invd_all(void)
-{
-	return -ENOTSUP;
-}
-
-int arch_icache_flush_and_invd_all(void)
-{
-	return -ENOTSUP;
-}
-
-int arch_icache_flush_range(void *addr, size_t size)
-{
-	ARG_UNUSED(addr);
-	ARG_UNUSED(size);
-
-	return -ENOTSUP;
-}
-
-int arch_icache_invd_range(void *addr, size_t size)
-{
-	ARG_UNUSED(addr);
-	ARG_UNUSED(size);
-
-	return -ENOTSUP;
-}
-
-int arch_icache_flush_and_invd_range(void *addr, size_t size)
-{
-	ARG_UNUSED(addr);
-	ARG_UNUSED(size);
-
-	return -ENOTSUP;
-}
 
 static int init_dcache(const struct device *unused)
 {

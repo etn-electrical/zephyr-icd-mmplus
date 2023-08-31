@@ -41,9 +41,6 @@ static const char test_str_all_tx_bufs[] =
 "!"
 ;
 
-#define MY_IPV4_ADDR "127.0.0.1"
-#define MY_IPV6_ADDR "::1"
-
 #define ANY_PORT 0
 #define SERVER_PORT 4242
 #define CLIENT_PORT 9898
@@ -162,8 +159,10 @@ ZTEST(net_socket_udp, test_02_v4_sendto_recvfrom)
 	struct sockaddr_in client_addr;
 	struct sockaddr_in server_addr;
 
-	prepare_sock_udp_v4(MY_IPV4_ADDR, ANY_PORT, &client_sock, &client_addr);
-	prepare_sock_udp_v4(MY_IPV4_ADDR, SERVER_PORT, &server_sock, &server_addr);
+	prepare_sock_udp_v4(CONFIG_NET_CONFIG_MY_IPV4_ADDR, ANY_PORT,
+			    &client_sock, &client_addr);
+	prepare_sock_udp_v4(CONFIG_NET_CONFIG_MY_IPV4_ADDR, SERVER_PORT,
+			    &server_sock, &server_addr);
 
 	rv = bind(server_sock,
 		  (struct sockaddr *)&server_addr,
@@ -191,8 +190,10 @@ ZTEST(net_socket_udp, test_03_v6_sendto_recvfrom)
 	struct sockaddr_in6 client_addr;
 	struct sockaddr_in6 server_addr;
 
-	prepare_sock_udp_v6(MY_IPV6_ADDR, ANY_PORT, &client_sock, &client_addr);
-	prepare_sock_udp_v6(MY_IPV6_ADDR, SERVER_PORT, &server_sock, &server_addr);
+	prepare_sock_udp_v6(CONFIG_NET_CONFIG_MY_IPV6_ADDR, ANY_PORT,
+			    &client_sock, &client_addr);
+	prepare_sock_udp_v6(CONFIG_NET_CONFIG_MY_IPV6_ADDR, SERVER_PORT,
+			    &server_sock, &server_addr);
 
 	rv = bind(server_sock,
 		  (struct sockaddr *)&server_addr, sizeof(server_addr));
@@ -219,8 +220,10 @@ ZTEST(net_socket_udp, test_04_v4_bind_sendto)
 	struct sockaddr_in client_addr;
 	struct sockaddr_in server_addr;
 
-	prepare_sock_udp_v4(MY_IPV4_ADDR, CLIENT_PORT, &client_sock, &client_addr);
-	prepare_sock_udp_v4(MY_IPV4_ADDR, SERVER_PORT, &server_sock, &server_addr);
+	prepare_sock_udp_v4(CONFIG_NET_CONFIG_MY_IPV4_ADDR, CLIENT_PORT,
+			    &client_sock, &client_addr);
+	prepare_sock_udp_v4(CONFIG_NET_CONFIG_MY_IPV4_ADDR, SERVER_PORT,
+			    &server_sock, &server_addr);
 
 	rv = bind(client_sock,
 		  (struct sockaddr *)&client_addr, sizeof(client_addr));
@@ -251,8 +254,10 @@ ZTEST(net_socket_udp, test_05_v6_bind_sendto)
 	struct sockaddr_in6 client_addr;
 	struct sockaddr_in6 server_addr;
 
-	prepare_sock_udp_v6(MY_IPV6_ADDR, CLIENT_PORT, &client_sock, &client_addr);
-	prepare_sock_udp_v6(MY_IPV6_ADDR, SERVER_PORT, &server_sock, &server_addr);
+	prepare_sock_udp_v6(CONFIG_NET_CONFIG_MY_IPV6_ADDR, CLIENT_PORT,
+			    &client_sock, &client_addr);
+	prepare_sock_udp_v6(CONFIG_NET_CONFIG_MY_IPV6_ADDR, SERVER_PORT,
+			    &server_sock, &server_addr);
 
 	rv = bind(client_sock,
 		  (struct sockaddr *)&client_addr, sizeof(client_addr));
@@ -282,8 +287,10 @@ ZTEST(net_socket_udp, test_01_send_recv_2_sock)
 	char buf[10];
 	int len, rv;
 
-	prepare_sock_udp_v4(MY_IPV4_ADDR, 55555, &sock1, &bind_addr);
-	prepare_sock_udp_v4(MY_IPV4_ADDR, 55555, &sock2, &conn_addr);
+	prepare_sock_udp_v4(CONFIG_NET_CONFIG_MY_IPV4_ADDR, 55555,
+			    &sock1, &bind_addr);
+	prepare_sock_udp_v4(CONFIG_NET_CONFIG_MY_IPV4_ADDR, 55555,
+			    &sock2, &conn_addr);
 
 	rv = bind(sock1, (struct sockaddr *)&bind_addr, sizeof(bind_addr));
 	zassert_equal(rv, 0, "bind failed");
@@ -317,8 +324,10 @@ ZTEST(net_socket_udp, test_07_so_priority)
 	int sock1, sock2, rv;
 	uint8_t optval;
 
-	prepare_sock_udp_v4(MY_IPV4_ADDR, 55555, &sock1, &bind_addr4);
-	prepare_sock_udp_v6(MY_IPV6_ADDR, 55555, &sock2, &bind_addr6);
+	prepare_sock_udp_v4(CONFIG_NET_CONFIG_MY_IPV4_ADDR, 55555,
+			    &sock1, &bind_addr4);
+	prepare_sock_udp_v6(CONFIG_NET_CONFIG_MY_IPV6_ADDR, 55555,
+			    &sock2, &bind_addr6);
 
 	rv = bind(sock1, (struct sockaddr *)&bind_addr4, sizeof(bind_addr4));
 	zassert_equal(rv, 0, "bind failed");
@@ -421,8 +430,10 @@ ZTEST_USER(net_socket_udp, test_12_v4_sendmsg_recvfrom)
 		unsigned char  buf[CMSG_SPACE(sizeof(int))];
 	} cmsgbuf;
 
-	prepare_sock_udp_v4(MY_IPV4_ADDR, ANY_PORT, &client_sock, &client_addr);
-	prepare_sock_udp_v4(MY_IPV4_ADDR, SERVER_PORT, &server_sock, &server_addr);
+	prepare_sock_udp_v4(CONFIG_NET_CONFIG_MY_IPV4_ADDR, ANY_PORT,
+			    &client_sock, &client_addr);
+	prepare_sock_udp_v4(CONFIG_NET_CONFIG_MY_IPV4_ADDR, SERVER_PORT,
+			    &server_sock, &server_addr);
 
 	rv = bind(server_sock,
 		  (struct sockaddr *)&server_addr,
@@ -475,8 +486,10 @@ ZTEST_USER(net_socket_udp, test_13_v4_sendmsg_recvfrom_no_aux_data)
 	struct msghdr msg;
 	struct iovec io_vector[1];
 
-	prepare_sock_udp_v4(MY_IPV4_ADDR, ANY_PORT, &client_sock, &client_addr);
-	prepare_sock_udp_v4(MY_IPV4_ADDR, SERVER_PORT, &server_sock, &server_addr);
+	prepare_sock_udp_v4(CONFIG_NET_CONFIG_MY_IPV4_ADDR, ANY_PORT,
+			    &client_sock, &client_addr);
+	prepare_sock_udp_v4(CONFIG_NET_CONFIG_MY_IPV4_ADDR, SERVER_PORT,
+			    &server_sock, &server_addr);
 
 	rv = bind(server_sock,
 		  (struct sockaddr *)&server_addr,
@@ -526,8 +539,10 @@ ZTEST_USER(net_socket_udp, test_14_v6_sendmsg_recvfrom)
 		unsigned char  buf[CMSG_SPACE(sizeof(int))];
 	} cmsgbuf;
 
-	prepare_sock_udp_v6(MY_IPV6_ADDR, ANY_PORT, &client_sock, &client_addr);
-	prepare_sock_udp_v6(MY_IPV6_ADDR, SERVER_PORT, &server_sock, &server_addr);
+	prepare_sock_udp_v6(CONFIG_NET_CONFIG_MY_IPV6_ADDR, ANY_PORT,
+			    &client_sock, &client_addr);
+	prepare_sock_udp_v6(CONFIG_NET_CONFIG_MY_IPV6_ADDR, SERVER_PORT,
+			    &server_sock, &server_addr);
 
 	rv = bind(server_sock,
 		  (struct sockaddr *)&server_addr, sizeof(server_addr));
@@ -584,8 +599,10 @@ ZTEST_USER(net_socket_udp, test_15_v4_sendmsg_recvfrom_connected)
 		unsigned char  buf[CMSG_SPACE(sizeof(int))];
 	} cmsgbuf;
 
-	prepare_sock_udp_v4(MY_IPV4_ADDR, ANY_PORT, &client_sock, &client_addr);
-	prepare_sock_udp_v4(MY_IPV4_ADDR, SERVER_PORT, &server_sock, &server_addr);
+	prepare_sock_udp_v4(CONFIG_NET_CONFIG_MY_IPV4_ADDR, ANY_PORT,
+			    &client_sock, &client_addr);
+	prepare_sock_udp_v4(CONFIG_NET_CONFIG_MY_IPV4_ADDR, SERVER_PORT,
+			    &server_sock, &server_addr);
 
 	rv = bind(server_sock,
 		  (struct sockaddr *)&server_addr,
@@ -645,8 +662,10 @@ ZTEST_USER(net_socket_udp, test_06_v6_sendmsg_recvfrom_connected)
 		unsigned char  buf[CMSG_SPACE(sizeof(int))];
 	} cmsgbuf;
 
-	prepare_sock_udp_v6(MY_IPV6_ADDR, ANY_PORT, &client_sock, &client_addr);
-	prepare_sock_udp_v6(MY_IPV6_ADDR, SERVER_PORT, &server_sock, &server_addr);
+	prepare_sock_udp_v6(CONFIG_NET_CONFIG_MY_IPV6_ADDR, ANY_PORT,
+			    &client_sock, &client_addr);
+	prepare_sock_udp_v6(CONFIG_NET_CONFIG_MY_IPV6_ADDR, SERVER_PORT,
+			    &server_sock, &server_addr);
 
 	rv = bind(server_sock,
 		  (struct sockaddr *)&server_addr, sizeof(server_addr));
@@ -698,8 +717,10 @@ ZTEST(net_socket_udp, test_06_so_type)
 	int optval;
 	socklen_t optsize = sizeof(optval);
 
-	prepare_sock_udp_v4(MY_IPV4_ADDR, 55555, &sock1, &bind_addr4);
-	prepare_sock_udp_v6(MY_IPV6_ADDR, 55555, &sock2, &bind_addr6);
+	prepare_sock_udp_v4(CONFIG_NET_CONFIG_MY_IPV4_ADDR, 55555,
+			    &sock1, &bind_addr4);
+	prepare_sock_udp_v6(CONFIG_NET_CONFIG_MY_IPV6_ADDR, 55555,
+			    &sock2, &bind_addr6);
 
 	rv = getsockopt(sock1, SOL_SOCKET, SO_TYPE, &optval, &optsize);
 	zassert_equal(rv, 0, "getsockopt failed (%d)", errno);
@@ -725,8 +746,10 @@ ZTEST(net_socket_udp, test_08_so_txtime)
 	socklen_t optlen;
 	bool optval;
 
-	prepare_sock_udp_v4(MY_IPV4_ADDR, 55555, &sock1, &bind_addr4);
-	prepare_sock_udp_v6(MY_IPV6_ADDR, 55555, &sock2, &bind_addr6);
+	prepare_sock_udp_v4(CONFIG_NET_CONFIG_MY_IPV4_ADDR, 55555,
+			    &sock1, &bind_addr4);
+	prepare_sock_udp_v6(CONFIG_NET_CONFIG_MY_IPV6_ADDR, 55555,
+			    &sock2, &bind_addr6);
 
 	rv = bind(sock1, (struct sockaddr *)&bind_addr4, sizeof(bind_addr4));
 	zassert_equal(rv, 0, "bind failed");
@@ -779,8 +802,10 @@ ZTEST(net_socket_udp, test_09_so_rcvtimeo)
 		.tv_usec = 500000,
 	};
 
-	prepare_sock_udp_v4(MY_IPV4_ADDR, 55555, &sock1, &bind_addr4);
-	prepare_sock_udp_v6(MY_IPV6_ADDR, 55555, &sock2, &bind_addr6);
+	prepare_sock_udp_v4(CONFIG_NET_CONFIG_MY_IPV4_ADDR, 55555,
+			    &sock1, &bind_addr4);
+	prepare_sock_udp_v6(CONFIG_NET_CONFIG_MY_IPV6_ADDR, 55555,
+			    &sock2, &bind_addr6);
 
 	rv = bind(sock1, (struct sockaddr *)&bind_addr4, sizeof(bind_addr4));
 	zassert_equal(rv, 0, "bind failed");
@@ -836,8 +861,10 @@ ZTEST(net_socket_udp, test_10_so_sndtimeo)
 		.tv_usec = 500000,
 	};
 
-	prepare_sock_udp_v4(MY_IPV4_ADDR, 55555, &sock1, &bind_addr4);
-	prepare_sock_udp_v6(MY_IPV6_ADDR, 55555, &sock2, &bind_addr6);
+	prepare_sock_udp_v4(CONFIG_NET_CONFIG_MY_IPV4_ADDR, 55555,
+			    &sock1, &bind_addr4);
+	prepare_sock_udp_v6(CONFIG_NET_CONFIG_MY_IPV6_ADDR, 55555,
+			    &sock2, &bind_addr6);
 
 	rv = bind(sock1, (struct sockaddr *)&bind_addr4, sizeof(bind_addr4));
 	zassert_equal(rv, 0, "bind failed");
@@ -868,8 +895,10 @@ ZTEST(net_socket_udp, test_11_so_protocol)
 	int optval;
 	socklen_t optsize = sizeof(optval);
 
-	prepare_sock_udp_v4(MY_IPV4_ADDR, 55555, &sock1, &bind_addr4);
-	prepare_sock_udp_v6(MY_IPV6_ADDR, 55555, &sock2, &bind_addr6);
+	prepare_sock_udp_v4(CONFIG_NET_CONFIG_MY_IPV4_ADDR, 55555,
+			    &sock1, &bind_addr4);
+	prepare_sock_udp_v6(CONFIG_NET_CONFIG_MY_IPV6_ADDR, 55555,
+			    &sock2, &bind_addr6);
 
 	rv = getsockopt(sock1, SOL_SOCKET, SO_PROTOCOL, &optval, &optsize);
 	zassert_equal(rv, 0, "getsockopt failed (%d)", errno);
@@ -937,8 +966,8 @@ static struct net_linkaddr server_link_addr = {
 	.addr = server_lladdr,
 	.len = sizeof(server_lladdr),
 };
-#define MY_IPV6_ADDR_ETH   "2001:db8:100::1"
-#define PEER_IPV6_ADDR_ETH "2001:db8:100::2"
+#define MY_IPV6_ADDR "2001:db8:100::1"
+#define PEER_IPV6_ADDR "2001:db8:100::2"
 #define TEST_TXTIME 0xff112233445566ff
 #define WAIT_TIME K_MSEC(250)
 
@@ -1027,7 +1056,7 @@ ZTEST(net_socket_udp, test_17_setup_eth)
 	(void)memset(&server_addr, 0, sizeof(server_addr));
 	server_addr.sin6_family = AF_INET6;
 	server_addr.sin6_port = htons(1234);
-	ret = inet_pton(AF_INET6, PEER_IPV6_ADDR_ETH, &server_addr.sin6_addr);
+	ret = inet_pton(AF_INET6, PEER_IPV6_ADDR, &server_addr.sin6_addr);
 	zassert_equal(ret, 1, "inet_pton failed");
 
 	/* In order to avoid neighbor discovery, populate neighbor cache */
@@ -1050,7 +1079,8 @@ ZTEST_USER(net_socket_udp, test_18_v6_sendmsg_with_txtime)
 		unsigned char  buf[CMSG_SPACE(sizeof(uint64_t))];
 	} cmsgbuf;
 
-	prepare_sock_udp_v6(MY_IPV6_ADDR_ETH, ANY_PORT, &client_sock, &client_addr);
+	prepare_sock_udp_v6(MY_IPV6_ADDR, ANY_PORT, &client_sock,
+			    &client_addr);
 
 	rv = bind(client_sock,
 		  (struct sockaddr *)&client_addr,
@@ -1160,8 +1190,10 @@ ZTEST(net_socket_udp, test_19_v4_msg_trunc)
 	struct sockaddr_in client_addr;
 	struct sockaddr_in server_addr;
 
-	prepare_sock_udp_v4(MY_IPV4_ADDR, ANY_PORT, &client_sock, &client_addr);
-	prepare_sock_udp_v4(MY_IPV4_ADDR, SERVER_PORT, &server_sock, &server_addr);
+	prepare_sock_udp_v4(CONFIG_NET_CONFIG_MY_IPV4_ADDR, ANY_PORT,
+			    &client_sock, &client_addr);
+	prepare_sock_udp_v4(CONFIG_NET_CONFIG_MY_IPV4_ADDR, SERVER_PORT,
+			    &server_sock, &server_addr);
 
 	test_msg_trunc(client_sock, server_sock,
 		       (struct sockaddr *)&client_addr, sizeof(client_addr),
@@ -1175,8 +1207,10 @@ ZTEST(net_socket_udp, test_20_v6_msg_trunc)
 	struct sockaddr_in6 client_addr;
 	struct sockaddr_in6 server_addr;
 
-	prepare_sock_udp_v6(MY_IPV6_ADDR, ANY_PORT, &client_sock, &client_addr);
-	prepare_sock_udp_v6(MY_IPV6_ADDR, SERVER_PORT, &server_sock, &server_addr);
+	prepare_sock_udp_v6(CONFIG_NET_CONFIG_MY_IPV6_ADDR, ANY_PORT,
+			    &client_sock, &client_addr);
+	prepare_sock_udp_v6(CONFIG_NET_CONFIG_MY_IPV6_ADDR, SERVER_PORT,
+			    &server_sock, &server_addr);
 
 	test_msg_trunc(client_sock, server_sock,
 		       (struct sockaddr *)&client_addr, sizeof(client_addr),
@@ -1246,8 +1280,10 @@ ZTEST(net_socket_udp, test_21_v4_dgram_overflow)
 	struct sockaddr_in client_addr;
 	struct sockaddr_in server_addr;
 
-	prepare_sock_udp_v4(MY_IPV4_ADDR, ANY_PORT, &client_sock, &client_addr);
-	prepare_sock_udp_v4(MY_IPV4_ADDR, SERVER_PORT, &server_sock, &server_addr);
+	prepare_sock_udp_v4(CONFIG_NET_CONFIG_MY_IPV4_ADDR, ANY_PORT,
+			    &client_sock, &client_addr);
+	prepare_sock_udp_v4(CONFIG_NET_CONFIG_MY_IPV4_ADDR, SERVER_PORT,
+			    &server_sock, &server_addr);
 
 	test_dgram_overflow(client_sock, server_sock,
 			    (struct sockaddr *)&client_addr, sizeof(client_addr),
@@ -1262,8 +1298,10 @@ ZTEST(net_socket_udp, test_22_v6_dgram_fragmented_or_overflow)
 	struct sockaddr_in6 client_addr;
 	struct sockaddr_in6 server_addr;
 
-	prepare_sock_udp_v6(MY_IPV6_ADDR, ANY_PORT, &client_sock, &client_addr);
-	prepare_sock_udp_v6(MY_IPV6_ADDR, SERVER_PORT, &server_sock, &server_addr);
+	prepare_sock_udp_v6(CONFIG_NET_CONFIG_MY_IPV6_ADDR, ANY_PORT,
+			    &client_sock, &client_addr);
+	prepare_sock_udp_v6(CONFIG_NET_CONFIG_MY_IPV6_ADDR, SERVER_PORT,
+			    &server_sock, &server_addr);
 
 	if (IS_ENABLED(CONFIG_NET_IPV6_FRAGMENT)) {
 		test_dgram_fragmented(client_sock, server_sock,
@@ -1285,8 +1323,10 @@ ZTEST(net_socket_udp, test_23_v6_dgram_overflow)
 	struct sockaddr_in6 client_addr;
 	struct sockaddr_in6 server_addr;
 
-	prepare_sock_udp_v6(MY_IPV6_ADDR, ANY_PORT, &client_sock, &client_addr);
-	prepare_sock_udp_v6(MY_IPV6_ADDR, SERVER_PORT, &server_sock, &server_addr);
+	prepare_sock_udp_v6(CONFIG_NET_CONFIG_MY_IPV6_ADDR, ANY_PORT,
+			    &client_sock, &client_addr);
+	prepare_sock_udp_v6(CONFIG_NET_CONFIG_MY_IPV6_ADDR, SERVER_PORT,
+			    &server_sock, &server_addr);
 
 	test_dgram_overflow(client_sock, server_sock,
 			    (struct sockaddr *)&client_addr, sizeof(client_addr),

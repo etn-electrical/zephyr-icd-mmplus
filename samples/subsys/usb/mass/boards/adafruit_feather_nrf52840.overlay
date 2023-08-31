@@ -18,12 +18,3 @@
 		};
 	};
 };
-
-/ {
-	msc_disk0 {
-		compatible = "zephyr,flash-disk";
-		partition = <&storage_partition>;
-		disk-name = "NAND";
-		cache-size = <4096>;
-	};
-};

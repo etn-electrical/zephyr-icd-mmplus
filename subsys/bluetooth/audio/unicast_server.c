@@ -10,25 +10,24 @@
 
 #include <zephyr/bluetooth/audio/audio.h>
 
-#include "audio_iso.h"
 #include "pacs_internal.h"
 #include "endpoint.h"
 
-#include <zephyr/logging/log.h>
-
-LOG_MODULE_REGISTER(bt_unicast_server, CONFIG_BT_AUDIO_UNICAST_SERVER_LOG_LEVEL);
+#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_AUDIO_DEBUG_UNICAST_SERVER)
+#define LOG_MODULE_NAME bt_unicast_server
+#include "common/log.h"
 
 const struct bt_audio_unicast_server_cb *unicast_server_cb;
 
 int bt_audio_unicast_server_register_cb(const struct bt_audio_unicast_server_cb *cb)
 {
 	CHECKIF(cb == NULL) {
-		LOG_DBG("cb is NULL");
+		BT_DBG("cb is NULL");
 		return -EINVAL;
 	}
 
 	if (unicast_server_cb != NULL) {
-		LOG_DBG("callback structure already registered");
+		BT_DBG("callback structure already registered");
 		return -EALREADY;
 	}
 
@@ -40,12 +39,12 @@ int bt_audio_unicast_server_register_cb(const struct bt_audio_unicast_server_cb 
 int bt_audio_unicast_server_unregister_cb(const struct bt_audio_unicast_server_cb *cb)
 {
 	CHECKIF(cb == NULL) {
-		LOG_DBG("cb is NULL");
+		BT_DBG("cb is NULL");
 		return -EINVAL;
 	}
 
 	if (unicast_server_cb != cb) {
-		LOG_DBG("callback structure not registered");
+		BT_DBG("callback structure not registered");
 		return -EINVAL;
 	}
 
@@ -83,23 +82,19 @@ int bt_unicast_server_reconfig(struct bt_audio_stream *stream,
 
 int bt_unicast_server_start(struct bt_audio_stream *stream)
 {
-	struct bt_audio_ep *ep = stream->ep;
+	int err;
 
-	if (ep->dir != BT_AUDIO_DIR_SINK) {
-		LOG_DBG("Invalid operation for stream %p with dir %u",
-			stream, ep->dir);
-
-		return -EINVAL;
-	}
-
-	/* If ISO is connected to go streaming state,
-	 * else wait for ISO to be connected
-	 */
-	if (ep->iso->chan.state == BT_ISO_STATE_CONNECTED) {
-		ascs_ep_set_state(ep, BT_AUDIO_EP_STATE_STREAMING);
+	if (unicast_server_cb != NULL && unicast_server_cb->start != NULL) {
+		err = unicast_server_cb->start(stream);
 	} else {
-		ep->receiver_ready = true;
+		err = -ENOTSUP;
 	}
+
+	if (err != 0) {
+		return err;
+	}
+
+	ascs_ep_set_state(stream->ep, BT_AUDIO_EP_STATE_STREAMING);
 
 	return 0;
 }
@@ -183,17 +178,4 @@ int bt_unicast_server_release(struct bt_audio_stream *stream)
 	ascs_ep_set_state(stream->ep, BT_AUDIO_EP_STATE_RELEASING);
 
 	return 0;
-}
-
-int bt_audio_unicast_server_config_ase(struct bt_conn *conn, struct bt_audio_stream *stream,
-				       struct bt_codec *codec,
-				       const struct bt_codec_qos_pref *qos_pref)
-{
-	return bt_ascs_config_ase(conn, stream, codec, qos_pref);
-}
-
-void bt_audio_unicast_server_foreach_ep(struct bt_conn *conn, bt_audio_ep_func_t func,
-					void *user_data)
-{
-	bt_ascs_foreach_ep(conn, func, user_data);
 }

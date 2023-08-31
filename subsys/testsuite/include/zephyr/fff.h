@@ -39,9 +39,6 @@ SOFTWARE.
 #ifndef FFF_GCC_FUNCTION_ATTRIBUTES
 #define FFF_GCC_FUNCTION_ATTRIBUTES
 #endif
-#ifndef CUSTOM_FFF_FUNCTION_TEMPLATE
-#define CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN, FUNCNAME, ...) RETURN (*FUNCNAME)(__VA_ARGS__)
-#endif /* CUSTOM_FFF_FUNCTION_TEMPLATE */
 /* -- INTERNAL HELPER MACROS -- */
 #define SET_RETURN_SEQ(FUNCNAME, ARRAY_POINTER, ARRAY_LEN)                                         \
 	FUNCNAME##_fake.return_val_seq = ARRAY_POINTER;                                            \
@@ -73,10 +70,9 @@ SOFTWARE.
 
 #define ROOM_FOR_MORE_HISTORY(FUNCNAME) FUNCNAME##_fake.call_count < FFF_ARG_HISTORY_LEN
 
-#define SAVE_RET_HISTORY(FUNCNAME, RETVAL)                                                         \
-	if ((FUNCNAME##_fake.call_count - 1) < FFF_ARG_HISTORY_LEN)                                \
-		memcpy((void *)&FUNCNAME##_fake                                                    \
-			       .return_val_history[FUNCNAME##_fake.call_count - 1],                \
+#define SAVE_RET_HISTORY(FUNCNAME, RETVAL)                                                          \
+	if ((FUNCNAME##_fake.call_count - 1) < FFF_ARG_HISTORY_LEN)                                 \
+		memcpy((void *)&FUNCNAME##_fake.return_val_history[FUNCNAME##_fake.call_count - 1], \
 		       (const void *)&RETVAL, sizeof(RETVAL));
 
 #define SAVE_ARG_HISTORY(FUNCNAME, ARGN)                                                           \
@@ -97,27 +93,26 @@ SOFTWARE.
 
 #define INCREMENT_CALL_COUNT(FUNCNAME) FUNCNAME##_fake.call_count++
 
-#define RETURN_FAKE_RESULT(FUNCNAME)                                                               \
-	if (FUNCNAME##_fake.return_val_seq_len) { /* then its a sequence */                        \
-		if (FUNCNAME##_fake.return_val_seq_idx < FUNCNAME##_fake.return_val_seq_len) {     \
-			SAVE_RET_HISTORY(                                                          \
-				FUNCNAME,                                                          \
-				FUNCNAME##_fake                                                    \
-					.return_val_seq[FUNCNAME##_fake.return_val_seq_idx])       \
-			return FUNCNAME##_fake                                                     \
-				.return_val_seq[FUNCNAME##_fake.return_val_seq_idx++];             \
-		}                                                                                  \
-		SAVE_RET_HISTORY(                                                                  \
-			FUNCNAME,                                                                  \
-			FUNCNAME##_fake.return_val_seq[FUNCNAME##_fake.return_val_seq_len - 1])    \
-		return FUNCNAME##_fake.return_val_seq[FUNCNAME##_fake.return_val_seq_len -         \
-						      1]; /* return last element */                \
-	}                                                                                          \
-	SAVE_RET_HISTORY(FUNCNAME, FUNCNAME##_fake.return_val)                                     \
+#define RETURN_FAKE_RESULT(FUNCNAME)                                                                \
+	if (FUNCNAME##_fake.return_val_seq_len) { /* then its a sequence */                         \
+		if (FUNCNAME##_fake.return_val_seq_idx < FUNCNAME##_fake.return_val_seq_len) {      \
+			SAVE_RET_HISTORY(                                                           \
+				FUNCNAME,                                                           \
+				FUNCNAME##_fake.return_val_seq[FUNCNAME##_fake.return_val_seq_idx]) \
+			return FUNCNAME##_fake                                                      \
+				.return_val_seq[FUNCNAME##_fake.return_val_seq_idx++];              \
+		}                                                                                   \
+		SAVE_RET_HISTORY(                                                                   \
+			FUNCNAME,                                                                   \
+			FUNCNAME##_fake.return_val_seq[FUNCNAME##_fake.return_val_seq_len - 1])     \
+		return FUNCNAME##_fake.return_val_seq[FUNCNAME##_fake.return_val_seq_len -          \
+						      1]; /* return last element */                 \
+	}                                                                                           \
+	SAVE_RET_HISTORY(FUNCNAME, FUNCNAME##_fake.return_val)                                      \
 	return FUNCNAME##_fake.return_val;
 
 #ifdef __cplusplus
-#define FFF_EXTERN_C	 extern "C" {
+#define FFF_EXTERN_C extern "C" {
 #define FFF_END_EXTERN_C }
 #else /* ansi c */
 #define FFF_EXTERN_C
@@ -127,11 +122,7 @@ SOFTWARE.
 #define DEFINE_RESET_FUNCTION(FUNCNAME)                                                            \
 	void FUNCNAME##_reset(void)                                                                \
 	{                                                                                          \
-		memset((void *)&FUNCNAME##_fake, 0,                                                \
-		       sizeof(FUNCNAME##_fake) - sizeof(FUNCNAME##_fake.custom_fake) -             \
-			       sizeof(FUNCNAME##_fake.custom_fake_seq));                           \
-		FUNCNAME##_fake.custom_fake = NULL;                                                \
-		FUNCNAME##_fake.custom_fake_seq = NULL;                                            \
+		memset(&FUNCNAME##_fake, 0, sizeof(FUNCNAME##_fake));                              \
 		FUNCNAME##_fake.arg_history_len = FFF_ARG_HISTORY_LEN;                             \
 	}
 /* -- END INTERNAL HELPER MACROS -- */
@@ -163,8 +154,8 @@ FFF_END_EXTERN_C
 	typedef struct FUNCNAME##_Fake {                                                           \
 		DECLARE_ALL_FUNC_COMMON                                                            \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, custom_fake, void);                             \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, *custom_fake_seq, void);                        \
+		void (*custom_fake)(void);                                                         \
+		void (**custom_fake_seq)(void);                                                    \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -191,7 +182,7 @@ FFF_END_EXTERN_C
 							 1]();                                     \
 			}                                                                          \
 		}                                                                                  \
-		if (FUNCNAME##_fake.custom_fake != NULL) {                                         \
+		if (FUNCNAME##_fake.custom_fake) {                                                 \
 			FUNCNAME##_fake.custom_fake();                                             \
 		}                                                                                  \
 	}                                                                                          \
@@ -206,8 +197,8 @@ FFF_END_EXTERN_C
 		DECLARE_ARG(ARG0_TYPE, 0, FUNCNAME)                                                \
 		DECLARE_ALL_FUNC_COMMON                                                            \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, custom_fake, ARG0_TYPE);                        \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, *custom_fake_seq, ARG0_TYPE);                   \
+		void (*custom_fake)(ARG0_TYPE arg0);                                               \
+		void (**custom_fake_seq)(ARG0_TYPE arg0);                                          \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -237,7 +228,7 @@ FFF_END_EXTERN_C
 						arg0);                                             \
 			}                                                                          \
 		}                                                                                  \
-		if (FUNCNAME##_fake.custom_fake != NULL) {                                         \
+		if (FUNCNAME##_fake.custom_fake) {                                                 \
 			FUNCNAME##_fake.custom_fake(arg0);                                         \
 		}                                                                                  \
 	}                                                                                          \
@@ -253,8 +244,8 @@ FFF_END_EXTERN_C
 		DECLARE_ARG(ARG1_TYPE, 1, FUNCNAME)                                                \
 		DECLARE_ALL_FUNC_COMMON                                                            \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, custom_fake, ARG0_TYPE, ARG1_TYPE);             \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE);        \
+		void (*custom_fake)(ARG0_TYPE arg0, ARG1_TYPE arg1);                               \
+		void (**custom_fake_seq)(ARG0_TYPE arg0, ARG1_TYPE arg1);                          \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -286,7 +277,7 @@ FFF_END_EXTERN_C
 						arg0, arg1);                                       \
 			}                                                                          \
 		}                                                                                  \
-		if (FUNCNAME##_fake.custom_fake != NULL) {                                         \
+		if (FUNCNAME##_fake.custom_fake) {                                                 \
 			FUNCNAME##_fake.custom_fake(arg0, arg1);                                   \
 		}                                                                                  \
 	}                                                                                          \
@@ -303,9 +294,8 @@ FFF_END_EXTERN_C
 		DECLARE_ARG(ARG2_TYPE, 2, FUNCNAME)                                                \
 		DECLARE_ALL_FUNC_COMMON                                                            \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, custom_fake, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE);  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,         \
-					     ARG2_TYPE);                                           \
+		void (*custom_fake)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2);               \
+		void (**custom_fake_seq)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2);          \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -339,7 +329,7 @@ FFF_END_EXTERN_C
 						arg0, arg1, arg2);                                 \
 			}                                                                          \
 		}                                                                                  \
-		if (FUNCNAME##_fake.custom_fake != NULL) {                                         \
+		if (FUNCNAME##_fake.custom_fake) {                                                 \
 			FUNCNAME##_fake.custom_fake(arg0, arg1, arg2);                             \
 		}                                                                                  \
 	}                                                                                          \
@@ -357,10 +347,10 @@ FFF_END_EXTERN_C
 		DECLARE_ARG(ARG3_TYPE, 3, FUNCNAME)                                                \
 		DECLARE_ALL_FUNC_COMMON                                                            \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, custom_fake, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE,   \
-					     ARG3_TYPE);                                           \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,         \
-					     ARG2_TYPE, ARG3_TYPE);                                \
+		void (*custom_fake)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,                \
+				    ARG3_TYPE arg3);                                               \
+		void (**custom_fake_seq)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,           \
+					 ARG3_TYPE arg3);                                          \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -398,7 +388,7 @@ FFF_END_EXTERN_C
 						arg0, arg1, arg2, arg3);                           \
 			}                                                                          \
 		}                                                                                  \
-		if (FUNCNAME##_fake.custom_fake != NULL) {                                         \
+		if (FUNCNAME##_fake.custom_fake) {                                                 \
 			FUNCNAME##_fake.custom_fake(arg0, arg1, arg2, arg3);                       \
 		}                                                                                  \
 	}                                                                                          \
@@ -417,10 +407,10 @@ FFF_END_EXTERN_C
 		DECLARE_ARG(ARG4_TYPE, 4, FUNCNAME)                                                \
 		DECLARE_ALL_FUNC_COMMON                                                            \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, custom_fake, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE,   \
-					     ARG3_TYPE, ARG4_TYPE);                                \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,         \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE);                     \
+		void (*custom_fake)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,                \
+				    ARG3_TYPE arg3, ARG4_TYPE arg4);                               \
+		void (**custom_fake_seq)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,           \
+					 ARG3_TYPE arg3, ARG4_TYPE arg4);                          \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -460,7 +450,7 @@ FFF_END_EXTERN_C
 						arg0, arg1, arg2, arg3, arg4);                     \
 			}                                                                          \
 		}                                                                                  \
-		if (FUNCNAME##_fake.custom_fake != NULL) {                                         \
+		if (FUNCNAME##_fake.custom_fake) {                                                 \
 			FUNCNAME##_fake.custom_fake(arg0, arg1, arg2, arg3, arg4);                 \
 		}                                                                                  \
 	}                                                                                          \
@@ -481,10 +471,10 @@ FFF_END_EXTERN_C
 		DECLARE_ARG(ARG5_TYPE, 5, FUNCNAME)                                                \
 		DECLARE_ALL_FUNC_COMMON                                                            \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, custom_fake, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE,   \
-					     ARG3_TYPE, ARG4_TYPE, ARG5_TYPE);                     \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,         \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE);          \
+		void (*custom_fake)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,                \
+				    ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5);               \
+		void (**custom_fake_seq)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,           \
+					 ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5);          \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -527,7 +517,7 @@ FFF_END_EXTERN_C
 						arg0, arg1, arg2, arg3, arg4, arg5);               \
 			}                                                                          \
 		}                                                                                  \
-		if (FUNCNAME##_fake.custom_fake != NULL) {                                         \
+		if (FUNCNAME##_fake.custom_fake) {                                                 \
 			FUNCNAME##_fake.custom_fake(arg0, arg1, arg2, arg3, arg4, arg5);           \
 		}                                                                                  \
 	}                                                                                          \
@@ -552,11 +542,12 @@ FFF_END_EXTERN_C
 		DECLARE_ARG(ARG6_TYPE, 6, FUNCNAME)                                                \
 		DECLARE_ALL_FUNC_COMMON                                                            \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, custom_fake, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE,   \
-					     ARG3_TYPE, ARG4_TYPE, ARG5_TYPE, ARG6_TYPE);          \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,         \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE);                                           \
+		void (*custom_fake)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,                \
+				    ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,                \
+				    ARG6_TYPE arg6);                                               \
+		void (**custom_fake_seq)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,           \
+					 ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,           \
+					 ARG6_TYPE arg6);                                          \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -603,7 +594,7 @@ FFF_END_EXTERN_C
 						arg0, arg1, arg2, arg3, arg4, arg5, arg6);         \
 			}                                                                          \
 		}                                                                                  \
-		if (FUNCNAME##_fake.custom_fake != NULL) {                                         \
+		if (FUNCNAME##_fake.custom_fake) {                                                 \
 			FUNCNAME##_fake.custom_fake(arg0, arg1, arg2, arg3, arg4, arg5, arg6);     \
 		}                                                                                  \
 	}                                                                                          \
@@ -629,12 +620,12 @@ FFF_END_EXTERN_C
 		DECLARE_ARG(ARG7_TYPE, 7, FUNCNAME)                                                \
 		DECLARE_ALL_FUNC_COMMON                                                            \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, custom_fake, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE,   \
-					     ARG3_TYPE, ARG4_TYPE, ARG5_TYPE, ARG6_TYPE,           \
-					     ARG7_TYPE);                                           \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,         \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE);                                \
+		void (*custom_fake)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,                \
+				    ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,                \
+				    ARG6_TYPE arg6, ARG7_TYPE arg7);                               \
+		void (**custom_fake_seq)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,           \
+					 ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,           \
+					 ARG6_TYPE arg6, ARG7_TYPE arg7);                          \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -683,7 +674,7 @@ FFF_END_EXTERN_C
 						arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7);   \
 			}                                                                          \
 		}                                                                                  \
-		if (FUNCNAME##_fake.custom_fake != NULL) {                                         \
+		if (FUNCNAME##_fake.custom_fake) {                                                 \
 			FUNCNAME##_fake.custom_fake(arg0, arg1, arg2, arg3, arg4, arg5, arg6,      \
 						    arg7);                                         \
 		}                                                                                  \
@@ -711,12 +702,12 @@ FFF_END_EXTERN_C
 		DECLARE_ARG(ARG8_TYPE, 8, FUNCNAME)                                                \
 		DECLARE_ALL_FUNC_COMMON                                                            \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, custom_fake, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE,   \
-					     ARG3_TYPE, ARG4_TYPE, ARG5_TYPE, ARG6_TYPE,           \
-					     ARG7_TYPE, ARG8_TYPE);                                \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,         \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE);                     \
+		void (*custom_fake)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,                \
+				    ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,                \
+				    ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8);               \
+		void (**custom_fake_seq)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,           \
+					 ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,           \
+					 ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8);          \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -769,7 +760,7 @@ FFF_END_EXTERN_C
 						arg8);                                             \
 			}                                                                          \
 		}                                                                                  \
-		if (FUNCNAME##_fake.custom_fake != NULL) {                                         \
+		if (FUNCNAME##_fake.custom_fake) {                                                 \
 			FUNCNAME##_fake.custom_fake(arg0, arg1, arg2, arg3, arg4, arg5, arg6,      \
 						    arg7, arg8);                                   \
 		}                                                                                  \
@@ -798,25 +789,29 @@ FFF_END_EXTERN_C
 		DECLARE_ARG(ARG9_TYPE, 9, FUNCNAME)                                                \
 		DECLARE_ALL_FUNC_COMMON                                                            \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, custom_fake, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE,   \
-					     ARG3_TYPE, ARG4_TYPE, ARG5_TYPE, ARG6_TYPE,           \
-					     ARG7_TYPE, ARG8_TYPE, ARG9_TYPE);                     \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,         \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE);          \
+		void (*custom_fake)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,                \
+				    ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,                \
+				    ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,                \
+				    ARG9_TYPE arg9);                                               \
+		void (**custom_fake_seq)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,           \
+					 ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,           \
+					 ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,           \
+					 ARG9_TYPE arg9);                                          \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
-	void FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(                                                 \
-		ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,    \
-		ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9);
+	void FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,  \
+						  ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,  \
+						  ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,  \
+						  ARG9_TYPE arg9);
 
 #define DEFINE_FAKE_VOID_FUNC10(FUNCNAME, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE, ARG3_TYPE, ARG4_TYPE,   \
 				ARG5_TYPE, ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE)             \
 	FUNCNAME##_Fake FUNCNAME##_fake;                                                           \
-	void FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(                                                 \
-		ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,    \
-		ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9)    \
+	void FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,  \
+						  ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,  \
+						  ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,  \
+						  ARG9_TYPE arg9)                                  \
 	{                                                                                          \
 		SAVE_ARG(FUNCNAME, 0);                                                             \
 		SAVE_ARG(FUNCNAME, 1);                                                             \
@@ -858,7 +853,7 @@ FFF_END_EXTERN_C
 						arg8, arg9);                                       \
 			}                                                                          \
 		}                                                                                  \
-		if (FUNCNAME##_fake.custom_fake != NULL) {                                         \
+		if (FUNCNAME##_fake.custom_fake) {                                                 \
 			FUNCNAME##_fake.custom_fake(arg0, arg1, arg2, arg3, arg4, arg5, arg6,      \
 						    arg7, arg8, arg9);                             \
 		}                                                                                  \
@@ -889,13 +884,14 @@ FFF_END_EXTERN_C
 		DECLARE_ARG(ARG10_TYPE, 10, FUNCNAME)                                              \
 		DECLARE_ALL_FUNC_COMMON                                                            \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, custom_fake, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE,   \
-					     ARG3_TYPE, ARG4_TYPE, ARG5_TYPE, ARG6_TYPE,           \
-					     ARG7_TYPE, ARG8_TYPE, ARG9_TYPE, ARG10_TYPE);         \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,         \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE);                                          \
+		void (*custom_fake)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,                \
+				    ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,                \
+				    ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,                \
+				    ARG9_TYPE arg9, ARG10_TYPE arg10);                             \
+		void (**custom_fake_seq)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,           \
+					 ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,           \
+					 ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,           \
+					 ARG9_TYPE arg9, ARG10_TYPE arg10);                        \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -954,7 +950,7 @@ FFF_END_EXTERN_C
 						arg8, arg9, arg10);                                \
 			}                                                                          \
 		}                                                                                  \
-		if (FUNCNAME##_fake.custom_fake != NULL) {                                         \
+		if (FUNCNAME##_fake.custom_fake) {                                                 \
 			FUNCNAME##_fake.custom_fake(arg0, arg1, arg2, arg3, arg4, arg5, arg6,      \
 						    arg7, arg8, arg9, arg10);                      \
 		}                                                                                  \
@@ -987,30 +983,32 @@ FFF_END_EXTERN_C
 		DECLARE_ARG(ARG11_TYPE, 11, FUNCNAME)                                              \
 		DECLARE_ALL_FUNC_COMMON                                                            \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, custom_fake, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE,   \
-					     ARG3_TYPE, ARG4_TYPE, ARG5_TYPE, ARG6_TYPE,           \
-					     ARG7_TYPE, ARG8_TYPE, ARG9_TYPE, ARG10_TYPE,          \
-					     ARG11_TYPE);                                          \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,         \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE);                              \
+		void (*custom_fake)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,                \
+				    ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,                \
+				    ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,                \
+				    ARG9_TYPE arg9, ARG10_TYPE arg10, ARG11_TYPE arg11);           \
+		void (**custom_fake_seq)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,           \
+					 ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,           \
+					 ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,           \
+					 ARG9_TYPE arg9, ARG10_TYPE arg10, ARG11_TYPE arg11);      \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
-	void FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(                                                 \
-		ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,    \
-		ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,    \
-		ARG10_TYPE arg10, ARG11_TYPE arg11);
+	void FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,  \
+						  ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,  \
+						  ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,  \
+						  ARG9_TYPE arg9, ARG10_TYPE arg10,                \
+						  ARG11_TYPE arg11);
 
 #define DEFINE_FAKE_VOID_FUNC12(FUNCNAME, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE, ARG3_TYPE, ARG4_TYPE,   \
 				ARG5_TYPE, ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE, ARG10_TYPE, \
 				ARG11_TYPE)                                                        \
 	FUNCNAME##_Fake FUNCNAME##_fake;                                                           \
-	void FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(                                                 \
-		ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,    \
-		ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,    \
-		ARG10_TYPE arg10, ARG11_TYPE arg11)                                                \
+	void FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,  \
+						  ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,  \
+						  ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,  \
+						  ARG9_TYPE arg9, ARG10_TYPE arg10,                \
+						  ARG11_TYPE arg11)                                \
 	{                                                                                          \
 		SAVE_ARG(FUNCNAME, 0);                                                             \
 		SAVE_ARG(FUNCNAME, 1);                                                             \
@@ -1056,7 +1054,7 @@ FFF_END_EXTERN_C
 						arg8, arg9, arg10, arg11);                         \
 			}                                                                          \
 		}                                                                                  \
-		if (FUNCNAME##_fake.custom_fake != NULL) {                                         \
+		if (FUNCNAME##_fake.custom_fake) {                                                 \
 			FUNCNAME##_fake.custom_fake(arg0, arg1, arg2, arg3, arg4, arg5, arg6,      \
 						    arg7, arg8, arg9, arg10, arg11);               \
 		}                                                                                  \
@@ -1092,30 +1090,34 @@ FFF_END_EXTERN_C
 		DECLARE_ARG(ARG12_TYPE, 12, FUNCNAME)                                              \
 		DECLARE_ALL_FUNC_COMMON                                                            \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, custom_fake, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE,   \
-					     ARG3_TYPE, ARG4_TYPE, ARG5_TYPE, ARG6_TYPE,           \
-					     ARG7_TYPE, ARG8_TYPE, ARG9_TYPE, ARG10_TYPE,          \
-					     ARG11_TYPE, ARG12_TYPE);                              \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,         \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE, ARG12_TYPE);                  \
+		void (*custom_fake)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,                \
+				    ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,                \
+				    ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,                \
+				    ARG9_TYPE arg9, ARG10_TYPE arg10, ARG11_TYPE arg11,            \
+				    ARG12_TYPE arg12);                                             \
+		void (**custom_fake_seq)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,           \
+					 ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,           \
+					 ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,           \
+					 ARG9_TYPE arg9, ARG10_TYPE arg10, ARG11_TYPE arg11,       \
+					 ARG12_TYPE arg12);                                        \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
-	void FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(                                                 \
-		ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,    \
-		ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,    \
-		ARG10_TYPE arg10, ARG11_TYPE arg11, ARG12_TYPE arg12);
+	void FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,  \
+						  ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,  \
+						  ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,  \
+						  ARG9_TYPE arg9, ARG10_TYPE arg10,                \
+						  ARG11_TYPE arg11, ARG12_TYPE arg12);
 
 #define DEFINE_FAKE_VOID_FUNC13(FUNCNAME, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE, ARG3_TYPE, ARG4_TYPE,   \
 				ARG5_TYPE, ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE, ARG10_TYPE, \
 				ARG11_TYPE, ARG12_TYPE)                                            \
 	FUNCNAME##_Fake FUNCNAME##_fake;                                                           \
-	void FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(                                                 \
-		ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,    \
-		ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,    \
-		ARG10_TYPE arg10, ARG11_TYPE arg11, ARG12_TYPE arg12)                              \
+	void FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,  \
+						  ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,  \
+						  ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,  \
+						  ARG9_TYPE arg9, ARG10_TYPE arg10,                \
+						  ARG11_TYPE arg11, ARG12_TYPE arg12)              \
 	{                                                                                          \
 		SAVE_ARG(FUNCNAME, 0);                                                             \
 		SAVE_ARG(FUNCNAME, 1);                                                             \
@@ -1163,7 +1165,7 @@ FFF_END_EXTERN_C
 						arg8, arg9, arg10, arg11, arg12);                  \
 			}                                                                          \
 		}                                                                                  \
-		if (FUNCNAME##_fake.custom_fake != NULL) {                                         \
+		if (FUNCNAME##_fake.custom_fake) {                                                 \
 			FUNCNAME##_fake.custom_fake(arg0, arg1, arg2, arg3, arg4, arg5, arg6,      \
 						    arg7, arg8, arg9, arg10, arg11, arg12);        \
 		}                                                                                  \
@@ -1200,14 +1202,16 @@ FFF_END_EXTERN_C
 		DECLARE_ARG(ARG13_TYPE, 13, FUNCNAME)                                              \
 		DECLARE_ALL_FUNC_COMMON                                                            \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, custom_fake, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE,   \
-					     ARG3_TYPE, ARG4_TYPE, ARG5_TYPE, ARG6_TYPE,           \
-					     ARG7_TYPE, ARG8_TYPE, ARG9_TYPE, ARG10_TYPE,          \
-					     ARG11_TYPE, ARG12_TYPE, ARG13_TYPE);                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,         \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE);      \
+		void (*custom_fake)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,                \
+				    ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,                \
+				    ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,                \
+				    ARG9_TYPE arg9, ARG10_TYPE arg10, ARG11_TYPE arg11,            \
+				    ARG12_TYPE arg12, ARG13_TYPE arg13);                           \
+		void (**custom_fake_seq)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,           \
+					 ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,           \
+					 ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,           \
+					 ARG9_TYPE arg9, ARG10_TYPE arg10, ARG11_TYPE arg11,       \
+					 ARG12_TYPE arg12, ARG13_TYPE arg13);                      \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -1273,7 +1277,7 @@ FFF_END_EXTERN_C
 						arg8, arg9, arg10, arg11, arg12, arg13);           \
 			}                                                                          \
 		}                                                                                  \
-		if (FUNCNAME##_fake.custom_fake != NULL) {                                         \
+		if (FUNCNAME##_fake.custom_fake) {                                                 \
 			FUNCNAME##_fake.custom_fake(arg0, arg1, arg2, arg3, arg4, arg5, arg6,      \
 						    arg7, arg8, arg9, arg10, arg11, arg12, arg13); \
 		}                                                                                  \
@@ -1311,33 +1315,36 @@ FFF_END_EXTERN_C
 		DECLARE_ARG(ARG14_TYPE, 14, FUNCNAME)                                              \
 		DECLARE_ALL_FUNC_COMMON                                                            \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, custom_fake, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE,   \
-					     ARG3_TYPE, ARG4_TYPE, ARG5_TYPE, ARG6_TYPE,           \
-					     ARG7_TYPE, ARG8_TYPE, ARG9_TYPE, ARG10_TYPE,          \
-					     ARG11_TYPE, ARG12_TYPE, ARG13_TYPE, ARG14_TYPE);      \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,         \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE,       \
-					     ARG14_TYPE);                                          \
+		void (*custom_fake)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,                \
+				    ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,                \
+				    ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,                \
+				    ARG9_TYPE arg9, ARG10_TYPE arg10, ARG11_TYPE arg11,            \
+				    ARG12_TYPE arg12, ARG13_TYPE arg13, ARG14_TYPE arg14);         \
+		void (**custom_fake_seq)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,           \
+					 ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,           \
+					 ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,           \
+					 ARG9_TYPE arg9, ARG10_TYPE arg10, ARG11_TYPE arg11,       \
+					 ARG12_TYPE arg12, ARG13_TYPE arg13, ARG14_TYPE arg14);    \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
-	void FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(                                                 \
-		ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,    \
-		ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,    \
-		ARG10_TYPE arg10, ARG11_TYPE arg11, ARG12_TYPE arg12, ARG13_TYPE arg13,            \
-		ARG14_TYPE arg14);
+	void FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,  \
+						  ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,  \
+						  ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,  \
+						  ARG9_TYPE arg9, ARG10_TYPE arg10,                \
+						  ARG11_TYPE arg11, ARG12_TYPE arg12,              \
+						  ARG13_TYPE arg13, ARG14_TYPE arg14);
 
 #define DEFINE_FAKE_VOID_FUNC15(FUNCNAME, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE, ARG3_TYPE, ARG4_TYPE,   \
 				ARG5_TYPE, ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE, ARG10_TYPE, \
 				ARG11_TYPE, ARG12_TYPE, ARG13_TYPE, ARG14_TYPE)                    \
 	FUNCNAME##_Fake FUNCNAME##_fake;                                                           \
-	void FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(                                                 \
-		ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,    \
-		ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,    \
-		ARG10_TYPE arg10, ARG11_TYPE arg11, ARG12_TYPE arg12, ARG13_TYPE arg13,            \
-		ARG14_TYPE arg14)                                                                  \
+	void FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,  \
+						  ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,  \
+						  ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,  \
+						  ARG9_TYPE arg9, ARG10_TYPE arg10,                \
+						  ARG11_TYPE arg11, ARG12_TYPE arg12,              \
+						  ARG13_TYPE arg13, ARG14_TYPE arg14)              \
 	{                                                                                          \
 		SAVE_ARG(FUNCNAME, 0);                                                             \
 		SAVE_ARG(FUNCNAME, 1);                                                             \
@@ -1389,7 +1396,7 @@ FFF_END_EXTERN_C
 						arg8, arg9, arg10, arg11, arg12, arg13, arg14);    \
 			}                                                                          \
 		}                                                                                  \
-		if (FUNCNAME##_fake.custom_fake != NULL) {                                         \
+		if (FUNCNAME##_fake.custom_fake) {                                                 \
 			FUNCNAME##_fake.custom_fake(arg0, arg1, arg2, arg3, arg4, arg5, arg6,      \
 						    arg7, arg8, arg9, arg10, arg11, arg12, arg13,  \
 						    arg14);                                        \
@@ -1430,16 +1437,18 @@ FFF_END_EXTERN_C
 		DECLARE_ARG(ARG15_TYPE, 15, FUNCNAME)                                              \
 		DECLARE_ALL_FUNC_COMMON                                                            \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, custom_fake, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE,   \
-					     ARG3_TYPE, ARG4_TYPE, ARG5_TYPE, ARG6_TYPE,           \
-					     ARG7_TYPE, ARG8_TYPE, ARG9_TYPE, ARG10_TYPE,          \
-					     ARG11_TYPE, ARG12_TYPE, ARG13_TYPE, ARG14_TYPE,       \
-					     ARG15_TYPE);                                          \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,         \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE,       \
-					     ARG14_TYPE, ARG15_TYPE);                              \
+		void (*custom_fake)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,                \
+				    ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,                \
+				    ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,                \
+				    ARG9_TYPE arg9, ARG10_TYPE arg10, ARG11_TYPE arg11,            \
+				    ARG12_TYPE arg12, ARG13_TYPE arg13, ARG14_TYPE arg14,          \
+				    ARG15_TYPE arg15);                                             \
+		void (**custom_fake_seq)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,           \
+					 ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,           \
+					 ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,           \
+					 ARG9_TYPE arg9, ARG10_TYPE arg10, ARG11_TYPE arg11,       \
+					 ARG12_TYPE arg12, ARG13_TYPE arg13, ARG14_TYPE arg14,     \
+					 ARG15_TYPE arg15);                                        \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -1513,7 +1522,7 @@ FFF_END_EXTERN_C
 						arg15);                                            \
 			}                                                                          \
 		}                                                                                  \
-		if (FUNCNAME##_fake.custom_fake != NULL) {                                         \
+		if (FUNCNAME##_fake.custom_fake) {                                                 \
 			FUNCNAME##_fake.custom_fake(arg0, arg1, arg2, arg3, arg4, arg5, arg6,      \
 						    arg7, arg8, arg9, arg10, arg11, arg12, arg13,  \
 						    arg14, arg15);                                 \
@@ -1556,16 +1565,18 @@ FFF_END_EXTERN_C
 		DECLARE_ARG(ARG16_TYPE, 16, FUNCNAME)                                              \
 		DECLARE_ALL_FUNC_COMMON                                                            \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, custom_fake, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE,   \
-					     ARG3_TYPE, ARG4_TYPE, ARG5_TYPE, ARG6_TYPE,           \
-					     ARG7_TYPE, ARG8_TYPE, ARG9_TYPE, ARG10_TYPE,          \
-					     ARG11_TYPE, ARG12_TYPE, ARG13_TYPE, ARG14_TYPE,       \
-					     ARG15_TYPE, ARG16_TYPE);                              \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,         \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE,       \
-					     ARG14_TYPE, ARG15_TYPE, ARG16_TYPE);                  \
+		void (*custom_fake)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,                \
+				    ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,                \
+				    ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,                \
+				    ARG9_TYPE arg9, ARG10_TYPE arg10, ARG11_TYPE arg11,            \
+				    ARG12_TYPE arg12, ARG13_TYPE arg13, ARG14_TYPE arg14,          \
+				    ARG15_TYPE arg15, ARG16_TYPE arg16);                           \
+		void (**custom_fake_seq)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,           \
+					 ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,           \
+					 ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,           \
+					 ARG9_TYPE arg9, ARG10_TYPE arg10, ARG11_TYPE arg11,       \
+					 ARG12_TYPE arg12, ARG13_TYPE arg13, ARG14_TYPE arg14,     \
+					 ARG15_TYPE arg15, ARG16_TYPE arg16);                      \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -1642,7 +1653,7 @@ FFF_END_EXTERN_C
 						arg15, arg16);                                     \
 			}                                                                          \
 		}                                                                                  \
-		if (FUNCNAME##_fake.custom_fake != NULL) {                                         \
+		if (FUNCNAME##_fake.custom_fake) {                                                 \
 			FUNCNAME##_fake.custom_fake(arg0, arg1, arg2, arg3, arg4, arg5, arg6,      \
 						    arg7, arg8, arg9, arg10, arg11, arg12, arg13,  \
 						    arg14, arg15, arg16);                          \
@@ -1687,16 +1698,18 @@ FFF_END_EXTERN_C
 		DECLARE_ARG(ARG17_TYPE, 17, FUNCNAME)                                              \
 		DECLARE_ALL_FUNC_COMMON                                                            \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, custom_fake, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE,   \
-					     ARG3_TYPE, ARG4_TYPE, ARG5_TYPE, ARG6_TYPE,           \
-					     ARG7_TYPE, ARG8_TYPE, ARG9_TYPE, ARG10_TYPE,          \
-					     ARG11_TYPE, ARG12_TYPE, ARG13_TYPE, ARG14_TYPE,       \
-					     ARG15_TYPE, ARG16_TYPE, ARG17_TYPE);                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,         \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE,       \
-					     ARG14_TYPE, ARG15_TYPE, ARG16_TYPE, ARG17_TYPE);      \
+		void (*custom_fake)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,                \
+				    ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,                \
+				    ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,                \
+				    ARG9_TYPE arg9, ARG10_TYPE arg10, ARG11_TYPE arg11,            \
+				    ARG12_TYPE arg12, ARG13_TYPE arg13, ARG14_TYPE arg14,          \
+				    ARG15_TYPE arg15, ARG16_TYPE arg16, ARG17_TYPE arg17);         \
+		void (**custom_fake_seq)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,           \
+					 ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,           \
+					 ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,           \
+					 ARG9_TYPE arg9, ARG10_TYPE arg10, ARG11_TYPE arg11,       \
+					 ARG12_TYPE arg12, ARG13_TYPE arg13, ARG14_TYPE arg14,     \
+					 ARG15_TYPE arg15, ARG16_TYPE arg16, ARG17_TYPE arg17);    \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -1775,7 +1788,7 @@ FFF_END_EXTERN_C
 						arg15, arg16, arg17);                              \
 			}                                                                          \
 		}                                                                                  \
-		if (FUNCNAME##_fake.custom_fake != NULL) {                                         \
+		if (FUNCNAME##_fake.custom_fake) {                                                 \
 			FUNCNAME##_fake.custom_fake(arg0, arg1, arg2, arg3, arg4, arg5, arg6,      \
 						    arg7, arg8, arg9, arg10, arg11, arg12, arg13,  \
 						    arg14, arg15, arg16, arg17);                   \
@@ -1822,17 +1835,20 @@ FFF_END_EXTERN_C
 		DECLARE_ARG(ARG18_TYPE, 18, FUNCNAME)                                              \
 		DECLARE_ALL_FUNC_COMMON                                                            \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, custom_fake, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE,   \
-					     ARG3_TYPE, ARG4_TYPE, ARG5_TYPE, ARG6_TYPE,           \
-					     ARG7_TYPE, ARG8_TYPE, ARG9_TYPE, ARG10_TYPE,          \
-					     ARG11_TYPE, ARG12_TYPE, ARG13_TYPE, ARG14_TYPE,       \
-					     ARG15_TYPE, ARG16_TYPE, ARG17_TYPE, ARG18_TYPE);      \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,         \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE,       \
-					     ARG14_TYPE, ARG15_TYPE, ARG16_TYPE, ARG17_TYPE,       \
-					     ARG18_TYPE);                                          \
+		void (*custom_fake)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,                \
+				    ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,                \
+				    ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,                \
+				    ARG9_TYPE arg9, ARG10_TYPE arg10, ARG11_TYPE arg11,            \
+				    ARG12_TYPE arg12, ARG13_TYPE arg13, ARG14_TYPE arg14,          \
+				    ARG15_TYPE arg15, ARG16_TYPE arg16, ARG17_TYPE arg17,          \
+				    ARG18_TYPE arg18);                                             \
+		void (**custom_fake_seq)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,           \
+					 ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,           \
+					 ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,           \
+					 ARG9_TYPE arg9, ARG10_TYPE arg10, ARG11_TYPE arg11,       \
+					 ARG12_TYPE arg12, ARG13_TYPE arg13, ARG14_TYPE arg14,     \
+					 ARG15_TYPE arg15, ARG16_TYPE arg16, ARG17_TYPE arg17,     \
+					 ARG18_TYPE arg18);                                        \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -1915,7 +1931,7 @@ FFF_END_EXTERN_C
 						arg15, arg16, arg17, arg18);                       \
 			}                                                                          \
 		}                                                                                  \
-		if (FUNCNAME##_fake.custom_fake != NULL) {                                         \
+		if (FUNCNAME##_fake.custom_fake) {                                                 \
 			FUNCNAME##_fake.custom_fake(arg0, arg1, arg2, arg3, arg4, arg5, arg6,      \
 						    arg7, arg8, arg9, arg10, arg11, arg12, arg13,  \
 						    arg14, arg15, arg16, arg17, arg18);            \
@@ -1963,18 +1979,20 @@ FFF_END_EXTERN_C
 		DECLARE_ARG(ARG19_TYPE, 19, FUNCNAME)                                              \
 		DECLARE_ALL_FUNC_COMMON                                                            \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, custom_fake, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE,   \
-					     ARG3_TYPE, ARG4_TYPE, ARG5_TYPE, ARG6_TYPE,           \
-					     ARG7_TYPE, ARG8_TYPE, ARG9_TYPE, ARG10_TYPE,          \
-					     ARG11_TYPE, ARG12_TYPE, ARG13_TYPE, ARG14_TYPE,       \
-					     ARG15_TYPE, ARG16_TYPE, ARG17_TYPE, ARG18_TYPE,       \
-					     ARG19_TYPE);                                          \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,         \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE,       \
-					     ARG14_TYPE, ARG15_TYPE, ARG16_TYPE, ARG17_TYPE,       \
-					     ARG18_TYPE, ARG19_TYPE);                              \
+		void (*custom_fake)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,                \
+				    ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,                \
+				    ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,                \
+				    ARG9_TYPE arg9, ARG10_TYPE arg10, ARG11_TYPE arg11,            \
+				    ARG12_TYPE arg12, ARG13_TYPE arg13, ARG14_TYPE arg14,          \
+				    ARG15_TYPE arg15, ARG16_TYPE arg16, ARG17_TYPE arg17,          \
+				    ARG18_TYPE arg18, ARG19_TYPE arg19);                           \
+		void (**custom_fake_seq)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,           \
+					 ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,           \
+					 ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,           \
+					 ARG9_TYPE arg9, ARG10_TYPE arg10, ARG11_TYPE arg11,       \
+					 ARG12_TYPE arg12, ARG13_TYPE arg13, ARG14_TYPE arg14,     \
+					 ARG15_TYPE arg15, ARG16_TYPE arg16, ARG17_TYPE arg17,     \
+					 ARG18_TYPE arg18, ARG19_TYPE arg19);                      \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -2059,7 +2077,7 @@ FFF_END_EXTERN_C
 						arg15, arg16, arg17, arg18, arg19);                \
 			}                                                                          \
 		}                                                                                  \
-		if (FUNCNAME##_fake.custom_fake != NULL) {                                         \
+		if (FUNCNAME##_fake.custom_fake) {                                                 \
 			FUNCNAME##_fake.custom_fake(arg0, arg1, arg2, arg3, arg4, arg5, arg6,      \
 						    arg7, arg8, arg9, arg10, arg11, arg12, arg13,  \
 						    arg14, arg15, arg16, arg17, arg18, arg19);     \
@@ -2086,8 +2104,8 @@ FFF_END_EXTERN_C
 		DECLARE_VALUE_FUNCTION_VARIABLES(RETURN_TYPE)                                      \
 		DECLARE_RETURN_VALUE_HISTORY(RETURN_TYPE)                                          \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, custom_fake, void);                      \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, *custom_fake_seq, void);                 \
+		RETURN_TYPE (*custom_fake)(void);                                                  \
+		RETURN_TYPE (**custom_fake_seq)(void);                                             \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -2122,7 +2140,7 @@ FFF_END_EXTERN_C
 							 1]();                                     \
 			}                                                                          \
 		}                                                                                  \
-		if (FUNCNAME##_fake.custom_fake != NULL) {                                         \
+		if (FUNCNAME##_fake.custom_fake) {                                                 \
 			RETURN_TYPE ret = FUNCNAME##_fake.custom_fake();                           \
 			SAVE_RET_HISTORY(FUNCNAME, ret);                                           \
 			return ret;                                                                \
@@ -2143,8 +2161,8 @@ FFF_END_EXTERN_C
 		DECLARE_VALUE_FUNCTION_VARIABLES(RETURN_TYPE)                                      \
 		DECLARE_RETURN_VALUE_HISTORY(RETURN_TYPE)                                          \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, custom_fake, ARG0_TYPE);                 \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, *custom_fake_seq, ARG0_TYPE);            \
+		RETURN_TYPE (*custom_fake)(ARG0_TYPE arg0);                                        \
+		RETURN_TYPE (**custom_fake_seq)(ARG0_TYPE arg0);                                   \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -2181,7 +2199,7 @@ FFF_END_EXTERN_C
 						arg0);                                             \
 			}                                                                          \
 		}                                                                                  \
-		if (FUNCNAME##_fake.custom_fake != NULL) {                                         \
+		if (FUNCNAME##_fake.custom_fake) {                                                 \
 			RETURN_TYPE ret = FUNCNAME##_fake.custom_fake(arg0);                       \
 			SAVE_RET_HISTORY(FUNCNAME, ret);                                           \
 			return ret;                                                                \
@@ -2203,8 +2221,8 @@ FFF_END_EXTERN_C
 		DECLARE_VALUE_FUNCTION_VARIABLES(RETURN_TYPE)                                      \
 		DECLARE_RETURN_VALUE_HISTORY(RETURN_TYPE)                                          \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, custom_fake, ARG0_TYPE, ARG1_TYPE);      \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE); \
+		RETURN_TYPE (*custom_fake)(ARG0_TYPE arg0, ARG1_TYPE arg1);                        \
+		RETURN_TYPE (**custom_fake_seq)(ARG0_TYPE arg0, ARG1_TYPE arg1);                   \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -2244,7 +2262,7 @@ FFF_END_EXTERN_C
 						arg0, arg1);                                       \
 			}                                                                          \
 		}                                                                                  \
-		if (FUNCNAME##_fake.custom_fake != NULL) {                                         \
+		if (FUNCNAME##_fake.custom_fake) {                                                 \
 			RETURN_TYPE ret = FUNCNAME##_fake.custom_fake(arg0, arg1);                 \
 			SAVE_RET_HISTORY(FUNCNAME, ret);                                           \
 			return ret;                                                                \
@@ -2267,10 +2285,8 @@ FFF_END_EXTERN_C
 		DECLARE_VALUE_FUNCTION_VARIABLES(RETURN_TYPE)                                      \
 		DECLARE_RETURN_VALUE_HISTORY(RETURN_TYPE)                                          \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, custom_fake, ARG0_TYPE, ARG1_TYPE,       \
-					     ARG2_TYPE);                                           \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,  \
-					     ARG2_TYPE);                                           \
+		RETURN_TYPE (*custom_fake)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2);        \
+		RETURN_TYPE (**custom_fake_seq)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2);   \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -2314,7 +2330,7 @@ FFF_END_EXTERN_C
 						arg0, arg1, arg2);                                 \
 			}                                                                          \
 		}                                                                                  \
-		if (FUNCNAME##_fake.custom_fake != NULL) {                                         \
+		if (FUNCNAME##_fake.custom_fake) {                                                 \
 			RETURN_TYPE ret = FUNCNAME##_fake.custom_fake(arg0, arg1, arg2);           \
 			SAVE_RET_HISTORY(FUNCNAME, ret);                                           \
 			return ret;                                                                \
@@ -2339,10 +2355,10 @@ FFF_END_EXTERN_C
 		DECLARE_VALUE_FUNCTION_VARIABLES(RETURN_TYPE)                                      \
 		DECLARE_RETURN_VALUE_HISTORY(RETURN_TYPE)                                          \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, custom_fake, ARG0_TYPE, ARG1_TYPE,       \
-					     ARG2_TYPE, ARG3_TYPE);                                \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,  \
-					     ARG2_TYPE, ARG3_TYPE);                                \
+		RETURN_TYPE (*custom_fake)                                                         \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3);                  \
+		RETURN_TYPE (**custom_fake_seq)                                                    \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3);                  \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -2388,7 +2404,7 @@ FFF_END_EXTERN_C
 						arg0, arg1, arg2, arg3);                           \
 			}                                                                          \
 		}                                                                                  \
-		if (FUNCNAME##_fake.custom_fake != NULL) {                                         \
+		if (FUNCNAME##_fake.custom_fake) {                                                 \
 			RETURN_TYPE ret = FUNCNAME##_fake.custom_fake(arg0, arg1, arg2, arg3);     \
 			SAVE_RET_HISTORY(FUNCNAME, ret);                                           \
 			return ret;                                                                \
@@ -2415,10 +2431,10 @@ FFF_END_EXTERN_C
 		DECLARE_VALUE_FUNCTION_VARIABLES(RETURN_TYPE)                                      \
 		DECLARE_RETURN_VALUE_HISTORY(RETURN_TYPE)                                          \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, custom_fake, ARG0_TYPE, ARG1_TYPE,       \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE);                     \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,  \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE);                     \
+		RETURN_TYPE (*custom_fake)                                                         \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4);  \
+		RETURN_TYPE (**custom_fake_seq)                                                    \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4);  \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -2467,7 +2483,7 @@ FFF_END_EXTERN_C
 						arg0, arg1, arg2, arg3, arg4);                     \
 			}                                                                          \
 		}                                                                                  \
-		if (FUNCNAME##_fake.custom_fake != NULL) {                                         \
+		if (FUNCNAME##_fake.custom_fake) {                                                 \
 			RETURN_TYPE ret =                                                          \
 				FUNCNAME##_fake.custom_fake(arg0, arg1, arg2, arg3, arg4);         \
 			SAVE_RET_HISTORY(FUNCNAME, ret);                                           \
@@ -2498,10 +2514,12 @@ FFF_END_EXTERN_C
 		DECLARE_VALUE_FUNCTION_VARIABLES(RETURN_TYPE)                                      \
 		DECLARE_RETURN_VALUE_HISTORY(RETURN_TYPE)                                          \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, custom_fake, ARG0_TYPE, ARG1_TYPE,       \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE);          \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,  \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE);          \
+		RETURN_TYPE (*custom_fake)                                                         \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5);                                                                  \
+		RETURN_TYPE (**custom_fake_seq)                                                    \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5);                                                                  \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -2555,7 +2573,7 @@ FFF_END_EXTERN_C
 						arg0, arg1, arg2, arg3, arg4, arg5);               \
 			}                                                                          \
 		}                                                                                  \
-		if (FUNCNAME##_fake.custom_fake != NULL) {                                         \
+		if (FUNCNAME##_fake.custom_fake) {                                                 \
 			RETURN_TYPE ret =                                                          \
 				FUNCNAME##_fake.custom_fake(arg0, arg1, arg2, arg3, arg4, arg5);   \
 			SAVE_RET_HISTORY(FUNCNAME, ret);                                           \
@@ -2587,25 +2605,27 @@ FFF_END_EXTERN_C
 		DECLARE_VALUE_FUNCTION_VARIABLES(RETURN_TYPE)                                      \
 		DECLARE_RETURN_VALUE_HISTORY(RETURN_TYPE)                                          \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, custom_fake, ARG0_TYPE, ARG1_TYPE,       \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE);                                           \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,  \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE);                                           \
+		RETURN_TYPE (*custom_fake)                                                         \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6);                                                  \
+		RETURN_TYPE (**custom_fake_seq)                                                    \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6);                                                  \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
-	RETURN_TYPE FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(                                          \
-		ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,    \
-		ARG5_TYPE arg5, ARG6_TYPE arg6);
+	RETURN_TYPE FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(ARG0_TYPE arg0, ARG1_TYPE arg1,           \
+							 ARG2_TYPE arg2, ARG3_TYPE arg3,           \
+							 ARG4_TYPE arg4, ARG5_TYPE arg5,           \
+							 ARG6_TYPE arg6);
 
 #define DEFINE_FAKE_VALUE_FUNC7(RETURN_TYPE, FUNCNAME, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE, ARG3_TYPE, \
 				ARG4_TYPE, ARG5_TYPE, ARG6_TYPE)                                   \
 	FUNCNAME##_Fake FUNCNAME##_fake;                                                           \
-	RETURN_TYPE FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(                                          \
-		ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,    \
-		ARG5_TYPE arg5, ARG6_TYPE arg6)                                                    \
+	RETURN_TYPE FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(ARG0_TYPE arg0, ARG1_TYPE arg1,           \
+							 ARG2_TYPE arg2, ARG3_TYPE arg3,           \
+							 ARG4_TYPE arg4, ARG5_TYPE arg5,           \
+							 ARG6_TYPE arg6)                           \
 	{                                                                                          \
 		SAVE_ARG(FUNCNAME, 0);                                                             \
 		SAVE_ARG(FUNCNAME, 1);                                                             \
@@ -2648,7 +2668,7 @@ FFF_END_EXTERN_C
 						arg0, arg1, arg2, arg3, arg4, arg5, arg6);         \
 			}                                                                          \
 		}                                                                                  \
-		if (FUNCNAME##_fake.custom_fake != NULL) {                                         \
+		if (FUNCNAME##_fake.custom_fake) {                                                 \
 			RETURN_TYPE ret = FUNCNAME##_fake.custom_fake(arg0, arg1, arg2, arg3,      \
 								      arg4, arg5, arg6);           \
 			SAVE_RET_HISTORY(FUNCNAME, ret);                                           \
@@ -2682,25 +2702,27 @@ FFF_END_EXTERN_C
 		DECLARE_VALUE_FUNCTION_VARIABLES(RETURN_TYPE)                                      \
 		DECLARE_RETURN_VALUE_HISTORY(RETURN_TYPE)                                          \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, custom_fake, ARG0_TYPE, ARG1_TYPE,       \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE);                                \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,  \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE);                                \
+		RETURN_TYPE (*custom_fake)                                                         \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7);                                  \
+		RETURN_TYPE (**custom_fake_seq)                                                    \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7);                                  \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
-	RETURN_TYPE FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(                                          \
-		ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,    \
-		ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7);
+	RETURN_TYPE FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(ARG0_TYPE arg0, ARG1_TYPE arg1,           \
+							 ARG2_TYPE arg2, ARG3_TYPE arg3,           \
+							 ARG4_TYPE arg4, ARG5_TYPE arg5,           \
+							 ARG6_TYPE arg6, ARG7_TYPE arg7);
 
 #define DEFINE_FAKE_VALUE_FUNC8(RETURN_TYPE, FUNCNAME, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE, ARG3_TYPE, \
 				ARG4_TYPE, ARG5_TYPE, ARG6_TYPE, ARG7_TYPE)                        \
 	FUNCNAME##_Fake FUNCNAME##_fake;                                                           \
-	RETURN_TYPE FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(                                          \
-		ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,    \
-		ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7)                                    \
+	RETURN_TYPE FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(ARG0_TYPE arg0, ARG1_TYPE arg1,           \
+							 ARG2_TYPE arg2, ARG3_TYPE arg3,           \
+							 ARG4_TYPE arg4, ARG5_TYPE arg5,           \
+							 ARG6_TYPE arg6, ARG7_TYPE arg7)           \
 	{                                                                                          \
 		SAVE_ARG(FUNCNAME, 0);                                                             \
 		SAVE_ARG(FUNCNAME, 1);                                                             \
@@ -2746,7 +2768,7 @@ FFF_END_EXTERN_C
 						arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7);   \
 			}                                                                          \
 		}                                                                                  \
-		if (FUNCNAME##_fake.custom_fake != NULL) {                                         \
+		if (FUNCNAME##_fake.custom_fake) {                                                 \
 			RETURN_TYPE ret = FUNCNAME##_fake.custom_fake(arg0, arg1, arg2, arg3,      \
 								      arg4, arg5, arg6, arg7);     \
 			SAVE_RET_HISTORY(FUNCNAME, ret);                                           \
@@ -2781,12 +2803,12 @@ FFF_END_EXTERN_C
 		DECLARE_VALUE_FUNCTION_VARIABLES(RETURN_TYPE)                                      \
 		DECLARE_RETURN_VALUE_HISTORY(RETURN_TYPE)                                          \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, custom_fake, ARG0_TYPE, ARG1_TYPE,       \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE);                     \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,  \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE);                     \
+		RETURN_TYPE (*custom_fake)                                                         \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8);                  \
+		RETURN_TYPE (**custom_fake_seq)                                                    \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8);                  \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -2848,7 +2870,7 @@ FFF_END_EXTERN_C
 						arg8);                                             \
 			}                                                                          \
 		}                                                                                  \
-		if (FUNCNAME##_fake.custom_fake != NULL) {                                         \
+		if (FUNCNAME##_fake.custom_fake) {                                                 \
 			RETURN_TYPE ret = FUNCNAME##_fake.custom_fake(                             \
 				arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);             \
 			SAVE_RET_HISTORY(FUNCNAME, ret);                                           \
@@ -2885,12 +2907,12 @@ FFF_END_EXTERN_C
 		DECLARE_VALUE_FUNCTION_VARIABLES(RETURN_TYPE)                                      \
 		DECLARE_RETURN_VALUE_HISTORY(RETURN_TYPE)                                          \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, custom_fake, ARG0_TYPE, ARG1_TYPE,       \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE);          \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,  \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE);          \
+		RETURN_TYPE (*custom_fake)                                                         \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9);  \
+		RETURN_TYPE (**custom_fake_seq)                                                    \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9);  \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -2955,7 +2977,7 @@ FFF_END_EXTERN_C
 						arg8, arg9);                                       \
 			}                                                                          \
 		}                                                                                  \
-		if (FUNCNAME##_fake.custom_fake != NULL) {                                         \
+		if (FUNCNAME##_fake.custom_fake) {                                                 \
 			RETURN_TYPE ret = FUNCNAME##_fake.custom_fake(                             \
 				arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);       \
 			SAVE_RET_HISTORY(FUNCNAME, ret);                                           \
@@ -2995,14 +3017,14 @@ FFF_END_EXTERN_C
 		DECLARE_VALUE_FUNCTION_VARIABLES(RETURN_TYPE)                                      \
 		DECLARE_RETURN_VALUE_HISTORY(RETURN_TYPE)                                          \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, custom_fake, ARG0_TYPE, ARG1_TYPE,       \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE);                                          \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,  \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE);                                          \
+		RETURN_TYPE (*custom_fake)                                                         \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,   \
+		 ARG10_TYPE arg10);                                                                \
+		RETURN_TYPE (**custom_fake_seq)                                                    \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,   \
+		 ARG10_TYPE arg10);                                                                \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -3072,7 +3094,7 @@ FFF_END_EXTERN_C
 						arg8, arg9, arg10);                                \
 			}                                                                          \
 		}                                                                                  \
-		if (FUNCNAME##_fake.custom_fake != NULL) {                                         \
+		if (FUNCNAME##_fake.custom_fake) {                                                 \
 			RETURN_TYPE ret =                                                          \
 				FUNCNAME##_fake.custom_fake(arg0, arg1, arg2, arg3, arg4, arg5,    \
 							    arg6, arg7, arg8, arg9, arg10);        \
@@ -3115,14 +3137,14 @@ FFF_END_EXTERN_C
 		DECLARE_VALUE_FUNCTION_VARIABLES(RETURN_TYPE)                                      \
 		DECLARE_RETURN_VALUE_HISTORY(RETURN_TYPE)                                          \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, custom_fake, ARG0_TYPE, ARG1_TYPE,       \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE);                              \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,  \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE);                              \
+		RETURN_TYPE (*custom_fake)                                                         \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,   \
+		 ARG10_TYPE arg10, ARG11_TYPE arg11);                                              \
+		RETURN_TYPE (**custom_fake_seq)                                                    \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,   \
+		 ARG10_TYPE arg10, ARG11_TYPE arg11);                                              \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -3194,7 +3216,7 @@ FFF_END_EXTERN_C
 						arg8, arg9, arg10, arg11);                         \
 			}                                                                          \
 		}                                                                                  \
-		if (FUNCNAME##_fake.custom_fake != NULL) {                                         \
+		if (FUNCNAME##_fake.custom_fake) {                                                 \
 			RETURN_TYPE ret =                                                          \
 				FUNCNAME##_fake.custom_fake(arg0, arg1, arg2, arg3, arg4, arg5,    \
 							    arg6, arg7, arg8, arg9, arg10, arg11); \
@@ -3238,14 +3260,14 @@ FFF_END_EXTERN_C
 		DECLARE_VALUE_FUNCTION_VARIABLES(RETURN_TYPE)                                      \
 		DECLARE_RETURN_VALUE_HISTORY(RETURN_TYPE)                                          \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, custom_fake, ARG0_TYPE, ARG1_TYPE,       \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE, ARG12_TYPE);                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,  \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE, ARG12_TYPE);                  \
+		RETURN_TYPE (*custom_fake)                                                         \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,   \
+		 ARG10_TYPE arg10, ARG11_TYPE arg11, ARG12_TYPE arg12);                            \
+		RETURN_TYPE (**custom_fake_seq)                                                    \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,   \
+		 ARG10_TYPE arg10, ARG11_TYPE arg11, ARG12_TYPE arg12);                            \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -3319,10 +3341,11 @@ FFF_END_EXTERN_C
 						arg8, arg9, arg10, arg11, arg12);                  \
 			}                                                                          \
 		}                                                                                  \
-		if (FUNCNAME##_fake.custom_fake != NULL) {                                         \
-			RETURN_TYPE ret = FUNCNAME##_fake.custom_fake(                             \
-				arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, \
-				arg11, arg12);                                                     \
+		if (FUNCNAME##_fake.custom_fake) {                                                 \
+			RETURN_TYPE ret =                                                          \
+				FUNCNAME##_fake.custom_fake(arg0, arg1, arg2, arg3, arg4, arg5,    \
+							    arg6, arg7, arg8, arg9, arg10, arg11,  \
+							    arg12);                                \
 			SAVE_RET_HISTORY(FUNCNAME, ret);                                           \
 			return ret;                                                                \
 			return FUNCNAME##_fake.custom_fake(arg0, arg1, arg2, arg3, arg4, arg5,     \
@@ -3366,14 +3389,14 @@ FFF_END_EXTERN_C
 		DECLARE_VALUE_FUNCTION_VARIABLES(RETURN_TYPE)                                      \
 		DECLARE_RETURN_VALUE_HISTORY(RETURN_TYPE)                                          \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, custom_fake, ARG0_TYPE, ARG1_TYPE,       \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE);      \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,  \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE);      \
+		RETURN_TYPE (*custom_fake)                                                         \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,   \
+		 ARG10_TYPE arg10, ARG11_TYPE arg11, ARG12_TYPE arg12, ARG13_TYPE arg13);          \
+		RETURN_TYPE (**custom_fake_seq)                                                    \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,   \
+		 ARG10_TYPE arg10, ARG11_TYPE arg11, ARG12_TYPE arg12, ARG13_TYPE arg13);          \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -3450,10 +3473,11 @@ FFF_END_EXTERN_C
 						arg8, arg9, arg10, arg11, arg12, arg13);           \
 			}                                                                          \
 		}                                                                                  \
-		if (FUNCNAME##_fake.custom_fake != NULL) {                                         \
-			RETURN_TYPE ret = FUNCNAME##_fake.custom_fake(                             \
-				arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, \
-				arg11, arg12, arg13);                                              \
+		if (FUNCNAME##_fake.custom_fake) {                                                 \
+			RETURN_TYPE ret =                                                          \
+				FUNCNAME##_fake.custom_fake(arg0, arg1, arg2, arg3, arg4, arg5,    \
+							    arg6, arg7, arg8, arg9, arg10, arg11,  \
+							    arg12, arg13);                         \
 			SAVE_RET_HISTORY(FUNCNAME, ret);                                           \
 			return ret;                                                                \
 			return FUNCNAME##_fake.custom_fake(arg0, arg1, arg2, arg3, arg4, arg5,     \
@@ -3499,16 +3523,16 @@ FFF_END_EXTERN_C
 		DECLARE_VALUE_FUNCTION_VARIABLES(RETURN_TYPE)                                      \
 		DECLARE_RETURN_VALUE_HISTORY(RETURN_TYPE)                                          \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, custom_fake, ARG0_TYPE, ARG1_TYPE,       \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE,       \
-					     ARG14_TYPE);                                          \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,  \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE,       \
-					     ARG14_TYPE);                                          \
+		RETURN_TYPE (*custom_fake)                                                         \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,   \
+		 ARG10_TYPE arg10, ARG11_TYPE arg11, ARG12_TYPE arg12, ARG13_TYPE arg13,           \
+		 ARG14_TYPE arg14);                                                                \
+		RETURN_TYPE (**custom_fake_seq)                                                    \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,   \
+		 ARG10_TYPE arg10, ARG11_TYPE arg11, ARG12_TYPE arg12, ARG13_TYPE arg13,           \
+		 ARG14_TYPE arg14);                                                                \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -3591,10 +3615,11 @@ FFF_END_EXTERN_C
 						arg8, arg9, arg10, arg11, arg12, arg13, arg14);    \
 			}                                                                          \
 		}                                                                                  \
-		if (FUNCNAME##_fake.custom_fake != NULL) {                                         \
-			RETURN_TYPE ret = FUNCNAME##_fake.custom_fake(                             \
-				arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, \
-				arg11, arg12, arg13, arg14);                                       \
+		if (FUNCNAME##_fake.custom_fake) {                                                 \
+			RETURN_TYPE ret =                                                          \
+				FUNCNAME##_fake.custom_fake(arg0, arg1, arg2, arg3, arg4, arg5,    \
+							    arg6, arg7, arg8, arg9, arg10, arg11,  \
+							    arg12, arg13, arg14);                  \
 			SAVE_RET_HISTORY(FUNCNAME, ret);                                           \
 			return ret;                                                                \
 			return FUNCNAME##_fake.custom_fake(arg0, arg1, arg2, arg3, arg4, arg5,     \
@@ -3642,16 +3667,16 @@ FFF_END_EXTERN_C
 		DECLARE_VALUE_FUNCTION_VARIABLES(RETURN_TYPE)                                      \
 		DECLARE_RETURN_VALUE_HISTORY(RETURN_TYPE)                                          \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, custom_fake, ARG0_TYPE, ARG1_TYPE,       \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE,       \
-					     ARG14_TYPE, ARG15_TYPE);                              \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,  \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE,       \
-					     ARG14_TYPE, ARG15_TYPE);                              \
+		RETURN_TYPE (*custom_fake)                                                         \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,   \
+		 ARG10_TYPE arg10, ARG11_TYPE arg11, ARG12_TYPE arg12, ARG13_TYPE arg13,           \
+		 ARG14_TYPE arg14, ARG15_TYPE arg15);                                              \
+		RETURN_TYPE (**custom_fake_seq)                                                    \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,   \
+		 ARG10_TYPE arg10, ARG11_TYPE arg11, ARG12_TYPE arg12, ARG13_TYPE arg13,           \
+		 ARG14_TYPE arg14, ARG15_TYPE arg15);                                              \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -3737,10 +3762,11 @@ FFF_END_EXTERN_C
 						arg15);                                            \
 			}                                                                          \
 		}                                                                                  \
-		if (FUNCNAME##_fake.custom_fake != NULL) {                                         \
-			RETURN_TYPE ret = FUNCNAME##_fake.custom_fake(                             \
-				arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, \
-				arg11, arg12, arg13, arg14, arg15);                                \
+		if (FUNCNAME##_fake.custom_fake) {                                                 \
+			RETURN_TYPE ret =                                                          \
+				FUNCNAME##_fake.custom_fake(arg0, arg1, arg2, arg3, arg4, arg5,    \
+							    arg6, arg7, arg8, arg9, arg10, arg11,  \
+							    arg12, arg13, arg14, arg15);           \
 			SAVE_RET_HISTORY(FUNCNAME, ret);                                           \
 			return ret;                                                                \
 			return FUNCNAME##_fake.custom_fake(arg0, arg1, arg2, arg3, arg4, arg5,     \
@@ -3789,16 +3815,16 @@ FFF_END_EXTERN_C
 		DECLARE_VALUE_FUNCTION_VARIABLES(RETURN_TYPE)                                      \
 		DECLARE_RETURN_VALUE_HISTORY(RETURN_TYPE)                                          \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, custom_fake, ARG0_TYPE, ARG1_TYPE,       \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE,       \
-					     ARG14_TYPE, ARG15_TYPE, ARG16_TYPE);                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,  \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE,       \
-					     ARG14_TYPE, ARG15_TYPE, ARG16_TYPE);                  \
+		RETURN_TYPE (*custom_fake)                                                         \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,   \
+		 ARG10_TYPE arg10, ARG11_TYPE arg11, ARG12_TYPE arg12, ARG13_TYPE arg13,           \
+		 ARG14_TYPE arg14, ARG15_TYPE arg15, ARG16_TYPE arg16);                            \
+		RETURN_TYPE (**custom_fake_seq)                                                    \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,   \
+		 ARG10_TYPE arg10, ARG11_TYPE arg11, ARG12_TYPE arg12, ARG13_TYPE arg13,           \
+		 ARG14_TYPE arg14, ARG15_TYPE arg15, ARG16_TYPE arg16);                            \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -3886,10 +3912,11 @@ FFF_END_EXTERN_C
 						arg15, arg16);                                     \
 			}                                                                          \
 		}                                                                                  \
-		if (FUNCNAME##_fake.custom_fake != NULL) {                                         \
-			RETURN_TYPE ret = FUNCNAME##_fake.custom_fake(                             \
-				arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, \
-				arg11, arg12, arg13, arg14, arg15, arg16);                         \
+		if (FUNCNAME##_fake.custom_fake) {                                                 \
+			RETURN_TYPE ret =                                                          \
+				FUNCNAME##_fake.custom_fake(arg0, arg1, arg2, arg3, arg4, arg5,    \
+							    arg6, arg7, arg8, arg9, arg10, arg11,  \
+							    arg12, arg13, arg14, arg15, arg16);    \
 			SAVE_RET_HISTORY(FUNCNAME, ret);                                           \
 			return ret;                                                                \
 			return FUNCNAME##_fake.custom_fake(arg0, arg1, arg2, arg3, arg4, arg5,     \
@@ -3940,16 +3967,16 @@ FFF_END_EXTERN_C
 		DECLARE_VALUE_FUNCTION_VARIABLES(RETURN_TYPE)                                      \
 		DECLARE_RETURN_VALUE_HISTORY(RETURN_TYPE)                                          \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, custom_fake, ARG0_TYPE, ARG1_TYPE,       \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE,       \
-					     ARG14_TYPE, ARG15_TYPE, ARG16_TYPE, ARG17_TYPE);      \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,  \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE,       \
-					     ARG14_TYPE, ARG15_TYPE, ARG16_TYPE, ARG17_TYPE);      \
+		RETURN_TYPE (*custom_fake)                                                         \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,   \
+		 ARG10_TYPE arg10, ARG11_TYPE arg11, ARG12_TYPE arg12, ARG13_TYPE arg13,           \
+		 ARG14_TYPE arg14, ARG15_TYPE arg15, ARG16_TYPE arg16, ARG17_TYPE arg17);          \
+		RETURN_TYPE (**custom_fake_seq)                                                    \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,   \
+		 ARG10_TYPE arg10, ARG11_TYPE arg11, ARG12_TYPE arg12, ARG13_TYPE arg13,           \
+		 ARG14_TYPE arg14, ARG15_TYPE arg15, ARG16_TYPE arg16, ARG17_TYPE arg17);          \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -4039,15 +4066,16 @@ FFF_END_EXTERN_C
 						arg15, arg16, arg17);                              \
 			}                                                                          \
 		}                                                                                  \
-		if (FUNCNAME##_fake.custom_fake != NULL) {                                         \
+		if (FUNCNAME##_fake.custom_fake) {                                                 \
 			RETURN_TYPE ret = FUNCNAME##_fake.custom_fake(                             \
 				arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, \
 				arg11, arg12, arg13, arg14, arg15, arg16, arg17);                  \
 			SAVE_RET_HISTORY(FUNCNAME, ret);                                           \
 			return ret;                                                                \
-			return FUNCNAME##_fake.custom_fake(                                        \
-				arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, \
-				arg11, arg12, arg13, arg14, arg15, arg16, arg17);                  \
+			return FUNCNAME##_fake.custom_fake(arg0, arg1, arg2, arg3, arg4, arg5,     \
+							   arg6, arg7, arg8, arg9, arg10, arg11,   \
+							   arg12, arg13, arg14, arg15, arg16,      \
+							   arg17);                                 \
 		}                                                                                  \
 		RETURN_FAKE_RESULT(FUNCNAME)                                                       \
 	}                                                                                          \
@@ -4066,10 +4094,11 @@ FFF_END_EXTERN_C
 				 ARG9_TYPE, ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE,        \
 				 ARG14_TYPE, ARG15_TYPE, ARG16_TYPE, ARG17_TYPE)
 
-#define DECLARE_FAKE_VALUE_FUNC19(                                                                 \
-	RETURN_TYPE, FUNCNAME, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,   \
-	ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE, ARG10_TYPE, ARG11_TYPE, ARG12_TYPE,            \
-	ARG13_TYPE, ARG14_TYPE, ARG15_TYPE, ARG16_TYPE, ARG17_TYPE, ARG18_TYPE)                    \
+#define DECLARE_FAKE_VALUE_FUNC19(RETURN_TYPE, FUNCNAME, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE,          \
+				  ARG3_TYPE, ARG4_TYPE, ARG5_TYPE, ARG6_TYPE, ARG7_TYPE,           \
+				  ARG8_TYPE, ARG9_TYPE, ARG10_TYPE, ARG11_TYPE, ARG12_TYPE,        \
+				  ARG13_TYPE, ARG14_TYPE, ARG15_TYPE, ARG16_TYPE, ARG17_TYPE,      \
+				  ARG18_TYPE)                                                      \
 	typedef struct FUNCNAME##_Fake {                                                           \
 		DECLARE_ARG(ARG0_TYPE, 0, FUNCNAME)                                                \
 		DECLARE_ARG(ARG1_TYPE, 1, FUNCNAME)                                                \
@@ -4094,18 +4123,18 @@ FFF_END_EXTERN_C
 		DECLARE_VALUE_FUNCTION_VARIABLES(RETURN_TYPE)                                      \
 		DECLARE_RETURN_VALUE_HISTORY(RETURN_TYPE)                                          \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, custom_fake, ARG0_TYPE, ARG1_TYPE,       \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE,       \
-					     ARG14_TYPE, ARG15_TYPE, ARG16_TYPE, ARG17_TYPE,       \
-					     ARG18_TYPE);                                          \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,  \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE,       \
-					     ARG14_TYPE, ARG15_TYPE, ARG16_TYPE, ARG17_TYPE,       \
-					     ARG18_TYPE);                                          \
+		RETURN_TYPE (*custom_fake)                                                         \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,   \
+		 ARG10_TYPE arg10, ARG11_TYPE arg11, ARG12_TYPE arg12, ARG13_TYPE arg13,           \
+		 ARG14_TYPE arg14, ARG15_TYPE arg15, ARG16_TYPE arg16, ARG17_TYPE arg17,           \
+		 ARG18_TYPE arg18);                                                                \
+		RETURN_TYPE (**custom_fake_seq)                                                    \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,   \
+		 ARG10_TYPE arg10, ARG11_TYPE arg11, ARG12_TYPE arg12, ARG13_TYPE arg13,           \
+		 ARG14_TYPE arg14, ARG15_TYPE arg15, ARG16_TYPE arg16, ARG17_TYPE arg17,           \
+		 ARG18_TYPE arg18);                                                                \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -4199,15 +4228,16 @@ FFF_END_EXTERN_C
 						arg15, arg16, arg17, arg18);                       \
 			}                                                                          \
 		}                                                                                  \
-		if (FUNCNAME##_fake.custom_fake != NULL) {                                         \
+		if (FUNCNAME##_fake.custom_fake) {                                                 \
 			RETURN_TYPE ret = FUNCNAME##_fake.custom_fake(                             \
 				arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, \
 				arg11, arg12, arg13, arg14, arg15, arg16, arg17, arg18);           \
 			SAVE_RET_HISTORY(FUNCNAME, ret);                                           \
 			return ret;                                                                \
-			return FUNCNAME##_fake.custom_fake(                                        \
-				arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, \
-				arg11, arg12, arg13, arg14, arg15, arg16, arg17, arg18);           \
+			return FUNCNAME##_fake.custom_fake(arg0, arg1, arg2, arg3, arg4, arg5,     \
+							   arg6, arg7, arg8, arg9, arg10, arg11,   \
+							   arg12, arg13, arg14, arg15, arg16,      \
+							   arg17, arg18);                          \
 		}                                                                                  \
 		RETURN_FAKE_RESULT(FUNCNAME)                                                       \
 	}                                                                                          \
@@ -4227,10 +4257,11 @@ FFF_END_EXTERN_C
 				 ARG9_TYPE, ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE,        \
 				 ARG14_TYPE, ARG15_TYPE, ARG16_TYPE, ARG17_TYPE, ARG18_TYPE)
 
-#define DECLARE_FAKE_VALUE_FUNC20(                                                                 \
-	RETURN_TYPE, FUNCNAME, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,   \
-	ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE, ARG10_TYPE, ARG11_TYPE, ARG12_TYPE,            \
-	ARG13_TYPE, ARG14_TYPE, ARG15_TYPE, ARG16_TYPE, ARG17_TYPE, ARG18_TYPE, ARG19_TYPE)        \
+#define DECLARE_FAKE_VALUE_FUNC20(RETURN_TYPE, FUNCNAME, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE,          \
+				  ARG3_TYPE, ARG4_TYPE, ARG5_TYPE, ARG6_TYPE, ARG7_TYPE,           \
+				  ARG8_TYPE, ARG9_TYPE, ARG10_TYPE, ARG11_TYPE, ARG12_TYPE,        \
+				  ARG13_TYPE, ARG14_TYPE, ARG15_TYPE, ARG16_TYPE, ARG17_TYPE,      \
+				  ARG18_TYPE, ARG19_TYPE)                                          \
 	typedef struct FUNCNAME##_Fake {                                                           \
 		DECLARE_ARG(ARG0_TYPE, 0, FUNCNAME)                                                \
 		DECLARE_ARG(ARG1_TYPE, 1, FUNCNAME)                                                \
@@ -4256,18 +4287,18 @@ FFF_END_EXTERN_C
 		DECLARE_VALUE_FUNCTION_VARIABLES(RETURN_TYPE)                                      \
 		DECLARE_RETURN_VALUE_HISTORY(RETURN_TYPE)                                          \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, custom_fake, ARG0_TYPE, ARG1_TYPE,       \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE,       \
-					     ARG14_TYPE, ARG15_TYPE, ARG16_TYPE, ARG17_TYPE,       \
-					     ARG18_TYPE, ARG19_TYPE);                              \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,  \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE,       \
-					     ARG14_TYPE, ARG15_TYPE, ARG16_TYPE, ARG17_TYPE,       \
-					     ARG18_TYPE, ARG19_TYPE);                              \
+		RETURN_TYPE (*custom_fake)                                                         \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,   \
+		 ARG10_TYPE arg10, ARG11_TYPE arg11, ARG12_TYPE arg12, ARG13_TYPE arg13,           \
+		 ARG14_TYPE arg14, ARG15_TYPE arg15, ARG16_TYPE arg16, ARG17_TYPE arg17,           \
+		 ARG18_TYPE arg18, ARG19_TYPE arg19);                                              \
+		RETURN_TYPE (**custom_fake_seq)                                                    \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,   \
+		 ARG10_TYPE arg10, ARG11_TYPE arg11, ARG12_TYPE arg12, ARG13_TYPE arg13,           \
+		 ARG14_TYPE arg14, ARG15_TYPE arg15, ARG16_TYPE arg16, ARG17_TYPE arg17,           \
+		 ARG18_TYPE arg18, ARG19_TYPE arg19);                                              \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -4278,10 +4309,11 @@ FFF_END_EXTERN_C
 		ARG14_TYPE arg14, ARG15_TYPE arg15, ARG16_TYPE arg16, ARG17_TYPE arg17,            \
 		ARG18_TYPE arg18, ARG19_TYPE arg19);
 
-#define DEFINE_FAKE_VALUE_FUNC20(                                                                  \
-	RETURN_TYPE, FUNCNAME, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,   \
-	ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE, ARG10_TYPE, ARG11_TYPE, ARG12_TYPE,            \
-	ARG13_TYPE, ARG14_TYPE, ARG15_TYPE, ARG16_TYPE, ARG17_TYPE, ARG18_TYPE, ARG19_TYPE)        \
+#define DEFINE_FAKE_VALUE_FUNC20(RETURN_TYPE, FUNCNAME, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE,           \
+				 ARG3_TYPE, ARG4_TYPE, ARG5_TYPE, ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, \
+				 ARG9_TYPE, ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE,        \
+				 ARG14_TYPE, ARG15_TYPE, ARG16_TYPE, ARG17_TYPE, ARG18_TYPE,       \
+				 ARG19_TYPE)                                                       \
 	FUNCNAME##_Fake FUNCNAME##_fake;                                                           \
 	RETURN_TYPE FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(                                          \
 		ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,    \
@@ -4365,15 +4397,16 @@ FFF_END_EXTERN_C
 						arg15, arg16, arg17, arg18, arg19);                \
 			}                                                                          \
 		}                                                                                  \
-		if (FUNCNAME##_fake.custom_fake != NULL) {                                         \
+		if (FUNCNAME##_fake.custom_fake) {                                                 \
 			RETURN_TYPE ret = FUNCNAME##_fake.custom_fake(                             \
 				arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, \
 				arg11, arg12, arg13, arg14, arg15, arg16, arg17, arg18, arg19);    \
 			SAVE_RET_HISTORY(FUNCNAME, ret);                                           \
 			return ret;                                                                \
-			return FUNCNAME##_fake.custom_fake(                                        \
-				arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, \
-				arg11, arg12, arg13, arg14, arg15, arg16, arg17, arg18, arg19);    \
+			return FUNCNAME##_fake.custom_fake(arg0, arg1, arg2, arg3, arg4, arg5,     \
+							   arg6, arg7, arg8, arg9, arg10, arg11,   \
+							   arg12, arg13, arg14, arg15, arg16,      \
+							   arg17, arg18, arg19);                   \
 		}                                                                                  \
 		RETURN_FAKE_RESULT(FUNCNAME)                                                       \
 	}                                                                                          \
@@ -4399,8 +4432,8 @@ FFF_END_EXTERN_C
 		DECLARE_ARG(ARG0_TYPE, 0, FUNCNAME)                                                \
 		DECLARE_ALL_FUNC_COMMON                                                            \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, custom_fake, ARG0_TYPE, va_list ap);            \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, *custom_fake_seq, ARG0_TYPE, va_list ap);       \
+		void (*custom_fake)(ARG0_TYPE arg0, va_list ap);                                   \
+		void (**custom_fake_seq)(ARG0_TYPE arg0, va_list ap);                              \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -4455,9 +4488,8 @@ FFF_END_EXTERN_C
 		DECLARE_ARG(ARG1_TYPE, 1, FUNCNAME)                                                \
 		DECLARE_ALL_FUNC_COMMON                                                            \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, custom_fake, ARG0_TYPE, ARG1_TYPE, va_list ap); \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,         \
-					     va_list ap);                                          \
+		void (*custom_fake)(ARG0_TYPE arg0, ARG1_TYPE arg1, va_list ap);                   \
+		void (**custom_fake_seq)(ARG0_TYPE arg0, ARG1_TYPE arg1, va_list ap);              \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -4515,10 +4547,9 @@ FFF_END_EXTERN_C
 		DECLARE_ARG(ARG2_TYPE, 2, FUNCNAME)                                                \
 		DECLARE_ALL_FUNC_COMMON                                                            \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, custom_fake, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE,   \
-					     va_list ap);                                          \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,         \
-					     ARG2_TYPE, va_list ap);                               \
+		void (*custom_fake)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, va_list ap);   \
+		void (**custom_fake_seq)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,           \
+					 va_list ap);                                              \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -4581,10 +4612,10 @@ FFF_END_EXTERN_C
 		DECLARE_ARG(ARG3_TYPE, 3, FUNCNAME)                                                \
 		DECLARE_ALL_FUNC_COMMON                                                            \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, custom_fake, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE,   \
-					     ARG3_TYPE, va_list ap);                               \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,         \
-					     ARG2_TYPE, ARG3_TYPE, va_list ap);                    \
+		void (*custom_fake)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,                \
+				    ARG3_TYPE arg3, va_list ap);                                   \
+		void (**custom_fake_seq)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,           \
+					 ARG3_TYPE arg3, va_list ap);                              \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -4651,10 +4682,10 @@ FFF_END_EXTERN_C
 		DECLARE_ARG(ARG4_TYPE, 4, FUNCNAME)                                                \
 		DECLARE_ALL_FUNC_COMMON                                                            \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, custom_fake, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE,   \
-					     ARG3_TYPE, ARG4_TYPE, va_list ap);                    \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,         \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, va_list ap);         \
+		void (*custom_fake)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,                \
+				    ARG3_TYPE arg3, ARG4_TYPE arg4, va_list ap);                   \
+		void (**custom_fake_seq)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,           \
+					 ARG3_TYPE arg3, ARG4_TYPE arg4, va_list ap);              \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -4728,11 +4759,11 @@ FFF_END_EXTERN_C
 		DECLARE_ARG(ARG5_TYPE, 5, FUNCNAME)                                                \
 		DECLARE_ALL_FUNC_COMMON                                                            \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, custom_fake, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE,   \
-					     ARG3_TYPE, ARG4_TYPE, ARG5_TYPE, va_list ap);         \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,         \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     va_list ap);                                          \
+		void (*custom_fake)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,                \
+				    ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5, va_list ap);   \
+		void (**custom_fake_seq)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,           \
+					 ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,           \
+					 va_list ap);                                              \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -4811,12 +4842,12 @@ FFF_END_EXTERN_C
 		DECLARE_ARG(ARG6_TYPE, 6, FUNCNAME)                                                \
 		DECLARE_ALL_FUNC_COMMON                                                            \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, custom_fake, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE,   \
-					     ARG3_TYPE, ARG4_TYPE, ARG5_TYPE, ARG6_TYPE,           \
-					     va_list ap);                                          \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,         \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, va_list ap);                               \
+		void (*custom_fake)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,                \
+				    ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,                \
+				    ARG6_TYPE arg6, va_list ap);                                   \
+		void (**custom_fake_seq)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,           \
+					 ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,           \
+					 ARG6_TYPE arg6, va_list ap);                              \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -4898,12 +4929,12 @@ FFF_END_EXTERN_C
 		DECLARE_ARG(ARG7_TYPE, 7, FUNCNAME)                                                \
 		DECLARE_ALL_FUNC_COMMON                                                            \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, custom_fake, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE,   \
-					     ARG3_TYPE, ARG4_TYPE, ARG5_TYPE, ARG6_TYPE,           \
-					     ARG7_TYPE, va_list ap);                               \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,         \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, va_list ap);                    \
+		void (*custom_fake)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,                \
+				    ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,                \
+				    ARG6_TYPE arg6, ARG7_TYPE arg7, va_list ap);                   \
+		void (**custom_fake_seq)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,           \
+					 ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,           \
+					 ARG6_TYPE arg6, ARG7_TYPE arg7, va_list ap);              \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -4992,25 +5023,28 @@ FFF_END_EXTERN_C
 		DECLARE_ARG(ARG8_TYPE, 8, FUNCNAME)                                                \
 		DECLARE_ALL_FUNC_COMMON                                                            \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, custom_fake, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE,   \
-					     ARG3_TYPE, ARG4_TYPE, ARG5_TYPE, ARG6_TYPE,           \
-					     ARG7_TYPE, ARG8_TYPE, va_list ap);                    \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,         \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, va_list ap);         \
+		void (*custom_fake)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,                \
+				    ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,                \
+				    ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, va_list ap);   \
+		void (**custom_fake_seq)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,           \
+					 ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,           \
+					 ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,           \
+					 va_list ap);                                              \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
-	void FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(                                                 \
-		ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,    \
-		ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ...);
+	void FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,  \
+						  ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,  \
+						  ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,  \
+						  ...);
 
 #define DEFINE_FAKE_VOID_FUNC10_VARARG(FUNCNAME, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE, ARG3_TYPE,       \
 				       ARG4_TYPE, ARG5_TYPE, ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ...) \
 	FUNCNAME##_Fake FUNCNAME##_fake;                                                           \
-	void FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(                                                 \
-		ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,    \
-		ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ...)               \
+	void FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,  \
+						  ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,  \
+						  ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,  \
+						  ...)                                             \
 	{                                                                                          \
 		SAVE_ARG(FUNCNAME, 0);                                                             \
 		SAVE_ARG(FUNCNAME, 1);                                                             \
@@ -5090,13 +5124,14 @@ FFF_END_EXTERN_C
 		DECLARE_ARG(ARG9_TYPE, 9, FUNCNAME)                                                \
 		DECLARE_ALL_FUNC_COMMON                                                            \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, custom_fake, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE,   \
-					     ARG3_TYPE, ARG4_TYPE, ARG5_TYPE, ARG6_TYPE,           \
-					     ARG7_TYPE, ARG8_TYPE, ARG9_TYPE, va_list ap);         \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,         \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     va_list ap);                                          \
+		void (*custom_fake)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,                \
+				    ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,                \
+				    ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,                \
+				    ARG9_TYPE arg9, va_list ap);                                   \
+		void (**custom_fake_seq)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,           \
+					 ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,           \
+					 ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,           \
+					 ARG9_TYPE arg9, va_list ap);                              \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -5196,14 +5231,14 @@ FFF_END_EXTERN_C
 		DECLARE_ARG(ARG10_TYPE, 10, FUNCNAME)                                              \
 		DECLARE_ALL_FUNC_COMMON                                                            \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, custom_fake, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE,   \
-					     ARG3_TYPE, ARG4_TYPE, ARG5_TYPE, ARG6_TYPE,           \
-					     ARG7_TYPE, ARG8_TYPE, ARG9_TYPE, ARG10_TYPE,          \
-					     va_list ap);                                          \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,         \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, va_list ap);                              \
+		void (*custom_fake)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,                \
+				    ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,                \
+				    ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,                \
+				    ARG9_TYPE arg9, ARG10_TYPE arg10, va_list ap);                 \
+		void (**custom_fake_seq)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,           \
+					 ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,           \
+					 ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,           \
+					 ARG9_TYPE arg9, ARG10_TYPE arg10, va_list ap);            \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -5307,30 +5342,34 @@ FFF_END_EXTERN_C
 		DECLARE_ARG(ARG11_TYPE, 11, FUNCNAME)                                              \
 		DECLARE_ALL_FUNC_COMMON                                                            \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, custom_fake, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE,   \
-					     ARG3_TYPE, ARG4_TYPE, ARG5_TYPE, ARG6_TYPE,           \
-					     ARG7_TYPE, ARG8_TYPE, ARG9_TYPE, ARG10_TYPE,          \
-					     ARG11_TYPE, va_list ap);                              \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,         \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE, va_list ap);                  \
+		void (*custom_fake)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,                \
+				    ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,                \
+				    ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,                \
+				    ARG9_TYPE arg9, ARG10_TYPE arg10, ARG11_TYPE arg11,            \
+				    va_list ap);                                                   \
+		void (**custom_fake_seq)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,           \
+					 ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,           \
+					 ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,           \
+					 ARG9_TYPE arg9, ARG10_TYPE arg10, ARG11_TYPE arg11,       \
+					 va_list ap);                                              \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
-	void FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(                                                 \
-		ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,    \
-		ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,    \
-		ARG10_TYPE arg10, ARG11_TYPE arg11, ...);
+	void FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,  \
+						  ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,  \
+						  ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,  \
+						  ARG9_TYPE arg9, ARG10_TYPE arg10,                \
+						  ARG11_TYPE arg11, ...);
 
 #define DEFINE_FAKE_VOID_FUNC13_VARARG(FUNCNAME, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE, ARG3_TYPE,       \
 				       ARG4_TYPE, ARG5_TYPE, ARG6_TYPE, ARG7_TYPE, ARG8_TYPE,      \
 				       ARG9_TYPE, ARG10_TYPE, ARG11_TYPE, ...)                     \
 	FUNCNAME##_Fake FUNCNAME##_fake;                                                           \
-	void FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(                                                 \
-		ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,    \
-		ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,    \
-		ARG10_TYPE arg10, ARG11_TYPE arg11, ...)                                           \
+	void FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,  \
+						  ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,  \
+						  ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,  \
+						  ARG9_TYPE arg9, ARG10_TYPE arg10,                \
+						  ARG11_TYPE arg11, ...)                           \
 	{                                                                                          \
 		SAVE_ARG(FUNCNAME, 0);                                                             \
 		SAVE_ARG(FUNCNAME, 1);                                                             \
@@ -5421,30 +5460,34 @@ FFF_END_EXTERN_C
 		DECLARE_ARG(ARG12_TYPE, 12, FUNCNAME)                                              \
 		DECLARE_ALL_FUNC_COMMON                                                            \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, custom_fake, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE,   \
-					     ARG3_TYPE, ARG4_TYPE, ARG5_TYPE, ARG6_TYPE,           \
-					     ARG7_TYPE, ARG8_TYPE, ARG9_TYPE, ARG10_TYPE,          \
-					     ARG11_TYPE, ARG12_TYPE, va_list ap);                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,         \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, va_list ap);      \
+		void (*custom_fake)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,                \
+				    ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,                \
+				    ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,                \
+				    ARG9_TYPE arg9, ARG10_TYPE arg10, ARG11_TYPE arg11,            \
+				    ARG12_TYPE arg12, va_list ap);                                 \
+		void (**custom_fake_seq)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,           \
+					 ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,           \
+					 ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,           \
+					 ARG9_TYPE arg9, ARG10_TYPE arg10, ARG11_TYPE arg11,       \
+					 ARG12_TYPE arg12, va_list ap);                            \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
-	void FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(                                                 \
-		ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,    \
-		ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,    \
-		ARG10_TYPE arg10, ARG11_TYPE arg11, ARG12_TYPE arg12, ...);
+	void FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,  \
+						  ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,  \
+						  ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,  \
+						  ARG9_TYPE arg9, ARG10_TYPE arg10,                \
+						  ARG11_TYPE arg11, ARG12_TYPE arg12, ...);
 
 #define DEFINE_FAKE_VOID_FUNC14_VARARG(FUNCNAME, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE, ARG3_TYPE,       \
 				       ARG4_TYPE, ARG5_TYPE, ARG6_TYPE, ARG7_TYPE, ARG8_TYPE,      \
 				       ARG9_TYPE, ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ...)         \
 	FUNCNAME##_Fake FUNCNAME##_fake;                                                           \
-	void FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(                                                 \
-		ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,    \
-		ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,    \
-		ARG10_TYPE arg10, ARG11_TYPE arg11, ARG12_TYPE arg12, ...)                         \
+	void FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,  \
+						  ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,  \
+						  ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,  \
+						  ARG9_TYPE arg9, ARG10_TYPE arg10,                \
+						  ARG11_TYPE arg11, ARG12_TYPE arg12, ...)         \
 	{                                                                                          \
 		SAVE_ARG(FUNCNAME, 0);                                                             \
 		SAVE_ARG(FUNCNAME, 1);                                                             \
@@ -5518,9 +5561,10 @@ FFF_END_EXTERN_C
 				       ARG4_TYPE, ARG5_TYPE, ARG6_TYPE, ARG7_TYPE, ARG8_TYPE,      \
 				       ARG9_TYPE, ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ...)
 
-#define DECLARE_FAKE_VOID_FUNC15_VARARG(                                                           \
-	FUNCNAME, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE, ARG6_TYPE,     \
-	ARG7_TYPE, ARG8_TYPE, ARG9_TYPE, ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE, ...)      \
+#define DECLARE_FAKE_VOID_FUNC15_VARARG(FUNCNAME, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE, ARG3_TYPE,      \
+					ARG4_TYPE, ARG5_TYPE, ARG6_TYPE, ARG7_TYPE, ARG8_TYPE,     \
+					ARG9_TYPE, ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE, \
+					...)                                                       \
 	typedef struct FUNCNAME##_Fake {                                                           \
 		DECLARE_ARG(ARG0_TYPE, 0, FUNCNAME)                                                \
 		DECLARE_ARG(ARG1_TYPE, 1, FUNCNAME)                                                \
@@ -5538,15 +5582,16 @@ FFF_END_EXTERN_C
 		DECLARE_ARG(ARG13_TYPE, 13, FUNCNAME)                                              \
 		DECLARE_ALL_FUNC_COMMON                                                            \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, custom_fake, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE,   \
-					     ARG3_TYPE, ARG4_TYPE, ARG5_TYPE, ARG6_TYPE,           \
-					     ARG7_TYPE, ARG8_TYPE, ARG9_TYPE, ARG10_TYPE,          \
-					     ARG11_TYPE, ARG12_TYPE, ARG13_TYPE, va_list ap);      \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,         \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE,       \
-					     va_list ap);                                          \
+		void (*custom_fake)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,                \
+				    ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,                \
+				    ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,                \
+				    ARG9_TYPE arg9, ARG10_TYPE arg10, ARG11_TYPE arg11,            \
+				    ARG12_TYPE arg12, ARG13_TYPE arg13, va_list ap);               \
+		void (**custom_fake_seq)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,           \
+					 ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,           \
+					 ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,           \
+					 ARG9_TYPE arg9, ARG10_TYPE arg10, ARG11_TYPE arg11,       \
+					 ARG12_TYPE arg12, ARG13_TYPE arg13, va_list ap);          \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -5555,9 +5600,10 @@ FFF_END_EXTERN_C
 		ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,    \
 		ARG10_TYPE arg10, ARG11_TYPE arg11, ARG12_TYPE arg12, ARG13_TYPE arg13, ...);
 
-#define DEFINE_FAKE_VOID_FUNC15_VARARG(                                                            \
-	FUNCNAME, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE, ARG6_TYPE,     \
-	ARG7_TYPE, ARG8_TYPE, ARG9_TYPE, ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE, ...)      \
+#define DEFINE_FAKE_VOID_FUNC15_VARARG(FUNCNAME, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE, ARG3_TYPE,       \
+				       ARG4_TYPE, ARG5_TYPE, ARG6_TYPE, ARG7_TYPE, ARG8_TYPE,      \
+				       ARG9_TYPE, ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE,  \
+				       ...)                                                        \
 	FUNCNAME##_Fake FUNCNAME##_fake;                                                           \
 	void FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(                                                 \
 		ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,    \
@@ -5663,35 +5709,39 @@ FFF_END_EXTERN_C
 		DECLARE_ARG(ARG14_TYPE, 14, FUNCNAME)                                              \
 		DECLARE_ALL_FUNC_COMMON                                                            \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, custom_fake, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE,   \
-					     ARG3_TYPE, ARG4_TYPE, ARG5_TYPE, ARG6_TYPE,           \
-					     ARG7_TYPE, ARG8_TYPE, ARG9_TYPE, ARG10_TYPE,          \
-					     ARG11_TYPE, ARG12_TYPE, ARG13_TYPE, ARG14_TYPE,       \
-					     va_list ap);                                          \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,         \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE,       \
-					     ARG14_TYPE, va_list ap);                              \
+		void (*custom_fake)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,                \
+				    ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,                \
+				    ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,                \
+				    ARG9_TYPE arg9, ARG10_TYPE arg10, ARG11_TYPE arg11,            \
+				    ARG12_TYPE arg12, ARG13_TYPE arg13, ARG14_TYPE arg14,          \
+				    va_list ap);                                                   \
+		void (**custom_fake_seq)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,           \
+					 ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,           \
+					 ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,           \
+					 ARG9_TYPE arg9, ARG10_TYPE arg10, ARG11_TYPE arg11,       \
+					 ARG12_TYPE arg12, ARG13_TYPE arg13, ARG14_TYPE arg14,     \
+					 va_list ap);                                              \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
-	void FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(                                                 \
-		ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,    \
-		ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,    \
-		ARG10_TYPE arg10, ARG11_TYPE arg11, ARG12_TYPE arg12, ARG13_TYPE arg13,            \
-		ARG14_TYPE arg14, ...);
+	void FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,  \
+						  ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,  \
+						  ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,  \
+						  ARG9_TYPE arg9, ARG10_TYPE arg10,                \
+						  ARG11_TYPE arg11, ARG12_TYPE arg12,              \
+						  ARG13_TYPE arg13, ARG14_TYPE arg14, ...);
 
 #define DEFINE_FAKE_VOID_FUNC16_VARARG(FUNCNAME, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE, ARG3_TYPE,       \
 				       ARG4_TYPE, ARG5_TYPE, ARG6_TYPE, ARG7_TYPE, ARG8_TYPE,      \
 				       ARG9_TYPE, ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE,  \
 				       ARG14_TYPE, ...)                                            \
 	FUNCNAME##_Fake FUNCNAME##_fake;                                                           \
-	void FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(                                                 \
-		ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,    \
-		ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,    \
-		ARG10_TYPE arg10, ARG11_TYPE arg11, ARG12_TYPE arg12, ARG13_TYPE arg13,            \
-		ARG14_TYPE arg14, ...)                                                             \
+	void FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,  \
+						  ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,  \
+						  ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,  \
+						  ARG9_TYPE arg9, ARG10_TYPE arg10,                \
+						  ARG11_TYPE arg11, ARG12_TYPE arg12,              \
+						  ARG13_TYPE arg13, ARG14_TYPE arg14, ...)         \
 	{                                                                                          \
 		SAVE_ARG(FUNCNAME, 0);                                                             \
 		SAVE_ARG(FUNCNAME, 1);                                                             \
@@ -5797,16 +5847,18 @@ FFF_END_EXTERN_C
 		DECLARE_ARG(ARG15_TYPE, 15, FUNCNAME)                                              \
 		DECLARE_ALL_FUNC_COMMON                                                            \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, custom_fake, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE,   \
-					     ARG3_TYPE, ARG4_TYPE, ARG5_TYPE, ARG6_TYPE,           \
-					     ARG7_TYPE, ARG8_TYPE, ARG9_TYPE, ARG10_TYPE,          \
-					     ARG11_TYPE, ARG12_TYPE, ARG13_TYPE, ARG14_TYPE,       \
-					     ARG15_TYPE, va_list ap);                              \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,         \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE,       \
-					     ARG14_TYPE, ARG15_TYPE, va_list ap);                  \
+		void (*custom_fake)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,                \
+				    ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,                \
+				    ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,                \
+				    ARG9_TYPE arg9, ARG10_TYPE arg10, ARG11_TYPE arg11,            \
+				    ARG12_TYPE arg12, ARG13_TYPE arg13, ARG14_TYPE arg14,          \
+				    ARG15_TYPE arg15, va_list ap);                                 \
+		void (**custom_fake_seq)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,           \
+					 ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,           \
+					 ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,           \
+					 ARG9_TYPE arg9, ARG10_TYPE arg10, ARG11_TYPE arg11,       \
+					 ARG12_TYPE arg12, ARG13_TYPE arg13, ARG14_TYPE arg14,     \
+					 ARG15_TYPE arg15, va_list ap);                            \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -5934,16 +5986,18 @@ FFF_END_EXTERN_C
 		DECLARE_ARG(ARG16_TYPE, 16, FUNCNAME)                                              \
 		DECLARE_ALL_FUNC_COMMON                                                            \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, custom_fake, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE,   \
-					     ARG3_TYPE, ARG4_TYPE, ARG5_TYPE, ARG6_TYPE,           \
-					     ARG7_TYPE, ARG8_TYPE, ARG9_TYPE, ARG10_TYPE,          \
-					     ARG11_TYPE, ARG12_TYPE, ARG13_TYPE, ARG14_TYPE,       \
-					     ARG15_TYPE, ARG16_TYPE, va_list ap);                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,         \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE,       \
-					     ARG14_TYPE, ARG15_TYPE, ARG16_TYPE, va_list ap);      \
+		void (*custom_fake)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,                \
+				    ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,                \
+				    ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,                \
+				    ARG9_TYPE arg9, ARG10_TYPE arg10, ARG11_TYPE arg11,            \
+				    ARG12_TYPE arg12, ARG13_TYPE arg13, ARG14_TYPE arg14,          \
+				    ARG15_TYPE arg15, ARG16_TYPE arg16, va_list ap);               \
+		void (**custom_fake_seq)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,           \
+					 ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,           \
+					 ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,           \
+					 ARG9_TYPE arg9, ARG10_TYPE arg10, ARG11_TYPE arg11,       \
+					 ARG12_TYPE arg12, ARG13_TYPE arg13, ARG14_TYPE arg14,     \
+					 ARG15_TYPE arg15, ARG16_TYPE arg16, va_list ap);          \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -6075,17 +6129,20 @@ FFF_END_EXTERN_C
 		DECLARE_ARG(ARG17_TYPE, 17, FUNCNAME)                                              \
 		DECLARE_ALL_FUNC_COMMON                                                            \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, custom_fake, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE,   \
-					     ARG3_TYPE, ARG4_TYPE, ARG5_TYPE, ARG6_TYPE,           \
-					     ARG7_TYPE, ARG8_TYPE, ARG9_TYPE, ARG10_TYPE,          \
-					     ARG11_TYPE, ARG12_TYPE, ARG13_TYPE, ARG14_TYPE,       \
-					     ARG15_TYPE, ARG16_TYPE, ARG17_TYPE, va_list ap);      \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,         \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE,       \
-					     ARG14_TYPE, ARG15_TYPE, ARG16_TYPE, ARG17_TYPE,       \
-					     va_list ap);                                          \
+		void (*custom_fake)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,                \
+				    ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,                \
+				    ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,                \
+				    ARG9_TYPE arg9, ARG10_TYPE arg10, ARG11_TYPE arg11,            \
+				    ARG12_TYPE arg12, ARG13_TYPE arg13, ARG14_TYPE arg14,          \
+				    ARG15_TYPE arg15, ARG16_TYPE arg16, ARG17_TYPE arg17,          \
+				    va_list ap);                                                   \
+		void (**custom_fake_seq)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,           \
+					 ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,           \
+					 ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,           \
+					 ARG9_TYPE arg9, ARG10_TYPE arg10, ARG11_TYPE arg11,       \
+					 ARG12_TYPE arg12, ARG13_TYPE arg13, ARG14_TYPE arg14,     \
+					 ARG15_TYPE arg15, ARG16_TYPE arg16, ARG17_TYPE arg17,     \
+					 va_list ap);                                              \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -6194,10 +6251,11 @@ FFF_END_EXTERN_C
 				       ARG9_TYPE, ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE,  \
 				       ARG14_TYPE, ARG15_TYPE, ARG16_TYPE, ARG17_TYPE, ...)
 
-#define DECLARE_FAKE_VOID_FUNC20_VARARG(                                                           \
-	FUNCNAME, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE, ARG6_TYPE,     \
-	ARG7_TYPE, ARG8_TYPE, ARG9_TYPE, ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE,           \
-	ARG14_TYPE, ARG15_TYPE, ARG16_TYPE, ARG17_TYPE, ARG18_TYPE, ...)                           \
+#define DECLARE_FAKE_VOID_FUNC20_VARARG(FUNCNAME, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE, ARG3_TYPE,      \
+					ARG4_TYPE, ARG5_TYPE, ARG6_TYPE, ARG7_TYPE, ARG8_TYPE,     \
+					ARG9_TYPE, ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE, \
+					ARG14_TYPE, ARG15_TYPE, ARG16_TYPE, ARG17_TYPE,            \
+					ARG18_TYPE, ...)                                           \
 	typedef struct FUNCNAME##_Fake {                                                           \
 		DECLARE_ARG(ARG0_TYPE, 0, FUNCNAME)                                                \
 		DECLARE_ARG(ARG1_TYPE, 1, FUNCNAME)                                                \
@@ -6220,18 +6278,20 @@ FFF_END_EXTERN_C
 		DECLARE_ARG(ARG18_TYPE, 18, FUNCNAME)                                              \
 		DECLARE_ALL_FUNC_COMMON                                                            \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, custom_fake, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE,   \
-					     ARG3_TYPE, ARG4_TYPE, ARG5_TYPE, ARG6_TYPE,           \
-					     ARG7_TYPE, ARG8_TYPE, ARG9_TYPE, ARG10_TYPE,          \
-					     ARG11_TYPE, ARG12_TYPE, ARG13_TYPE, ARG14_TYPE,       \
-					     ARG15_TYPE, ARG16_TYPE, ARG17_TYPE, ARG18_TYPE,       \
-					     va_list ap);                                          \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(void, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,         \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE,       \
-					     ARG14_TYPE, ARG15_TYPE, ARG16_TYPE, ARG17_TYPE,       \
-					     ARG18_TYPE, va_list ap);                              \
+		void (*custom_fake)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,                \
+				    ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,                \
+				    ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,                \
+				    ARG9_TYPE arg9, ARG10_TYPE arg10, ARG11_TYPE arg11,            \
+				    ARG12_TYPE arg12, ARG13_TYPE arg13, ARG14_TYPE arg14,          \
+				    ARG15_TYPE arg15, ARG16_TYPE arg16, ARG17_TYPE arg17,          \
+				    ARG18_TYPE arg18, va_list ap);                                 \
+		void (**custom_fake_seq)(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2,           \
+					 ARG3_TYPE arg3, ARG4_TYPE arg4, ARG5_TYPE arg5,           \
+					 ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8,           \
+					 ARG9_TYPE arg9, ARG10_TYPE arg10, ARG11_TYPE arg11,       \
+					 ARG12_TYPE arg12, ARG13_TYPE arg13, ARG14_TYPE arg14,     \
+					 ARG15_TYPE arg15, ARG16_TYPE arg16, ARG17_TYPE arg17,     \
+					 ARG18_TYPE arg18, va_list ap);                            \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -6242,10 +6302,11 @@ FFF_END_EXTERN_C
 		ARG14_TYPE arg14, ARG15_TYPE arg15, ARG16_TYPE arg16, ARG17_TYPE arg17,            \
 		ARG18_TYPE arg18, ...);
 
-#define DEFINE_FAKE_VOID_FUNC20_VARARG(                                                            \
-	FUNCNAME, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE, ARG6_TYPE,     \
-	ARG7_TYPE, ARG8_TYPE, ARG9_TYPE, ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE,           \
-	ARG14_TYPE, ARG15_TYPE, ARG16_TYPE, ARG17_TYPE, ARG18_TYPE, ...)                           \
+#define DEFINE_FAKE_VOID_FUNC20_VARARG(FUNCNAME, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE, ARG3_TYPE,       \
+				       ARG4_TYPE, ARG5_TYPE, ARG6_TYPE, ARG7_TYPE, ARG8_TYPE,      \
+				       ARG9_TYPE, ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE,  \
+				       ARG14_TYPE, ARG15_TYPE, ARG16_TYPE, ARG17_TYPE, ARG18_TYPE, \
+				       ...)                                                        \
 	FUNCNAME##_Fake FUNCNAME##_fake;                                                           \
 	void FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(                                                 \
 		ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,    \
@@ -6335,14 +6396,16 @@ FFF_END_EXTERN_C
 				ARG5_TYPE, ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE, ARG10_TYPE, \
 				ARG11_TYPE, ARG12_TYPE, ARG13_TYPE, ARG14_TYPE, ARG15_TYPE,        \
 				ARG16_TYPE, ARG17_TYPE, ARG18_TYPE, ...)                           \
-	DECLARE_FAKE_VOID_FUNC20_VARARG(                                                           \
-		FUNCNAME, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,        \
-		ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE, ARG10_TYPE, ARG11_TYPE, ARG12_TYPE,    \
-		ARG13_TYPE, ARG14_TYPE, ARG15_TYPE, ARG16_TYPE, ARG17_TYPE, ARG18_TYPE, ...)       \
-	DEFINE_FAKE_VOID_FUNC20_VARARG(                                                            \
-		FUNCNAME, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,        \
-		ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE, ARG10_TYPE, ARG11_TYPE, ARG12_TYPE,    \
-		ARG13_TYPE, ARG14_TYPE, ARG15_TYPE, ARG16_TYPE, ARG17_TYPE, ARG18_TYPE, ...)
+	DECLARE_FAKE_VOID_FUNC20_VARARG(FUNCNAME, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE, ARG3_TYPE,      \
+					ARG4_TYPE, ARG5_TYPE, ARG6_TYPE, ARG7_TYPE, ARG8_TYPE,     \
+					ARG9_TYPE, ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE, \
+					ARG14_TYPE, ARG15_TYPE, ARG16_TYPE, ARG17_TYPE,            \
+					ARG18_TYPE, ...)                                           \
+	DEFINE_FAKE_VOID_FUNC20_VARARG(FUNCNAME, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE, ARG3_TYPE,       \
+				       ARG4_TYPE, ARG5_TYPE, ARG6_TYPE, ARG7_TYPE, ARG8_TYPE,      \
+				       ARG9_TYPE, ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE,  \
+				       ARG14_TYPE, ARG15_TYPE, ARG16_TYPE, ARG17_TYPE, ARG18_TYPE, \
+				       ...)
 
 #define DECLARE_FAKE_VALUE_FUNC2_VARARG(RETURN_TYPE, FUNCNAME, ARG0_TYPE, ...)                     \
 	typedef struct FUNCNAME##_Fake {                                                           \
@@ -6351,9 +6414,8 @@ FFF_END_EXTERN_C
 		DECLARE_VALUE_FUNCTION_VARIABLES(RETURN_TYPE)                                      \
 		DECLARE_RETURN_VALUE_HISTORY(RETURN_TYPE)                                          \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, custom_fake, ARG0_TYPE, va_list ap);     \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, *custom_fake_seq, ARG0_TYPE,             \
-					     va_list ap);                                          \
+		RETURN_TYPE (*custom_fake)(ARG0_TYPE arg0, va_list ap);                            \
+		RETURN_TYPE (**custom_fake_seq)(ARG0_TYPE arg0, va_list ap);                       \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -6422,10 +6484,8 @@ FFF_END_EXTERN_C
 		DECLARE_VALUE_FUNCTION_VARIABLES(RETURN_TYPE)                                      \
 		DECLARE_RETURN_VALUE_HISTORY(RETURN_TYPE)                                          \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, custom_fake, ARG0_TYPE, ARG1_TYPE,       \
-					     va_list ap);                                          \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,  \
-					     va_list ap);                                          \
+		RETURN_TYPE (*custom_fake)(ARG0_TYPE arg0, ARG1_TYPE arg1, va_list ap);            \
+		RETURN_TYPE (**custom_fake_seq)(ARG0_TYPE arg0, ARG1_TYPE arg1, va_list ap);       \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -6498,10 +6558,10 @@ FFF_END_EXTERN_C
 		DECLARE_VALUE_FUNCTION_VARIABLES(RETURN_TYPE)                                      \
 		DECLARE_RETURN_VALUE_HISTORY(RETURN_TYPE)                                          \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, custom_fake, ARG0_TYPE, ARG1_TYPE,       \
-					     ARG2_TYPE, va_list ap);                               \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,  \
-					     ARG2_TYPE, va_list ap);                               \
+		RETURN_TYPE (*custom_fake)                                                         \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, va_list ap);                      \
+		RETURN_TYPE (**custom_fake_seq)                                                    \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, va_list ap);                      \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -6581,10 +6641,10 @@ FFF_END_EXTERN_C
 		DECLARE_VALUE_FUNCTION_VARIABLES(RETURN_TYPE)                                      \
 		DECLARE_RETURN_VALUE_HISTORY(RETURN_TYPE)                                          \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, custom_fake, ARG0_TYPE, ARG1_TYPE,       \
-					     ARG2_TYPE, ARG3_TYPE, va_list ap);                    \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,  \
-					     ARG2_TYPE, ARG3_TYPE, va_list ap);                    \
+		RETURN_TYPE (*custom_fake)                                                         \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, va_list ap);      \
+		RETURN_TYPE (**custom_fake_seq)                                                    \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, va_list ap);      \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -6669,10 +6729,12 @@ FFF_END_EXTERN_C
 		DECLARE_VALUE_FUNCTION_VARIABLES(RETURN_TYPE)                                      \
 		DECLARE_RETURN_VALUE_HISTORY(RETURN_TYPE)                                          \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, custom_fake, ARG0_TYPE, ARG1_TYPE,       \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, va_list ap);         \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,  \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, va_list ap);         \
+		RETURN_TYPE (*custom_fake)                                                         \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 va_list ap);                                                                      \
+		RETURN_TYPE (**custom_fake_seq)                                                    \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 va_list ap);                                                                      \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -6763,12 +6825,12 @@ FFF_END_EXTERN_C
 		DECLARE_VALUE_FUNCTION_VARIABLES(RETURN_TYPE)                                      \
 		DECLARE_RETURN_VALUE_HISTORY(RETURN_TYPE)                                          \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, custom_fake, ARG0_TYPE, ARG1_TYPE,       \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     va_list ap);                                          \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,  \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     va_list ap);                                          \
+		RETURN_TYPE (*custom_fake)                                                         \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, va_list ap);                                                      \
+		RETURN_TYPE (**custom_fake_seq)                                                    \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, va_list ap);                                                      \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -6862,25 +6924,27 @@ FFF_END_EXTERN_C
 		DECLARE_VALUE_FUNCTION_VARIABLES(RETURN_TYPE)                                      \
 		DECLARE_RETURN_VALUE_HISTORY(RETURN_TYPE)                                          \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, custom_fake, ARG0_TYPE, ARG1_TYPE,       \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, va_list ap);                               \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,  \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, va_list ap);                               \
+		RETURN_TYPE (*custom_fake)                                                         \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, va_list ap);                                      \
+		RETURN_TYPE (**custom_fake_seq)                                                    \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, va_list ap);                                      \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
-	RETURN_TYPE FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(                                          \
-		ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,    \
-		ARG5_TYPE arg5, ARG6_TYPE arg6, ...);
+	RETURN_TYPE FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(ARG0_TYPE arg0, ARG1_TYPE arg1,           \
+							 ARG2_TYPE arg2, ARG3_TYPE arg3,           \
+							 ARG4_TYPE arg4, ARG5_TYPE arg5,           \
+							 ARG6_TYPE arg6, ...);
 
 #define DEFINE_FAKE_VALUE_FUNC8_VARARG(RETURN_TYPE, FUNCNAME, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE,     \
 				       ARG3_TYPE, ARG4_TYPE, ARG5_TYPE, ARG6_TYPE, ...)            \
 	FUNCNAME##_Fake FUNCNAME##_fake;                                                           \
-	RETURN_TYPE FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(                                          \
-		ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,    \
-		ARG5_TYPE arg5, ARG6_TYPE arg6, ...)                                               \
+	RETURN_TYPE FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(ARG0_TYPE arg0, ARG1_TYPE arg1,           \
+							 ARG2_TYPE arg2, ARG3_TYPE arg3,           \
+							 ARG4_TYPE arg4, ARG5_TYPE arg5,           \
+							 ARG6_TYPE arg6, ...)                      \
 	{                                                                                          \
 		SAVE_ARG(FUNCNAME, 0);                                                             \
 		SAVE_ARG(FUNCNAME, 1);                                                             \
@@ -6967,25 +7031,27 @@ FFF_END_EXTERN_C
 		DECLARE_VALUE_FUNCTION_VARIABLES(RETURN_TYPE)                                      \
 		DECLARE_RETURN_VALUE_HISTORY(RETURN_TYPE)                                          \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, custom_fake, ARG0_TYPE, ARG1_TYPE,       \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, va_list ap);                    \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,  \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, va_list ap);                    \
+		RETURN_TYPE (*custom_fake)                                                         \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, va_list ap);                      \
+		RETURN_TYPE (**custom_fake_seq)                                                    \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, va_list ap);                      \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
-	RETURN_TYPE FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(                                          \
-		ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,    \
-		ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ...);
+	RETURN_TYPE FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(ARG0_TYPE arg0, ARG1_TYPE arg1,           \
+							 ARG2_TYPE arg2, ARG3_TYPE arg3,           \
+							 ARG4_TYPE arg4, ARG5_TYPE arg5,           \
+							 ARG6_TYPE arg6, ARG7_TYPE arg7, ...);
 
 #define DEFINE_FAKE_VALUE_FUNC9_VARARG(RETURN_TYPE, FUNCNAME, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE,     \
 				       ARG3_TYPE, ARG4_TYPE, ARG5_TYPE, ARG6_TYPE, ARG7_TYPE, ...) \
 	FUNCNAME##_Fake FUNCNAME##_fake;                                                           \
-	RETURN_TYPE FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(                                          \
-		ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,    \
-		ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ...)                               \
+	RETURN_TYPE FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(ARG0_TYPE arg0, ARG1_TYPE arg1,           \
+							 ARG2_TYPE arg2, ARG3_TYPE arg3,           \
+							 ARG4_TYPE arg4, ARG5_TYPE arg5,           \
+							 ARG6_TYPE arg6, ARG7_TYPE arg7, ...)      \
 	{                                                                                          \
 		SAVE_ARG(FUNCNAME, 0);                                                             \
 		SAVE_ARG(FUNCNAME, 1);                                                             \
@@ -7077,12 +7143,12 @@ FFF_END_EXTERN_C
 		DECLARE_VALUE_FUNCTION_VARIABLES(RETURN_TYPE)                                      \
 		DECLARE_RETURN_VALUE_HISTORY(RETURN_TYPE)                                          \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, custom_fake, ARG0_TYPE, ARG1_TYPE,       \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, va_list ap);         \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,  \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, va_list ap);         \
+		RETURN_TYPE (*custom_fake)                                                         \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, va_list ap);      \
+		RETURN_TYPE (**custom_fake_seq)                                                    \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, va_list ap);      \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -7193,30 +7259,32 @@ FFF_END_EXTERN_C
 		DECLARE_VALUE_FUNCTION_VARIABLES(RETURN_TYPE)                                      \
 		DECLARE_RETURN_VALUE_HISTORY(RETURN_TYPE)                                          \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, custom_fake, ARG0_TYPE, ARG1_TYPE,       \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     va_list ap);                                          \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,  \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     va_list ap);                                          \
+		RETURN_TYPE (*custom_fake)                                                         \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,   \
+		 va_list ap);                                                                      \
+		RETURN_TYPE (**custom_fake_seq)                                                    \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,   \
+		 va_list ap);                                                                      \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
-	RETURN_TYPE FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(                                          \
-		ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,    \
-		ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,    \
-		...);
+	RETURN_TYPE FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(ARG0_TYPE arg0, ARG1_TYPE arg1,           \
+							 ARG2_TYPE arg2, ARG3_TYPE arg3,           \
+							 ARG4_TYPE arg4, ARG5_TYPE arg5,           \
+							 ARG6_TYPE arg6, ARG7_TYPE arg7,           \
+							 ARG8_TYPE arg8, ARG9_TYPE arg9, ...);
 
 #define DEFINE_FAKE_VALUE_FUNC11_VARARG(RETURN_TYPE, FUNCNAME, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE,    \
 					ARG3_TYPE, ARG4_TYPE, ARG5_TYPE, ARG6_TYPE, ARG7_TYPE,     \
 					ARG8_TYPE, ARG9_TYPE, ...)                                 \
 	FUNCNAME##_Fake FUNCNAME##_fake;                                                           \
-	RETURN_TYPE FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(                                          \
-		ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,    \
-		ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,    \
-		...)                                                                               \
+	RETURN_TYPE FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(ARG0_TYPE arg0, ARG1_TYPE arg1,           \
+							 ARG2_TYPE arg2, ARG3_TYPE arg3,           \
+							 ARG4_TYPE arg4, ARG5_TYPE arg5,           \
+							 ARG6_TYPE arg6, ARG7_TYPE arg7,           \
+							 ARG8_TYPE arg8, ARG9_TYPE arg9, ...)      \
 	{                                                                                          \
 		SAVE_ARG(FUNCNAME, 0);                                                             \
 		SAVE_ARG(FUNCNAME, 1);                                                             \
@@ -7317,14 +7385,14 @@ FFF_END_EXTERN_C
 		DECLARE_VALUE_FUNCTION_VARIABLES(RETURN_TYPE)                                      \
 		DECLARE_RETURN_VALUE_HISTORY(RETURN_TYPE)                                          \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, custom_fake, ARG0_TYPE, ARG1_TYPE,       \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, va_list ap);                              \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,  \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, va_list ap);                              \
+		RETURN_TYPE (*custom_fake)                                                         \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,   \
+		 ARG10_TYPE arg10, va_list ap);                                                    \
+		RETURN_TYPE (**custom_fake_seq)                                                    \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,   \
+		 ARG10_TYPE arg10, va_list ap);                                                    \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -7444,14 +7512,14 @@ FFF_END_EXTERN_C
 		DECLARE_VALUE_FUNCTION_VARIABLES(RETURN_TYPE)                                      \
 		DECLARE_RETURN_VALUE_HISTORY(RETURN_TYPE)                                          \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, custom_fake, ARG0_TYPE, ARG1_TYPE,       \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE, va_list ap);                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,  \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE, va_list ap);                  \
+		RETURN_TYPE (*custom_fake)                                                         \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,   \
+		 ARG10_TYPE arg10, ARG11_TYPE arg11, va_list ap);                                  \
+		RETURN_TYPE (**custom_fake_seq)                                                    \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,   \
+		 ARG10_TYPE arg10, ARG11_TYPE arg11, va_list ap);                                  \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -7554,9 +7622,10 @@ FFF_END_EXTERN_C
 					ARG3_TYPE, ARG4_TYPE, ARG5_TYPE, ARG6_TYPE, ARG7_TYPE,     \
 					ARG8_TYPE, ARG9_TYPE, ARG10_TYPE, ARG11_TYPE, ...)
 
-#define DECLARE_FAKE_VALUE_FUNC14_VARARG(                                                          \
-	RETURN_TYPE, FUNCNAME, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,   \
-	ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE, ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ...)       \
+#define DECLARE_FAKE_VALUE_FUNC14_VARARG(RETURN_TYPE, FUNCNAME, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE,   \
+					 ARG3_TYPE, ARG4_TYPE, ARG5_TYPE, ARG6_TYPE, ARG7_TYPE,    \
+					 ARG8_TYPE, ARG9_TYPE, ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, \
+					 ...)                                                      \
 	typedef struct FUNCNAME##_Fake {                                                           \
 		DECLARE_ARG(ARG0_TYPE, 0, FUNCNAME)                                                \
 		DECLARE_ARG(ARG1_TYPE, 1, FUNCNAME)                                                \
@@ -7575,14 +7644,14 @@ FFF_END_EXTERN_C
 		DECLARE_VALUE_FUNCTION_VARIABLES(RETURN_TYPE)                                      \
 		DECLARE_RETURN_VALUE_HISTORY(RETURN_TYPE)                                          \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, custom_fake, ARG0_TYPE, ARG1_TYPE,       \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, va_list ap);      \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,  \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, va_list ap);      \
+		RETURN_TYPE (*custom_fake)                                                         \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,   \
+		 ARG10_TYPE arg10, ARG11_TYPE arg11, ARG12_TYPE arg12, va_list ap);                \
+		RETURN_TYPE (**custom_fake_seq)                                                    \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,   \
+		 ARG10_TYPE arg10, ARG11_TYPE arg11, ARG12_TYPE arg12, va_list ap);                \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -7591,9 +7660,10 @@ FFF_END_EXTERN_C
 		ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,    \
 		ARG10_TYPE arg10, ARG11_TYPE arg11, ARG12_TYPE arg12, ...);
 
-#define DEFINE_FAKE_VALUE_FUNC14_VARARG(                                                           \
-	RETURN_TYPE, FUNCNAME, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,   \
-	ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE, ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ...)       \
+#define DEFINE_FAKE_VALUE_FUNC14_VARARG(RETURN_TYPE, FUNCNAME, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE,    \
+					ARG3_TYPE, ARG4_TYPE, ARG5_TYPE, ARG6_TYPE, ARG7_TYPE,     \
+					ARG8_TYPE, ARG9_TYPE, ARG10_TYPE, ARG11_TYPE, ARG12_TYPE,  \
+					...)                                                       \
 	FUNCNAME##_Fake FUNCNAME##_fake;                                                           \
 	RETURN_TYPE FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(                                          \
 		ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,    \
@@ -7713,16 +7783,16 @@ FFF_END_EXTERN_C
 		DECLARE_VALUE_FUNCTION_VARIABLES(RETURN_TYPE)                                      \
 		DECLARE_RETURN_VALUE_HISTORY(RETURN_TYPE)                                          \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, custom_fake, ARG0_TYPE, ARG1_TYPE,       \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE,       \
-					     va_list ap);                                          \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,  \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE,       \
-					     va_list ap);                                          \
+		RETURN_TYPE (*custom_fake)                                                         \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,   \
+		 ARG10_TYPE arg10, ARG11_TYPE arg11, ARG12_TYPE arg12, ARG13_TYPE arg13,           \
+		 va_list ap);                                                                      \
+		RETURN_TYPE (**custom_fake_seq)                                                    \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,   \
+		 ARG10_TYPE arg10, ARG11_TYPE arg11, ARG12_TYPE arg12, ARG13_TYPE arg13,           \
+		 va_list ap);                                                                      \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -7857,16 +7927,16 @@ FFF_END_EXTERN_C
 		DECLARE_VALUE_FUNCTION_VARIABLES(RETURN_TYPE)                                      \
 		DECLARE_RETURN_VALUE_HISTORY(RETURN_TYPE)                                          \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, custom_fake, ARG0_TYPE, ARG1_TYPE,       \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE,       \
-					     ARG14_TYPE, va_list ap);                              \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,  \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE,       \
-					     ARG14_TYPE, va_list ap);                              \
+		RETURN_TYPE (*custom_fake)                                                         \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,   \
+		 ARG10_TYPE arg10, ARG11_TYPE arg11, ARG12_TYPE arg12, ARG13_TYPE arg13,           \
+		 ARG14_TYPE arg14, va_list ap);                                                    \
+		RETURN_TYPE (**custom_fake_seq)                                                    \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,   \
+		 ARG10_TYPE arg10, ARG11_TYPE arg11, ARG12_TYPE arg12, ARG13_TYPE arg13,           \
+		 ARG14_TYPE arg14, va_list ap);                                                    \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -8009,16 +8079,16 @@ FFF_END_EXTERN_C
 		DECLARE_VALUE_FUNCTION_VARIABLES(RETURN_TYPE)                                      \
 		DECLARE_RETURN_VALUE_HISTORY(RETURN_TYPE)                                          \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, custom_fake, ARG0_TYPE, ARG1_TYPE,       \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE,       \
-					     ARG14_TYPE, ARG15_TYPE, va_list ap);                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,  \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE,       \
-					     ARG14_TYPE, ARG15_TYPE, va_list ap);                  \
+		RETURN_TYPE (*custom_fake)                                                         \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,   \
+		 ARG10_TYPE arg10, ARG11_TYPE arg11, ARG12_TYPE arg12, ARG13_TYPE arg13,           \
+		 ARG14_TYPE arg14, ARG15_TYPE arg15, va_list ap);                                  \
+		RETURN_TYPE (**custom_fake_seq)                                                    \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,   \
+		 ARG10_TYPE arg10, ARG11_TYPE arg11, ARG12_TYPE arg12, ARG13_TYPE arg13,           \
+		 ARG14_TYPE arg14, ARG15_TYPE arg15, va_list ap);                                  \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -8164,16 +8234,16 @@ FFF_END_EXTERN_C
 		DECLARE_VALUE_FUNCTION_VARIABLES(RETURN_TYPE)                                      \
 		DECLARE_RETURN_VALUE_HISTORY(RETURN_TYPE)                                          \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, custom_fake, ARG0_TYPE, ARG1_TYPE,       \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE,       \
-					     ARG14_TYPE, ARG15_TYPE, ARG16_TYPE, va_list ap);      \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,  \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE,       \
-					     ARG14_TYPE, ARG15_TYPE, ARG16_TYPE, va_list ap);      \
+		RETURN_TYPE (*custom_fake)                                                         \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,   \
+		 ARG10_TYPE arg10, ARG11_TYPE arg11, ARG12_TYPE arg12, ARG13_TYPE arg13,           \
+		 ARG14_TYPE arg14, ARG15_TYPE arg15, ARG16_TYPE arg16, va_list ap);                \
+		RETURN_TYPE (**custom_fake_seq)                                                    \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,   \
+		 ARG10_TYPE arg10, ARG11_TYPE arg11, ARG12_TYPE arg12, ARG13_TYPE arg13,           \
+		 ARG14_TYPE arg14, ARG15_TYPE arg15, ARG16_TYPE arg16, va_list ap);                \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -8295,10 +8365,11 @@ FFF_END_EXTERN_C
 					ARG8_TYPE, ARG9_TYPE, ARG10_TYPE, ARG11_TYPE, ARG12_TYPE,  \
 					ARG13_TYPE, ARG14_TYPE, ARG15_TYPE, ARG16_TYPE, ...)
 
-#define DECLARE_FAKE_VALUE_FUNC19_VARARG(                                                          \
-	RETURN_TYPE, FUNCNAME, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,   \
-	ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE, ARG10_TYPE, ARG11_TYPE, ARG12_TYPE,            \
-	ARG13_TYPE, ARG14_TYPE, ARG15_TYPE, ARG16_TYPE, ARG17_TYPE, ...)                           \
+#define DECLARE_FAKE_VALUE_FUNC19_VARARG(RETURN_TYPE, FUNCNAME, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE,   \
+					 ARG3_TYPE, ARG4_TYPE, ARG5_TYPE, ARG6_TYPE, ARG7_TYPE,    \
+					 ARG8_TYPE, ARG9_TYPE, ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, \
+					 ARG13_TYPE, ARG14_TYPE, ARG15_TYPE, ARG16_TYPE,           \
+					 ARG17_TYPE, ...)                                          \
 	typedef struct FUNCNAME##_Fake {                                                           \
 		DECLARE_ARG(ARG0_TYPE, 0, FUNCNAME)                                                \
 		DECLARE_ARG(ARG1_TYPE, 1, FUNCNAME)                                                \
@@ -8322,18 +8393,18 @@ FFF_END_EXTERN_C
 		DECLARE_VALUE_FUNCTION_VARIABLES(RETURN_TYPE)                                      \
 		DECLARE_RETURN_VALUE_HISTORY(RETURN_TYPE)                                          \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, custom_fake, ARG0_TYPE, ARG1_TYPE,       \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE,       \
-					     ARG14_TYPE, ARG15_TYPE, ARG16_TYPE, ARG17_TYPE,       \
-					     va_list ap);                                          \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,  \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE,       \
-					     ARG14_TYPE, ARG15_TYPE, ARG16_TYPE, ARG17_TYPE,       \
-					     va_list ap);                                          \
+		RETURN_TYPE (*custom_fake)                                                         \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,   \
+		 ARG10_TYPE arg10, ARG11_TYPE arg11, ARG12_TYPE arg12, ARG13_TYPE arg13,           \
+		 ARG14_TYPE arg14, ARG15_TYPE arg15, ARG16_TYPE arg16, ARG17_TYPE arg17,           \
+		 va_list ap);                                                                      \
+		RETURN_TYPE (**custom_fake_seq)                                                    \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,   \
+		 ARG10_TYPE arg10, ARG11_TYPE arg11, ARG12_TYPE arg12, ARG13_TYPE arg13,           \
+		 ARG14_TYPE arg14, ARG15_TYPE arg15, ARG16_TYPE arg16, ARG17_TYPE arg17,           \
+		 va_list ap);                                                                      \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -8343,10 +8414,11 @@ FFF_END_EXTERN_C
 		ARG10_TYPE arg10, ARG11_TYPE arg11, ARG12_TYPE arg12, ARG13_TYPE arg13,            \
 		ARG14_TYPE arg14, ARG15_TYPE arg15, ARG16_TYPE arg16, ARG17_TYPE arg17, ...);
 
-#define DEFINE_FAKE_VALUE_FUNC19_VARARG(                                                           \
-	RETURN_TYPE, FUNCNAME, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,   \
-	ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE, ARG10_TYPE, ARG11_TYPE, ARG12_TYPE,            \
-	ARG13_TYPE, ARG14_TYPE, ARG15_TYPE, ARG16_TYPE, ARG17_TYPE, ...)                           \
+#define DEFINE_FAKE_VALUE_FUNC19_VARARG(RETURN_TYPE, FUNCNAME, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE,    \
+					ARG3_TYPE, ARG4_TYPE, ARG5_TYPE, ARG6_TYPE, ARG7_TYPE,     \
+					ARG8_TYPE, ARG9_TYPE, ARG10_TYPE, ARG11_TYPE, ARG12_TYPE,  \
+					ARG13_TYPE, ARG14_TYPE, ARG15_TYPE, ARG16_TYPE,            \
+					ARG17_TYPE, ...)                                           \
 	FUNCNAME##_Fake FUNCNAME##_fake;                                                           \
 	RETURN_TYPE FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(                                          \
 		ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,    \
@@ -8433,9 +8505,10 @@ FFF_END_EXTERN_C
 			RETURN_TYPE ret;                                                           \
 			va_list ap;                                                                \
 			va_start(ap, arg17);                                                       \
-			ret = FUNCNAME##_fake.custom_fake(                                         \
-				arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, \
-				arg11, arg12, arg13, arg14, arg15, arg16, arg17, ap);              \
+			ret = FUNCNAME##_fake.custom_fake(arg0, arg1, arg2, arg3, arg4, arg5,      \
+							  arg6, arg7, arg8, arg9, arg10, arg11,    \
+							  arg12, arg13, arg14, arg15, arg16,       \
+							  arg17, ap);                              \
 			va_end(ap);                                                                \
 			SAVE_RET_HISTORY(FUNCNAME, ret);                                           \
 			return ret;                                                                \
@@ -8448,19 +8521,22 @@ FFF_END_EXTERN_C
 				 ARG3_TYPE, ARG4_TYPE, ARG5_TYPE, ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, \
 				 ARG9_TYPE, ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE,        \
 				 ARG14_TYPE, ARG15_TYPE, ARG16_TYPE, ARG17_TYPE, ...)              \
-	DECLARE_FAKE_VALUE_FUNC19_VARARG(                                                          \
-		RETURN_TYPE, FUNCNAME, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE, ARG3_TYPE, ARG4_TYPE,      \
-		ARG5_TYPE, ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE, ARG10_TYPE, ARG11_TYPE,     \
-		ARG12_TYPE, ARG13_TYPE, ARG14_TYPE, ARG15_TYPE, ARG16_TYPE, ARG17_TYPE, ...)       \
-	DEFINE_FAKE_VALUE_FUNC19_VARARG(                                                           \
-		RETURN_TYPE, FUNCNAME, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE, ARG3_TYPE, ARG4_TYPE,      \
-		ARG5_TYPE, ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE, ARG10_TYPE, ARG11_TYPE,     \
-		ARG12_TYPE, ARG13_TYPE, ARG14_TYPE, ARG15_TYPE, ARG16_TYPE, ARG17_TYPE, ...)
+	DECLARE_FAKE_VALUE_FUNC19_VARARG(RETURN_TYPE, FUNCNAME, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE,   \
+					 ARG3_TYPE, ARG4_TYPE, ARG5_TYPE, ARG6_TYPE, ARG7_TYPE,    \
+					 ARG8_TYPE, ARG9_TYPE, ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, \
+					 ARG13_TYPE, ARG14_TYPE, ARG15_TYPE, ARG16_TYPE,           \
+					 ARG17_TYPE, ...)                                          \
+	DEFINE_FAKE_VALUE_FUNC19_VARARG(RETURN_TYPE, FUNCNAME, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE,    \
+					ARG3_TYPE, ARG4_TYPE, ARG5_TYPE, ARG6_TYPE, ARG7_TYPE,     \
+					ARG8_TYPE, ARG9_TYPE, ARG10_TYPE, ARG11_TYPE, ARG12_TYPE,  \
+					ARG13_TYPE, ARG14_TYPE, ARG15_TYPE, ARG16_TYPE,            \
+					ARG17_TYPE, ...)
 
-#define DECLARE_FAKE_VALUE_FUNC20_VARARG(                                                          \
-	RETURN_TYPE, FUNCNAME, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,   \
-	ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE, ARG10_TYPE, ARG11_TYPE, ARG12_TYPE,            \
-	ARG13_TYPE, ARG14_TYPE, ARG15_TYPE, ARG16_TYPE, ARG17_TYPE, ARG18_TYPE, ...)               \
+#define DECLARE_FAKE_VALUE_FUNC20_VARARG(RETURN_TYPE, FUNCNAME, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE,   \
+					 ARG3_TYPE, ARG4_TYPE, ARG5_TYPE, ARG6_TYPE, ARG7_TYPE,    \
+					 ARG8_TYPE, ARG9_TYPE, ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, \
+					 ARG13_TYPE, ARG14_TYPE, ARG15_TYPE, ARG16_TYPE,           \
+					 ARG17_TYPE, ARG18_TYPE, ...)                              \
 	typedef struct FUNCNAME##_Fake {                                                           \
 		DECLARE_ARG(ARG0_TYPE, 0, FUNCNAME)                                                \
 		DECLARE_ARG(ARG1_TYPE, 1, FUNCNAME)                                                \
@@ -8485,18 +8561,18 @@ FFF_END_EXTERN_C
 		DECLARE_VALUE_FUNCTION_VARIABLES(RETURN_TYPE)                                      \
 		DECLARE_RETURN_VALUE_HISTORY(RETURN_TYPE)                                          \
 		DECLARE_CUSTOM_FAKE_SEQ_VARIABLES                                                  \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, custom_fake, ARG0_TYPE, ARG1_TYPE,       \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE,       \
-					     ARG14_TYPE, ARG15_TYPE, ARG16_TYPE, ARG17_TYPE,       \
-					     ARG18_TYPE, va_list ap);                              \
-		CUSTOM_FFF_FUNCTION_TEMPLATE(RETURN_TYPE, *custom_fake_seq, ARG0_TYPE, ARG1_TYPE,  \
-					     ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,           \
-					     ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE,           \
-					     ARG10_TYPE, ARG11_TYPE, ARG12_TYPE, ARG13_TYPE,       \
-					     ARG14_TYPE, ARG15_TYPE, ARG16_TYPE, ARG17_TYPE,       \
-					     ARG18_TYPE, va_list ap);                              \
+		RETURN_TYPE (*custom_fake)                                                         \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,   \
+		 ARG10_TYPE arg10, ARG11_TYPE arg11, ARG12_TYPE arg12, ARG13_TYPE arg13,           \
+		 ARG14_TYPE arg14, ARG15_TYPE arg15, ARG16_TYPE arg16, ARG17_TYPE arg17,           \
+		 ARG18_TYPE arg18, va_list ap);                                                    \
+		RETURN_TYPE (**custom_fake_seq)                                                    \
+		(ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,   \
+		 ARG5_TYPE arg5, ARG6_TYPE arg6, ARG7_TYPE arg7, ARG8_TYPE arg8, ARG9_TYPE arg9,   \
+		 ARG10_TYPE arg10, ARG11_TYPE arg11, ARG12_TYPE arg12, ARG13_TYPE arg13,           \
+		 ARG14_TYPE arg14, ARG15_TYPE arg15, ARG16_TYPE arg16, ARG17_TYPE arg17,           \
+		 ARG18_TYPE arg18, va_list ap);                                                    \
 	} FUNCNAME##_Fake;                                                                         \
 	extern FUNCNAME##_Fake FUNCNAME##_fake;                                                    \
 	void FUNCNAME##_reset(void);                                                               \
@@ -8507,10 +8583,11 @@ FFF_END_EXTERN_C
 		ARG14_TYPE arg14, ARG15_TYPE arg15, ARG16_TYPE arg16, ARG17_TYPE arg17,            \
 		ARG18_TYPE arg18, ...);
 
-#define DEFINE_FAKE_VALUE_FUNC20_VARARG(                                                           \
-	RETURN_TYPE, FUNCNAME, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE, ARG3_TYPE, ARG4_TYPE, ARG5_TYPE,   \
-	ARG6_TYPE, ARG7_TYPE, ARG8_TYPE, ARG9_TYPE, ARG10_TYPE, ARG11_TYPE, ARG12_TYPE,            \
-	ARG13_TYPE, ARG14_TYPE, ARG15_TYPE, ARG16_TYPE, ARG17_TYPE, ARG18_TYPE, ...)               \
+#define DEFINE_FAKE_VALUE_FUNC20_VARARG(RETURN_TYPE, FUNCNAME, ARG0_TYPE, ARG1_TYPE, ARG2_TYPE,    \
+					ARG3_TYPE, ARG4_TYPE, ARG5_TYPE, ARG6_TYPE, ARG7_TYPE,     \
+					ARG8_TYPE, ARG9_TYPE, ARG10_TYPE, ARG11_TYPE, ARG12_TYPE,  \
+					ARG13_TYPE, ARG14_TYPE, ARG15_TYPE, ARG16_TYPE,            \
+					ARG17_TYPE, ARG18_TYPE, ...)                               \
 	FUNCNAME##_Fake FUNCNAME##_fake;                                                           \
 	RETURN_TYPE FFF_GCC_FUNCTION_ATTRIBUTES FUNCNAME(                                          \
 		ARG0_TYPE arg0, ARG1_TYPE arg1, ARG2_TYPE arg2, ARG3_TYPE arg3, ARG4_TYPE arg4,    \
@@ -8602,9 +8679,10 @@ FFF_END_EXTERN_C
 			RETURN_TYPE ret;                                                           \
 			va_list ap;                                                                \
 			va_start(ap, arg18);                                                       \
-			ret = FUNCNAME##_fake.custom_fake(                                         \
-				arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, \
-				arg11, arg12, arg13, arg14, arg15, arg16, arg17, arg18, ap);       \
+			ret = FUNCNAME##_fake.custom_fake(arg0, arg1, arg2, arg3, arg4, arg5,      \
+							  arg6, arg7, arg8, arg9, arg10, arg11,    \
+							  arg12, arg13, arg14, arg15, arg16,       \
+							  arg17, arg18, ap);                       \
 			va_end(ap);                                                                \
 			SAVE_RET_HISTORY(FUNCNAME, ret);                                           \
 			return ret;                                                                \

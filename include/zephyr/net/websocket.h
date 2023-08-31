@@ -16,8 +16,8 @@
 #include <zephyr/kernel.h>
 
 #include <zephyr/net/net_ip.h>
-#include <zephyr/net/http/parser.h>
-#include <zephyr/net/http/client.h>
+#include <zephyr/net/http_parser.h>
+#include <zephyr/net/http_client.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -166,10 +166,7 @@ int websocket_send_msg(int ws_sock, const uint8_t *payload, size_t payload_len,
  *        The value is in milliseconds. Value SYS_FOREVER_MS means to wait
  *        forever.
  *
- * @retval >=0 amount of bytes received.
- * @retval -EAGAIN on timeout.
- * @retval -ENOTCONN on socket close.
- * @retval -errno other negative errno value in case of failure.
+ * @return <0 if error, >=0 amount of bytes received
  */
 int websocket_recv_msg(int ws_sock, uint8_t *buf, size_t buf_len,
 		       uint32_t *message_type, uint64_t *remaining,

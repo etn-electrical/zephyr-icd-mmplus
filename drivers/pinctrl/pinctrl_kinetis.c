@@ -46,6 +46,7 @@ int pinctrl_configure_pins(const pinctrl_soc_pin_t *pins, uint8_t pin_cnt,
  * and handles clock init. Only bind to these nodes if pinmux driver
  * is disabled.
  */
+#ifndef CONFIG_PINMUX
 static int pinctrl_mcux_init(const struct device *dev)
 {
 	const struct pinctrl_mcux_config *config = dev->config;
@@ -78,3 +79,4 @@ static int pinctrl_mcux_init(const struct device *dev)
 			    NULL);
 
 DT_INST_FOREACH_STATUS_OKAY(PINCTRL_MCUX_INIT)
+#endif

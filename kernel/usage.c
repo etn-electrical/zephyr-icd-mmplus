@@ -296,9 +296,7 @@ void k_sys_runtime_stats_enable(void)
 
 	/* Enable gathering of runtime stats on each CPU */
 
-	unsigned int num_cpus = arch_num_cpus();
-
-	for (uint8_t i = 0; i < num_cpus; i++) {
+	for (uint8_t i = 0; i < CONFIG_MP_NUM_CPUS; i++) {
 		_kernel.cpus[i].usage.track_usage = true;
 #ifdef CONFIG_SCHED_THREAD_USAGE_ANALYSIS
 		_kernel.cpus[i].usage.num_windows++;
@@ -330,9 +328,7 @@ void k_sys_runtime_stats_disable(void)
 
 	uint32_t now = usage_now();
 
-	unsigned int num_cpus = arch_num_cpus();
-
-	for (uint8_t i = 0; i < num_cpus; i++) {
+	for (uint8_t i = 0; i < CONFIG_MP_NUM_CPUS; i++) {
 		cpu = &_kernel.cpus[i];
 		if (cpu->usage0 != 0) {
 			sched_cpu_update_usage(cpu, now - cpu->usage0);

@@ -73,6 +73,11 @@ static int mcux_sctimer_pwm_set_cycles(const struct device *dev,
 			base->OUTPUT |= (1UL << channel);
 		}
 
+		/* Make sure the PWM is setup */
+		if (data->period_cycles[channel] != 0) {
+			SCTIMER_StartTimer(config->base, kSCTIMER_Counter_U);
+		}
+
 		return 0;
 	}
 
@@ -189,7 +194,7 @@ static const struct pwm_driver_api pwm_mcux_sctimer_driver_api = {
 			      NULL,							\
 			      &pwm_mcux_sctimer_data_##n,				\
 			      &pwm_mcux_sctimer_config_##n,				\
-			      POST_KERNEL, CONFIG_PWM_INIT_PRIORITY,			\
+			      POST_KERNEL, CONFIG_KERNEL_INIT_PRIORITY_DEVICE,		\
 			      &pwm_mcux_sctimer_driver_api);
 
 DT_INST_FOREACH_STATUS_OKAY(PWM_MCUX_SCTIMER_DEVICE_INIT_MCUX)

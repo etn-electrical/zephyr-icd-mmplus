@@ -24,8 +24,6 @@
 struct iwdg_stm32_data {
 	/* IWDG peripheral instance. */
 	IWDG_TypeDef *Instance;
-	uint32_t prescaler;
-	uint32_t reload;
 };
 
 #define IWDG_STM32_DATA(dev)					\

@@ -4,6 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <zephyr/init.h>
+#include <string.h>
+#include <zephyr/kernel.h>
 
 void sys_trace_isr_enter(void) {}
 

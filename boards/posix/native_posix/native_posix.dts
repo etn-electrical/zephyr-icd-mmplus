@@ -20,6 +20,7 @@
 		zephyr,flash = &flash0;
 		zephyr,entropy = &rng;
 		zephyr,flash-controller = &flashcontroller0;
+		zephyr,ec-host-interface = &hcp;
 		zephyr,display = &sdl_dc;
 		zephyr,canbus = &can_loopback0;
 		zephyr,keyboard-scan = &sdl_kscan;
@@ -155,6 +156,11 @@
 		compatible = "zephyr,native-posix-counter";
 	};
 
+	hcp: ec-host-cmd-periph {
+		status = "okay";
+		compatible = "zephyr,sim-ec-host-cmd-periph";
+	};
+
 	gpio0: gpio@800 {
 		status = "okay";
 		compatible = "zephyr,gpio-emul";
@@ -182,7 +188,7 @@
 	};
 
 	can_loopback0: can_loopback0 {
-		status = "okay";
+		status = "disabled";
 		compatible = "zephyr,can-loopback";
 		sjw = <1>;
 		sample-point = <875>;

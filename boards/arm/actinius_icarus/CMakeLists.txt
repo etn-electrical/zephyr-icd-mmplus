@@ -5,4 +5,6 @@
 
 zephyr_library()
 
-add_subdirectory(${ZEPHYR_BASE}/boards/common/actinius actinius_common)
+if (CONFIG_BOARD_ACTINIUS_ICARUS_NS)
+	zephyr_library_sources(board.c)
+endif()

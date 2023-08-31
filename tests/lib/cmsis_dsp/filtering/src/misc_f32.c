@@ -23,19 +23,10 @@ static void test_arm_correlate_f32(
 	size_t in1_length, size_t in2_length, const uint32_t *ref,
 	size_t ref_length)
 {
-	/*
-	 * FIXME: The MVE `arm_correlate_f32` implementation may write to
-	 *        negative indices of the output buffer, so the beginning of
-	 *        the output buffer is offset by a few elements to prevent the
-	 *        memory block header from getting corrupted. For more details,
-	 *        refer to the CMSIS-DSP bug ARM-software/CMSIS-DSP#59.
-	 */
-
-	float32_t *output, *output_buf;
+	float32_t *output;
 
 	/* Allocate output buffer */
-	output_buf = calloc(ref_length + 16, sizeof(float32_t));
-	output = output_buf + 8;
+	output = calloc(ref_length, sizeof(float32_t));
 
 	/* Run test function */
 	arm_correlate_f32(
@@ -54,7 +45,7 @@ static void test_arm_correlate_f32(
 		ASSERT_MSG_ERROR_LIMIT_EXCEED);
 
 	/* Free output buffer */
-	free(output_buf);
+	free(output);
 }
 
 #define DEFINE_CORRELATE_TEST(a, b) \

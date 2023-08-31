@@ -7,6 +7,7 @@ tests:
 
   arch.interrupt.linker_generator:
     platform_allow: qemu_cortex_m3
-    tags: interrupt linker_generator
+    tags: kernel interrupt linker_generator
+    filter: not CONFIG_TRUSTED_EXECUTION_NONSECURE
     extra_configs:
       - CONFIG_CMAKE_LINKER_GENERATOR=y

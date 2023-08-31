@@ -201,35 +201,6 @@ ZTEST(net_pkt_test_suite, test_net_pkt_allocate_with_buffer)
 	net_pkt_unref(pkt);
 	zassert_true(atomic_get(&pkt->atomic_ref) == 0,
 		     "Pkt not properly unreferenced");
-
-	/* d) - with a zero payload but AF_INET family
-	 */
-	pkt = net_pkt_alloc_with_buffer(eth_if, 0,
-					AF_INET, 0, K_NO_WAIT);
-	zassert_true(pkt != NULL, "Pkt not allocated");
-
-	/* Did we get the requested size? */
-	zassert_true(pkt_is_of_size(pkt, NET_IPV4H_LEN),
-		     "Pkt size is not right");
-
-	/* Freeing the packet */
-	net_pkt_unref(pkt);
-	zassert_true(atomic_get(&pkt->atomic_ref) == 0,
-		     "Pkt not properly unreferenced");
-
-	/* e) - with a zero payload but AF_PACKET family
-	 */
-	pkt = net_pkt_alloc_with_buffer(eth_if, 0,
-					AF_PACKET, 0, K_NO_WAIT);
-	zassert_true(pkt != NULL, "Pkt not allocated");
-
-	/* Did we get the requested size? */
-	zassert_true(pkt_is_of_size(pkt, 0), "Pkt size is not right");
-
-	/* Freeing the packet */
-	net_pkt_unref(pkt);
-	zassert_true(atomic_get(&pkt->atomic_ref) == 0,
-		     "Pkt not properly unreferenced");
 }
 
 /********************************\
@@ -805,16 +776,6 @@ ZTEST(net_pkt_test_suite, test_net_pkt_clone)
 	zassert_true(sizeof(buf) - 6 == net_pkt_remaining_data(pkt),
 		     "Pkt remaining data mismatch");
 
-	net_pkt_lladdr_src(pkt)->addr = pkt->buffer->data;
-	net_pkt_lladdr_src(pkt)->len = NET_LINK_ADDR_MAX_LENGTH;
-	net_pkt_lladdr_src(pkt)->type = NET_LINK_ETHERNET;
-	zassert_mem_equal(net_pkt_lladdr_src(pkt)->addr, buf, NET_LINK_ADDR_MAX_LENGTH);
-	net_pkt_lladdr_dst(pkt)->addr = net_pkt_cursor_get_pos(pkt);
-	net_pkt_lladdr_dst(pkt)->len = NET_LINK_ADDR_MAX_LENGTH;
-	net_pkt_lladdr_dst(pkt)->type = NET_LINK_ETHERNET;
-	zassert_mem_equal(net_pkt_lladdr_dst(pkt)->addr, &buf[6], NET_LINK_ADDR_MAX_LENGTH);
-
-	net_pkt_set_overwrite(pkt, false);
 	cloned_pkt = net_pkt_clone(pkt, K_NO_WAIT);
 	zassert_true(cloned_pkt != NULL, "Pkt not cloned");
 
@@ -826,20 +787,6 @@ ZTEST(net_pkt_test_suite, test_net_pkt_clone)
 
 	zassert_true(sizeof(buf) - 6 == net_pkt_remaining_data(cloned_pkt),
 		     "Cloned pkt remaining data mismatch");
-
-	zassert_false(net_pkt_is_being_overwritten(cloned_pkt),
-		     "Cloned pkt overwrite flag not restored");
-
-	zassert_false(net_pkt_is_being_overwritten(pkt),
-		     "Pkt overwrite flag not restored");
-
-	zassert_mem_equal(net_pkt_lladdr_src(cloned_pkt)->addr, buf, NET_LINK_ADDR_MAX_LENGTH);
-	zassert_true(net_pkt_lladdr_src(cloned_pkt)->addr == cloned_pkt->buffer->data,
-		     "Cloned pkt ll src addr mismatch");
-
-	zassert_mem_equal(net_pkt_lladdr_dst(cloned_pkt)->addr, &buf[6], NET_LINK_ADDR_MAX_LENGTH);
-	zassert_true(net_pkt_lladdr_dst(cloned_pkt)->addr == net_pkt_cursor_get_pos(cloned_pkt),
-		     "Cloned pkt ll dst addr mismatch");
 
 	net_pkt_unref(pkt);
 	net_pkt_unref(cloned_pkt);

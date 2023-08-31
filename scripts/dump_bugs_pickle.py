@@ -15,7 +15,7 @@ from github.Issue import Issue
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        formatter_class=argparse.RawDescriptionHelpFormatter, allow_abbrev=False)
+        formatter_class=argparse.RawDescriptionHelpFormatter)
 
     parser.add_argument('pickle_file', metavar='PICKLE-FILE', type=Path,
                         help='pickle file containing list of issues')

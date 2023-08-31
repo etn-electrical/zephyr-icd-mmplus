@@ -7,8 +7,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <errno.h>
-
 #include <zephyr/types.h>
 #include <stddef.h>
 #include <sys/types.h>
@@ -16,6 +14,7 @@
 #include <zephyr/storage/flash_map.h>
 #include "flash_map_priv.h"
 #include <zephyr/drivers/flash.h>
+#include <soc.h>
 #include <zephyr/init.h>
 
 void flash_area_foreach(flash_area_cb_t user_cb, void *user_data)

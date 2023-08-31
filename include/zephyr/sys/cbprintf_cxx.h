@@ -249,12 +249,10 @@ struct z_cbprintf_cxx_remove_reference < T & > {
 	typedef T type;
 };
 
-#if __cplusplus >= 201103L
 template < typename T >
 struct z_cbprintf_cxx_remove_reference < T && > {
 	typedef T type;
 };
-#endif
 
 template < typename T >
 struct z_cbprintf_cxx_remove_cv {

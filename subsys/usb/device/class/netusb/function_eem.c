@@ -4,8 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#define LOG_LEVEL CONFIG_USB_DEVICE_NETWORK_LOG_LEVEL
 #include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(usb_eem, CONFIG_USB_DEVICE_NETWORK_LOG_LEVEL);
+LOG_MODULE_REGISTER(usb_eem);
 
 #include <zephyr/net/net_pkt.h>
 #include <zephyr/net/ethernet.h>

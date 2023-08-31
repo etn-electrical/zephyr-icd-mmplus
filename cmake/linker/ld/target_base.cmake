@@ -28,10 +28,4 @@ macro(toolchain_ld_base)
     ${LINKERFLAGPREFIX},--sort-section=alignment
   )
 
-  if (NOT CONFIG_LINKER_USE_RELAX)
-    zephyr_ld_options(
-      ${LINKERFLAGPREFIX},--no-relax
-    )
-  endif()
-
 endmacro()

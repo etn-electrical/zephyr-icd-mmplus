@@ -15,7 +15,6 @@
 
 #include <zephyr/types.h>
 #include <zephyr/device.h>
-#include <zephyr/kernel.h>
 #include <zephyr/sys/crc.h>
 #include <zephyr/sys/byteorder.h>
 

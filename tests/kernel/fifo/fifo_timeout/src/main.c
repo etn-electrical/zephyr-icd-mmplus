@@ -8,8 +8,6 @@
 #include <zephyr/irq_offload.h>
 #include <zephyr/sys/__assert.h>
 #include <zephyr/sys/util.h>
-#include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(test);
 
 /*
  * @file
@@ -162,7 +160,7 @@ static int test_multiple_threads_pending(struct timeout_order_data *test_data,
 
 		zassert_not_null(data, NULL);
 		if (data->timeout_order == ii) {
-			LOG_DBG(" thread (q order: %d, t/o: %d, fifo %p)",
+			TC_PRINT(" thread (q order: %d, t/o: %d, fifo %p)\n",
 				data->q_order, data->timeout, data->fifo);
 		} else {
 			/* Get the index of the thread which should have
@@ -181,13 +179,13 @@ static int test_multiple_threads_pending(struct timeout_order_data *test_data,
 			}
 
 			if (k_ms_to_ticks_ceil32(diff_ms) == 1) {
-				LOG_DBG(
-				" thread (q order: %d, t/o: %d, fifo %p)",
+				TC_PRINT(
+				" thread (q order: %d, t/o: %d, fifo %p)\n",
 				data->q_order, data->timeout, data->fifo);
 			} else {
 				TC_ERROR(
 				" *** thread %d woke up, expected %d\n",
-				data->q_order, j);
+				data->timeout_order, ii);
 				return TC_FAIL;
 			}
 		}
@@ -244,7 +242,7 @@ static int test_multiple_threads_get_data(struct timeout_order_data *test_data,
 		}
 
 		if (data->q_order == ii) {
-			LOG_DBG(" thread (q order: %d, t/o: %d, fifo %p)",
+			TC_PRINT(" thread (q order: %d, t/o: %d, fifo %p)\n",
 				data->q_order, data->timeout, data->fifo);
 		}
 	}
@@ -261,8 +259,8 @@ static int test_multiple_threads_get_data(struct timeout_order_data *test_data,
 		return TC_FAIL;
 	}
 
-	LOG_DBG(" thread (q order: %d, t/o: %d, fifo %p)",
-		data->q_order, data->timeout, data->fifo);
+	TC_PRINT(" thread (q order: %d, t/o: %d, fifo %p)\n",
+		 data->q_order, data->timeout, data->fifo);
 
 	return TC_PASS;
 }

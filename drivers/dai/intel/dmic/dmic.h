@@ -57,13 +57,6 @@
 #define TS_LOCAL_OFFS_FRM		GET_BITS(15, 12)
 #define TS_LOCAL_OFFS_CLK		GET_BITS(11, 0)
 
-#ifdef CONFIG_SOC_SERIES_INTEL_CAVS_V15
-/* Clock control */
-#define SHIM_CLKCTL		0x78
-/* DMIC Force Dynamic Clock Gating */
-#define SHIM_CLKCTL_DMICFDCGB   BIT(24)
-#endif
-
 /* Digital Mic Shim Registers */
 #define DMICLCTL_OFFSET        0x04
 #define DMICIPPTR_OFFSET       0x08
@@ -145,7 +138,6 @@
 #define DC_OFFSET_RIGHT_B	0x04c
 #define OUT_GAIN_LEFT_B		0x050
 #define OUT_GAIN_RIGHT_B	0x054
-#define PDM_REG_END			0x058
 
 /* Register bits */
 
@@ -163,11 +155,7 @@
 #define OUTCONTROL0_FCI(x)			SET_BIT(24, x)
 #define OUTCONTROL0_BFTH(x)			SET_BITS(23, 20, x)
 #define OUTCONTROL0_OF(x)			SET_BITS(19, 18, x)
-#ifdef CONFIG_SOC_SERIES_INTEL_ACE
 #define OUTCONTROL0_IPM(x)                      SET_BITS(17, 15, x)
-#else
-#define OUTCONTROL0_IPM(x)                      SET_BITS(17, 16, x)
-#endif
 #define OUTCONTROL0_IPM_SOURCE_1(x)		SET_BITS(14, 13, x)
 #define OUTCONTROL0_IPM_SOURCE_2(x)		SET_BITS(12, 11, x)
 #define OUTCONTROL0_IPM_SOURCE_3(x)		SET_BITS(10, 9, x)
@@ -180,11 +168,7 @@
 #define OUTCONTROL0_FCI_GET(x)			GET_BIT(24, x)
 #define OUTCONTROL0_BFTH_GET(x)			GET_BITS(23, 20, x)
 #define OUTCONTROL0_OF_GET(x)			GET_BITS(19, 18, x)
-#ifdef CONFIG_SOC_SERIES_INTEL_ACE
 #define OUTCONTROL0_IPM_GET(x)			GET_BITS(17, 15, x)
-#else
-#define OUTCONTROL0_IPM_GET(x)			GET_BITS(17, 16, x)
-#endif
 #define OUTCONTROL0_IPM_SOURCE_1_GET(x)		GET_BITS(14, 13, x)
 #define OUTCONTROL0_IPM_SOURCE_2_GET(x)		GET_BITS(12, 11, x)
 #define OUTCONTROL0_IPM_SOURCE_3_GET(x)		GET_BITS(10,  9, x)
@@ -203,11 +187,7 @@
 #define OUTCONTROL1_FCI(x)			SET_BIT(24, x)
 #define OUTCONTROL1_BFTH(x)			SET_BITS(23, 20, x)
 #define OUTCONTROL1_OF(x)			SET_BITS(19, 18, x)
-#ifdef CONFIG_SOC_SERIES_INTEL_ACE
 #define OUTCONTROL1_IPM(x)                      SET_BITS(17, 15, x)
-#else
-#define OUTCONTROL1_IPM(x)                      SET_BITS(17, 16, x)
-#endif
 #define OUTCONTROL1_IPM_SOURCE_1(x)		SET_BITS(14, 13, x)
 #define OUTCONTROL1_IPM_SOURCE_2(x)		SET_BITS(12, 11, x)
 #define OUTCONTROL1_IPM_SOURCE_3(x)		SET_BITS(10, 9, x)
@@ -220,11 +200,7 @@
 #define OUTCONTROL1_FCI_GET(x)			GET_BIT(24, x)
 #define OUTCONTROL1_BFTH_GET(x)			GET_BITS(23, 20, x)
 #define OUTCONTROL1_OF_GET(x)			GET_BITS(19, 18, x)
-#ifdef CONFIG_SOC_SERIES_INTEL_ACE
 #define OUTCONTROL1_IPM_GET(x)			GET_BITS(17, 15, x)
-#else
-#define OUTCONTROL1_IPM_GET(x)			GET_BITS(17, 16, x)
-#endif
 #define OUTCONTROL1_IPM_SOURCE_1_GET(x)		GET_BITS(14, 13, x)
 #define OUTCONTROL1_IPM_SOURCE_2_GET(x)		GET_BITS(12, 11, x)
 #define OUTCONTROL1_IPM_SOURCE_3_GET(x)		GET_BITS(10,  9, x)
@@ -306,18 +282,15 @@
 /* FIR_CONTROL_A bits */
 #define FIR_CONTROL_A_START_BIT			BIT(7)
 #define FIR_CONTROL_A_ARRAY_START_EN_BIT	BIT(6)
-#define FIR_CONTROL_A_PERIODIC_START_EN_BIT	BIT(5)
 #define FIR_CONTROL_A_MUTE_BIT			BIT(1)
 #define FIR_CONTROL_A_START(x)			SET_BIT(7, x)
 #define FIR_CONTROL_A_ARRAY_START_EN(x)		SET_BIT(6, x)
-#define FIR_CONTROL_A_PERIODIC_START_EN(x)	SET_BIT(5, x)
 #define FIR_CONTROL_A_DCCOMP(x)			SET_BIT(4, x)
 #define FIR_CONTROL_A_MUTE(x)			SET_BIT(1, x)
 #define FIR_CONTROL_A_STEREO(x)			SET_BIT(0, x)
 
 #define FIR_CONTROL_A_START_GET(x)		GET_BIT(7, x)
 #define FIR_CONTROL_A_ARRAY_START_EN_GET(x)	GET_BIT(6, x)
-#define FIR_CONTROL_A_PERIODIC_START_EN_GET(x) GET_BIT(5, x)
 #define FIR_CONTROL_A_DCCOMP_GET(x)		GET_BIT(4, x)
 #define FIR_CONTROL_A_MUTE_GET(x)		GET_BIT(1, x)
 #define FIR_CONTROL_A_STEREO_GET(x)		GET_BIT(0, x)
@@ -356,18 +329,15 @@
 /* FIR_CONTROL_B bits */
 #define FIR_CONTROL_B_START_BIT			BIT(7)
 #define FIR_CONTROL_B_ARRAY_START_EN_BIT	BIT(6)
-#define FIR_CONTROL_B_PERIODIC_START_EN_BIT	BIT(5)
 #define FIR_CONTROL_B_MUTE_BIT			BIT(1)
 #define FIR_CONTROL_B_START(x)			SET_BIT(7, x)
 #define FIR_CONTROL_B_ARRAY_START_EN(x)		SET_BIT(6, x)
-#define FIR_CONTROL_B_PERIODIC_START_EN(x)	SET_BIT(5, x)
 #define FIR_CONTROL_B_DCCOMP(x)			SET_BIT(4, x)
 #define FIR_CONTROL_B_MUTE(x)			SET_BIT(1, x)
 #define FIR_CONTROL_B_STEREO(x)			SET_BIT(0, x)
 
 #define FIR_CONTROL_B_START_GET(x)		GET_BIT(7, x)
 #define FIR_CONTROL_B_ARRAY_START_EN_GET(x)	GET_BIT(6, x)
-#define FIR_CONTROL_B_PERIODIC_START_EN_GET(x)	GET_BIT(5, x)
 #define FIR_CONTROL_B_DCCOMP_GET(x)		GET_BIT(4, x)
 #define FIR_CONTROL_B_MUTE_GET(x)		GET_BIT(1, x)
 #define FIR_CONTROL_B_STEREO_GET(x)		GET_BIT(0, x)
@@ -410,22 +380,14 @@
 #define DB2LIN_FIXED_INPUT_QY 24
 #define DB2LIN_FIXED_OUTPUT_QY 20
 
-/* Hardcoded log ramp parameters. The default ramp is 100 ms for 48 kHz
- * and 200 ms for 16 kHz. The first parameter is the initial gain in
- * decibels, set to -90 dB.
- * The rate dependent ramp duration is provided by 1st order equation
- * duration = coef * samplerate + offset.
- * E.g. 100 ms @ 48 kHz, 200 ms @ 16 kHz
- * y48 = 100; y16 = 200;
- * dy = y48 - y16; dx = 48000 - 16000;
- * coef = round(dy/dx * 2^15)
- * offs = round(y16 - coef/2^15 * 16000)
- * Note: The rate dependence can be disabled with zero time_coef with
- * use of just the offset.
+/* Hardwired log ramp parameters. The first value is the initial gain in
+ * decibels. The default ramp time is provided by 1st order equation
+ * ramp time = coef * samplerate + offset. The default ramp is 200 ms for
+ * 48 kHz and 400 ms for 16 kHz.
  */
 #define LOGRAMP_START_DB Q_CONVERT_FLOAT(-90, DB2LIN_FIXED_INPUT_QY)
-#define LOGRAMP_TIME_COEF_Q15 -102 /* coef = dy/dx */
-#define LOGRAMP_TIME_OFFS_Q0 250 /* offs = Offset for line slope in ms */
+#define LOGRAMP_TIME_COEF_Q15 -205 /* dy/dx (16000,400) (48000,200) */
+#define LOGRAMP_TIME_OFFS_Q0 500 /* Offset for line slope */
 
 /* Limits for ramp time from topology */
 #define LOGRAMP_TIME_MIN_MS 10 /* Min. 10 ms */
@@ -572,6 +534,82 @@ struct dai_intel_dmic {
 	int irq;
 	uint32_t flags;
 };
+
+/* Exponent function for small values of x. This function calculates
+ * fairly accurately exponent for x in range -2.0 .. +2.0. The iteration
+ * uses first 11 terms of Taylor series approximation for exponent
+ * function. With the current scaling the numerator just remains under
+ * 64 bits with the 11 terms.
+ *
+ * See https://en.wikipedia.org/wiki/Exponential_function#Computation
+ *
+ * The input is Q3.29
+ * The output is Q9.23
+ */
+static int32_t exp_small_fixed(int32_t x)
+{
+	int64_t p;
+	int64_t num = Q_SHIFT_RND(x, 29, 23);
+	int32_t y = (int32_t)num;
+	int32_t den = 1;
+	int32_t inc;
+	int k;
+
+	/* Numerator is x^k, denominator is k! */
+	for (k = 2; k < 12; k++) {
+		p = num * x; /* Q9.23 x Q3.29 -> Q12.52 */
+		num = Q_SHIFT_RND(p, 52, 23);
+		den = den * k;
+		inc = (int32_t)(num / den);
+		y += inc;
+	}
+
+	return y + ONE_Q23;
+}
+
+static int32_t exp_fixed(int32_t x)
+{
+	int32_t xs;
+	int32_t y;
+	int32_t z;
+	int i;
+	int n = 0;
+
+	if (x < Q_CONVERT_FLOAT(-11.5, 27))
+		return 0;
+
+	if (x > Q_CONVERT_FLOAT(7.6245, 27))
+		return INT32_MAX;
+
+	/* x is Q5.27 */
+	xs = x;
+	while (xs >= TWO_Q27 || xs <= MINUS_TWO_Q27) {
+		xs >>= 1;
+		n++;
+	}
+
+	/* exp_small_fixed() input is Q3.29, while x1 is Q5.27
+	 * exp_small_fixed() output is Q9.23, while z is Q12.20
+	 */
+	z = Q_SHIFT_RND(exp_small_fixed(Q_SHIFT_LEFT(xs, 27, 29)), 23, 20);
+	y = ONE_Q20;
+	for (i = 0; i < (1 << n); i++)
+		y = (int32_t)Q_MULTSR_32X32((int64_t)y, z, 20, 20, 20);
+
+	return y;
+}
+
+static int32_t db2lin_fixed(int32_t db)
+{
+	int32_t arg;
+
+	if (db < Q_CONVERT_FLOAT(-100.0, 24))
+		return 0;
+
+	/* Q8.24 x Q5.27, result needs to be Q5.27 */
+	arg = (int32_t)Q_MULTSR_32X32((int64_t)db, LOG10_DIV20_Q27, 24, 27, 27);
+	return exp_fixed(arg);
+}
 
 static inline int32_t sat_int32(int64_t x)
 {

@@ -204,7 +204,7 @@ static int pwm_gd32_init(const struct device *dev)
 									       \
 	DEVICE_DT_INST_DEFINE(i, &pwm_gd32_init, NULL, &pwm_gd32_data_##i,     \
 			      &pwm_gd32_config_##i, POST_KERNEL,	       \
-			      CONFIG_PWM_INIT_PRIORITY,			       \
+			      CONFIG_KERNEL_INIT_PRIORITY_DEVICE,	       \
 			      &pwm_gd32_driver_api);
 
 DT_INST_FOREACH_STATUS_OKAY(PWM_GD32_DEFINE)

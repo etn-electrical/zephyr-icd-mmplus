@@ -112,17 +112,6 @@ uint32_t log_src_cnt_get(uint32_t domain_id);
  */
 const char *log_source_name_get(uint32_t domain_id, uint32_t source_id);
 
-/** @brief Return number of domains present in the system.
- *
- * There will be at least one local domain.
- *
- * @return Number of domains.
- */
-static inline uint8_t log_domains_count(void)
-{
-	return 1 + (IS_ENABLED(CONFIG_LOG_MULTIDOMAIN) ? z_log_ext_domain_count() : 0);
-}
-
 /** @brief Get name of the domain.
  *
  * @param domain_id Domain ID.
@@ -204,6 +193,26 @@ const struct log_backend *log_backend_get_by_name(const char *backend_name);
  * @retval Pointer to the last backend that failed, NULL for success.
  */
 const struct log_backend *log_format_set_all_active_backends(size_t log_type);
+
+/**
+ * @brief Get current number of allocated buffers for string duplicates.
+ */
+uint32_t log_get_strdup_pool_current_utilization(void);
+
+/**
+ * @brief Get maximal number of simultaneously allocated buffers for string
+ *	  duplicates.
+ *
+ * Value can be used to determine pool size.
+ */
+uint32_t log_get_strdup_pool_utilization(void);
+
+/**
+ * @brief Get length of the longest string duplicated.
+ *
+ * Value can be used to determine buffer size in the string duplicates pool.
+ */
+uint32_t log_get_strdup_longest_string(void);
 
 /**
  * @brief Check if there is pending data to be processed by the logging subsystem.

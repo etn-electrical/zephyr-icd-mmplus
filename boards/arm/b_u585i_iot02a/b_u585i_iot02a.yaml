@@ -19,5 +19,4 @@ supported:
   - adc
   - watchdog
   - nvs
-  - backup_sram
   - pwm

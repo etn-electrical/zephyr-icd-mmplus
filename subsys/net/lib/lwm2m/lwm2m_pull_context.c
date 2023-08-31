@@ -15,7 +15,7 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 #include <stdio.h>
 #include <string.h>
 
-#include <zephyr/net/http/parser.h>
+#include <zephyr/net/http_parser.h>
 #include <zephyr/net/socket.h>
 
 #include "lwm2m_pull_context.h"
@@ -23,14 +23,16 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 
 static K_SEM_DEFINE(lwm2m_pull_sem, 1, 1);
 
+#define NETWORK_INIT_TIMEOUT K_SECONDS(10)
+#define NETWORK_CONNECT_TIMEOUT K_SECONDS(10)
+#define PACKET_TRANSFER_RETRY_MAX 3
+
 #if defined(CONFIG_LWM2M_FIRMWARE_UPDATE_PULL_COAP_PROXY_SUPPORT)
 #define COAP2COAP_PROXY_URI_PATH "coap2coap"
 #define COAP2HTTP_PROXY_URI_PATH "coap2http"
 
 static char proxy_uri[LWM2M_PACKAGE_URI_LEN];
 #endif
-
-static void do_transmit_timeout_cb(struct lwm2m_message *msg);
 
 static struct firmware_pull_context {
 	uint8_t obj_inst_id;
@@ -43,51 +45,18 @@ static struct firmware_pull_context {
 	struct coap_block_context block_ctx;
 } context;
 
-static enum service_state {
-	NOT_STARTED,
-	IDLE,
-	STOPPING,
-} pull_service_state;
+static int n_retry;
 
-static void pull_service(struct k_work *work)
-{
-	ARG_UNUSED(work);
-	switch (pull_service_state) {
-	case NOT_STARTED:
-		pull_service_state = IDLE;
-		/* Set a long 5s time for a service that does not do anything*/
-		/* Will be set to smaller, when there is time to clena up */
-		lwm2m_engine_update_service_period(pull_service, 5000);
-		break;
-	case IDLE:
-		/* Nothing to do */
-		break;
-	case STOPPING:
-		/* Clean up the current socket context */
-		lwm2m_engine_stop(&context.firmware_ctx);
-		lwm2m_engine_update_service_period(pull_service, 5000);
-		pull_service_state = IDLE;
-		k_sem_give(&lwm2m_pull_sem);
-		break;
-	}
-}
-
-static int start_service(void)
-{
-	if (pull_service_state != NOT_STARTED) {
-		return 0;
-	}
-
-	return lwm2m_engine_add_service(pull_service, 1);
-}
+static void do_transmit_timeout_cb(struct lwm2m_message *msg);
 
 /**
  * Close all open connections and release the context semaphore
  */
 static void cleanup_context(void)
 {
-	pull_service_state = STOPPING;
-	lwm2m_engine_update_service_period(pull_service, 1);
+	lwm2m_engine_stop(&context.firmware_ctx);
+
+	k_sem_give(&lwm2m_pull_sem);
 }
 
 static int transfer_request(struct coap_block_context *ctx, uint8_t *token, uint8_t tkl,
@@ -348,10 +317,29 @@ error:
 
 static void do_transmit_timeout_cb(struct lwm2m_message *msg)
 {
-	LOG_ERR("TIMEOUT - Too many retry packet attempts! "
-		"Aborting firmware download.");
-	context.result_cb(context.obj_inst_id, -ENOMSG);
-	cleanup_context();
+	int ret;
+
+	if (n_retry < PACKET_TRANSFER_RETRY_MAX) {
+		/* retry block */
+		LOG_WRN("TIMEOUT - Sending a retry packet!");
+
+		ret = transfer_request(&context.block_ctx, msg->token, msg->tkl,
+				       do_firmware_transfer_reply_cb);
+		if (ret < 0) {
+			/* abort retries / transfer */
+			n_retry = PACKET_TRANSFER_RETRY_MAX;
+			context.result_cb(context.obj_inst_id, ret);
+			cleanup_context();
+			return;
+		}
+
+		n_retry++;
+	} else {
+		LOG_ERR("TIMEOUT - Too many retry packet attempts! "
+			"Aborting firmware download.");
+		context.result_cb(context.obj_inst_id, -ENOMSG);
+		cleanup_context();
+	}
 }
 
 static void firmware_transfer(void)
@@ -359,7 +347,7 @@ static void firmware_transfer(void)
 	int ret;
 	char *server_addr;
 
-	ret = k_sem_take(&lwm2m_pull_sem, K_FOREVER);
+	ret = k_sem_take(&lwm2m_pull_sem, K_NO_WAIT);
 
 #if defined(CONFIG_LWM2M_FIRMWARE_UPDATE_PULL_COAP_PROXY_SUPPORT)
 	server_addr = CONFIG_LWM2M_FIRMWARE_UPDATE_PULL_COAP_PROXY_ADDR;
@@ -415,12 +403,6 @@ int lwm2m_pull_context_start_transfer(char *uri, struct requesting_object req, k
 		return -EINVAL;
 	}
 
-	ret = start_service();
-	if (ret) {
-		LOG_ERR("Failed to start the pull-service");
-		return ret;
-	}
-
 	/* Check if we are not in the middle of downloading */
 	ret = k_sem_take(&lwm2m_pull_sem, K_NO_WAIT);
 	if (ret) {
@@ -439,6 +421,7 @@ int lwm2m_pull_context_start_transfer(char *uri, struct requesting_object req, k
 	(void)memset(&context.block_ctx, 0, sizeof(struct coap_block_context));
 	context.firmware_ctx.sock_fd = -1;
 
+	n_retry = 0;
 	firmware_transfer();
 
 	return 0;

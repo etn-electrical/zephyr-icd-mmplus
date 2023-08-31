@@ -11,4 +11,3 @@ Protocols
    http
    lwm2m
    mqtt
-   mqtt_sn

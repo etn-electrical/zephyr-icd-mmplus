@@ -60,8 +60,6 @@ source "drivers/clock_control/Kconfig.rcar"
 
 source "drivers/clock_control/Kconfig.xec"
 
-source "drivers/clock_control/Kconfig.ifx_cat1"
-
 source "drivers/clock_control/Kconfig.cavs"
 
 source "drivers/clock_control/Kconfig.aspeed"

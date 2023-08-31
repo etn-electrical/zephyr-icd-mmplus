@@ -22,8 +22,6 @@
 
 #include "ticker/ticker.h"
 
-#include "pdu_df.h"
-#include "lll/pdu_vendor.h"
 #include "pdu.h"
 
 #include "lll.h"
@@ -53,6 +51,9 @@
 
 #include "ll.h"
 
+#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_DEBUG_HCI_DRIVER)
+#define LOG_MODULE_NAME bt_ctlr_ull_scan
+#include "common/log.h"
 #include "hal/debug.h"
 
 static int init_reset(void);
@@ -553,13 +554,6 @@ uint8_t ull_scan_enable(struct ll_scan_set *scan)
 	}
 
 	ticks_anchor = ticker_ticks_now_get();
-
-#if !defined(CONFIG_BT_TICKER_LOW_LAT)
-	/* NOTE: mesh bsim loopback_group_low_lat test needs both adv and scan
-	 * to not have that start overhead added to pass the test.
-	 */
-	ticks_anchor += HAL_TICKER_US_TO_TICKS(EVENT_OVERHEAD_START_US);
-#endif /* !CONFIG_BT_TICKER_LOW_LAT */
 
 #if defined(CONFIG_BT_CENTRAL) && defined(CONFIG_BT_CTLR_SCHED_ADVANCED)
 	if (!lll->conn) {
@@ -1122,7 +1116,8 @@ static void ext_disabled_cb(void *param)
 	/* NOTE: parameters are already populated on disable,
 	 * just enqueue here
 	 */
-	ll_rx_put_sched(rx_hdr->link, rx_hdr);
+	ll_rx_put(rx_hdr->link, rx_hdr);
+	ll_rx_sched();
 }
 #endif /* CONFIG_BT_CTLR_ADV_EXT */
 

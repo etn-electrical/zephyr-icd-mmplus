@@ -349,13 +349,6 @@ struct bt_iso_big_create_param {
 	 *
 	 *  The code used to derive the session key that is used to encrypt and
 	 *  decrypt BIS payloads.
-	 *
-	 *  If the value is a string or a the value is less than 16 octets,
-	 *  the remaining octets shall be 0.
-	 *
-	 *  Example:
-	 *    The string "Broadcast Code" shall be
-	 *    [42 72 6F 61 64 63 61 73 74 20 43 6F 64 65 00 00]
 	 */
 	uint8_t bcode[BT_ISO_BROADCAST_CODE_SIZE];
 };
@@ -403,13 +396,6 @@ struct bt_iso_big_sync_param {
 	 *
 	 *  The code used to derive the session key that is used to encrypt and
 	 *  decrypt BIS payloads.
-	 *
-	 *  If the value is a string or a the value is less than 16 octets,
-	 *  the remaining octets shall be 0.
-	 *
-	 *  Example:
-	 *    The string "Broadcast Code" shall be
-	 *    [42 72 6F 61 64 63 61 73 74 20 43 6F 64 65 00 00]
 	 */
 	uint8_t bcode[BT_ISO_BROADCAST_CODE_SIZE];
 };
@@ -691,7 +677,7 @@ int bt_iso_chan_disconnect(struct bt_iso_chan *chan);
  *  @return Bytes sent in case of success or negative value in case of error.
  */
 int bt_iso_chan_send(struct bt_iso_chan *chan, struct net_buf *buf,
-		     uint16_t seq_num, uint32_t ts);
+		     uint32_t seq_num, uint32_t ts);
 
 struct bt_iso_unicast_tx_info {
 	/** The transport latency in us */

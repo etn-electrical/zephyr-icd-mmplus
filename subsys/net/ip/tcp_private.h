@@ -33,7 +33,7 @@
 	_x;								\
 })
 
-#if defined(CONFIG_NET_TEST_PROTOCOL)
+#if IS_ENABLED(CONFIG_NET_TEST_PROTOCOL)
 #define tcp_malloc(_size) \
 	tp_malloc(_size, tp_basename(__FILE__), __LINE__, __func__)
 #define tcp_calloc(_nmemb, _size) \
@@ -98,7 +98,7 @@
 })
 
 
-#if defined(CONFIG_NET_TEST_PROTOCOL)
+#if IS_ENABLED(CONFIG_NET_TEST_PROTOCOL)
 #define conn_seq(_conn, _req) \
 	tp_seq_track(TP_SEQ, &(_conn)->seq, (_req), tp_basename(__FILE__), \
 			__LINE__, __func__)
@@ -150,10 +150,11 @@ struct tcphdr {
 	uint16_t th_dport;
 	uint32_t th_seq;
 	uint32_t th_ack;
-#ifdef CONFIG_LITTLE_ENDIAN
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 	uint8_t th_x2:4;	/* unused */
 	uint8_t th_off:4;	/* data offset, in units of 32-bit words */
-#else
+#endif
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 	uint8_t th_off:4;
 	uint8_t th_x2:4;
 #endif

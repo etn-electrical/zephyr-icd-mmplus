@@ -81,39 +81,39 @@ const struct isotp_fc_opts fc_opts_single = {
 };
 const struct isotp_msg_id rx_addr = {
 	.std_id = 0x10,
-	.ide = 0,
+	.id_type = CAN_STANDARD_IDENTIFIER,
 	.use_ext_addr = 0
 };
 const struct isotp_msg_id tx_addr = {
 	.std_id = 0x11,
-	.ide = 0,
+	.id_type = CAN_STANDARD_IDENTIFIER,
 	.use_ext_addr = 0
 };
 
 const struct isotp_msg_id rx_addr_ext = {
 	.std_id = 0x10,
-	.ide = 0,
+	.id_type = CAN_STANDARD_IDENTIFIER,
 	.use_ext_addr = 1,
 	.ext_addr = EXT_ADDR
 };
 
 const struct isotp_msg_id tx_addr_ext = {
 	.std_id = 0x11,
-	.ide = 0,
+	.id_type = CAN_STANDARD_IDENTIFIER,
 	.use_ext_addr = 1,
 	.ext_addr = EXT_ADDR
 };
 
 const struct isotp_msg_id rx_addr_fixed = {
 	.ext_id = 0x18DA0201,
-	.ide = 1,
+	.id_type = CAN_EXTENDED_IDENTIFIER,
 	.use_ext_addr = 0,
 	.use_fixed_addr = 1
 };
 
 const struct isotp_msg_id tx_addr_fixed = {
 	.ext_id = 0x18DA0102,
-	.ide = 1,
+	.id_type = CAN_EXTENDED_IDENTIFIER,
 	.use_ext_addr = 0,
 	.use_fixed_addr = 1
 };
@@ -125,9 +125,9 @@ uint8_t data_buf[128];
 CAN_MSGQ_DEFINE(frame_msgq, 10);
 struct k_sem send_compl_sem;
 
-void send_complete_cb(int error_nr, void *arg)
+void send_complette_cb(int error_nr, void *arg)
 {
-	int expected_err_nr = POINTER_TO_INT(arg);
+	int expected_err_nr = (int) arg;
 
 	zassert_equal(error_nr, expected_err_nr,
 		      "Unexpected error nr. expect: %d, got %d",
@@ -151,7 +151,7 @@ static int check_data(const uint8_t *frame, const uint8_t *desired, size_t lengt
 	if (ret) {
 		printk("desired bytes:\n");
 		print_hex(desired, length);
-		printk("\nreceived (%zu bytes):\n", length);
+		printk("\nreceived (%d bytes):\n", length);
 		print_hex(frame, length);
 		printk("\n");
 	}
@@ -164,7 +164,7 @@ static void send_sf(void)
 	int ret;
 
 	ret = isotp_send(&send_ctx, can_dev, random_data, DATA_SIZE_SF,
-			 &rx_addr, &tx_addr, send_complete_cb, INT_TO_POINTER(ISOTP_N_OK));
+			 &rx_addr, &tx_addr, send_complette_cb, ISOTP_N_OK);
 	zassert_equal(ret, 0, "Send returned %d", ret);
 }
 
@@ -194,7 +194,7 @@ static void send_test_data(const uint8_t *data, size_t len)
 	int ret;
 
 	ret = isotp_send(&send_ctx, can_dev, data, len, &rx_addr, &tx_addr,
-			 send_complete_cb, INT_TO_POINTER(ISOTP_N_OK));
+			 send_complette_cb, ISOTP_N_OK);
 	zassert_equal(ret, 0, "Send returned %d", ret);
 }
 
@@ -233,7 +233,9 @@ static void send_frame_series(struct frame_desired *frames, size_t length,
 {
 	int i, ret;
 	struct can_frame frame = {
-		.flags = (id > 0x7FF) ? CAN_FRAME_IDE :	0,
+		.id_type = (id > 0x7FF) ? CAN_EXTENDED_IDENTIFIER :
+			CAN_STANDARD_IDENTIFIER,
+		.rtr = CAN_DATAFRAME,
 		.id = id
 	};
 	struct frame_desired *desired = frames;
@@ -281,9 +283,12 @@ static int add_rx_msgq(uint32_t id, uint32_t mask)
 {
 	int filter_id;
 	struct can_filter filter = {
-		.flags = CAN_FILTER_DATA | ((id > 0x7FF) ? CAN_FILTER_IDE : 0),
+		.id_type = (id > 0x7FF) ? CAN_EXTENDED_IDENTIFIER :
+			CAN_STANDARD_IDENTIFIER,
+		.rtr = CAN_DATAFRAME,
 		.id = id,
-		.mask = mask
+		.rtr_mask = 1,
+		.id_mask = mask
 	};
 
 	filter_id = can_add_rx_filter_msgq(can_dev, &frame_msgq, &filter);
@@ -384,8 +389,8 @@ ZTEST(isotp_conformance, test_send_sf_ext)
 		     filter_id);
 
 	ret = isotp_send(&send_ctx, can_dev, random_data, DATA_SIZE_SF_EXT,
-			 &rx_addr_ext, &tx_addr_ext, send_complete_cb,
-			 INT_TO_POINTER(ISOTP_N_OK));
+			 &rx_addr_ext, &tx_addr_ext, send_complette_cb,
+			  ISOTP_N_OK);
 	zassert_equal(ret, 0, "Send returned %d", ret);
 
 	check_frame_series(&des_frame, 1, &frame_msgq);
@@ -440,8 +445,8 @@ ZTEST(isotp_conformance, test_send_sf_fixed)
 		     filter_id);
 
 	ret = isotp_send(&send_ctx, can_dev, random_data, DATA_SIZE_SF,
-			 &rx_addr_fixed, &tx_addr_fixed, send_complete_cb,
-			 INT_TO_POINTER(ISOTP_N_OK));
+			 &rx_addr_fixed, &tx_addr_fixed, send_complette_cb,
+			 ISOTP_N_OK);
 	zassert_equal(ret, 0, "Send returned %d", ret);
 
 	check_frame_series(&des_frame, 1, &frame_msgq);
@@ -712,8 +717,8 @@ ZTEST(isotp_conformance, test_send_timeouts)
 	/* Test timeout for consecutive FC frames */
 	k_sem_reset(&send_compl_sem);
 	ret = isotp_send(&send_ctx, can_dev, random_data, sizeof(random_data),
-			 &tx_addr, &rx_addr, send_complete_cb,
-			 INT_TO_POINTER(ISOTP_N_TIMEOUT_BS));
+			 &tx_addr, &rx_addr, send_complette_cb,
+			 (void *)ISOTP_N_TIMEOUT_BS);
 	zassert_equal(ret, ISOTP_N_OK, "Send returned %d", ret);
 
 	send_frame_series(&fc_cts_frame, 1, rx_addr.std_id);
@@ -729,8 +734,8 @@ ZTEST(isotp_conformance, test_send_timeouts)
 	/* Test timeout reset with WAIT frame */
 	k_sem_reset(&send_compl_sem);
 	ret = isotp_send(&send_ctx, can_dev, random_data, sizeof(random_data),
-			 &tx_addr, &rx_addr, send_complete_cb,
-			 INT_TO_POINTER(ISOTP_N_TIMEOUT_BS));
+			 &tx_addr, &rx_addr, send_complette_cb,
+			 (void *)ISOTP_N_TIMEOUT_BS);
 	zassert_equal(ret, ISOTP_N_OK, "Send returned %d", ret);
 
 	ret = k_sem_take(&send_compl_sem, K_MSEC(800));
@@ -787,11 +792,6 @@ ZTEST(isotp_conformance, test_stmin)
 	struct frame_desired fc_frame, ff_frame;
 	struct can_frame raw_frame;
 	uint32_t start_time, time_diff;
-
-	if (CONFIG_SYS_CLOCK_TICKS_PER_SEC < 1000) {
-		/* This test requires millisecond tick resolution */
-		ztest_test_skip();
-	}
 
 	ff_frame.data[0] = FF_PCI_BYTE_1(DATA_SIZE_FF + DATA_SIZE_CF * 4);
 	ff_frame.data[1] = FF_PCI_BYTE_2(DATA_SIZE_FF + DATA_SIZE_CF * 4);
@@ -908,8 +908,8 @@ ZTEST(isotp_conformance, test_sender_fc_errors)
 
 	k_sem_reset(&send_compl_sem);
 	ret = isotp_send(&send_ctx, can_dev, random_data, DATA_SEND_LENGTH,
-			 &tx_addr, &rx_addr, send_complete_cb,
-			 INT_TO_POINTER(ISOTP_N_INVALID_FS));
+			 &tx_addr, &rx_addr, send_complette_cb,
+			 (void *)ISOTP_N_INVALID_FS);
 	zassert_equal(ret, ISOTP_N_OK, "Send returned %d", ret);
 
 	check_frame_series(&ff_frame, 1, &frame_msgq);
@@ -932,8 +932,8 @@ ZTEST(isotp_conformance, test_sender_fc_errors)
 
 	k_sem_reset(&send_compl_sem);
 	ret = isotp_send(&send_ctx, can_dev, random_data, DATA_SEND_LENGTH,
-			 &tx_addr, &rx_addr, send_complete_cb,
-			 INT_TO_POINTER(ISOTP_N_BUFFER_OVERFLW));
+			 &tx_addr, &rx_addr, send_complette_cb,
+			 (void *)ISOTP_N_BUFFER_OVERFLW);
 
 	check_frame_series(&ff_frame, 1, &frame_msgq);
 	fc_frame.data[0] = FC_PCI_BYTE_1(FC_PCI_OVFLW);
@@ -944,8 +944,8 @@ ZTEST(isotp_conformance, test_sender_fc_errors)
 	/* wft overrun */
 	k_sem_reset(&send_compl_sem);
 	ret = isotp_send(&send_ctx, can_dev, random_data, DATA_SEND_LENGTH,
-			 &tx_addr, &rx_addr, send_complete_cb,
-			 INT_TO_POINTER(ISOTP_N_WFT_OVRN));
+			 &tx_addr, &rx_addr, send_complette_cb,
+			 (void *)ISOTP_N_WFT_OVRN);
 
 	check_frame_series(&ff_frame, 1, &frame_msgq);
 	fc_frame.data[0] = FC_PCI_BYTE_1(FC_PCI_WAIT);

@@ -9,19 +9,18 @@ zephyr_library_named(intel_adsp_common)
 zephyr_library_include_directories(include)
 zephyr_library_include_directories(${ZEPHYR_BASE}/drivers)
 
+zephyr_library_sources(trace_out.c)
 zephyr_library_sources_ifdef(CONFIG_INTEL_ADSP_IPC ipc.c)
 
 zephyr_library_sources(
     rimage_modules.c
     boot.c
     soc.c
-    mem_window.c
-    boot_complete.c
     )
 
 zephyr_library_sources_ifdef(CONFIG_ADSP_CLOCK clk.c)
 
-if(CONFIG_SMP OR CONFIG_MP_MAX_NUM_CPUS GREATER 1)
+if(CONFIG_SMP OR CONFIG_MP_NUM_CPUS GREATER 1)
   zephyr_library_sources(multiprocessing.c)
 endif()
 
@@ -30,7 +29,7 @@ zephyr_library_link_libraries(INTEL_ADSP_COMMON)
 target_include_directories(INTEL_ADSP_COMMON INTERFACE include)
 target_link_libraries(INTEL_ADSP_COMMON INTERFACE intel_adsp_common)
 
-set(ELF_FIX ${PYTHON_EXECUTABLE} ${SOC_DIR}/${ARCH}/${SOC_FAMILY}/common/fix_elf_addrs.py)
+set(ELF_FIX ${SOC_DIR}/${ARCH}/${SOC_FAMILY}/common/fix_elf_addrs.py)
 set(KERNEL_REMAPPED ${CMAKE_BINARY_DIR}/zephyr/${KERNEL_NAME}-remapped.elf)
 set(EXTMAN ${CMAKE_BINARY_DIR}/zephyr/extman.bin)
 
@@ -55,13 +54,7 @@ endif()
 # breaks easily.  Set noload flags explicitly here.
 add_custom_target(
   gen_modules ALL
-  DEPENDS ${CMAKE_BINARY_DIR}/zephyr/boot.mod ${CMAKE_BINARY_DIR}/zephyr/main.mod
-)
-
-add_custom_command(
-  OUTPUT  ${CMAKE_BINARY_DIR}/zephyr/boot.mod ${CMAKE_BINARY_DIR}/zephyr/main.mod
-  COMMENT "Extracting .mod(ule) files for rimage"
-  DEPENDS ${ZEPHYR_FINAL_EXECUTABLE} ${ZEPHYR_BINARY_DIR}/${KERNEL_ELF_NAME}
+  DEPENDS ${ZEPHYR_FINAL_EXECUTABLE}
 
   # The .fw_metadata section may not be present (xcc's older linker
   # will remove it if empty).  Extract it here (which will create an
@@ -105,16 +98,3 @@ add_custom_command(
       ${CMAKE_BINARY_DIR}/zephyr/main.mod
       ${CMAKE_BINARY_DIR}/zephyr/main.mod 2>${NULL_FILE}
 )
-
-if(CONFIG_BUILD_OUTPUT_STRIPPED)
-add_custom_command(
-  COMMENT "strip main.mod"
-  APPEND OUTPUT ${CMAKE_BINARY_DIR}/zephyr/main.mod
-    COMMAND $<TARGET_PROPERTY:bintools,strip_command>
-            $<TARGET_PROPERTY:bintools,strip_flag>
-            $<TARGET_PROPERTY:bintools,strip_flag_all>
-            $<TARGET_PROPERTY:bintools,strip_flag_infile>${CMAKE_BINARY_DIR}/zephyr/main.mod
-            $<TARGET_PROPERTY:bintools,strip_flag_outfile>${CMAKE_BINARY_DIR}/zephyr/main-stripped.mod
-            $<TARGET_PROPERTY:bintools,strip_flag_final>
-)
-endif()

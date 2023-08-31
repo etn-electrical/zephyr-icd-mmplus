@@ -13,7 +13,6 @@
 #include <errno.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
-#include <zephyr/irq.h>
 
 LOG_MODULE_REGISTER(xen_events);
 

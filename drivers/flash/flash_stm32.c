@@ -83,9 +83,6 @@ static int flash_stm32_check_status(const struct device *dev)
 		LOG_DBG("Status: 0x%08lx",
 			FLASH_STM32_REGS(dev)->FLASH_STM32_SR &
 							FLASH_STM32_SR_ERRORS);
-		/* Clear errors to unblock usage of the flash */
-		FLASH_STM32_REGS(dev)->FLASH_STM32_SR = FLASH_STM32_REGS(dev)->FLASH_STM32_SR &
-							FLASH_STM32_SR_ERRORS;
 		return -EIO;
 	}
 
@@ -399,7 +396,7 @@ static int stm32_flash_init(const struct device *dev)
 	}
 #endif
 
-	return 0;
+	return flash_stm32_write_protection(dev, false);
 }
 
 DEVICE_DT_INST_DEFINE(0, stm32_flash_init, NULL,

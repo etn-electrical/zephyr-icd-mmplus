@@ -47,13 +47,8 @@ if("XCC_USE_CLANG" IN_LIST Deprecated_FIND_COMPONENTS)
 
   if ("${ZEPHYR_TOOLCHAIN_VARIANT}" STREQUAL "xcc"
       AND "$ENV{XCC_USE_CLANG}" STREQUAL "1")
-    set(ZEPHYR_TOOLCHAIN_VARIANT xt-clang CACHE STRING "Zephyr toolchain variant" FORCE)
-    message(DEPRECATION "XCC_USE_CLANG is deprecated. Please set ZEPHYR_TOOLCHAIN_VARIANT to 'xt-clang'")
-  endif()
-
-  if("${ZEPHYR_TOOLCHAIN_VARIANT}" STREQUAL "xcc-clang")
-    set(ZEPHYR_TOOLCHAIN_VARIANT xt-clang CACHE STRING "Zephyr toolchain variant" FORCE)
-    message(DEPRECATION "ZEPHYR_TOOLCHAIN_VARIANT 'xcc-clang' is deprecated. Please set ZEPHYR_TOOLCHAIN_VARIANT to 'xt-clang'")
+    set(ZEPHYR_TOOLCHAIN_VARIANT xcc-clang CACHE STRING "Zephyr toolchain variant" FORCE)
+    message(DEPRECATION "XCC_USE_CLANG is deprecated. Please set ZEPHYR_TOOLCHAIN_VARIANT to 'xcc-clang'")
   endif()
 endif()
 
@@ -70,38 +65,6 @@ if("CROSS_COMPILE" IN_LIST Deprecated_FIND_COMPONENTS)
       message(DEPRECATION  "Setting CROSS_COMPILE without setting ZEPHYR_TOOLCHAIN_VARIANT is deprecated."
                            "Please set ZEPHYR_TOOLCHAIN_VARIANT to 'cross-compile'"
       )
-  endif()
-endif()
-
-if("XTOOLS" IN_LIST Deprecated_FIND_COMPONENTS)
-  list(REMOVE_ITEM Deprecated_FIND_COMPONENTS XTOOLS)
-  # This code was deprecated after Zephyr v3.3.0
-  # When removing support for `xtools`, remember to also remove:
-  # cmake/toolchain/xtools (folder with files)
-  # doc/develop/toolchains/crosstool_ng.rst and update the index.rst file.
-  message(DEPRECATION "XTOOLS toolchain variant is deprecated. "
-                      "Please set ZEPHYR_TOOLCHAIN_VARIANT to 'zephyr'")
-endif()
-
-if("SPARSE" IN_LIST Deprecated_FIND_COMPONENTS)
-  list(REMOVE_ITEM Deprecated_FIND_COMPONENTS SPARSE)
-  # This code was deprecated after Zephyr v3.2.0
-  if(SPARSE)
-    message(DEPRECATION
-        "Setting SPARSE=${SPARSE} is deprecated. "
-        "Please set ZEPHYR_SCA_VARIANT to 'sparse'"
-    )
-    set_ifndef(ZEPHYR_SCA_VARIANT sparse)
-  endif()
-endif()
-
-if("SOURCES" IN_LIST Deprecated_FIND_COMPONENTS)
-  list(REMOVE_ITEM Deprecated_FIND_COMPONENTS SOURCES)
-  if(SOURCES)
-    message(DEPRECATION
-        "Setting SOURCES prior to calling find_package() for unit tests is deprecated."
-        " To add sources after find_package() use:\n"
-        "    target_sources(testbinary PRIVATE <source-file.c>)")
   endif()
 endif()
 

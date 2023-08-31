@@ -12,7 +12,9 @@
 #include "conn_internal.h"
 #include "iso_internal.h"
 
-#include <zephyr/bluetooth/hci.h>
+#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_DEBUG_HCI_CORE)
+#define LOG_MODULE_NAME bt_buf
+#include "common/log.h"
 
 #if defined(CONFIG_BT_CONN)
 #if defined(CONFIG_BT_ISO)

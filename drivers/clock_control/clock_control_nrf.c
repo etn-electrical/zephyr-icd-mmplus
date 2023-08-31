@@ -13,7 +13,6 @@
 #include <nrfx_clock.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/shell/shell.h>
-#include <zephyr/irq.h>
 
 LOG_MODULE_REGISTER(clock_control, CONFIG_CLOCK_CONTROL_LOG_LEVEL);
 
@@ -295,21 +294,12 @@ static void generic_hfclk_start(void)
 
 static void generic_hfclk_stop(void)
 {
-	/* It's not enough to use only atomic_and() here for synchronization,
-	 * as the thread could be preempted right after that function but
-	 * before hfclk_stop() is called and the preempting code could request
-	 * the HFCLK again. Then, the HFCLK would be stopped inappropriately
-	 * and hfclk_user would be left with an incorrect value.
-	 */
-	unsigned int key = irq_lock();
-
-	hfclk_users &= ~HF_USER_GENERIC;
-	/* Skip stopping if BT is still requesting the clock. */
-	if (!(hfclk_users & HF_USER_BT)) {
-		hfclk_stop();
+	if (atomic_and(&hfclk_users, ~HF_USER_GENERIC) & HF_USER_BT) {
+		/* bt still requesting the clock. */
+		return;
 	}
 
-	irq_unlock(key);
+	hfclk_stop();
 }
 
 
@@ -325,18 +315,12 @@ void z_nrf_clock_bt_ctlr_hf_request(void)
 
 void z_nrf_clock_bt_ctlr_hf_release(void)
 {
-	/* It's not enough to use only atomic_and() here for synchronization,
-	 * see the explanation in generic_hfclk_stop().
-	 */
-	unsigned int key = irq_lock();
-
-	hfclk_users &= ~HF_USER_BT;
-	/* Skip stopping if generic is still requesting the clock. */
-	if (!(hfclk_users & HF_USER_GENERIC)) {
-		hfclk_stop();
+	if (atomic_and(&hfclk_users, ~HF_USER_BT) & HF_USER_GENERIC) {
+		/* generic still requesting the clock. */
+		return;
 	}
 
-	irq_unlock(key);
+	hfclk_stop();
 }
 
 static int stop(const struct device *dev, clock_control_subsys_t subsys,

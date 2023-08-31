@@ -427,7 +427,7 @@ static int eswifi_socket_close(void *obj)
 	}
 
 	if (--socket->usage <= 0) {
-		socket->context = NULL;
+		memset(socket, 0, sizeof(*socket));
 	}
 
 done:

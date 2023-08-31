@@ -1,3 +1,3 @@
 tests:
-  libraries.p4wq:
-    tags: p4wq
+  lib.p4wq:
+      tags: p4wq

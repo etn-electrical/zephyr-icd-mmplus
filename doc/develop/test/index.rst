@@ -9,4 +9,5 @@ Testing
    ztest
    twister
    coverage
+   sparse
    ztest_deprecated

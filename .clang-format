@@ -12,7 +12,7 @@
 ---
 BasedOnStyle: LLVM
 AlignConsecutiveMacros: AcrossComments
-AllowShortBlocksOnASingleLine: Never
+AllowShortBlocksOnASingleLine: false
 AllowShortCaseLabelsOnASingleLine: false
 AllowShortEnumsOnASingleLine: false
 AllowShortFunctionsOnASingleLine: None
@@ -25,7 +25,6 @@ AttributeMacros:
   - __printf_like
   - __syscall
   - __subsystem
-BitFieldColonSpacing: After
 BreakBeforeBraces: Linux
 ColumnLimit: 100
 ConstructorInitializerIndentWidth: 8
@@ -64,10 +63,7 @@ ForEachMacros:
   - 'Z_GENLIST_FOR_EACH_CONTAINER_SAFE'
   - 'Z_GENLIST_FOR_EACH_NODE'
   - 'Z_GENLIST_FOR_EACH_NODE_SAFE'
-IfMacros:
-  - 'CHECKIF'
-# Disabled for now, see bug https://github.com/zephyrproject-rtos/zephyr/issues/48520
-#IncludeBlocks: Regroup
+IncludeBlocks: Regroup
 IncludeCategories:
   - Regex: '^".*\.h"$'
     Priority: 0
@@ -79,9 +75,7 @@ IncludeCategories:
     Priority: 3
 IndentCaseLabels: false
 IndentWidth: 8
-InsertBraces: true
-SpaceBeforeParens: ControlStatementsExceptControlMacros
-SortIncludes: Never
+# SpaceBeforeParens: ControlStatementsExceptControlMacros # clang-format >= 13.0
 UseTab: Always
 WhitespaceSensitiveMacros:
   - STRINGIFY

@@ -19,20 +19,22 @@
 #include <stdbool.h>
 
 /**
+ * @brief Flush cache lines to main memory
+ *
  * No alignment is required for either <virt> or <size>, but since
  * sys_cache_flush() iterates on the cache lines, a cache line alignment for
  * both is optimal.
  *
  * The cache line size is specified via the d-cache-line-size DTS property.
  */
-int arch_dcache_flush_range(void *start_addr, size_t size)
+static void arch_dcache_flush(void *start_addr, size_t size)
 {
 	size_t line_size = sys_cache_data_line_size_get();
 	uintptr_t start = (uintptr_t)start_addr;
 	uintptr_t end = start + size;
 
 	if (line_size == 0U) {
-		return -ENOTSUP;
+		return;
 	}
 
 	end = ROUND_UP(end, line_size);
@@ -47,5 +49,14 @@ int arch_dcache_flush_range(void *start_addr, size_t size)
 #else
 	__asm__ volatile("lock; addl $0,-4(%%esp);\n\t":::"memory", "cc");
 #endif
-	return 0;
+}
+
+int arch_dcache_range(void *addr, size_t size, int op)
+{
+	if (op & K_CACHE_WB) {
+		arch_dcache_flush(addr, size);
+		return 0;
+	}
+
+	return -ENOTSUP;
 }

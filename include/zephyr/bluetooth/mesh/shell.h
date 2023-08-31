@@ -27,6 +27,8 @@ extern "C" {
 
 /** Target context for the mesh shell */
 struct bt_mesh_shell_target {
+	/* Local address of the device */
+	uint16_t local;
 	/* Current destination address */
 	uint16_t dst;
 	/* Current net index */

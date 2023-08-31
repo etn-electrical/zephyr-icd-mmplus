@@ -274,7 +274,6 @@ typedef enum {
 #include "../common/reg/mec_uart.h"
 #include "../common/reg/mec_vci.h"
 #include "../common/reg/mec_wdt.h"
-#include "../common/reg/mec_gpio.h"
 
 /* common SoC API */
 #include "../common/soc_dt.h"
@@ -282,10 +281,8 @@ typedef enum {
 #include "../common/soc_pcr.h"
 #include "../common/soc_pins.h"
 #include "../common/soc_espi_channels.h"
+#include "../common/soc_espi_saf.h"
 #include "../common/soc_i2c.h"
-
-/* MEC172x SAF V2 */
-#include "soc_espi_saf_v2.h"
 
 #endif
 

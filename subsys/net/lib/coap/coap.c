@@ -49,103 +49,49 @@ LOG_MODULE_REGISTER(net_coap, CONFIG_COAP_LOG_LEVEL);
 /* The CoAP message ID that is incremented each time coap_next_id() is called. */
 static uint16_t message_id;
 
-static int insert_option(struct coap_packet *cpkt, uint16_t code, const uint8_t *value,
-			 uint16_t len);
-
-static inline void encode_u8(struct coap_packet *cpkt, uint16_t offset, uint8_t data)
-{
-	cpkt->data[offset] = data;
-	++cpkt->offset;
-}
-
-static inline void encode_be16(struct coap_packet *cpkt, uint16_t offset, uint16_t data)
-{
-	cpkt->data[offset] = data >> 8;
-	cpkt->data[offset + 1] = (uint8_t)data;
-	cpkt->offset += 2;
-}
-
-static inline void encode_buffer(struct coap_packet *cpkt, uint16_t offset, const uint8_t *data,
-				 uint16_t len)
-{
-	memcpy(cpkt->data + offset, data, len);
-	cpkt->offset += len;
-}
-
-static bool enough_space(struct coap_packet *cpkt, const uint16_t bytes_to_add)
-{
-	return (cpkt != NULL) && (cpkt->max_len - cpkt->offset >= bytes_to_add);
-}
-
 static inline bool append_u8(struct coap_packet *cpkt, uint8_t data)
 {
-	if (!enough_space(cpkt, 1)) {
+	if (!cpkt) {
 		return false;
 	}
 
-	encode_u8(cpkt, cpkt->offset, data);
-
-	return true;
-}
-
-static inline bool insert_u8(struct coap_packet *cpkt, uint8_t data, uint16_t offset)
-{
-	if (!enough_space(cpkt, 1)) {
+	if (cpkt->max_len - cpkt->offset < 1) {
 		return false;
 	}
 
-	memmove(&cpkt->data[offset + 1], &cpkt->data[offset], cpkt->offset - offset);
-
-	encode_u8(cpkt, offset, data);
+	cpkt->data[cpkt->offset++] = data;
 
 	return true;
 }
 
 static inline bool append_be16(struct coap_packet *cpkt, uint16_t data)
 {
-	if (!enough_space(cpkt, 2)) {
+	if (!cpkt) {
 		return false;
 	}
 
-	encode_be16(cpkt, cpkt->offset, data);
-
-	return true;
-}
-
-static inline bool insert_be16(struct coap_packet *cpkt, uint16_t data, size_t offset)
-{
-	if (!enough_space(cpkt, 2)) {
+	if (cpkt->max_len - cpkt->offset < 2) {
 		return false;
 	}
 
-	memmove(&cpkt->data[offset + 2], &cpkt->data[offset], cpkt->offset - offset);
-
-	encode_be16(cpkt, cpkt->offset, data);
+	cpkt->data[cpkt->offset++] = data >> 8;
+	cpkt->data[cpkt->offset++] = (uint8_t) data;
 
 	return true;
 }
 
 static inline bool append(struct coap_packet *cpkt, const uint8_t *data, uint16_t len)
 {
-	if (data == NULL || !enough_space(cpkt, len)) {
+	if (!cpkt || !data) {
 		return false;
 	}
 
-	encode_buffer(cpkt, cpkt->offset, data, len);
-
-	return true;
-}
-
-static inline bool insert(struct coap_packet *cpkt, const uint8_t *data, uint16_t len,
-			  size_t offset)
-{
-	if (data == NULL || !enough_space(cpkt, len)) {
+	if (cpkt->max_len - cpkt->offset < len) {
 		return false;
 	}
 
-	memmove(&cpkt->data[offset + len], &cpkt->data[offset], cpkt->offset - offset);
-
-	encode_buffer(cpkt, offset, data, len);
+	memcpy(cpkt->data + cpkt->offset, data, len);
+	cpkt->offset += len;
 
 	return true;
 }
@@ -246,11 +192,8 @@ static uint8_t encode_extended_option(uint16_t num, uint8_t *opt, uint16_t *ext)
 	return 2;
 }
 
-/* Insert an option at position `offset`. This is not adjusting the code delta of the
- * option that follows the inserted one!
- */
-static int encode_option(struct coap_packet *cpkt, uint16_t code, const uint8_t *value,
-			 uint16_t len, size_t offset)
+static int encode_option(struct coap_packet *cpkt, uint16_t code,
+			 const uint8_t *value, uint16_t len)
 {
 	uint16_t delta_ext; /* Extended delta */
 	uint16_t len_ext; /* Extended length */
@@ -267,43 +210,37 @@ static int encode_option(struct coap_packet *cpkt, uint16_t code, const uint8_t 
 	option_header_set_delta(&opt, opt_delta);
 	option_header_set_len(&opt, opt_len);
 
-	res = insert_u8(cpkt, opt, offset);
-	++offset;
+	res = append_u8(cpkt, opt);
 	if (!res) {
 		return -EINVAL;
 	}
 
 	if (delta_size == 1U) {
-		res = insert_u8(cpkt, (uint8_t)delta_ext, offset);
-		++offset;
+		res = append_u8(cpkt, (uint8_t)delta_ext);
 		if (!res) {
 			return -EINVAL;
 		}
 	} else if (delta_size == 2U) {
-		res = insert_be16(cpkt, delta_ext, offset);
-		offset += 2;
+		res = append_be16(cpkt, delta_ext);
 		if (!res) {
 			return -EINVAL;
 		}
 	}
 
 	if (len_size == 1U) {
-		res = insert_u8(cpkt, (uint8_t)len_ext, offset);
-		++offset;
+		res = append_u8(cpkt, (uint8_t)len_ext);
 		if (!res) {
 			return -EINVAL;
 		}
 	} else if (len_size == 2U) {
-		res = insert_be16(cpkt, len_ext, offset);
-		offset += 2;
+		res = append_be16(cpkt, len_ext);
 		if (!res) {
 			return -EINVAL;
 		}
 	}
 
 	if (len && value) {
-		res = insert(cpkt, value, len, offset);
-		/* no need to update local offset */
+		res = append(cpkt, value, len);
 		if (!res) {
 			return -EINVAL;
 		}
@@ -312,6 +249,9 @@ static int encode_option(struct coap_packet *cpkt, uint16_t code, const uint8_t 
 	return  (1 + delta_size + len_size + len);
 }
 
+/* TODO Add support for inserting options in proper place
+ * and modify other option's delta accordingly.
+ */
 int coap_packet_append_option(struct coap_packet *cpkt, uint16_t code,
 			      const uint8_t *value, uint16_t len)
 {
@@ -326,8 +266,8 @@ int coap_packet_append_option(struct coap_packet *cpkt, uint16_t code,
 	}
 
 	if (code < cpkt->delta) {
-		NET_DBG("Option is not added in ascending order");
-		return insert_option(cpkt, code, value, len);
+		NET_ERR("Options should be in ascending order");
+		return -EINVAL;
 	}
 
 	/* Calculate delta, if this option is not the first one */
@@ -335,7 +275,7 @@ int coap_packet_append_option(struct coap_packet *cpkt, uint16_t code,
 		code = (code == cpkt->delta) ? 0 : code - cpkt->delta;
 	}
 
-	r = encode_option(cpkt, code, value, len, cpkt->offset);
+	r = encode_option(cpkt, code, value, len);
 	if (r < 0) {
 		return -EINVAL;
 	}
@@ -1039,56 +979,6 @@ int coap_get_option_int(const struct coap_packet *cpkt, uint16_t code)
 	val = coap_option_value_to_int(&option);
 
 	return val;
-}
-
-int insert_option(struct coap_packet *cpkt, uint16_t code, const uint8_t *value, uint16_t len)
-{
-	uint16_t offset = cpkt->hdr_len;
-	uint16_t opt_delta = 0;
-	uint16_t opt_len = 0;
-	uint16_t last_opt = 0;
-	uint16_t last_offset = cpkt->hdr_len;
-	struct coap_option option;
-	int r;
-
-	while (offset < cpkt->hdr_len + cpkt->opt_len) {
-		r = parse_option(cpkt->data, offset, &offset, cpkt->hdr_len + cpkt->opt_len,
-				 &opt_delta, &opt_len, &option);
-		if (r < 0) {
-			return -EILSEQ;
-		}
-
-		if (opt_delta > code) {
-			break;
-		}
-
-		last_opt = opt_delta;
-		last_offset = offset;
-	}
-
-	const uint16_t option_size = offset - last_offset;
-	/* clear option after new option (delta changed) */
-	memmove(cpkt->data + last_offset, cpkt->data + offset, cpkt->offset - offset);
-	cpkt->opt_len -= option_size;
-	cpkt->offset -= option_size;
-
-	/* add the new option */
-	const uint16_t new_option_delta = code - last_opt;
-
-	r = encode_option(cpkt, new_option_delta, value, len, last_offset);
-	if (r < 0) {
-		return -EINVAL;
-	}
-	cpkt->opt_len += r;
-
-	/* reinsert option that comes after the new option (with adjusted delta) */
-	r = encode_option(cpkt, option.delta - code, option.value, option.len, last_offset + r);
-	if (r < 0) {
-		return -EINVAL;
-	}
-	cpkt->opt_len += r;
-
-	return 0;
 }
 
 static int update_descriptive_block(struct coap_block_context *ctx,

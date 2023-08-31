@@ -16,7 +16,6 @@ config NET_IF_MAX_IPV6_COUNT
 	int "Max number of IPv6 network interfaces in the system"
 	default BT_MAX_CONN if NET_L2_BT
 	default NET_VLAN_COUNT if NET_VLAN
-	default 2 if NET_LOOPBACK
 	default 1
 	help
 	  This tells how many network interfaces there will be in the system
@@ -132,7 +131,6 @@ config NET_IPV6_DAD
 config NET_IPV6_RA_RDNSS
 	bool "Support RA RDNSS option"
 	depends on NET_IPV6_ND
-	select DNS_RESOLVER
 	default y
 	help
 	  Support Router Advertisement Recursive DNS Server option.

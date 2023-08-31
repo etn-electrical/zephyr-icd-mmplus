@@ -391,10 +391,7 @@ ZTEST(userspace_thread_stack, test_stack_buffer)
 	       K_KERNEL_STACK_RESERVED);
 
 	printk("CONFIG_ISR_STACK_SIZE %zu\n", (size_t)CONFIG_ISR_STACK_SIZE);
-
-	unsigned int num_cpus = arch_num_cpus();
-
-	for (int i = 0; i < num_cpus; i++) {
+	for (int i = 0; i < CONFIG_MP_NUM_CPUS; i++) {
 		printk("irq stack %d: %p size %zu\n",
 		       i, &z_interrupt_stacks[i],
 		       sizeof(z_interrupt_stacks[i]));

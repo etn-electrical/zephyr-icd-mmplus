@@ -8,7 +8,6 @@
 #define ZEPHYR_INCLUDE_IPC_SERVICE_IPC_SERVICE_BACKEND_H_
 
 #include <zephyr/ipc/ipc_service.h>
-#include <zephyr/kernel.h>
 #include <stdio.h>
 
 #ifdef __cplusplus
@@ -16,9 +15,8 @@ extern "C" {
 #endif
 
 /**
- * @brief IPC service backend
- * @defgroup ipc_service_backend IPC service backend
- * @ingroup ipc
+ * @brief IPC Service backend
+ * @ingroup ipc_service_api
  * @{
  */
 
@@ -38,18 +36,6 @@ struct ipc_service_backend {
 	 *	    backend.
 	 */
 	int (*open_instance)(const struct device *instance);
-
-	/** @brief Pointer to the function that will be used to close an instance
-	 *
-	 *  @param[in] instance Instance pointer.
-	 *
-	 *  @retval -EALREADY when the instance is not already inited.
-	 *
-	 *  @retval 0 on success
-	 *  @retval other errno codes depending on the implementation of the
-	 *	    backend.
-	 */
-	int (*close_instance)(const struct device *instance);
 
 	/** @brief Pointer to the function that will be used to send data to the endpoint.
 	 *

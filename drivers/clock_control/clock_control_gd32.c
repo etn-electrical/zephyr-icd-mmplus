@@ -8,7 +8,6 @@
 
 #include <stdint.h>
 
-#include <zephyr/arch/cpu.h>
 #include <zephyr/device.h>
 #include <zephyr/devicetree.h>
 #include <zephyr/drivers/clock_control.h>
@@ -38,13 +37,15 @@ struct clock_control_gd32_config {
 	uint32_t base;
 };
 
-#if DT_HAS_COMPAT_STATUS_OKAY(gd_gd32_timer)
+#if DT_COMPAT_GET_ANY_STATUS_OKAY(gd_gd32_timer)
 /* timer identifiers */
 #define TIMER_ID_OR_NONE(nodelabel)                                            \
 	COND_CODE_1(DT_NODE_HAS_STATUS(DT_NODELABEL(nodelabel), okay),         \
-		    (DT_CLOCKS_CELL(DT_NODELABEL(nodelabel), id),), ())
+		    (GD32_CLOCK_ID_BIT(                                        \
+			     DT_CLOCKS_CELL(DT_NODELABEL(nodelabel), id)),),   \
+		    ())
 
-static const uint16_t timer_ids[] = {
+static const uint8_t timer_ids[] = {
 	TIMER_ID_OR_NONE(timer0)  /* */
 	TIMER_ID_OR_NONE(timer1)  /* */
 	TIMER_ID_OR_NONE(timer2)  /* */
@@ -63,7 +64,7 @@ static const uint16_t timer_ids[] = {
 	TIMER_ID_OR_NONE(timer15) /* */
 	TIMER_ID_OR_NONE(timer16) /* */
 };
-#endif /* DT_HAS_COMPAT_STATUS_OKAY(gd_gd32_timer) */
+#endif /* DT_COMPAT_GET_ANY_STATUS_OKAY(gd_gd32_timer) */
 
 static int clock_control_gd32_on(const struct device *dev,
 				 clock_control_subsys_t sys)
@@ -112,9 +113,7 @@ static int clock_control_gd32_get_rate(const struct device *dev,
 		*rate = CONFIG_SYS_CLOCK_HW_CYCLES_PER_SEC >> ahb_exp[psc];
 		break;
 	case RCU_APB1EN_OFFSET:
-#if !defined(CONFIG_SOC_SERIES_GD32VF103) && \
-	!defined(CONFIG_SOC_SERIES_GD32A50X) && \
-	!defined(CONFIG_SOC_SERIES_GD32L23X)
+#if !defined(CONFIG_SOC_SERIES_GD32VF103)
 	case RCU_ADDAPB1EN_OFFSET:
 #endif
 		psc = (cfg & RCU_CFG0_APB1PSC_MSK) >> RCU_CFG0_APB1PSC_POS;
@@ -128,10 +127,10 @@ static int clock_control_gd32_get_rate(const struct device *dev,
 		return -ENOTSUP;
 	}
 
-#if DT_HAS_COMPAT_STATUS_OKAY(gd_gd32_timer)
+#if DT_COMPAT_GET_ANY_STATUS_OKAY(gd_gd32_timer)
 	/* handle timer clocks */
 	for (size_t i = 0U; i < ARRAY_SIZE(timer_ids); i++) {
-		if (id != timer_ids[i]) {
+		if (GD32_CLOCK_ID_BIT(id) != timer_ids[i]) {
 			continue;
 		}
 
@@ -176,7 +175,7 @@ static int clock_control_gd32_get_rate(const struct device *dev,
 		}
 #endif /* CONFIG_SOC_SERIES_GD32F4XX */
 	}
-#endif /* DT_HAS_COMPAT_STATUS_OKAY(gd_gd32_timer) */
+#endif /* DT_COMPAT_GET_ANY_STATUS_OKAY(gd_gd32_timer) */
 
 	return 0;
 }

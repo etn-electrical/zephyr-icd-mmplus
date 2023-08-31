@@ -7,3 +7,6 @@ include: uart-controller.yaml
 properties:
   reg:
     required: true
+
+  interrupts:
+    required: false

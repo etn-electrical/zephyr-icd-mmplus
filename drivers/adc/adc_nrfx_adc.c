@@ -11,7 +11,6 @@
 
 #define LOG_LEVEL CONFIG_ADC_LOG_LEVEL
 #include <zephyr/logging/log.h>
-#include <zephyr/irq.h>
 LOG_MODULE_REGISTER(adc_nrfx_adc);
 
 #define DT_DRV_COMPAT nordic_nrf_adc

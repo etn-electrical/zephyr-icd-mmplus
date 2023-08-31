@@ -22,7 +22,7 @@ LOG_MODULE_REGISTER(SHT3XD, CONFIG_SENSOR_LOG_LEVEL);
 
 #ifdef CONFIG_SHT3XD_SINGLE_SHOT_MODE
 static const uint16_t measure_cmd[3] = {
-	0x2416, 0x240B, 0x2400
+	0x2400, 0x240B, 0x2416
 };
 #endif
 #ifdef CONFIG_SHT3XD_PERIODIC_MODE
@@ -219,7 +219,7 @@ static int sht3xd_init(const struct device *dev)
 		.bus = I2C_DT_SPEC_INST_GET(inst),				\
 		SHT3XD_TRIGGER_INIT(inst)					\
 	};									\
-	SENSOR_DEVICE_DT_INST_DEFINE(inst, sht3xd_init, NULL,			\
+	DEVICE_DT_INST_DEFINE(inst, sht3xd_init, NULL,				\
 		&sht3xd0_data_##inst, &sht3xd0_cfg_##inst,			\
 		POST_KERNEL, CONFIG_SENSOR_INIT_PRIORITY,			\
 		&sht3xd_driver_api);

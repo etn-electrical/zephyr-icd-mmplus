@@ -39,12 +39,10 @@
 #define IROM_SEG_ORG 0x400D0020
 #define IROM_SEG_LEN 0x330000-0x20
 #define IROM_SEG_ALIGN 0x4
-#define IRAM_SEG_LEN 0x20000
 #else
 #define IROM_SEG_ORG 0x400D0000
 #define IROM_SEG_LEN 0x330000
 #define IROM_SEG_ALIGN 0x10000
-#define IRAM_SEG_LEN 0x13000
 #endif
 
 MEMORY
@@ -56,7 +54,7 @@ MEMORY
   #ifdef CONFIG_ESP32_NETWORK_CORE
   iram0_0_seg(RX): org = 0x40080000, len = 0x08000
   #else
-  iram0_0_seg(RX): org = 0x40080000, len = IRAM_SEG_LEN
+  iram0_0_seg(RX): org = 0x40080000, len = 0x20000
   #endif
 
   irom0_0_seg(RX): org = IROM_SEG_ORG, len = IROM_SEG_LEN
@@ -149,7 +147,7 @@ SECTIONS
 #include <zephyr/linker/rel-sections.ld>
 
   _image_drom_start = LOADADDR(_RODATA_SECTION_NAME);
-  _image_drom_size = LOADADDR(_RODATA_SECTION_END) + SIZEOF(_RODATA_SECTION_END)  - _image_drom_start;
+  _image_drom_size = LOADADDR(_RODATA_SECTION_NAME) + SIZEOF(_RODATA_SECTION_NAME) - _image_drom_start;
   _image_drom_vaddr = ADDR(_RODATA_SECTION_NAME);
 
   /* NOTE: .rodata section should be the first section in the linker script and no
@@ -160,7 +158,7 @@ SECTIONS
    */
   SECTION_PROLOGUE(_RODATA_SECTION_NAME,,)
   {
-    __rodata_region_start = ABSOLUTE(.);
+    _rodata_start = ABSOLUTE(.);
 
     . = ALIGN(4);
     #include <snippets-rodata.ld>
@@ -191,7 +189,7 @@ SECTIONS
     *(.dynamic)
     *(.gnu.version_d)
     . = ALIGN(4);
-    __rodata_region_end = ABSOLUTE(.);
+    _rodata_end = ABSOLUTE(.);
     /* Literals are also RO data. */
     _lit4_start = ABSOLUTE(.);
     *(*.lit4)
@@ -224,14 +222,6 @@ SECTIONS
   #include <zephyr/linker/common-rom/common-rom-misc.ld>
   #pragma pop_macro("GROUP_ROM_LINK_IN")
 
-  /* Create an explicit section at the end of all the data that shall be mapped into drom.
-   * This is used to calculate the size of the _image_drom_size variable */
-  SECTION_PROLOGUE(_RODATA_SECTION_END,,)
-  {
-    . = ALIGN(4);
-    _image_rodata_end = ABSOLUTE(.);
-  } GROUP_DATA_LINK_IN(RODATA_REGION, ROMABLE_REGION)
-
   _image_dram_start = LOADADDR(.dram0.data);
   _image_dram_size = LOADADDR(.dram0.end) + SIZEOF(.dram0.end) - _image_dram_start;
   _image_dram_vaddr = ADDR(.dram0.data);
@@ -240,7 +230,7 @@ SECTIONS
 
   .dram0.data :
   {
-    __data_start = ABSOLUTE(.);
+    _data_start = ABSOLUTE(.);
 
     _btdm_data_start = ABSOLUTE(.);
     *libbtdm_app.a:(.data .data.*)
@@ -296,7 +286,7 @@ SECTIONS
     #include <snippets-rwdata.ld>
     . = ALIGN(4);
     _end = ABSOLUTE(.);
-    __data_end = ABSOLUTE(.);
+    _data_end = ABSOLUTE(.);
   } GROUP_DATA_LINK_IN(RAMABLE_REGION, ROMABLE_REGION)
 
   _image_iram_start = LOADADDR(.iram0.vectors);
@@ -353,6 +343,10 @@ SECTIONS
     *(.iram0.literal .iram.literal .iram.text.literal .iram0.text .iram.text)
     *libesp32.a:panic.*(.literal .text .literal.* .text.*)
     *librtc.a:(.literal .text .literal.* .text.*)
+    *libsubsys__net__l2__ethernet.a:(.literal .text .literal.* .text.*)
+    *libsubsys__net__lib__config.a:(.literal .text .literal.* .text.*)
+    *libsubsys__net__ip.a:(.literal .text .literal.* .text.*)
+    *libsubsys__net.a:(.literal .text .literal.* .text.*)
     *libarch__xtensa__core.a:(.literal .text .literal.* .text.*)
     *libkernel.a:(.literal .text .literal.* .text.*)
     *libsoc.a:rtc_*.*(.literal .text .literal.* .text.*)
@@ -424,22 +418,6 @@ SECTIONS
     *rtc_wake_stub*.o(COMMON)
     _rtc_bss_end = ABSOLUTE(.);
   } GROUP_LINK_IN(rtc_slow_seg)
-
-  /* This section located in RTC SLOW Memory area.
-     It holds data marked with RTC_SLOW_ATTR attribute.
-     See the file "esp_attr.h" for more information.
-  */
-  .rtc.force_slow :
-  {
-    . = ALIGN(4);
-    _rtc_force_slow_start = ABSOLUTE(.);
-    *(.rtc.force_slow .rtc.force_slow.*)
-    . = ALIGN(4) ;
-    _rtc_force_slow_end = ABSOLUTE(.);
-  } > rtc_slow_seg
-
-  /* Get size of rtc slow data */
-  _rtc_slow_length = (_rtc_force_slow_end - _rtc_data_start);
 
 #if defined(CONFIG_ESP_SPIRAM)
   .ext_ram.bss (NOLOAD):

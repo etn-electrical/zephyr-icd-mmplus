@@ -18,8 +18,7 @@ def parse_args():
     """Parse command line arguments and options"""
     parser = argparse.ArgumentParser(
         description=__doc__,
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        allow_abbrev=False)
+        formatter_class=argparse.RawDescriptionHelpFormatter)
 
     parser.add_argument('-d', '--directory', required=True,
                         help='Directory to walk for sub-directory discovery')

@@ -12,7 +12,6 @@
 			compatible = "st,stm32-timers";
 			reg = <0x40001000 0x400>;
 			clocks = <&rcc STM32_CLOCK_BUS_APB1 0x00000010>;
-			resets = <&rctl STM32_RESET(APB1L, 4U)>;
 			interrupts = <17 0>;
 			interrupt-names = "global";
 			status = "disabled";
@@ -22,7 +21,6 @@
 			compatible = "st,stm32-timers";
 			reg = <0x40001400 0x400>;
 			clocks = <&rcc STM32_CLOCK_BUS_APB1 0x00000020>;
-			resets = <&rctl STM32_RESET(APB1L, 5U)>;
 			interrupts = <18 0>;
 			interrupt-names = "global";
 			st,prescaler = <0>;
@@ -32,8 +30,7 @@
 		timers15: timers@40014000 {
 			compatible = "st,stm32-timers";
 			reg = <0x40014000 0x400>;
-			clocks = <&rcc STM32_CLOCK_BUS_APB1_2 0x00010000>;
-			resets = <&rctl STM32_RESET(APB1H, 16U)>;
+			clocks = <&rcc STM32_CLOCK_BUS_APB2 0x00010000>;
 			interrupts = <20 0>;
 			interrupt-names = "global";
 			st,prescaler = <0>;

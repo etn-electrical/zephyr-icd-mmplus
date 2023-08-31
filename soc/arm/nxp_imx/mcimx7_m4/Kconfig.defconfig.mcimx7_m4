@@ -14,4 +14,8 @@ config SYS_CLOCK_HW_CYCLES_PER_SEC
 config GPIO
 	default y
 
+config IPM_IMX
+	default y
+	depends on IPM
+
 endif # SOC_MCIMX7_M4

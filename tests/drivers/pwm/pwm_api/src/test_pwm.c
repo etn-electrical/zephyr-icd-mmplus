@@ -126,7 +126,7 @@ static int test_task(uint32_t port, uint32_t period, uint32_t pulse, uint8_t uni
 	return TC_PASS;
 }
 
-ZTEST_USER(pwm_basic, test_pwm_nsec)
+void test_pwm_nsec(void)
 {
 	/* Period : Pulse (2000000 : 1000000), unit (nsec). Voltage : 1.65V */
 	zassert_true(test_task(DEFAULT_PWM_PORT, DEFAULT_PERIOD_NSEC,
@@ -144,7 +144,7 @@ ZTEST_USER(pwm_basic, test_pwm_nsec)
 	k_sleep(K_MSEC(1000));
 }
 
-ZTEST_USER(pwm_basic, test_pwm_cycle)
+void test_pwm_cycle(void)
 {
 	/* Period : Pulse (64000 : 32000), unit (cycle). Voltage : 1.65V */
 	zassert_true(test_task(DEFAULT_PWM_PORT, DEFAULT_PERIOD_CYCLE,

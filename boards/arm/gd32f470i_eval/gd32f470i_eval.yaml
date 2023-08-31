@@ -12,13 +12,9 @@ toolchain:
   - gnuarmemb
   - xtools
 supported:
-  - counter
   - dac
   - gpio
   - i2c
   - pwm
   - spi
   - uart
-  - watchdog
-  - dma
-  - spi

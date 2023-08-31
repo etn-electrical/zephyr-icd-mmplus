@@ -23,8 +23,3 @@ zephyr_library_sources_ifdef(
   CONFIG_I3C_MCUX
   i3c_mcux.c
 )
-
-zephyr_library_sources_ifdef(
-  CONFIG_I3C_CADENCE
-  i3c_cdns.c
-)

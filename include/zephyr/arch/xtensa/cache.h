@@ -65,38 +65,17 @@ static ALWAYS_INLINE void z_xtensa_cache_inv(void *addr, size_t bytes)
 
 static ALWAYS_INLINE void z_xtensa_cache_inv_all(void)
 {
-#if XCHAL_DCACHE_SIZE
-	size_t step = XCHAL_DCACHE_LINESIZE;
-	size_t line;
-
-	for (line = 0; line < XCHAL_DCACHE_SIZE; line += step) {
-		__asm__ volatile("dii %0, 0" :: "r"(line));
-	}
-#endif
+	z_xtensa_cache_inv(NULL, Z_DCACHE_MAX);
 }
 
 static ALWAYS_INLINE void z_xtensa_cache_flush_all(void)
 {
-#if XCHAL_DCACHE_SIZE
-	size_t step = XCHAL_DCACHE_LINESIZE;
-	size_t line;
-
-	for (line = 0; line < XCHAL_DCACHE_SIZE; line += step) {
-		__asm__ volatile("diwb %0, 0" :: "r"(line));
-	}
-#endif
+	z_xtensa_cache_flush(NULL, Z_DCACHE_MAX);
 }
 
 static ALWAYS_INLINE void z_xtensa_cache_flush_inv_all(void)
 {
-#if XCHAL_DCACHE_SIZE
-	size_t step = XCHAL_DCACHE_LINESIZE;
-	size_t line;
-
-	for (line = 0; line < XCHAL_DCACHE_SIZE; line += step) {
-		__asm__ volatile("diwbi %0, 0" :: "r"(line));
-	}
-#endif
+	z_xtensa_cache_flush_inv(NULL, Z_DCACHE_MAX);
 }
 
 
@@ -177,7 +156,7 @@ static inline void __sparse_cache *arch_xtensa_cached_ptr(void *ptr)
  */
 static inline void *arch_xtensa_uncached_ptr(void __sparse_cache *ptr)
 {
-	return (void *)z_xtrpoflip((__sparse_force uint32_t)ptr,
+	return (void *)z_xtrpoflip((uint32_t) ptr,
 				   CONFIG_XTENSA_UNCACHED_REGION,
 				   CONFIG_XTENSA_CACHED_REGION);
 }

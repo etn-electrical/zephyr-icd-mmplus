@@ -202,21 +202,6 @@
 			status = "okay";
 		};
 
-		fwdgt: watchdog@40003000 {
-			compatible = "gd,gd32-fwdgt";
-			reg = <0x40003000 0x400>;
-			status = "disabled";
-		};
-
-		wwdgt: watchdog@40002c00 {
-			compatible = "gd,gd32-wwdgt";
-			reg = <0x40002C00 0x400>;
-			clocks = <&cctl GD32_CLOCK_WWDGT>;
-			resets = <&rctl GD32_RESET_WWDGT>;
-			interrupts = <0 0>;
-			status = "disabled";
-		};
-
 		pinctrl: pin-controller@40010800 {
 			compatible = "gd,gd32-pinctrl-afio";
 			reg = <0x40010800 0x1c00>;
@@ -496,8 +481,7 @@
 				     <15 0>, <16 0>, <17 0>;
 			clocks = <&cctl GD32_CLOCK_DMA0>;
 			dma-channels = <7>;
-			gd,mem2mem;
-			#dma-cells = <2>;
+			#dma-cells = <1>;
 			status = "disabled";
 		};
 
@@ -508,8 +492,7 @@
 				     <60 0>;
 			clocks = <&cctl GD32_CLOCK_DMA1>;
 			dma-channels = <5>;
-			gd,mem2mem;
-			#dma-cells = <2>;
+			#dma-cells = <1>;
 			status = "disabled";
 		};
 	};

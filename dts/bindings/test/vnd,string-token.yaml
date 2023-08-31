@@ -8,6 +8,7 @@ compatible: "vnd,string-token"
 properties:
   val:
     type: string
+    required: false
     enum:
       - token_zero
       - token_one

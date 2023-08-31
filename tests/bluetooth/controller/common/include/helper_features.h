@@ -165,7 +165,7 @@
 #define FEAT_PER_ADV_SYNC_RX 0x00
 #endif
 
-#if defined(CONFIG_BT_CTLR_SCA_UPDATE)
+#if defined(CONFIG_MISSING)
 #define FEAT_SLEEP_UPD 0x4000000
 #else
 #define FEAT_SLEEP_UPD 0x00
@@ -177,7 +177,7 @@
 #define FEAT_RPK_VALID 0x00
 #endif
 
-#if defined(CONFIG_BT_CTLR_CENTRAL_ISO)
+#if defined(CONFIG_MISSING)
 #define FEAT_ISO_CENTRAL 0x10000000
 #else
 #define FEAT_ISO_CENTRAL 0x00

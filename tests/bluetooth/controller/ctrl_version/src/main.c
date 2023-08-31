@@ -6,6 +6,7 @@
 
 #include <zephyr/types.h>
 #include <zephyr/ztest.h>
+#include "kconfig.h"
 
 #include <zephyr/bluetooth/hci.h>
 #include <zephyr/sys/byteorder.h>
@@ -18,15 +19,13 @@
 #include "util/memq.h"
 #include "util/dbuf.h"
 
-#include "pdu_df.h"
-#include "lll/pdu_vendor.h"
 #include "pdu.h"
 #include "ll.h"
 #include "ll_settings.h"
 #include "ll_feat.h"
 
 #include "lll.h"
-#include "lll/lll_df_types.h"
+#include "lll_df_types.h"
 #include "lll_conn.h"
 #include "lll_conn_iso.h"
 
@@ -43,9 +42,9 @@
 #include "helper_pdu.h"
 #include "helper_util.h"
 
-static struct ll_conn conn;
+struct ll_conn conn;
 
-static void version_setup(void *data)
+static void setup(void)
 {
 	test_setup(&conn);
 }
@@ -69,7 +68,7 @@ static void version_setup(void *data)
  *    |<---------------------------|                   |
  *    |                            |                   |
  */
-ZTEST(version_central, test_version_exchange_central_loc)
+void test_version_exchange_central_loc(void)
 {
 	uint8_t err;
 	struct node_tx *tx;
@@ -114,8 +113,8 @@ ZTEST(version_central, test_version_exchange_central_loc)
 	ut_rx_pdu(LL_VERSION_IND, &ntf, &remote_version_ind);
 	ut_rx_q_is_empty();
 
-	zassert_equal(llcp_ctx_buffers_free(), test_ctx_buffers_cnt(),
-		      "Free CTX buffers %d", llcp_ctx_buffers_free());
+	zassert_equal(ctx_buffers_free(), test_ctx_buffers_cnt(),
+		      "Free CTX buffers %d", ctx_buffers_free());
 }
 
 /* +-----+                     +-------+            +-----+
@@ -135,7 +134,7 @@ ZTEST(version_central, test_version_exchange_central_loc)
  *  ~~~~~~~~~~~~~~~~~~~ TERMINATE CONN ~~~~~~~~~~~~~~~~~~
  *    |                            |                   |
  */
-ZTEST(version_central, test_version_exchange_central_loc_invalid_rsp)
+void test_version_exchange_central_loc_invalid_rsp(void)
 {
 	uint8_t err;
 	struct node_tx *tx;
@@ -195,8 +194,8 @@ ZTEST(version_central, test_version_exchange_central_loc_invalid_rsp)
 	/* There should be no host notifications */
 	ut_rx_q_is_empty();
 
-	zassert_equal(llcp_ctx_buffers_free(), test_ctx_buffers_cnt(),
-		      "Free CTX buffers %d", llcp_ctx_buffers_free());
+	zassert_equal(ctx_buffers_free(), test_ctx_buffers_cnt(),
+		      "Free CTX buffers %d", ctx_buffers_free());
 
 	/* Cheat, to allow second VEX */
 	conn.llcp.vex.sent = 0;
@@ -231,8 +230,8 @@ ZTEST(version_central, test_version_exchange_central_loc_invalid_rsp)
 	/* There should be no host notifications */
 	ut_rx_q_is_empty();
 
-	zassert_equal(llcp_ctx_buffers_free(), test_ctx_buffers_cnt(),
-		      "Free CTX buffers %d", llcp_ctx_buffers_free());
+	zassert_equal(ctx_buffers_free(), test_ctx_buffers_cnt(),
+		      "Free CTX buffers %d", ctx_buffers_free());
 
 	/* Cheat, to allow second VEX */
 	conn.llcp.vex.sent = 0;
@@ -264,11 +263,11 @@ ZTEST(version_central, test_version_exchange_central_loc_invalid_rsp)
 	/* There should be no host notifications */
 	ut_rx_q_is_empty();
 
-	zassert_equal(llcp_ctx_buffers_free(), test_ctx_buffers_cnt(),
-		      "Free CTX buffers %d", llcp_ctx_buffers_free());
+	zassert_equal(ctx_buffers_free(), test_ctx_buffers_cnt(),
+		      "Free CTX buffers %d", ctx_buffers_free());
 }
 
-ZTEST(version_central, test_version_exchange_central_loc_2)
+void test_version_exchange_central_loc_2(void)
 {
 	uint8_t err;
 
@@ -285,9 +284,9 @@ ZTEST(version_central, test_version_exchange_central_loc_2)
 
 	zassert_not_equal(err, BT_HCI_ERR_SUCCESS, NULL);
 
-	zassert_equal(llcp_ctx_buffers_free(),
+	zassert_equal(ctx_buffers_free(),
 		      test_ctx_buffers_cnt() - CONFIG_BT_CTLR_LLCP_LOCAL_PROC_CTX_BUF_NUM,
-		      "Free CTX buffers %d", llcp_ctx_buffers_free());
+		      "Free CTX buffers %d", ctx_buffers_free());
 }
 
 /* +-----+ +-------+            +-----+
@@ -301,7 +300,7 @@ ZTEST(version_central, test_version_exchange_central_loc_2)
  *    |        |------------------>|
  *    |        |                   |
  */
-ZTEST(version_central, test_version_exchange_central_rem)
+void test_version_exchange_central_rem(void)
 {
 	struct node_tx *tx;
 
@@ -345,8 +344,8 @@ ZTEST(version_central, test_version_exchange_central_rem)
 	/* There should not be a host notifications */
 	ut_rx_q_is_empty();
 
-	zassert_equal(llcp_ctx_buffers_free(), test_ctx_buffers_cnt(),
-		      "Free CTX buffers %d", llcp_ctx_buffers_free());
+	zassert_equal(ctx_buffers_free(), test_ctx_buffers_cnt(),
+		      "Free CTX buffers %d", ctx_buffers_free());
 }
 
 /* +-----+                     +-------+            +-----+
@@ -368,7 +367,7 @@ ZTEST(version_central, test_version_exchange_central_rem)
  *    |<---------------------------|                   |
  *    |                            |                   |
  */
-ZTEST(version_central, test_version_exchange_central_rem_2)
+void test_version_exchange_central_rem_2(void)
 {
 	uint8_t err;
 	struct node_tx *tx;
@@ -413,8 +412,8 @@ ZTEST(version_central, test_version_exchange_central_rem_2)
 	ut_rx_pdu(LL_VERSION_IND, &ntf, &remote_version_ind);
 	ut_rx_q_is_empty();
 
-	zassert_equal(llcp_ctx_buffers_free(), test_ctx_buffers_cnt(),
-		      "Free CTX buffers %d", llcp_ctx_buffers_free());
+	zassert_equal(ctx_buffers_free(), test_ctx_buffers_cnt(),
+		      "Free CTX buffers %d", ctx_buffers_free());
 }
 
 /* +-----+                     +-------+            +-----+
@@ -443,7 +442,7 @@ ZTEST(version_central, test_version_exchange_central_rem_2)
  *    |<---------------------------|                   |
  *    |                            |                   |
  */
-ZTEST(version_central, test_version_exchange_central_loc_twice)
+void test_version_exchange_central_loc_twice(void)
 {
 	uint8_t err;
 	struct node_tx *tx;
@@ -508,8 +507,26 @@ ZTEST(version_central, test_version_exchange_central_loc_twice)
 	/* Second attempt to run the version exchange completes immediately in idle state.
 	 * The context is released just after that.
 	 */
-	zassert_equal(llcp_ctx_buffers_free(), test_ctx_buffers_cnt(),
-		      "Free CTX buffers %d", llcp_ctx_buffers_free());
+	zassert_equal(ctx_buffers_free(), test_ctx_buffers_cnt(),
+		      "Free CTX buffers %d", ctx_buffers_free());
 }
 
-ZTEST_SUITE(version_central, NULL, NULL, version_setup, NULL, NULL);
+void test_main(void)
+{
+	ztest_test_suite(version_exchange,
+			 ztest_unit_test_setup_teardown(test_version_exchange_central_loc, setup,
+							unit_test_noop),
+			 ztest_unit_test_setup_teardown(test_version_exchange_central_loc_2, setup,
+							unit_test_noop),
+			 ztest_unit_test_setup_teardown(test_version_exchange_central_rem, setup,
+							unit_test_noop),
+			 ztest_unit_test_setup_teardown(test_version_exchange_central_rem_2, setup,
+							unit_test_noop),
+			 ztest_unit_test_setup_teardown(test_version_exchange_central_loc_twice,
+							setup, unit_test_noop),
+			 ztest_unit_test_setup_teardown(
+					     test_version_exchange_central_loc_invalid_rsp, setup,
+					     unit_test_noop));
+
+	ztest_run_test_suite(version_exchange);
+}

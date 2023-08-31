@@ -18,7 +18,6 @@
 #include "altera_msgdma.h"
 
 #include <zephyr/logging/log.h>
-#include <zephyr/irq.h>
 LOG_MODULE_REGISTER(dma_nios2, CONFIG_DMA_LOG_LEVEL);
 
 /* Device configuration parameters */

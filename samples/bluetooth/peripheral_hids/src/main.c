@@ -137,10 +137,7 @@ void main(void)
 		return;
 	}
 
-	if (IS_ENABLED(CONFIG_SAMPLE_BT_USE_AUTHENTICATION)) {
-		bt_conn_auth_cb_register(&auth_cb_display);
-		printk("Bluetooth authentication callbacks registered.\n");
-	}
+	bt_conn_auth_cb_register(&auth_cb_display);
 
 	hog_button_loop();
 }

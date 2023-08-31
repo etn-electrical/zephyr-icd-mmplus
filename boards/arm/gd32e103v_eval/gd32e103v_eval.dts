@@ -71,7 +71,6 @@
 		sw0 = &user_key;
 		pwm-led0 = &pwm_led;
 		eeprom-0 = &eeprom0;
-		watchdog0 = &fwdgt;
 	};
 };
 
@@ -133,8 +132,4 @@
 	status = "okay";
 	pinctrl-0 = <&dac_default>;
 	pinctrl-names = "default";
-};
-
-&fwdgt {
-	status = "okay";
 };

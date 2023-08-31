@@ -32,8 +32,6 @@ LOG_MODULE_REGISTER(tls_test, CONFIG_NET_SOCKETS_LOG_LEVEL);
 /** @brief Stack size for the server thread */
 #define STACK_SIZE 8192
 
-#define MY_IPV4_ADDR "127.0.0.1"
-
 /** @brief TCP port for the server thread */
 #define PORT 4242
 
@@ -351,10 +349,10 @@ static void test_common(int peer_verify)
 		zassert_not_equal(r, -1, "failed to set TLS_HOSTNAME (%d)", errno);
 	}
 
-	r = inet_pton(AF_INET, MY_IPV4_ADDR, &sa.sin_addr.s_addr);
+	r = inet_pton(AF_INET, CONFIG_NET_CONFIG_MY_IPV4_ADDR, &sa.sin_addr.s_addr);
 	zassert_not_equal(-1, r, "inet_pton() failed (%d)", errno);
-	zassert_not_equal(0, r, "%s is not a valid IPv4 address", MY_IPV4_ADDR);
-	zassert_equal(1, r, "inet_pton() failed to convert %s", MY_IPV4_ADDR);
+	zassert_not_equal(0, r, "%s is not a valid IPv4 address", CONFIG_NET_CONFIG_MY_IPV4_ADDR);
+	zassert_equal(1, r, "inet_pton() failed to convert %s", CONFIG_NET_CONFIG_MY_IPV4_ADDR);
 
 	memset(addrstr, '\0', sizeof(addrstr));
 	addrstrp = (char *)inet_ntop(AF_INET, &sa.sin_addr,
@@ -401,22 +399,22 @@ static void test_common(int peer_verify)
 	zassert_equal(0, r, "k_thread_join() failed (%d)", r);
 }
 
-ZTEST(net_socket_tls_api_extension, test_tls_peer_verify_none)
+static void test_tls_peer_verify_none(void)
 {
 	test_common(TLS_PEER_VERIFY_NONE);
 }
 
-ZTEST(net_socket_tls_api_extension, test_tls_peer_verify_optional)
+static void test_tls_peer_verify_optional(void)
 {
 	test_common(TLS_PEER_VERIFY_OPTIONAL);
 }
 
-ZTEST(net_socket_tls_api_extension, test_tls_peer_verify_required)
+static void test_tls_peer_verify_required(void)
 {
 	test_common(TLS_PEER_VERIFY_REQUIRED);
 }
 
-static void *setup(void)
+void test_main(void)
 {
 	int r;
 
@@ -466,7 +464,13 @@ static void *setup(void)
 				       client_privkey, sizeof(client_privkey));
 		zassert_equal(r, 0, "failed to add Client Private Key (%d)", r);
 	}
-	return NULL;
-}
 
-ZTEST_SUITE(net_socket_tls_api_extension, NULL, setup, NULL, NULL, NULL);
+	ztest_test_suite(
+		tls_socket_api_extension,
+		ztest_unit_test(test_tls_peer_verify_none),
+		ztest_unit_test(test_tls_peer_verify_optional),
+		ztest_unit_test(test_tls_peer_verify_required)
+		);
+
+	ztest_run_test_suite(tls_socket_api_extension);
+}

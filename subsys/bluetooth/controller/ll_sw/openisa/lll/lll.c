@@ -15,7 +15,6 @@
 #include <zephyr/device.h>
 
 #include <zephyr/drivers/entropy.h>
-#include <zephyr/irq.h>
 
 #include "hal/swi.h"
 #include "hal/ccm.h"
@@ -32,6 +31,9 @@
 #include "lll_vendor.h"
 #include "lll_internal.h"
 
+#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_DEBUG_HCI_DRIVER)
+#define LOG_MODULE_NAME bt_ctlr_llsw_openisa_lll
+#include "common/log.h"
 #include "hal/debug.h"
 
 static struct {

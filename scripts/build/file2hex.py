@@ -23,7 +23,7 @@ def parse_args():
 
     parser = argparse.ArgumentParser(
         description=__doc__,
-        formatter_class=argparse.RawDescriptionHelpFormatter, allow_abbrev=False)
+        formatter_class=argparse.RawDescriptionHelpFormatter)
 
     parser.add_argument("-f", "--file", required=True, help="Input file")
     parser.add_argument("-g", "--gzip", action="store_true",

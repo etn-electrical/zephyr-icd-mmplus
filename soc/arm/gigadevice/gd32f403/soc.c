@@ -13,7 +13,6 @@
 
 #include <zephyr/device.h>
 #include <zephyr/init.h>
-#include <zephyr/irq.h>
 
 /**
  * @brief Perform basic hardware initialization at boot.

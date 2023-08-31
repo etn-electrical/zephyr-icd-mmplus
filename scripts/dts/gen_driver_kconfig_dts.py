@@ -12,9 +12,9 @@ import re
 import yaml
 try:
     # Use the C LibYAML parser if available, rather than the Python parser.
-    from yaml import CSafeLoader as SafeLoader
+    from yaml import CLoader as Loader
 except ImportError:
-    from yaml import SafeLoader     # type: ignore
+    from yaml import Loader     # type: ignore
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'python-devicetree',
                                 'src'))
@@ -36,7 +36,7 @@ def binding_paths(bindings_dirs):
 def parse_args():
     # Returns parsed command-line arguments
 
-    parser = argparse.ArgumentParser(allow_abbrev=False)
+    parser = argparse.ArgumentParser()
     parser.add_argument("--kconfig-out", required=True,
                         help="path to write the Kconfig file")
     parser.add_argument("--bindings-dirs", nargs='+', required=True,
@@ -75,12 +75,12 @@ def main():
             try:
                 # Parsed PyYAML output (Python lists/dictionaries/strings/etc.,
                 # representing the file)
-                raw = yaml.load(contents, Loader=SafeLoader)
+                raw = yaml.load(contents, Loader=Loader)
             except yaml.YAMLError as e:
                 print(f"WARNING: '{binding_path}' appears in binding "
                       f"directories but isn't valid YAML: {e}")
                 continue
-        if raw is None or 'compatible' not in raw:
+        if 'compatible' not in raw:
             continue
 
         compat_list.append(raw['compatible'])

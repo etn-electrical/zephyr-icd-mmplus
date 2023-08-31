@@ -436,7 +436,7 @@ endmacro()
 # ZEPHYR_MODULE/drivers/entropy/CMakeLists.txt
 # with content:
 # zephyr_library_amend()
-# zephyr_library_sources(...)
+# zephyr_library_add_sources(...)
 #
 # It is also possible to use generator expression when amending to Zephyr
 # libraries.
@@ -468,8 +468,6 @@ endfunction()
 
 #
 # zephyr_library versions of normal CMake target_<func> functions
-# Note, paths passed to this function must be relative in order
-# to support the library relocation feature of zephyr_code_relocate
 #
 function(zephyr_library_sources source)
   target_sources(${ZEPHYR_CURRENT_LIBRARY} PRIVATE ${source} ${ARGN})
@@ -1016,9 +1014,9 @@ endfunction()
 function(zephyr_check_compiler_flag lang option check)
   # Check if the option is covered by any hardcoded check before doing
   # an automated test.
-  zephyr_check_compiler_flag_hardcoded(${lang} "${option}" ${check} exists)
+  zephyr_check_compiler_flag_hardcoded(${lang} "${option}" check exists)
   if(exists)
-    set(${check} ${${check}} PARENT_SCOPE)
+    set(check ${check} PARENT_SCOPE)
     return()
   endif()
 
@@ -1123,11 +1121,11 @@ function(zephyr_check_compiler_flag_hardcoded lang option check exists)
   # because they would produce a warning instead of an error during
   # the test.  Exclude them by toolchain-specific blocklist.
   if((${lang} STREQUAL CXX) AND ("${option}" IN_LIST CXX_EXCLUDED_OPTIONS))
-    set(${check} 0 PARENT_SCOPE)
-    set(${exists} 1 PARENT_SCOPE)
+    set(check 0 PARENT_SCOPE)
+    set(exists 1 PARENT_SCOPE)
   else()
     # There does not exist a hardcoded check for this option.
-    set(${exists} 0 PARENT_SCOPE)
+    set(exists 0 PARENT_SCOPE)
   endif()
 endfunction(zephyr_check_compiler_flag_hardcoded)
 
@@ -1285,85 +1283,22 @@ endfunction(zephyr_linker_sources)
 
 
 # Helper function for CONFIG_CODE_DATA_RELOCATION
-# This function may either be invoked with a list of files, or a library
-# name to relocate.
-#
-# The FILES directive will relocate a list of files (wildcards supported)
-# This directive will relocate file1. and file2.c to SRAM:
-# zephyr_code_relocate(FILES file1.c file2.c LOCATION SRAM)
-# Note, files can also be passed as a comma separated list to support using
-# cmake generator arguments
-#
-# The LIBRARY directive will relocate a library
-# This directive will relocate the target my_lib to SRAM:
-# zephyr_code_relocate(LIBRARY my_lib SRAM)
-#
-# The following optional arguments are supported:
-# - NOCOPY: this flag indicates that the file data does not need to be copied
-#   at boot time (For example, for flash XIP).
-# - PHDR [program_header]: add program header. Used on Xtensa platforms.
-function(zephyr_code_relocate)
+# Call this function with 2 arguments file and then memory location.
+# One optional [NOCOPY] flag can be used.
+function(zephyr_code_relocate file location)
   set(options NOCOPY)
-  set(single_args LIBRARY LOCATION PHDR)
-  set(multi_args FILES)
-  cmake_parse_arguments(CODE_REL "${options}" "${single_args}"
-    "${multi_args}" ${ARGN})
-  # Argument validation
-  if(CODE_REL_UNPARSED_ARGUMENTS)
-    message(FATAL_ERROR "zephyr_code_relocate(${ARGV0} ...) "
-      "given unknown arguments: ${CODE_REL_UNPARSED_ARGUMENTS}")
-  endif()
-  if((NOT CODE_REL_FILES) AND (NOT CODE_REL_LIBRARY))
-    message(FATAL_ERROR
-      "zephyr_code_relocate() requires either FILES or LIBRARY be provided")
-  endif()
-  if(CODE_REL_FILES AND CODE_REL_LIBRARY)
-    message(FATAL_ERROR "zephyr_code_relocate() only accepts "
-      "one argument between FILES and LIBRARY")
-  endif()
-  if(NOT CODE_REL_LOCATION)
-    message(FATAL_ERROR "zephyr_code_relocate() requires a LOCATION argument")
-  endif()
-  if(CODE_REL_LIBRARY)
-    # Use cmake generator expression to convert library to file list
-    set(genex_src_dir "$<TARGET_PROPERTY:${CODE_REL_LIBRARY},SOURCE_DIR>")
-    set(genex_src_list "$<TARGET_PROPERTY:${CODE_REL_LIBRARY},SOURCES>")
-    set(file_list
-      "${genex_src_dir}/$<JOIN:${genex_src_list},$<SEMICOLON>${genex_src_dir}/>")
-  else()
-    # Check if CODE_REL_FILES is a generator expression, if so leave it
-    # untouched.
-    string(GENEX_STRIP "${CODE_REL_FILES}" no_genex)
-    if(CODE_REL_FILES STREQUAL no_genex)
-      # no generator expression in CODE_REL_FILES, check if list of files
-      # is absolute
-      foreach(file ${CODE_REL_FILES})
-        if(NOT IS_ABSOLUTE ${file})
-          set(file ${CMAKE_CURRENT_SOURCE_DIR}/${file})
-        endif()
-        list(APPEND file_list ${file})
-      endforeach()
-    else()
-      # Generator expression is present in file list. Leave the list untouched.
-      set(file_list ${CODE_REL_FILES})
-    endif()
+  cmake_parse_arguments(CODE_REL "${options}" "" "" ${ARGN})
+  if(NOT IS_ABSOLUTE ${file})
+    set(file ${CMAKE_CURRENT_SOURCE_DIR}/${file})
   endif()
   if(NOT CODE_REL_NOCOPY)
     set(copy_flag COPY)
   else()
     set(copy_flag NOCOPY)
   endif()
-  if(CODE_REL_PHDR)
-    set(CODE_REL_LOCATION "${CODE_REL_LOCATION}\ :${CODE_REL_PHDR}")
-  endif()
-  # We use the "|" character to separate code relocation directives instead
-  # of using CMake lists. This way, the ";" character can be reserved for
-  # generator expression file lists.
-  get_property(code_rel_str TARGET code_data_relocation_target
-    PROPERTY COMPILE_DEFINITIONS)
   set_property(TARGET code_data_relocation_target
-    PROPERTY COMPILE_DEFINITIONS
-    "${code_rel_str}|${CODE_REL_LOCATION}:${copy_flag}:${file_list}")
+    APPEND PROPERTY COMPILE_DEFINITIONS
+    "${location}:${copy_flag}:${file}")
 endfunction()
 
 # Usage:
@@ -1490,21 +1425,13 @@ endfunction()
 
 # 2.1 Misc
 #
-# import_kconfig(<prefix> <kconfig_fragment> [<keys>] [TARGET <target>])
+# import_kconfig(<prefix> <kconfig_fragment> [<keys>])
 #
 # Parse a KConfig fragment (typically with extension .config) and
 # introduce all the symbols that are prefixed with 'prefix' into the
 # CMake namespace. List all created variable names in the 'keys'
 # output variable if present.
-#
-# <prefix>          : symbol prefix of settings in the Kconfig fragment.
-# <kconfig_fragment>: absolute path to the config fragment file.
-# <keys>            : output variable which will be populated with variable
-#                     names loaded from the kconfig fragment.
-# TARGET <target>   : set all symbols on <target> instead of adding them to the
-#                     CMake namespace.
 function(import_kconfig prefix kconfig_fragment)
-  cmake_parse_arguments(IMPORT_KCONFIG "" "TARGET" "" ${ARGN})
   # Parse the lines prefixed with 'prefix' in ${kconfig_fragment}
   file(
     STRINGS
@@ -1530,24 +1457,13 @@ function(import_kconfig prefix kconfig_fragment)
       set(CONF_VARIABLE_VALUE ${CMAKE_MATCH_1})
     endif()
 
-    if(DEFINED IMPORT_KCONFIG_TARGET)
-      set_property(TARGET ${IMPORT_KCONFIG_TARGET} APPEND PROPERTY "kconfigs" "${CONF_VARIABLE_NAME}")
-      set_property(TARGET ${IMPORT_KCONFIG_TARGET} PROPERTY "${CONF_VARIABLE_NAME}" "${CONF_VARIABLE_VALUE}")
-    else()
-      set("${CONF_VARIABLE_NAME}" "${CONF_VARIABLE_VALUE}" PARENT_SCOPE)
-    endif()
+    set("${CONF_VARIABLE_NAME}" "${CONF_VARIABLE_VALUE}" PARENT_SCOPE)
     list(APPEND keys "${CONF_VARIABLE_NAME}")
   endforeach()
 
-  list(LENGTH IMPORT_KCONFIG_UNPARSED_ARGUMENTS unparsed_length)
-  if(unparsed_length GREATER 0)
-    if(unparsed_length GREATER 1)
-    # Two mandatory arguments and one optional, anything after that is an error.
-      list(GET IMPORT_KCONFIG_UNPARSED_ARGUMENTS 1 first_invalid)
-      message(FATAL_ERROR "Unexpected argument after '<keys>': import_kconfig(... ${first_invalid})")
-    endif()
-    set(${IMPORT_KCONFIG_UNPARSED_ARGUMENTS} "${keys}" PARENT_SCOPE)
-  endif()
+  foreach(outvar ${ARGN})
+    set(${outvar} "${keys}" PARENT_SCOPE)
+  endforeach()
 endfunction()
 
 ########################################################
@@ -1924,7 +1840,7 @@ endfunction()
 # Support an optional second option for when the first option is not
 # supported.
 function(target_cc_option_fallback target scope option1 option2)
-  if(CONFIG_CPP)
+  if(CONFIG_CPLUSPLUS)
     foreach(lang C CXX)
       # For now, we assume that all flags that apply to C/CXX also
       # apply to ASM.
@@ -2116,7 +2032,7 @@ function(check_set_compiler_property)
       separate_arguments(option UNIX_COMMAND ${option})
     endif()
 
-    if(CONFIG_CPP)
+    if(CONFIG_CPLUSPLUS)
       zephyr_check_compiler_flag(CXX "${option}" check)
 
       if(${check})
@@ -2217,8 +2133,8 @@ endfunction()
 #                                               If no board is given the current BOARD and
 #                                               BOARD_REVISION will be used.
 #
-#                    DTS <list>:   List to append DTS overlay files in <path> to
-#                    KCONF <list>: List to append Kconfig fragment files in <path> to
+#                    DTS <list>:   List to populate with DTS overlay files
+#                    KCONF <list>: List to populate with Kconfig fragment files
 #                    BUILD <type>: Build type to include for search.
 #                                  For example:
 #                                  BUILD debug, will look for <board>_debug.conf
@@ -2605,8 +2521,8 @@ endfunction(zephyr_check_cache variable)
 #   zephyr_boilerplate_watch(SOME_BOILERPLATE_VAR)
 #
 # Inform the build system that SOME_BOILERPLATE_VAR, a variable
-# handled in the Zephyr package's boilerplate code, is now fixed and
-# should no longer be changed.
+# handled in cmake/app/boilerplate.cmake, is now fixed and should no
+# longer be changed.
 #
 # This function uses variable_watch() to print a noisy warning
 # if the variable is set after it returns.
@@ -2662,36 +2578,6 @@ function(zephyr_get_targets directory types targets)
 endfunction()
 
 # Usage:
-#   test_sysbuild([REQUIRED])
-#
-# Test that current sample is invoked through sysbuild.
-#
-# This function tests that current CMake configure was invoked through sysbuild.
-# If CMake configure was not invoked through sysbuild, then a warning is printed
-# to the user. The warning can be upgraded to an error by setting `REQUIRED` as
-# argument the `test_sysbuild()`.
-#
-# This function allows samples that are multi-image samples by nature to ensure
-# all samples are correctly built together.
-function(test_sysbuild)
-  cmake_parse_arguments(TEST_SYSBUILD "REQUIRED" "" "" ${ARGN})
-
-  if(TEST_SYSBUILD_REQUIRED)
-    set(message_mode FATAL_ERROR)
-  else()
-    set(message_mode WARNING)
-  endif()
-
-  if(NOT SYSBUILD)
-    message(${message_mode}
-            "Project '${PROJECT_NAME}' is designed for sysbuild.\n"
-            "For correct user-experiences, please build '${PROJECT_NAME}' "
-            "using sysbuild."
-    )
-  endif()
-endfunction()
-
-# Usage:
 #   target_byproducts(TARGET <target> BYPRODUCTS <file> [<file>...])
 #
 # Specify additional BYPRODUCTS that this target produces.
@@ -2716,7 +2602,7 @@ function(target_byproducts)
 endfunction()
 
 ########################################################
-# 4. Devicetree extensions
+# 4. Zephyr devicetree function
 ########################################################
 # 4.1. dt_*
 #
@@ -4185,7 +4071,7 @@ endfunction()
 # BAZ: <undefined>
 # QUX: option set
 #
-# will create a list as: "FOO;bar;QUX;TRUE" which can then be parsed as argument
+# will create a list as: "FOO;bar;QUX:TRUE" which can then be parsed as argument
 # list later.
 macro(zephyr_linker_arg_val_list list arguments)
   foreach(arg ${arguments})

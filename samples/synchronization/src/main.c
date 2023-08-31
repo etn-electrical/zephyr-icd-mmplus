@@ -16,7 +16,9 @@
  * world application would likely use the static approach for both threads.
  */
 
-#define PIN_THREADS (IS_ENABLED(CONFIG_SMP) && IS_ENABLED(CONFIG_SCHED_CPU_MASK))
+#define PIN_THREADS (IS_ENABLED(CONFIG_SMP)		  \
+		     && IS_ENABLED(CONFIG_SCHED_CPU_MASK) \
+		     && (CONFIG_MP_NUM_CPUS > 1))
 
 /* size of stack area used by each thread */
 #define STACKSIZE 1024
@@ -111,9 +113,7 @@ void main(void)
 			PRIORITY, 0, K_FOREVER);
 	k_thread_name_set(&threadA_data, "thread_a");
 #if PIN_THREADS
-	if (arch_num_cpus() > 1) {
-		k_thread_cpu_pin(&threadA_data, 0);
-	}
+	k_thread_cpu_pin(&threadA_data, 0);
 #endif
 
 	k_thread_create(&threadB_data, threadB_stack_area,
@@ -122,9 +122,7 @@ void main(void)
 			PRIORITY, 0, K_FOREVER);
 	k_thread_name_set(&threadB_data, "thread_b");
 #if PIN_THREADS
-	if (arch_num_cpus() > 1) {
-		k_thread_cpu_pin(&threadB_data, 1);
-	}
+	k_thread_cpu_pin(&threadB_data, 1);
 #endif
 
 	k_thread_start(&threadA_data);

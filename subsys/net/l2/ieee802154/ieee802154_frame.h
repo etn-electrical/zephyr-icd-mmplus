@@ -21,10 +21,6 @@
 
 /* All specification references in this file refer to IEEE 802.15.4-2006
  * unless otherwise noted.
- *
- * Note: All structs and attributes (e.g. PAN id, ext address and short
- * address) in this file that directly represent IEEE 802.15.4 frames
- * are in LITTLE ENDIAN, see section 4, especially section 4.3.
  */
 
 #define IEEE802154_MIN_LENGTH	     3
@@ -46,16 +42,15 @@
 #define IEEE802154_BEACON_GTS_RX	  1
 #define IEEE802154_BEACON_GTS_TX	  0
 
-/* See section 7.2.1.1.1 and IEEE 802.15.4-2020, section 7.2.2.2 */
+/* See section 7.2.1.1.1 */
 enum ieee802154_frame_type {
 	IEEE802154_FRAME_TYPE_BEACON = 0x0,
 	IEEE802154_FRAME_TYPE_DATA = 0x1,
 	IEEE802154_FRAME_TYPE_ACK = 0x2,
 	IEEE802154_FRAME_TYPE_MAC_COMMAND = 0x3,
-	IEEE802154_FRAME_TYPE_RESERVED = 0x4,
+	IEEE802154_FRAME_TYPE_LLDN = 0x4,
 	IEEE802154_FRAME_TYPE_MULTIPURPOSE = 0x5,
-	IEEE802154_FRAME_TYPE_FRAK = 0x6,
-	IEEE802154_FRAME_TYPE_EXTENDED = 0x7,
+	IEEE802154_FRAME_TYPE_RESERVED = 0x6,
 };
 
 /* See section 7.2.1.1.6 */
@@ -86,7 +81,7 @@ enum ieee802154_version {
  */
 struct ieee802154_fcf_seq {
 	struct {
-#ifdef CONFIG_LITTLE_ENDIAN
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 		uint16_t frame_type : 3;
 		uint16_t security_enabled : 1;
 		uint16_t frame_pending : 1;
@@ -98,7 +93,7 @@ struct ieee802154_fcf_seq {
 		uint16_t dst_addr_mode : 2;
 		uint16_t frame_version : 2;
 		uint16_t src_addr_mode : 2;
-#else
+#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 		uint16_t reserved : 1;
 		uint16_t pan_id_comp : 1;
 		uint16_t ar : 1;
@@ -173,11 +168,11 @@ enum ieee802154_key_id_mode {
 
 /* See section 7.6.2.2 */
 struct ieee802154_security_control_field {
-#ifdef CONFIG_LITTLE_ENDIAN
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 	uint8_t security_level : 3;
 	uint8_t key_id_mode : 2;
 	uint8_t reserved : 3;
-#else
+#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 	uint8_t reserved : 3;
 	uint8_t key_id_mode : 2;
 	uint8_t security_level : 3;
@@ -233,10 +228,10 @@ struct ieee802154_mfr {
 };
 
 struct ieee802154_gts_dir {
-#ifdef CONFIG_LITTLE_ENDIAN
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 	uint8_t mask : 7;
 	uint8_t reserved : 1;
-#else
+#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 	uint8_t reserved : 1;
 	uint8_t mask : 7;
 #endif
@@ -244,23 +239,23 @@ struct ieee802154_gts_dir {
 
 struct ieee802154_gts {
 	uint16_t short_address;
-#ifdef CONFIG_LITTLE_ENDIAN
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 	uint8_t starting_slot : 4;
 	uint8_t length : 4;
-#else
+#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 	uint8_t length : 4;
 	uint8_t starting_slot : 4;
 #endif
 } __packed;
 
 struct ieee802154_gts_spec {
-#ifdef CONFIG_LITTLE_ENDIAN
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 	/* Descriptor Count */
 	uint8_t desc_count : 3;
 	uint8_t reserved : 4;
 	/* GTS Permit */
 	uint8_t permit : 1;
-#else
+#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 	/* GTS Permit */
 	uint8_t permit : 1;
 	uint8_t reserved : 4;
@@ -270,14 +265,14 @@ struct ieee802154_gts_spec {
 } __packed;
 
 struct ieee802154_pas_spec {
-#ifdef CONFIG_LITTLE_ENDIAN
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 	/* Number of Short Addresses Pending */
 	uint8_t nb_sap : 3;
 	uint8_t reserved_1 : 1;
 	/* Number of Extended Addresses Pending */
 	uint8_t nb_eap : 3;
 	uint8_t reserved_2 : 1;
-#else
+#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 	uint8_t reserved_1 : 1;
 	/* Number of Extended Addresses Pending */
 	uint8_t nb_eap : 3;
@@ -288,7 +283,7 @@ struct ieee802154_pas_spec {
 } __packed;
 
 struct ieee802154_beacon_sf {
-#ifdef CONFIG_LITTLE_ENDIAN
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 	/* Beacon Order*/
 	uint16_t bc_order : 4;
 	/* Superframe Order*/
@@ -302,7 +297,7 @@ struct ieee802154_beacon_sf {
 	uint16_t coordinator : 1;
 	/* Association Permit */
 	uint16_t association : 1;
-#else
+#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 	/* Superframe Order*/
 	uint16_t sf_order : 4;
 	/* Beacon Order*/
@@ -329,7 +324,7 @@ struct ieee802154_beacon {
 /* See section 7.3.1 */
 struct ieee802154_cmd_assoc_req {
 	struct {
-#ifdef CONFIG_LITTLE_ENDIAN
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 		uint8_t reserved_1 : 1;
 		uint8_t dev_type : 1;
 		uint8_t power_src : 1;
@@ -337,7 +332,7 @@ struct ieee802154_cmd_assoc_req {
 		uint8_t reserved_2 : 2;
 		uint8_t sec_capability : 1;
 		uint8_t alloc_addr : 1;
-#else
+#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 		uint8_t alloc_addr : 1;
 		uint8_t sec_capability : 1;
 		uint8_t reserved_2 : 2;
@@ -388,7 +383,7 @@ struct ieee802154_cmd_coord_realign {
 	uint16_t coordinator_short_addr;
 	uint8_t channel;
 	uint16_t short_addr;
-	uint8_t channel_page; /* optional */
+	uint8_t channel_page; /* Optional */
 } __packed;
 
 #define IEEE802154_CMD_COORD_REALIGN_LENGTH 3
@@ -396,12 +391,12 @@ struct ieee802154_cmd_coord_realign {
 /* GTS request, see section 7.3.9 */
 struct ieee802154_gts_request {
 	struct {
-#ifdef CONFIG_LITTLE_ENDIAN
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 		uint8_t length : 4;
 		uint8_t direction : 1;
 		uint8_t type : 1;
 		uint8_t reserved : 2;
-#else
+#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 		uint8_t reserved : 2;
 		uint8_t type : 1;
 		uint8_t direction : 1;
@@ -458,16 +453,16 @@ struct ieee802154_mpdu {
 struct ieee802154_frame_params {
 	struct {
 		union {
-			uint8_t *ext_addr; /* in big endian */
-			uint16_t short_addr; /* in CPU byte order */
+			uint8_t *ext_addr;
+			uint16_t short_addr;
 		};
 
 		uint16_t len;
-		uint16_t pan_id; /* in CPU byte order */
+		uint16_t pan_id;
 	} dst;
 
-	uint16_t short_addr; /* in CPU byte order */
-	uint16_t pan_id; /* in CPU byte order */
+	uint16_t short_addr;
+	uint16_t pan_id;
 } __packed;
 
 #ifdef CONFIG_NET_L2_IEEE802154_SECURITY

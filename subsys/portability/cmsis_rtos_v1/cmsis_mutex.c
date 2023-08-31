@@ -61,12 +61,12 @@ osStatus osMutexWait(osMutexId mutex_id, uint32_t timeout)
 		status = k_mutex_lock(mutex, K_MSEC(timeout));
 	}
 
-	if (timeout != 0 && (status == -EAGAIN || status == -EBUSY)) {
-		return osErrorTimeoutResource;
-	} else if (status == 0) {
-		return osOK;
-	} else {
+	if (status == -EBUSY) {
 		return osErrorResource;
+	} else if (status == -EAGAIN) {
+		return osErrorTimeoutResource;
+	} else {
+		return osOK;
 	}
 }
 
@@ -85,9 +85,12 @@ osStatus osMutexRelease(osMutexId mutex_id)
 		return osErrorISR;
 	}
 
-	if (k_mutex_unlock(mutex) != 0) {
+	/* Mutex was not obtained before or was not owned by current thread */
+	if ((mutex->lock_count == 0) || (mutex->owner != _current)) {
 		return osErrorResource;
 	}
+
+	k_mutex_unlock(mutex);
 
 	return osOK;
 }

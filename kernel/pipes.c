@@ -21,12 +21,6 @@
 #include <kernel_internal.h>
 #include <zephyr/sys/check.h>
 
-struct waitq_walk_data {
-	sys_dlist_t *list;
-	size_t       bytes_requested;
-	size_t       bytes_available;
-};
-
 static int pipe_get_internal(k_spinlock_key_t key, struct k_pipe *pipe,
 			     void *data, size_t bytes_to_read,
 			     size_t *bytes_read, size_t min_xfer,
@@ -207,27 +201,6 @@ static size_t pipe_xfer(unsigned char *dest, size_t dest_size,
 }
 
 /**
- * @brief Callback routine used to populate wait list
- *
- * @return 1 to stop further walking; 0 to continue walking
- */
-static int pipe_walk_op(struct k_thread *thread, void *data)
-{
-	struct waitq_walk_data *walk_data = data;
-	struct _pipe_desc *desc = (struct _pipe_desc *)thread->base.swap_data;
-
-	sys_dlist_append(walk_data->list, &desc->node);
-
-	walk_data->bytes_available += desc->bytes_to_xfer;
-
-	if (walk_data->bytes_available >= walk_data->bytes_requested) {
-		return 1;
-	}
-
-	return 0;
-}
-
-/**
  * @brief Popluate pipe descriptors for copying to/from waiters' buffers
  *
  * This routine cycles through the waiters on the wait queue and creates
@@ -240,15 +213,22 @@ static size_t pipe_waiter_list_populate(sys_dlist_t  *list,
 					_wait_q_t    *wait_q,
 					size_t        bytes_to_xfer)
 {
-	struct waitq_walk_data walk_data;
+	struct k_thread  *thread;
+	struct _pipe_desc *curr;
+	size_t num_bytes = 0U;
 
-	walk_data.list            = list;
-	walk_data.bytes_requested = bytes_to_xfer;
-	walk_data.bytes_available = 0;
+	_WAIT_Q_FOR_EACH(wait_q, thread) {
+		curr = (struct _pipe_desc *)thread->base.swap_data;
 
-	(void) z_sched_waitq_walk(wait_q, pipe_walk_op, &walk_data);
+		sys_dlist_append(list, &curr->node);
 
-	return walk_data.bytes_available;
+		num_bytes += curr->bytes_to_xfer;
+		if (num_bytes >= bytes_to_xfer) {
+			break;
+		}
+	}
+
+	return num_bytes;
 }
 
 /**
@@ -349,10 +329,9 @@ static size_t pipe_write(struct k_pipe *pipe, sys_dlist_t *src_list,
 			}
 		} else if (dest->bytes_to_xfer == 0U) {
 
-			/* The thread's read request has been satisfied. */
+			/* A thread's read request has been satisfied. */
 
-			z_unpend_thread(dest->thread);
-			z_ready_thread(dest->thread);
+			(void) z_sched_wake(&pipe->wait_q.readers, 0, NULL);
 
 			*reschedule = true;
 		}
@@ -374,7 +353,6 @@ int z_impl_k_pipe_put(struct k_pipe *pipe, void *data, size_t bytes_to_write,
 		      k_timeout_t timeout)
 {
 	struct _pipe_desc  pipe_desc[2];
-	struct _pipe_desc  isr_desc;
 	struct _pipe_desc *src_desc;
 	sys_dlist_t        dest_list;
 	sys_dlist_t        src_list;
@@ -430,12 +408,7 @@ int z_impl_k_pipe_put(struct k_pipe *pipe, void *data, size_t bytes_to_write,
 		return -EIO;
 	}
 
-	/*
-	 * Do not use the pipe descriptor stored within k_thread if
-	 * invoked from within an ISR as that is not safe to do.
-	 */
-
-	src_desc = k_is_in_isr() ? &isr_desc : &_current->pipe_desc;
+	src_desc = &_current->pipe_desc;
 
 	src_desc->buffer        = data;
 	src_desc->bytes_to_xfer = bytes_to_write;
@@ -484,16 +457,6 @@ int z_impl_k_pipe_put(struct k_pipe *pipe, void *data, size_t bytes_to_write,
 
 	z_sched_wait(&pipe->lock, key, &pipe->wait_q.writers, timeout, NULL);
 
-	/*
-	 * On SMP systems, threads in the processing list may timeout before
-	 * the data has finished copying. The following spin lock/unlock pair
-	 * prevents those threads from executing further until the data copying
-	 * is complete.
-	 */
-
-	key = k_spin_lock(&pipe->lock);
-	k_spin_unlock(&pipe->lock, key);
-
 	*bytes_written = bytes_to_write - src_desc->bytes_to_xfer;
 
 	int ret = pipe_return_code(min_xfer, src_desc->bytes_to_xfer,
@@ -527,7 +490,6 @@ static int pipe_get_internal(k_spinlock_key_t key, struct k_pipe *pipe,
 {
 	sys_dlist_t         src_list;
 	struct _pipe_desc   pipe_desc[2];
-	struct _pipe_desc   isr_desc;
 	struct _pipe_desc  *dest_desc;
 	struct _pipe_desc  *src_desc;
 	size_t         num_bytes_read = 0U;
@@ -568,12 +530,7 @@ static int pipe_get_internal(k_spinlock_key_t key, struct k_pipe *pipe,
 		return -EIO;
 	}
 
-	/*
-	 * Do not use the pipe descriptor stored within k_thread if
-	 * invoked from within an ISR as that is not safe to do.
-	 */
-
-	dest_desc = k_is_in_isr() ? &isr_desc : &_current->pipe_desc;
+	dest_desc = &_current->pipe_desc;
 
 	dest_desc->buffer = data;
 	dest_desc->bytes_to_xfer = bytes_to_read;
@@ -609,8 +566,7 @@ static int pipe_get_internal(k_spinlock_key_t key, struct k_pipe *pipe,
 
 			/* The thread's write request has been satisfied. */
 
-			z_unpend_thread(src_desc->thread);
-			z_ready_thread(src_desc->thread);
+			(void) z_sched_wake(&pipe->wait_q.writers, 0, NULL);
 
 			reschedule_needed = true;
 		}
@@ -669,16 +625,6 @@ static int pipe_get_internal(k_spinlock_key_t key, struct k_pipe *pipe,
 	_current->base.swap_data = dest_desc;
 
 	z_sched_wait(&pipe->lock, key, &pipe->wait_q.readers, timeout, NULL);
-
-	/*
-	 * On SMP systems, threads in the processing list may timeout before
-	 * the data has finished copying. The following spin lock/unlock pair
-	 * prevents those threads from executing further until the data copying
-	 * is complete.
-	 */
-
-	key = k_spin_lock(&pipe->lock);
-	k_spin_unlock(&pipe->lock, key);
 
 	*bytes_read = bytes_to_read - dest_desc->bytes_to_xfer;
 

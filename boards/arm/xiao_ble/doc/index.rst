@@ -1,14 +1,14 @@
 .. _xiao_ble:
 
-XIAO BLE (Sense)
-################
+XIAO BLE
+########
 
 Overview
 ********
 
-The Seeed XIAO BLE (Sense) is a tiny (21 mm x 17.5 mm) Nordic Semiconductor
-nRF52840 ARM Cortex-M4F development board with onboard LEDs, USB port, QSPI
-flash, battery charger, and range of I/O broken out into 14 pins.
+The Seeed XIAO BLE is a tiny (21 mm x 17.5 mm) Nordic Semiconductor nRF52840 ARM
+Cortex-M4F development board with onboard LEDs, USB port, QSPI flash, battery
+charger, and range of I/O broken out into 14 pins.
 
 .. figure:: img/xiao_ble.jpg
      :align: center
@@ -24,8 +24,6 @@ Hardware
 - Battery charger BQ25101
 - Reset button
 - Bluetooth antenna
-- LSM6DS3TR-C 6D IMU (3D accelerometer and 3D gyroscope) (XIAO BLE Sense only)
-- PDM microphone (XIAO BLE Sense only)
 
 Supported Features
 ==================
@@ -132,23 +130,11 @@ Then build and flash the application in the usual way. Just add
 ``CONFIG_BOOT_DELAY=5000`` to the configuration, so that USB CDC ACM is
 initialized before any text is printed, as below:
 
-.. tabs::
-
-   .. group-tab:: XIAO BLE
-
-      .. zephyr-app-commands::
-         :zephyr-app: samples/hello_world
-         :board: xiao_ble
-         :goals: build flash
-         :gen-args: -DCONFIG_BOOT_DELAY=5000
-
-   .. group-tab:: XIAO BLE Sense
-
-      .. zephyr-app-commands::
-         :zephyr-app: samples/hello_world
-         :board: xiao_ble_sense
-         :goals: build flash
-         :gen-args: -DCONFIG_BOOT_DELAY=5000
+.. zephyr-app-commands::
+   :zephyr-app: samples/hello_world
+   :board: xiao_ble
+   :goals: build flash
+   :gen-args: -DCONFIG_BOOT_DELAY=5000
 
 Debugging
 ---------
@@ -156,53 +142,31 @@ Debugging
 Refer to the :ref:`jlink-external-debug-probe` page to learn about debugging
 boards with a Segger IC.
 
-Testing the LEDs in the XIAO BLE (Sense)
-****************************************
+Testing the LEDs in the XIAO BLE
+********************************
 
 There is a sample that allows to test that LEDs on the board are working
 properly with Zephyr:
 
-.. tabs::
-
-   .. group-tab:: XIAO BLE
-
-      .. zephyr-app-commands::
-         :zephyr-app: samples/basic/blinky
-         :board: xiao_ble
-         :goals: build flash
-
-   .. group-tab:: XIAO BLE Sense
-
-      .. zephyr-app-commands::
-         :zephyr-app: samples/basic/blinky
-         :board: xiao_ble_sense
-         :goals: build flash
+.. zephyr-app-commands::
+   :zephyr-app: samples/basic/blinky
+   :board: xiao_ble
+   :goals: build flash
 
 You can build and flash the examples to make sure Zephyr is running correctly on
 your board. The LED definitions can be found in
-:zephyr_file:`boards/arm/xiao_ble/xiao_ble_common.dtsi`.
+:zephyr_file:`boards/arm/xiao_ble/xiao_ble.dts`.
 
-Testing shell over USB in the XIAO BLE (Sense)
-**********************************************
+Testing shell over USB in the XIAO BLE
+**************************************
 
 There is a sample that allows to test shell interface over USB CDC ACM interface
 with Zephyr:
 
-.. tabs::
-
-   .. group-tab:: XIAO BLE
-
-      .. zephyr-app-commands::
-         :zephyr-app: samples/subsys/shell/shell_module
-         :board: xiao_ble
-         :goals: build flash
-
-   .. group-tab:: XIAO BLE Sense
-
-      .. zephyr-app-commands::
-         :zephyr-app: samples/subsys/shell/shell_module
-         :board: xiao_ble_sense
-         :goals: build flash
+.. zephyr-app-commands::
+   :zephyr-app: samples/subsys/shell/shell_module
+   :board: xiao_ble
+   :goals: build flash
 
 References
 **********

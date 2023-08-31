@@ -17,7 +17,7 @@
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/spi.h>
 
-#include <zephyr/drivers/gpio/gpio_utils.h>
+#include "gpio_utils.h"
 #include "gpio_mcp23xxx.h"
 
 #define LOG_LEVEL CONFIG_GPIO_LOG_LEVEL
@@ -34,7 +34,6 @@ static int mcp23sxx_read_port_regs(const struct device *dev, uint8_t reg, uint16
 
 	uint8_t addr = MCP23SXX_ADDR | MCP23SXX_READBIT;
 	uint8_t buffer_tx[4] = { addr, reg, 0, 0 };
-	uint8_t buffer_rx[4] = { 0 };
 
 	const struct spi_buf tx_buf = {
 		.buf = buffer_tx,
@@ -44,13 +43,11 @@ static int mcp23sxx_read_port_regs(const struct device *dev, uint8_t reg, uint16
 		.buffers = &tx_buf,
 		.count = 1,
 	};
-	const struct spi_buf rx_buf = {
-		.buf = buffer_rx,
-		.len = 2 + nread,
-	};
+	const struct spi_buf rx_buf[2] = { { .buf = NULL, .len = 2 },
+					   { .buf = (uint8_t *)&port_data, .len = nread } };
 	const struct spi_buf_set rx = {
-		.buffers = &rx_buf,
-		.count = 1,
+		.buffers = rx_buf,
+		.count = ARRAY_SIZE(rx_buf),
 	};
 
 	ret = spi_transceive_dt(&config->bus.spi, &tx, &rx);
@@ -58,8 +55,6 @@ static int mcp23sxx_read_port_regs(const struct device *dev, uint8_t reg, uint16
 		LOG_ERR("spi_transceive FAIL %d\n", ret);
 		return ret;
 	}
-
-	port_data = ((uint16_t)buffer_rx[3] << 8 | buffer_rx[2]);
 
 	*buf = sys_le16_to_cpu(port_data);
 
@@ -73,18 +68,20 @@ static int mcp23sxx_write_port_regs(const struct device *dev, uint8_t reg, uint1
 
 	uint8_t nwrite = (config->ngpios == 8) ? 1 : 2;
 	uint16_t port_data = sys_cpu_to_le16(value);
-	uint8_t port_a_data = port_data & 0xFF;
-	uint8_t port_b_data = (port_data >> 8) & 0xFF;
 
 	port_data = sys_cpu_to_le16(value);
 
 	uint8_t addr = MCP23SXX_ADDR;
-	uint8_t buffer_tx[4] = { addr, reg, port_a_data, port_b_data };
+	uint8_t buffer_tx[2] = { addr, reg };
 
-	const struct spi_buf tx_buf[1] = {
+	const struct spi_buf tx_buf[2] = {
 		{
 			.buf = buffer_tx,
-			.len = nwrite + 2,
+			.len = 2,
+		},
+		{
+			.buf = (uint8_t *)&port_data,
+			.len = nwrite,
 		}
 	};
 	const struct spi_buf_set tx = {
@@ -105,7 +102,7 @@ static int mcp23sxx_bus_is_ready(const struct device *dev)
 {
 	const struct mcp23xxx_config *config = dev->config;
 
-	if (!spi_is_ready_dt(&config->bus.spi)) {
+	if (!spi_is_ready(&config->bus.spi)) {
 		LOG_ERR("SPI bus %s not ready", config->bus.spi.bus->name);
 		return -ENODEV;
 	}
@@ -115,7 +112,7 @@ static int mcp23sxx_bus_is_ready(const struct device *dev)
 
 #define DT_DRV_COMPAT microchip_mcp23sxx
 
-#define GPIO_MCP23SXX_DEVICE(inst)                                                               \
+#define GPIO_MCP23SXX_DEVICE(n)                                                               \
 	static struct mcp23xxx_drv_data mcp23sxx_##inst##_drvdata = {                         \
 		/* Default for registers according to datasheet */                            \
 		.reg_cache.iodir = 0xFFFF, .reg_cache.ipol = 0x0,   .reg_cache.gpinten = 0x0, \
@@ -125,19 +122,19 @@ static int mcp23sxx_bus_is_ready(const struct device *dev)
 	};                                                                                    \
 	static struct mcp23xxx_config mcp23sxx_##inst##_config = {                            \
 		.config = {					                              \
-			.port_pin_mask = GPIO_PORT_PIN_MASK_FROM_DT_INST(inst),                  \
+			.port_pin_mask = GPIO_PORT_PIN_MASK_FROM_DT_INST(n),                  \
 		},						                              \
 		.bus = {                                                                      \
-			.spi = SPI_DT_SPEC_INST_GET(inst,                                        \
+			.spi = SPI_DT_SPEC_INST_GET(n,                                        \
 				SPI_OP_MODE_MASTER | SPI_MODE_CPOL |                          \
 				SPI_MODE_CPHA | SPI_WORD_SET(8), 0)                           \
 		},                                                                            \
-		.ngpios =  DT_INST_PROP(inst, ngpios),		                              \
+		.ngpios =  DT_INST_PROP(n, ngpios),		                              \
 		.read_fn = mcp23sxx_read_port_regs,                                           \
 		.write_fn = mcp23sxx_write_port_regs,                                         \
 		.bus_fn = mcp23sxx_bus_is_ready                                               \
 	};                                                                                    \
-	DEVICE_DT_INST_DEFINE(inst, gpio_mcp23xxx_init, NULL, &mcp23sxx_##inst##_drvdata,        \
+	DEVICE_DT_INST_DEFINE(n, gpio_mcp23xxx_init, NULL, &mcp23sxx_##inst##_drvdata,        \
 			      &mcp23sxx_##inst##_config, POST_KERNEL,                         \
 			      CONFIG_GPIO_MCP23SXX_INIT_PRIORITY, &gpio_mcp23xxx_api_table);
 

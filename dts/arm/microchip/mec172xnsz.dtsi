@@ -6,10 +6,9 @@
 
 #include <arm/armv7-m.dtsi>
 
-#include <zephyr/dt-bindings/clock/mchp_xec_pcr.h>
-#include <zephyr/dt-bindings/gpio/gpio.h>
-#include <zephyr/dt-bindings/gpio/microchip-xec-gpio.h>
 #include <zephyr/dt-bindings/i2c/i2c.h>
+#include <zephyr/dt-bindings/gpio/gpio.h>
+#include <zephyr/dt-bindings/clock/mchp_xec_pcr.h>
 #include <zephyr/dt-bindings/interrupt-controller/mchp-xec-ecia.h>
 #include <freq.h>
 #include <mem.h>
@@ -47,18 +46,8 @@
 			reg-names = "pcrr", "vbatr";
 			interrupts = <174 0>;
 			core-clock-div = <1>;
-			/* MEC172x allows sources to be different */
-			pll-32k-src = <MCHP_XEC_PLL_CLK32K_SRC_SIL_OSC>;
-			periph-32k-src = <MCHP_XEC_PERIPH_CLK32K_SRC_SO_SO>;
-			clk32kmon-period-min = <1435>;
-			clk32kmon-period-max = <1495>;
-			clk32kmon-duty-cycle-var-max = <132>;
-			clk32kmon-valid-min = <4>;
-			xtal-enable-delay-ms = <300>;
-			pll-lock-timeout-ms = <30>;
-			/* pin configured only if one of the sources is set to PIN */
-			pinctrl-0 = <&clk_32khz_in_gpio165>;
-			pinctrl-names = "default";
+			pll-32k-src = <MCHP_XEC_CLK32K_SRC_SIL_OSC>;
+			periph-32k-src = <MCHP_XEC_CLK32K_SRC_SIL_OSC>;
 			#clock-cells = <2>;
 		};
 		ecia: ecia@4000e000 {
@@ -468,32 +457,17 @@
 			status = "disabled";
 		};
 		dmac: dmac@40002400 {
-			compatible = "microchip,xec-dmac";
 			reg = <0x40002400 0xc00>;
 			interrupts = <24 0>, <25 0>, <26 0>, <27 0>,
 				     <28 0>, <29 0>, <30 0>, <31 0>,
 				     <32 0>, <33 0>, <34 0>, <35 0>,
 				     <36 0>, <37 0>, <38 0>, <39 0>;
-			girqs = < MCHP_XEC_ECIA(14, 0, 6, 24)
-				  MCHP_XEC_ECIA(14, 1, 6, 25)
-				  MCHP_XEC_ECIA(14, 2, 6, 26)
-				  MCHP_XEC_ECIA(14, 3, 6, 27)
-				  MCHP_XEC_ECIA(14, 4, 6, 28)
-				  MCHP_XEC_ECIA(14, 5, 6, 29)
-				  MCHP_XEC_ECIA(14, 6, 6, 30)
-				  MCHP_XEC_ECIA(14, 7, 6, 31)
-				  MCHP_XEC_ECIA(14, 8, 6, 32)
-				  MCHP_XEC_ECIA(14, 9, 6, 33)
-				  MCHP_XEC_ECIA(14, 10, 6, 34)
-				  MCHP_XEC_ECIA(14, 11, 6, 35)
-				  MCHP_XEC_ECIA(14, 12, 6, 36)
-				  MCHP_XEC_ECIA(14, 13, 6, 37)
-				  MCHP_XEC_ECIA(14, 14, 6, 38)
-				  MCHP_XEC_ECIA(14, 15, 6, 39) >;
+			girqs = <14 0>, <14 1>, <14 2>, <14 3>,
+				<14 4>, <14 5>, <14 6>, <14 7>,
+				<14 8>, <14 9>, <14 10>, <14 11>,
+				<14 12>, <14 13>, <14 14>, <14 15>;
 			pcrs = <1 6>;
 			#dma-cells = <2>;
-			dma-channels = <16>;
-			dma-requests = <16>;
 			status = "disabled";
 		};
 		eeprom: eeprom@40002c00 {
@@ -575,63 +549,63 @@
 			reg = <0x40005800 0x20>;
 			pcrs = <1 4>;
 			status = "disabled";
-			#pwm-cells = <3>;
+			#pwm-cells = <2>;
 		};
 		pwm1: pwm@40005810 {
 			compatible = "microchip,xec-pwm";
 			reg = <0x40005810 0x20>;
 			pcrs = <1 20>;
 			status = "disabled";
-			#pwm-cells = <3>;
+			#pwm-cells = <2>;
 		};
 		pwm2: pwm@40005820 {
 			compatible = "microchip,xec-pwm";
 			reg = <0x40005820 0x20>;
 			pcrs = <1 21>;
 			status = "disabled";
-			#pwm-cells = <3>;
+			#pwm-cells = <2>;
 		};
 		pwm3: pwm@40005830 {
 			compatible = "microchip,xec-pwm";
 			reg = <0x40005830 0x20>;
 			pcrs = <1 22>;
 			status = "disabled";
-			#pwm-cells = <3>;
+			#pwm-cells = <2>;
 		};
 		pwm4: pwm@40005840 {
 			compatible = "microchip,xec-pwm";
 			reg = <0x40005840 0x20>;
 			pcrs = <1 23>;
 			status = "disabled";
-			#pwm-cells = <3>;
+			#pwm-cells = <2>;
 		};
 		pwm5: pwm@40005850 {
 			compatible = "microchip,xec-pwm";
 			reg = <0x40005850 0x20>;
 			pcrs = <1 24>;
 			status = "disabled";
-			#pwm-cells = <3>;
+			#pwm-cells = <2>;
 		};
 		pwm6: pwm@40005860 {
 			compatible = "microchip,xec-pwm";
 			reg = <0x40005860 0x20>;
 			pcrs = <1 25>;
 			status = "disabled";
-			#pwm-cells = <3>;
+			#pwm-cells = <2>;
 		};
 		pwm7: pwm@40005870 {
 			compatible = "microchip,xec-pwm";
 			reg = <0x40005870 0x20>;
 			pcrs = <1 26>;
 			status = "disabled";
-			#pwm-cells = <3>;
+			#pwm-cells = <2>;
 		};
 		pwm8: pwm@40005880 {
 			compatible = "microchip,xec-pwm";
 			reg = <0x40005880 0x20>;
 			pcrs = <1 27>;
 			status = "disabled";
-			#pwm-cells = <3>;
+			#pwm-cells = <2>;
 		};
 		tach0: tach@40006000 {
 			compatible = "microchip,xec-tach";
@@ -716,14 +690,14 @@
 			#size-cells = <0>;
 		};
 		spi0: spi@40070000 {
+			compatible = "microchip,xec-qmspi-ldma";
 			reg = <0x40070000 0x400>;
 			interrupts = <91 2>;
 			girqs = < MCHP_XEC_ECIA(18, 1, 10, 91) >;
 			pcrs = <4 8>;
-			clocks = <&pcr 1 0>;
 			clock-frequency = <12000000>;
 			lines = <1>;
-			chip-select = <0>;
+			chip_select = <0>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
@@ -824,17 +798,12 @@
 		};
 		espi0: espi@400f3400 {
 			compatible = "microchip,xec-espi-v2";
-			/* reg tuple contains one 32-bit address cell and one
-			 * 32-bit length(size) cell.
-			 */
-			#address-cells = <1>;
-			#size-cells = <1>;
 			reg = < 0x400f3400 0x400
 				0x400f3800 0x400
 				0x400f9c00 0x400>;
 			reg-names = "io", "mem", "vw";
 			interrupts = <103 3>, <104 3>, <105 3>, <106 3>,
-				     <107 3>, <108 3>, <109 3>, <110 2>,
+				     <107 3>, <108 3>, <109 3>, <110 3>,
 				     <156 3>;
 			interrupt-names = "pc", "bm1", "bm2", "ltr", "oob_up",
 					  "oob_dn", "fc", "rst", "vw_chan_en";
@@ -848,25 +817,14 @@
 				  MCHP_XEC_ECIA(19, 7, 11, 110)
 				  MCHP_XEC_ECIA(19, 8, 11, 156) >;
 			pcrs = <2 19>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			status = "disabled";
-
-			espi_saf0: espi_saf@40008000 {
-				compatible = "microchip,xec-espi-saf-v2";
-				reg = <0x40008000 0x400>, <0x40070000 0x400>,
-				      <0x40071000 0x400>;
-				reg-names = "safbr", "safqspi", "safcomm";
-				interrupts = <166 3>, <167 3>;
-				interrupt-names = "done", "err";
-				girqs = < MCHP_XEC_ECIA(19, 9, 11, 166) >,
-					< MCHP_XEC_ECIA(19, 10, 11, 167) >;
-				pcrs = <2 27>;
-				status = "disabled";
-			};
 
 			mbox0: mbox@400f0000 {
 				compatible = "microchip,xec-espi-host-dev";
 				reg = <0x400f0000 0x200>;
-				interrupts = <60 3>;
+				interrupts = <60 0>;
 				girqs = < MCHP_XEC_ECIA(15, 20, 7, 60) >;
 				pcrs = <2 17>;
 				ldn = <0>;
@@ -952,7 +910,7 @@
 			uart0: uart@400f2400 {
 				compatible = "microchip,xec-uart";
 				reg = <0x400f2400 0x400>;
-				interrupts = <40 1>;
+				interrupts = <40 0>;
 				clock-frequency = <1843200>;
 				current-speed = <38400>;
 				girqs = <15 0>;
@@ -963,7 +921,7 @@
 			uart1: uart@400f2800 {
 				compatible = "microchip,xec-uart";
 				reg = <0x400f2800 0x400>;
-				interrupts = <41 1>;
+				interrupts = <41 0>;
 				clock-frequency = <1843200>;
 				current-speed = <38400>;
 				girqs = <15 1>;
@@ -974,7 +932,7 @@
 			emi0: emi@400f4000 {
 				compatible = "microchip,xec-espi-host-dev";
 				reg = <0x400f4000 0x400>;
-				interrupts = <42 3>;
+				interrupts = <42 0>;
 				girqs = < MCHP_XEC_ECIA(15, 2, 7, 42) >;
 				ldn = <16>;
 				status = "disabled";
@@ -982,7 +940,7 @@
 			emi1: emi@400f4400 {
 				compatible = "microchip,xec-espi-host-dev";
 				reg = <0x400f4400 0x400>;
-				interrupts = <43 3>;
+				interrupts = <43 0>;
 				girqs = < MCHP_XEC_ECIA(15, 3, 7, 43) >;
 				ldn = <17>;
 				status = "disabled";
@@ -990,7 +948,7 @@
 			emi2: emi@400f4800 {
 				compatible = "microchip,xec-espi-host-dev";
 				reg = <0x400f4800 0x400>;
-				interrupts = <44 3>;
+				interrupts = <44 0>;
 				girqs = < MCHP_XEC_ECIA(15, 4, 7, 44) >;
 				ldn = <18>;
 				status = "disabled";
@@ -998,7 +956,7 @@
 			rtc0: rtc@400f5000 {
 				compatible = "microchip,xec-espi-host-dev";
 				reg = <0x400f5000 0x100>;
-				interrupts = <119 3>, <120 3>;
+				interrupts = <119 0>, <120 0>;
 				girqs = < MCHP_XEC_ECIA(21, 8, 13, 119)
 					  MCHP_XEC_ECIA(21, 9, 13, 120) >;
 				pcrs = <2 18>;

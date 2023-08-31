@@ -74,7 +74,6 @@
 		led1 = &led3;
 		sw0 = &user_key1;
 		pwm-led0 = &pwm_led;
-		watchdog0 = &fwdgt;
 	};
 };
 
@@ -112,8 +111,4 @@
 		pinctrl-0 = <&pwm0_default>;
 		pinctrl-names = "default";
 	};
-};
-
-&fwdgt {
-	status = "okay";
 };

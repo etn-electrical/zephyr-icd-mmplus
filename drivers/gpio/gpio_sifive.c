@@ -16,9 +16,8 @@
 #include <soc.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/sys/util.h>
-#include <zephyr/irq.h>
 
-#include <zephyr/drivers/gpio/gpio_utils.h>
+#include "gpio_utils.h"
 
 typedef void (*sifive_cfg_func_t)(void);
 
@@ -360,8 +359,6 @@ static int gpio_sifive_init(const struct device *dev)
 	gpio->fall_ie = 0U;
 	gpio->high_ie = 0U;
 	gpio->low_ie  = 0U;
-	gpio->iof_en  = 0U;
-	gpio->iof_sel = 0U;
 	gpio->invert  = 0U;
 
 	/* Setup IRQ handler for each gpio pin */

@@ -11,7 +11,6 @@
 #include <zephyr/sys/util.h>
 #include <zephyr/drivers/timer/system_timer.h>
 #include <soc.h>
-#include <zephyr/irq.h>
 
 /*
  * This is just a getting started point.

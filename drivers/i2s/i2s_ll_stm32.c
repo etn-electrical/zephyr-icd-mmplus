@@ -19,7 +19,6 @@
 
 #include "i2s_ll_stm32.h"
 #include <zephyr/logging/log.h>
-#include <zephyr/irq.h>
 LOG_MODULE_REGISTER(i2s_ll_stm32);
 
 /* FIXME change to
@@ -130,7 +129,7 @@ static int i2s_stm32_set_clock(const struct device *dev,
 {
 	const struct i2s_stm32_cfg *cfg = dev->config;
 	uint32_t pll_src = LL_RCC_PLL_GetMainSource();
-	float freq_in;
+	int freq_in;
 	uint8_t i2s_div, i2s_odd;
 
 	freq_in = (pll_src == LL_RCC_PLLSOURCE_HSI) ?
@@ -157,9 +156,12 @@ static int i2s_stm32_set_clock(const struct device *dev,
 	LOG_DBG("PLLI2S is locked");
 
 	/* Adjust freq_in according to PLLM, PLLN, PLLR */
-	freq_in /= CONFIG_I2S_STM32_PLLI2S_PLLM;
-	freq_in *= CONFIG_I2S_STM32_PLLI2S_PLLN;
-	freq_in /= CONFIG_I2S_STM32_PLLI2S_PLLR;
+	float freq_tmp;
+
+	freq_tmp = freq_in / CONFIG_I2S_STM32_PLLI2S_PLLM;
+	freq_tmp *= CONFIG_I2S_STM32_PLLI2S_PLLN;
+	freq_tmp /= CONFIG_I2S_STM32_PLLI2S_PLLR;
+	freq_in = (int) freq_tmp;
 #endif /* CONFIG_I2S_STM32_USE_PLLI2S_ENABLE */
 
 	/* Select clock source */
@@ -171,7 +173,7 @@ static int i2s_stm32_set_clock(const struct device *dev,
 	 * following formula:
 	 *   (i2s_div * 2) + i2s_odd
 	 */
-	i2s_div = div_round_closest((uint32_t) freq_in, bit_clk_freq);
+	i2s_div = div_round_closest(freq_in, bit_clk_freq);
 	i2s_odd = (i2s_div & 0x1) ? 1 : 0;
 	i2s_div >>= 1;
 

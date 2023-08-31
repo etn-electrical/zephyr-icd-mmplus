@@ -14,9 +14,10 @@
 #include <zephyr/drivers/clock_control/renesas_cpg_mssr.h>
 #include <zephyr/drivers/pinctrl.h>
 #include <zephyr/logging/log.h>
-#include <zephyr/irq.h>
 
 LOG_MODULE_REGISTER(can_rcar, CONFIG_CAN_LOG_LEVEL);
+
+#include "can_utils.h"
 
 /* Control Register */
 #define RCAR_CAN_CTLR             0x0840
@@ -344,7 +345,6 @@ static void can_rcar_error(const struct device *dev)
 	}
 	if (eifr & RCAR_CAN_EIFR_ORIF) {
 		LOG_DBG("Receive overrun error interrupt\n");
-		CAN_STATS_RX_OVERRUN_INC(dev);
 		sys_write8((uint8_t)~RCAR_CAN_EIFR_ORIF,
 			   config->reg_addr + RCAR_CAN_EIFR);
 	}
@@ -372,7 +372,8 @@ static void can_rcar_rx_filter_isr(const struct device *dev,
 			continue;
 		}
 
-		if (!can_frame_matches_filter(frame, &data->filter[i])) {
+		if (!can_utils_filter_match(frame,
+					    &data->filter[i])) {
 			continue; /* filter did not match */
 		}
 		/* Make a temporary copy in case the user
@@ -387,20 +388,23 @@ static void can_rcar_rx_isr(const struct device *dev)
 {
 	const struct can_rcar_cfg *config = dev->config;
 	struct can_rcar_data *data = dev->data;
-	struct can_frame frame = {0};
+	struct can_frame frame;
 	uint32_t val;
 	int i;
 
 	val = sys_read32(config->reg_addr + RCAR_CAN_MB_60);
 	if (val & RCAR_CAN_MB_IDE) {
-		frame.flags |= CAN_FRAME_IDE;
+		frame.id_type = CAN_EXTENDED_IDENTIFIER;
 		frame.id = val & RCAR_CAN_MB_EID_MASK;
 	} else {
+		frame.id_type = CAN_STANDARD_IDENTIFIER;
 		frame.id = (val & RCAR_CAN_MB_SID_MASK) >> RCAR_CAN_MB_SID_SHIFT;
 	}
 
 	if (val & RCAR_CAN_MB_RTR) {
-		frame.flags |= CAN_FRAME_RTR;
+		frame.rtr = CAN_REMOTEREQUEST;
+	} else {
+		frame.rtr = CAN_DATAFRAME;
 	}
 
 	frame.dlc = sys_read16(config->reg_addr +
@@ -851,9 +855,9 @@ static int can_rcar_send(const struct device *dev, const struct can_frame *frame
 		"Remote Frame: %s"
 		, frame->dlc, dev->name
 		, frame->id
-		, (frame->flags & CAN_FRAME_IDE) != 0 ?
-		"extended" : "standard"
-		, (frame->flags & CAN_FRAME_RTR) != 0 ? "yes" : "no");
+		, frame->id_type == CAN_STANDARD_IDENTIFIER ?
+		"standard" : "extended"
+		, frame->rtr == CAN_DATAFRAME ? "no" : "yes");
 
 	__ASSERT_NO_MSG(callback != NULL);
 	__ASSERT(frame->dlc == 0U || frame->data != NULL, "Dataptr is null");
@@ -862,11 +866,6 @@ static int can_rcar_send(const struct device *dev, const struct can_frame *frame
 		LOG_ERR("DLC of %d exceeds maximum (%d)",
 			frame->dlc, CAN_MAX_DLC);
 		return -EINVAL;
-	}
-
-	if ((frame->flags & ~(CAN_FRAME_IDE | CAN_FRAME_RTR)) != 0) {
-		LOG_ERR("unsupported CAN frame flags 0x%02x", frame->flags);
-		return -ENOTSUP;
 	}
 
 	if (!data->started) {
@@ -888,13 +887,13 @@ static int can_rcar_send(const struct device *dev, const struct can_frame *frame
 		data->tx_head = 0;
 	}
 
-	if ((frame->flags & CAN_FRAME_IDE) != 0) {
-		identifier = frame->id | RCAR_CAN_MB_IDE;
-	} else {
+	if (frame->id_type == CAN_STANDARD_IDENTIFIER) {
 		identifier = frame->id << RCAR_CAN_MB_SID_SHIFT;
+	} else {
+		identifier = frame->id | RCAR_CAN_MB_IDE;
 	}
 
-	if ((frame->flags & CAN_FRAME_RTR) != 0) {
+	if (frame->rtr == CAN_REMOTEREQUEST) {
 		identifier |= RCAR_CAN_MB_RTR;
 	}
 
@@ -947,8 +946,7 @@ static int can_rcar_add_rx_filter(const struct device *dev, can_rx_callback_t cb
 	struct can_rcar_data *data = dev->data;
 	int filter_id;
 
-	if ((filter->flags & ~(CAN_FILTER_IDE | CAN_FILTER_DATA)) != 0) {
-		LOG_ERR("unsupported CAN filter flags 0x%02x", filter->flags);
+	if (filter->rtr == CAN_REMOTEREQUEST) {
 		return -ENOTSUP;
 	}
 
@@ -1122,9 +1120,9 @@ static int can_rcar_get_core_clock(const struct device *dev, uint32_t *rate)
 	return 0;
 }
 
-static int can_rcar_get_max_filters(const struct device *dev, bool ide)
+static int can_rcar_get_max_filters(const struct device *dev, enum can_ide id_type)
 {
-	ARG_UNUSED(ide);
+	ARG_UNUSED(id_type);
 
 	return CONFIG_CAN_RCAR_MAX_FILTER;
 }

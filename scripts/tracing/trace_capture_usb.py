@@ -16,7 +16,7 @@ def parse_args():
     global args
     parser = argparse.ArgumentParser(
         description=__doc__,
-        formatter_class=argparse.RawDescriptionHelpFormatter, allow_abbrev=False)
+        formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("-v", "--vendor_id", required=True,
                         help="usb device vendor id")
     parser.add_argument("-p", "--product_id", required=True,

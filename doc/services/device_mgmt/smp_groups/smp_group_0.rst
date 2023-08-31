@@ -26,8 +26,6 @@ OS management group defines following commands:
     +-------------------+-----------------------------------------------+
     | ``6``             | MCUMGR parameters                             |
     +-------------------+-----------------------------------------------+
-    | ``7``             | OS/Application info                           |
-    +-------------------+-----------------------------------------------+
 
 Echo command
 ************
@@ -89,7 +87,7 @@ CBOR data of successful response:
         (str)"r"        : (str)
     }
 
-In case of error the CBOR data takes the form:
+In case of error the CBOR data takes form:
 
 .. code-block:: none
 
@@ -106,7 +104,6 @@ where:
     | "r"                   | Replying echo string                              |
     +-----------------------+---------------------------------------------------+
     | "rc"                  | :ref:`mcumgr_smp_protocol_status_codes`           |
-    |                       | only appears if non-zero (error condition).       |
     +-----------------------+---------------------------------------------------+
 
 Task statistics command
@@ -128,7 +125,7 @@ Task statistics request header fields:
     | ``0``  | ``0``        |  ``2``         |
     +--------+--------------+----------------+
 
-The command sends an empty CBOR map as data.
+The command sends empty CBOR map as data.
 
 
 Task statistics response
@@ -145,7 +142,7 @@ Task statistics response header fields:
     | ``1``  | ``0``        |  ``2``         |
     +--------+--------------+----------------+
 
-CBOR data of successful response:
+CBOR data of response:
 
 .. code-block:: none
 
@@ -164,15 +161,9 @@ CBOR data of successful response:
             }
             ...
         }
+        (str)"rc" : (int)
     }
 
-In case of error the CBOR data takes the form:
-
-.. code-block:: none
-
-    {
-        (str)"rc"       : (int)
-    }
 
 where:
 
@@ -201,7 +192,6 @@ where:
     | "next_checkin"        | set to 0 by Zephyr                                |
     +-----------------------+---------------------------------------------------+
     | "rc"                  | :ref:`mcumgr_smp_protocol_status_codes`           |
-    |                       | only appears if non-zero (error condition).       |
     +-----------------------+---------------------------------------------------+
 
 .. note::
@@ -228,7 +218,7 @@ Memory pool statistics request header fields:
     | ``0``  | ``0``        |  ``3``         |
     +--------+--------------+----------------+
 
-The command sends an empty CBOR map as data.
+The command sends empty CBOR map as data.
 
 Memory pool statistics response
 ===============================
@@ -244,7 +234,7 @@ Memory pool statistics response header fields:
     | ``1``  | ``0``        |  ``3``         |
     +--------+--------------+----------------+
 
-CBOR data of successful response:
+CBOR data of response:
 
 .. code-block:: none
 
@@ -256,14 +246,7 @@ CBOR data of successful response:
             (str)"min'      : (int)
         }
         ...
-    }
-
-In case of error the CBOR data takes the form:
-
-.. code-block:: none
-
-    {
-        (str)"rc"       : (int)
+        (str)"rc" : (int)
     }
 
 where:
@@ -285,7 +268,6 @@ where:
     |                       | during run-time                                   |
     +-----------------------+---------------------------------------------------+
     | "rc"                  | :ref:`mcumgr_smp_protocol_status_codes`           |
-    |                       | only appears if non-zero (error condition).       |
     +-----------------------+---------------------------------------------------+
 
 Date-time command
@@ -316,7 +298,7 @@ Date-time request header fields:
     | ``0``  | ``0``        |  ``4``         |
     +--------+--------------+----------------+
 
-The command sends an empty CBOR map as data.
+The command sends empty CBOR map as data.
 
 Data-time get response
 ----------------------
@@ -332,20 +314,13 @@ Date-time get response header fields:
     | ``1``  | ``0``        |  ``4``         |
     +--------+--------------+----------------+
 
-CBOR data of successful response:
+CBOR data of response:
 
 .. code-block:: none
 
     {
         (str)"datetime" : (str)
-    }
-
-In case of error the CBOR data takes the form:
-
-.. code-block:: none
-
-    {
-        (str)"rc"       : (int)
+        (opt,str)"rc"   : (int)
     }
 
 where:
@@ -358,7 +333,7 @@ where:
     |                       | yyyy-MM-dd'T'HH:mm:ss.SSSSSSZZZZZ                 |
     +-----------------------+---------------------------------------------------+
     | "rc"                  | :ref:`mcumgr_smp_protocol_status_codes`;          |
-    |                       | only appears if non-zero (error condition).       |
+    |                       | may not appear if 0                               |
     +-----------------------+---------------------------------------------------+
 
 
@@ -413,8 +388,7 @@ Date-time set response header fields:
     | ``1``  | ``0``        |  ``4``         |
     +--------+--------------+----------------+
 
-The command sends an empty CBOR map as data if successful. In case of error the
-CBOR data takes the form:
+CBOR data of response:
 
 .. code-block:: none
 
@@ -429,7 +403,6 @@ where:
 
     +-----------------------+---------------------------------------------------+
     | "rc"                  | :ref:`mcumgr_smp_protocol_status_codes`           |
-    |                       | only appears if non-zero (error condition).       |
     +-----------------------+---------------------------------------------------+
 
 System reset
@@ -437,12 +410,12 @@ System reset
 
 Performs reset of system. The device should issue response before resetting so
 that the SMP client could receive information that the command has been
-accepted. By default, this command is accepted in all conditions, however if
-the :kconfig:option:`CONFIG_MCUMGR_GRP_OS_RESET_HOOK` is enabled and an
-application registers a callback, the callback will be called when this command
-is issued and can be used to perform any necessary tidy operations prior to the
-module rebooting, or to reject the reset request outright altogether with an
-error response. For details on this functionality, see `ref:`mcumgr_callbacks`.
+accepted. By default, this command is accepted in all conditions, however if the
+:kconfig:option:`CONFIG_OS_MGMT_RESET_HOOK` is enabled and an application
+registers a callback, the callback will be called when this command is issued
+and can be used to perform any necessary tidy operations prior to the module
+rebooting, or to reject the reset request outright altogether with an error
+response.
 
 System reset request
 ====================
@@ -458,7 +431,7 @@ System reset request header fields:
     | ``2``  | ``0``        |  ``5``         |
     +--------+--------------+----------------+
 
-Normally the command sends an empty CBOR map as data, but if previous
+Normally the command sends empty CBOR map as data, but if previous
 reset attempt has been responded with "rc" code equal ``10`` (busy),
 then following map may be send to force the reset:
 
@@ -492,13 +465,12 @@ System reset response header fields
     | ``3``  | ``0``        |  ``5``         |
     +--------+--------------+----------------+
 
-The command sends an empty CBOR map as data if successful. In case of error the
-CBOR data takes the form:
+CBOR data of response:
 
 .. code-block:: none
 
     {
-        (str)"rc"       : (int)
+        (opt,str)"rc"       : (int)
     }
 
 where:
@@ -508,7 +480,7 @@ where:
 
     +-----------------------+---------------------------------------------------+
     | "rc"                  | :ref:`mcumgr_smp_protocol_status_codes`;          |
-    |                       | only appears if non-zero (error condition).       |
+    |                       | may not appear if 0                               |
     +-----------------------+---------------------------------------------------+
 
 MCUMGR Parameters
@@ -530,7 +502,7 @@ MCUMGR parameters request header fields:
     | ``0``  | ``0``        |  ``6``         |
     +--------+--------------+----------------+
 
-The command sends an empty CBOR map as data.
+The command sends empty CBOR map as data.
 
 MCUMGR Parameters Response
 ==========================
@@ -546,21 +518,14 @@ MCUMGR parameters response header fields
     | ``2``  | ``0``        |  ``6``         |
     +--------+--------------+----------------+
 
-CBOR data of successful response:
+CBOR data of response:
 
 .. code-block:: none
 
     {
         (str)"buf_size"     : (uint)
         (str)"buf_count"    : (uint)
-    }
-
-In case of error the CBOR data takes the form:
-
-.. code-block:: none
-
-    {
-        (str)"rc"       : (int)
+        (opt,str)"rc"       : (int)
     }
 
 where:
@@ -575,97 +540,5 @@ where:
     | "buf_count"           | Number of SMP buffers supported                   |
     +-----------------------+---------------------------------------------------+
     | "rc"                  | :ref:`mcumgr_smp_protocol_status_codes`;          |
-    |                       | only appears if non-zero (error condition).       |
+    |                       | may not appear if 0                               |
     +-----------------------+---------------------------------------------------+
-
-.. _mcumgr_os_application_info:
-
-OS/Application Info
-*******************
-
-Used to obtain information on running image, similar functionality to the linux
-uname command, allowing details such as kernel name, kernel version, build
-date/time, processor type and application-defined details to be returned. This
-functionality can be enabled with :kconfig:option:`CONFIG_MCUMGR_GRP_OS_INFO`.
-
-OS/Application Info Request
-===========================
-
-OS/Application info request header fields:
-
-.. table::
-    :align: center
-
-    +--------+--------------+----------------+
-    | ``OP`` | ``Group ID`` | ``Command ID`` |
-    +========+==============+================+
-    | ``0``  | ``0``        |  ``7``         |
-    +--------+--------------+----------------+
-
-CBOR data of request:
-
-.. code-block:: none
-
-    {
-        (str,opt)"format"      : (str)
-    }
-
-where:
-
-.. table::
-    :align: center
-
-    +----------+-------------------------------------------------------------------+
-    | "format" | Format specifier of returned response, fields are appended in     |
-    |          | their natural ascending index order, not the order of             |
-    |          | characters that are received by the command. Format               |
-    |          | specifiers: |br|                                                  |
-    |          | * ``s`` Kernel name |br|                                          |
-    |          | * ``n`` Node name |br|                                            |
-    |          | * ``r`` Kernel release |br|                                       |
-    |          | * ``v`` Kernel version |br|                                       |
-    |          | * ``b`` Build date and time (requires                             |
-    |          | :kconfig:option:`CONFIG_MCUMGR_GRP_OS_INFO_BUILD_DATE_TIME`) |br| |
-    |          | * ``m`` Machine |br|                                              |
-    |          | * ``p`` Processor |br|                                            |
-    |          | * ``i`` Hardware platform |br|                                    |
-    |          | * ``o`` Operating system |br|                                     |
-    |          | * ``a`` All fields (shorthand for all above options) |br|         |
-    |          | If this option is not provided, the ``s`` Kernel name option      |
-    |          | will be used.                                                     |
-    +----------+-------------------------------------------------------------------+
-
-OS/Application Info Response
-============================
-
-OS/Application info response header fields
-
-.. table::
-    :align: center
-
-    +--------+--------------+----------------+
-    | ``OP`` | ``Group ID`` | ``Command ID`` |
-    +========+==============+================+
-    | ``2``  | ``0``        |  ``7``         |
-    +--------+--------------+----------------+
-
-CBOR data of response:
-
-.. code-block:: none
-
-    {
-        (str)"output"       : (str)
-        (opt,str)"rc"       : (int)
-    }
-
-where:
-
-.. table::
-    :align: center
-
-    +--------------+------------------------------------------------------------+
-    | "output"     | Text response including requested parameters               |
-    +--------------+------------------------------------------------------------+
-    | "rc"         | :ref:`mcumgr_smp_protocol_status_codes`; will not appear   |
-    |              | if 0                                                       |
-    +--------------+------------------------------------------------------------+

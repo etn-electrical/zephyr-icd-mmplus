@@ -529,9 +529,8 @@
 				compatible = "nxp,imx-pwm";
 				index = <0>;
 				interrupts = <125 0>;
-				#pwm-cells = <3>;
+				#pwm-cells = <2>;
 				clocks = <&ccm IMX_CCM_PWM_CLK 0 0>;
-				nxp,prescaler = <128>;
 				status = "disabled";
 			};
 
@@ -539,9 +538,8 @@
 				compatible = "nxp,imx-pwm";
 				index = <1>;
 				interrupts = <126 0>;
-				#pwm-cells = <3>;
+				#pwm-cells = <2>;
 				clocks = <&ccm IMX_CCM_PWM_CLK 0 0>;
-				nxp,prescaler = <128>;
 				status = "disabled";
 			};
 
@@ -549,9 +547,8 @@
 				compatible = "nxp,imx-pwm";
 				index = <2>;
 				interrupts = <127 0>;
-				#pwm-cells = <3>;
+				#pwm-cells = <2>;
 				clocks = <&ccm IMX_CCM_PWM_CLK 0 0>;
-				nxp,prescaler = <128>;
 				status = "disabled";
 			};
 
@@ -559,9 +556,8 @@
 				compatible = "nxp,imx-pwm";
 				index = <3>;
 				interrupts = <128 0>;
-				#pwm-cells = <3>;
+				#pwm-cells = <2>;
 				clocks = <&ccm IMX_CCM_PWM_CLK 0 0>;
-				nxp,prescaler = <128>;
 				status = "disabled";
 			};
 		};
@@ -575,9 +571,8 @@
 				compatible = "nxp,imx-pwm";
 				index = <0>;
 				interrupts = <177 0>;
-				#pwm-cells = <3>;
+				#pwm-cells = <2>;
 				clocks = <&ccm IMX_CCM_PWM_CLK 0 0>;
-				nxp,prescaler = <128>;
 				status = "disabled";
 			};
 
@@ -585,9 +580,8 @@
 				compatible = "nxp,imx-pwm";
 				index = <1>;
 				interrupts = <178 0>;
-				#pwm-cells = <3>;
+				#pwm-cells = <2>;
 				clocks = <&ccm IMX_CCM_PWM_CLK 0 0>;
-				nxp,prescaler = <128>;
 				status = "disabled";
 			};
 
@@ -595,9 +589,8 @@
 				compatible = "nxp,imx-pwm";
 				index = <2>;
 				interrupts = <179 0>;
-				#pwm-cells = <3>;
+				#pwm-cells = <2>;
 				clocks = <&ccm IMX_CCM_PWM_CLK 0 0>;
-				nxp,prescaler = <128>;
 				status = "disabled";
 			};
 
@@ -605,9 +598,8 @@
 				compatible = "nxp,imx-pwm";
 				index = <3>;
 				interrupts = <180 0>;
-				#pwm-cells = <3>;
+				#pwm-cells = <2>;
 				clocks = <&ccm IMX_CCM_PWM_CLK 0 0>;
-				nxp,prescaler = <128>;
 				status = "disabled";
 			};
 		};
@@ -621,9 +613,8 @@
 				compatible = "nxp,imx-pwm";
 				index = <0>;
 				interrupts = <182 0>;
-				#pwm-cells = <3>;
+				#pwm-cells = <2>;
 				clocks = <&ccm IMX_CCM_PWM_CLK 0 0>;
-				nxp,prescaler = <128>;
 				status = "disabled";
 			};
 
@@ -631,9 +622,8 @@
 				compatible = "nxp,imx-pwm";
 				index = <1>;
 				interrupts = <183 0>;
-				#pwm-cells = <3>;
+				#pwm-cells = <2>;
 				clocks = <&ccm IMX_CCM_PWM_CLK 0 0>;
-				nxp,prescaler = <128>;
 				status = "disabled";
 			};
 
@@ -641,9 +631,8 @@
 				compatible = "nxp,imx-pwm";
 				index = <2>;
 				interrupts = <184 0>;
-				#pwm-cells = <3>;
+				#pwm-cells = <2>;
 				clocks = <&ccm IMX_CCM_PWM_CLK 0 0>;
-				nxp,prescaler = <128>;
 				status = "disabled";
 			};
 
@@ -651,9 +640,8 @@
 				compatible = "nxp,imx-pwm";
 				index = <3>;
 				interrupts = <185 0>;
-				#pwm-cells = <3>;
+				#pwm-cells = <2>;
 				clocks = <&ccm IMX_CCM_PWM_CLK 0 0>;
-				nxp,prescaler = <128>;
 				status = "disabled";
 			};
 		};
@@ -667,9 +655,8 @@
 				compatible = "nxp,imx-pwm";
 				index = <0>;
 				interrupts = <187 0>;
-				#pwm-cells = <3>;
+				#pwm-cells = <2>;
 				clocks = <&ccm IMX_CCM_PWM_CLK 0 0>;
-				nxp,prescaler = <128>;
 				status = "disabled";
 			};
 
@@ -677,9 +664,8 @@
 				compatible = "nxp,imx-pwm";
 				index = <1>;
 				interrupts = <188 0>;
-				#pwm-cells = <3>;
+				#pwm-cells = <2>;
 				clocks = <&ccm IMX_CCM_PWM_CLK 0 0>;
-				nxp,prescaler = <128>;
 				status = "disabled";
 			};
 
@@ -687,9 +673,8 @@
 				compatible = "nxp,imx-pwm";
 				index = <2>;
 				interrupts = <189 0>;
-				#pwm-cells = <3>;
+				#pwm-cells = <2>;
 				clocks = <&ccm IMX_CCM_PWM_CLK 0 0>;
-				nxp,prescaler = <128>;
 				status = "disabled";
 			};
 
@@ -697,9 +682,8 @@
 				compatible = "nxp,imx-pwm";
 				index = <3>;
 				interrupts = <190 0>;
-				#pwm-cells = <3>;
+				#pwm-cells = <2>;
 				clocks = <&ccm IMX_CCM_PWM_CLK 0 0>;
-				nxp,prescaler = <128>;
 				status = "disabled";
 			};
 		};
@@ -843,20 +827,17 @@
 		};
 
 		ocram: ocram@20200000 {
-			compatible = "zephyr,memory-region", "mmio-sram";
-			zephyr,memory-region = "OCRAM";
+			compatible = "mmio-sram";
 			reg = <0x20200000 DT_SIZE_K(256)>;
 		};
 
 		ocram1: ocram@20240000 {
-			compatible = "zephyr,memory-region", "mmio-sram";
-			zephyr,memory-region = "OCRAM1";
+			compatible = "mmio-sram";
 			reg = <0x20240000 DT_SIZE_K(512)>;
 		};
 
 		ocram2: ocram@202c0000 {
-			compatible = "zephyr,memory-region", "mmio-sram";
-			zephyr,memory-region = "OCRAM2";
+			compatible = "mmio-sram";
 			reg = <0x202c0000 DT_SIZE_K(512)>;
 		};
 

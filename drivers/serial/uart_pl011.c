@@ -14,10 +14,6 @@
 #include <zephyr/device.h>
 #include <zephyr/drivers/uart.h>
 #include <zephyr/sys/device_mmio.h>
-#include <zephyr/irq.h>
-#if defined(CONFIG_PINCTRL)
-#include <zephyr/drivers/pinctrl.h>
-#endif
 
 #ifdef CONFIG_CPU_CORTEX_M
 #include <cmsis_compiler.h>
@@ -51,9 +47,6 @@ struct pl011_regs {
 struct pl011_config {
 	DEVICE_MMIO_ROM;
 	uint32_t sys_clk_freq;
-#if defined(CONFIG_PINCTRL)
-	const struct pinctrl_dev_config *pincfg;
-#endif
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 	uart_irq_config_func_t irq_config_func;
 #endif
@@ -395,12 +388,6 @@ static int pl011_init(const struct device *dev)
 	 * virtualization software).
 	 */
 	if (!data->sbsa) {
-#if defined(CONFIG_PINCTRL)
-		ret = pinctrl_apply_state(config->pincfg, PINCTRL_STATE_DEFAULT);
-		if (ret) {
-			return ret;
-		}
-#endif
 		/* disable the uart */
 		pl011_disable(dev);
 		pl011_disable_fifo(dev);
@@ -442,14 +429,6 @@ static int pl011_init(const struct device *dev)
 	return 0;
 }
 
-#if defined(CONFIG_PINCTRL)
-#define PINCTRL_DEFINE(n) PINCTRL_DT_INST_DEFINE(n);
-#define PINCTRL_INIT(n) .pincfg = PINCTRL_DT_INST_DEV_CONFIG_GET(n),
-#else
-#define PINCTRL_DEFINE(n)
-#define PINCTRL_INIT(n)
-#endif /* CONFIG_PINCTRL */
-
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 void pl011_isr(const struct device *dev)
 {
@@ -483,7 +462,6 @@ void pl011_isr(const struct device *dev)
 	static struct pl011_config pl011_cfg_port_##n = {				\
 		DEVICE_MMIO_ROM_INIT(DT_DRV_INST(n)),					\
 		.sys_clk_freq = DT_INST_PROP_BY_PHANDLE(n, clocks, clock_frequency),	\
-		PINCTRL_INIT(n)	\
 		.irq_config_func = pl011_irq_config_func_##n,				\
 	};
 #else
@@ -491,12 +469,11 @@ void pl011_isr(const struct device *dev)
 	static struct pl011_config pl011_cfg_port_##n = {				\
 		DEVICE_MMIO_ROM_INIT(DT_DRV_INST(n)),					\
 		.sys_clk_freq = DT_INST_PROP_BY_PHANDLE(n, clocks, clock_frequency),	\
-		PINCTRL_INIT(n)	\
 	};
 #endif /* CONFIG_UART_INTERRUPT_DRIVEN */
 
 #define PL011_INIT(n)						\
-	PINCTRL_DEFINE(n)							\
+								\
 	PL011_CONFIG_PORT(n)					\
 								\
 	static struct pl011_data pl011_data_port_##n = {	\

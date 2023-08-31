@@ -232,7 +232,7 @@ def parse_args():
     global args
     parser = argparse.ArgumentParser(
         description=__doc__,
-        formatter_class=argparse.RawDescriptionHelpFormatter, allow_abbrev=False)
+        formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("-d", "--directory", required=False, default=None,
                         help="Root build directory")
     parser.add_argument("-e", "--elf", required=False, default=None,

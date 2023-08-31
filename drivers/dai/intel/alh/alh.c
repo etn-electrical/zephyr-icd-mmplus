@@ -35,25 +35,16 @@ static int dai_alh_set_config_tplg(struct dai_intel_alh *dp, const void *spec_co
 	return 0;
 }
 
-static int dai_alh_set_config_blob(struct dai_intel_alh *dp, const struct dai_config *cfg,
-				   const void *spec_config)
+static int dai_alh_set_config_blob(struct dai_intel_alh *dp, const void *spec_config)
 {
 	struct dai_intel_alh_pdata *alh = dai_get_drvdata(dp);
 	const struct dai_intel_ipc4_alh_configuration_blob *blob = spec_config;
 	const struct ipc4_alh_multi_gtw_cfg *alh_cfg = &blob->alh_cfg;
 
-	alh->params.rate = cfg->rate;
-
-	for (int i = 0; i < alh_cfg->count; i++) {
-		/* the LSB 8bits are for stream id */
-		int alh_id = alh_cfg->mapping[i].alh_id & 0xff;
-
-		if (IPC4_ALH_DAI_INDEX(alh_id) == dp->index) {
-			alh->params.stream_id = alh_id;
-			alh->params.channels = POPCOUNT(alh_cfg->mapping[i].channel_mask);
-			break;
-		}
-	}
+	alh->params.channels = ALH_CHANNELS_DEFAULT;
+	alh->params.rate = ALH_RATE_DEFAULT;
+	/* the LSB 8bits are for stream id */
+	alh->params.stream_id = alh_cfg->mapping[0].alh_id & 0xff;
 
 	return 0;
 }
@@ -89,24 +80,17 @@ static void alh_release_ownership(void)
 }
 
 
-static int dai_alh_config_get(const struct device *dev, struct dai_config *cfg,
-			      enum dai_dir dir)
+static const struct dai_config *dai_alh_config_get(const struct device *dev, enum dai_dir dir)
 {
 	struct dai_config *params = (struct dai_config *)dev->config;
 	struct dai_intel_alh *dp = (struct dai_intel_alh *)dev->data;
 	struct dai_intel_alh_pdata *alh = dai_get_drvdata(dp);
 
-	if (!cfg) {
-		return -EINVAL;
-	}
-
 	params->rate = alh->params.rate;
 	params->channels = alh->params.channels;
 	params->word_size = ALH_WORD_SIZE_DEFAULT;
 
-	*cfg = *params;
-
-	return 0;
+	return params;
 }
 
 static int dai_alh_config_set(const struct device *dev, const struct dai_config *cfg,
@@ -119,7 +103,7 @@ static int dai_alh_config_set(const struct device *dev, const struct dai_config 
 	if (cfg->type == DAI_INTEL_ALH) {
 		return dai_alh_set_config_tplg(dp, bespoke_cfg);
 	} else {
-		return dai_alh_set_config_blob(dp, cfg, bespoke_cfg);
+		return dai_alh_set_config_blob(dp, bespoke_cfg);
 	}
 }
 
@@ -133,7 +117,6 @@ static const struct dai_properties *dai_alh_get_properties(const struct device *
 		ALH_TXDA_OFFSET : ALH_RXDA_OFFSET;
 
 	prop->fifo_address = dai_base(dp) + offset + ALH_STREAM_OFFSET * stream_id;
-	prop->fifo_depth = ALH_GPDMA_BURST_LENGTH;
 	prop->dma_hs_id = alh_handshake_map[stream_id];
 	prop->stream_id = alh->params.stream_id;
 

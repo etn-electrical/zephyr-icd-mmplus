@@ -30,25 +30,12 @@ elseif(${CONFIG_GD32_HXTAL_25MHZ})
   zephyr_compile_definitions(HXTAL_VALUE=25000000 HXTAL_VALUE_8M=25000000)
 endif()
 
-if(CONFIG_GD32_HAS_IRC_32K)
-  zephyr_compile_definitions(IRC32K_VALUE=${CONFIG_GD32_LOW_SPEED_IRC_FREQUENCY})
-endif()
-
-if(CONFIG_GD32_HAS_IRC_40K)
-  zephyr_compile_definitions(IRC40K_VALUE=${CONFIG_GD32_LOW_SPEED_IRC_FREQUENCY})
-endif()
-
 # GD32E50X series HAL public headers require extra definitions
 if(${CONFIG_SOC_SERIES_GD32E50X})
   zephyr_compile_definitions(GD32E50X)
   if (${CONFIG_SOC_GD32E507})
     zephyr_compile_definitions(GD32E50X_CL)
   endif()
-endif()
-
-# GD32A50X series HAL public headers require extra definitions
-if(${CONFIG_SOC_SERIES_GD32A50X})
-  zephyr_compile_definitions(GD32A50X)
 endif()
 
 # Global includes to be used outside hal_gigadevice

@@ -9,13 +9,23 @@
 #include <zephyr/stats/stats.h>
 #include <zephyr/usb/usb_device.h>
 
-#ifdef CONFIG_MCUMGR_GRP_FS
+#ifdef CONFIG_MCUMGR_CMD_FS_MGMT
 #include <zephyr/device.h>
 #include <zephyr/fs/fs.h>
+#include "fs_mgmt/fs_mgmt.h"
 #include <zephyr/fs/littlefs.h>
 #endif
-#ifdef CONFIG_MCUMGR_GRP_STAT
-#include <zephyr/mgmt/mcumgr/grp/stat_mgmt/stat_mgmt.h>
+#ifdef CONFIG_MCUMGR_CMD_OS_MGMT
+#include "os_mgmt/os_mgmt.h"
+#endif
+#ifdef CONFIG_MCUMGR_CMD_IMG_MGMT
+#include "img_mgmt/img_mgmt.h"
+#endif
+#ifdef CONFIG_MCUMGR_CMD_STAT_MGMT
+#include "stat_mgmt/stat_mgmt.h"
+#endif
+#ifdef CONFIG_MCUMGR_CMD_SHELL_MGMT
+#include "shell_mgmt/shell_mgmt.h"
 #endif
 
 #define LOG_LEVEL LOG_LEVEL_DBG
@@ -40,7 +50,7 @@ STATS_NAME_END(smp_svr_stats);
 /* Define an instance of the stats group. */
 STATS_SECT_DECL(smp_svr_stats) smp_svr_stats;
 
-#ifdef CONFIG_MCUMGR_GRP_FS
+#ifdef CONFIG_MCUMGR_CMD_FS_MGMT
 FS_LITTLEFS_DECLARE_DEFAULT_CONFIG(cstorage);
 static struct fs_mount_t littlefs_mnt = {
 	.type = FS_LITTLEFS,
@@ -60,15 +70,31 @@ void main(void)
 	}
 
 	/* Register the built-in mcumgr command handlers. */
-#ifdef CONFIG_MCUMGR_GRP_FS
+#ifdef CONFIG_MCUMGR_CMD_FS_MGMT
 	rc = fs_mount(&littlefs_mnt);
 	if (rc < 0) {
 		LOG_ERR("Error mounting littlefs [%d]", rc);
 	}
-#endif
 
-#ifdef CONFIG_MCUMGR_TRANSPORT_BT
-	start_smp_bluetooth_adverts();
+	fs_mgmt_register_group();
+#endif
+#ifdef CONFIG_MCUMGR_CMD_OS_MGMT
+	os_mgmt_register_group();
+#endif
+#ifdef CONFIG_MCUMGR_CMD_IMG_MGMT
+	img_mgmt_register_group();
+#endif
+#ifdef CONFIG_MCUMGR_CMD_STAT_MGMT
+	stat_mgmt_register_group();
+#endif
+#ifdef CONFIG_MCUMGR_CMD_SHELL_MGMT
+	shell_mgmt_register_group();
+#endif
+#ifdef CONFIG_MCUMGR_SMP_BT
+	start_smp_bluetooth();
+#endif
+#ifdef CONFIG_MCUMGR_SMP_UDP
+	start_smp_udp();
 #endif
 
 	if (IS_ENABLED(CONFIG_USB_DEVICE_STACK)) {

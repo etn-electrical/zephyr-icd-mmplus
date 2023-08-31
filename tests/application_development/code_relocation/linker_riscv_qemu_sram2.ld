@@ -4,6 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+/**
+ * @file
+ * @brief Linker command/script file
+ *
+ * Linker script for the Cortex-M platforms.
+ */
+
 #include <zephyr/linker/sections.h>
 #include <zephyr/devicetree.h>
 

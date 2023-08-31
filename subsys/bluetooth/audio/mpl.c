@@ -14,10 +14,9 @@
 #include "media_proxy_internal.h"
 #include "mpl_internal.h"
 
-#include <zephyr/logging/log.h>
-
-LOG_MODULE_REGISTER(bt_mpl, CONFIG_BT_MPL_LOG_LEVEL);
-
+#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_DEBUG_MPL)
+#define LOG_MODULE_NAME bt_mpl
+#include "common/log.h"
 #include "ccid_internal.h"
 #include "mcs_internal.h"
 
@@ -332,7 +331,7 @@ static uint32_t setup_segments_object(struct mpl_track *track)
 			seg_size += seg->name_len;
 			seg_size += sizeof(seg->pos);
 			if (tot_size + seg_size > obj.content->size) {
-				LOG_DBG("Segments object out of space");
+				BT_DBG("Segments object out of space");
 				break;
 			}
 			net_buf_simple_add_u8(obj.content, seg->name_len);
@@ -344,10 +343,11 @@ static uint32_t setup_segments_object(struct mpl_track *track)
 			seg = seg->next;
 		}
 
-		LOG_HEXDUMP_DBG(obj.content->data, obj.content->len, "Segments Object");
-		LOG_DBG("Segments object length: %d", obj.content->len);
+		BT_HEXDUMP_DBG(obj.content->data, obj.content->len,
+			       "Segments Object");
+		BT_DBG("Segments object length: %d", obj.content->len);
 	} else {
-		LOG_ERR("No seg!");
+		BT_ERR("No seg!");
 	}
 
 	return obj.content->len;
@@ -404,10 +404,11 @@ static uint32_t setup_parent_group_object(struct mpl_group *group)
 			next_size += record_size;
 		}
 		if (next_size > obj.content->size) {
-			LOG_WRN("Not room for full group in object");
+			BT_WARN("Not room for full group in object");
 		}
-		LOG_HEXDUMP_DBG(obj.content->data, obj.content->len, "Parent Group Object");
-		LOG_DBG("Group object length: %d", obj.content->len);
+		BT_HEXDUMP_DBG(obj.content->data, obj.content->len,
+			       "Parent Group Object");
+		BT_DBG("Group object length: %d", obj.content->len);
 	}
 	return obj.content->len;
 }
@@ -436,10 +437,11 @@ static uint32_t setup_group_object(struct mpl_group *group)
 			next_size += record_size;
 		}
 		if (next_size > obj.content->size) {
-			LOG_WRN("Not room for full group in object");
+			BT_WARN("Not room for full group in object");
 		}
-		LOG_HEXDUMP_DBG(obj.content->data, obj.content->len, "Group Object");
-		LOG_DBG("Group object length: %d", obj.content->len);
+		BT_HEXDUMP_DBG(obj.content->data, obj.content->len,
+			       "Group Object");
+		BT_DBG("Group object length: %d", obj.content->len);
 	}
 	return obj.content->len;
 }
@@ -456,7 +458,7 @@ static int add_icon_object(struct mpl_mediaplayer *pl)
 	if (obj.busy) {
 		/* TODO: Can there be a collision between select and internal */
 		/* activities, like adding new objects? */
-		LOG_ERR("Object busy");
+		BT_ERR("Object busy");
 		return 0;
 	}
 	obj.busy = true;
@@ -472,14 +474,12 @@ static int add_icon_object(struct mpl_mediaplayer *pl)
 	add_param.type.uuid_16.val = BT_UUID_16(icon_type)->val;
 
 	ret = bt_ots_obj_add(bt_mcs_get_ots(), &add_param);
-	if (ret < 0) {
-		LOG_WRN("Unable to add icon object, error %d", ret);
+
+	if (ret) {
+		BT_WARN("Unable to add icon object, error %d", ret);
 		obj.busy = false;
-
-		return ret;
 	}
-
-	return 0;
+	return ret;
 }
 
 /* Add a track segments object to the OTS */
@@ -491,7 +491,7 @@ static int add_current_track_segments_object(struct mpl_mediaplayer *pl)
 	struct bt_uuid *segs_type = BT_UUID_OTS_TYPE_TRACK_SEGMENT;
 
 	if (obj.busy) {
-		LOG_ERR("Object busy");
+		BT_ERR("Object busy");
 		return 0;
 	}
 	obj.busy = true;
@@ -507,14 +507,11 @@ static int add_current_track_segments_object(struct mpl_mediaplayer *pl)
 	add_param.type.uuid_16.val = BT_UUID_16(segs_type)->val;
 
 	ret = bt_ots_obj_add(bt_mcs_get_ots(), &add_param);
-	if (ret < 0) {
-		LOG_WRN("Unable to add track segments object: %d", ret);
+	if (ret) {
+		BT_WARN("Unable to add track segments object: %d", ret);
 		obj.busy = false;
-
-		return ret;
 	}
-
-	return 0;
+	return ret;
 }
 
 /* Add a single track to the OTS */
@@ -526,11 +523,11 @@ static int add_track_object(struct mpl_track *track)
 	int ret;
 
 	if (obj.busy) {
-		LOG_ERR("Object busy");
+		BT_ERR("Object busy");
 		return 0;
 	}
 	if (!track) {
-		LOG_ERR("No track");
+		BT_ERR("No track");
 		return -EINVAL;
 	}
 
@@ -549,14 +546,13 @@ static int add_track_object(struct mpl_track *track)
 	add_param.type.uuid_16.val = BT_UUID_16(track_type)->val;
 
 	ret = bt_ots_obj_add(bt_mcs_get_ots(), &add_param);
-	if (ret < 0) {
-		LOG_WRN("Unable to add track object: %d", ret);
-		obj.busy = false;
 
-		return ret;
+	if (ret) {
+		BT_WARN("Unable to add track object: %d", ret);
+		obj.busy = false;
 	}
 
-	return 0;
+	return ret;
 }
 
 /* Add the parent group to the OTS */
@@ -568,7 +564,7 @@ static int add_parent_group_object(struct mpl_mediaplayer *pl)
 	struct bt_uuid *group_type = BT_UUID_OTS_TYPE_GROUP;
 
 	if (obj.busy) {
-		LOG_ERR("Object busy");
+		BT_ERR("Object busy");
 		return 0;
 	}
 	obj.busy = true;
@@ -584,14 +580,11 @@ static int add_parent_group_object(struct mpl_mediaplayer *pl)
 	add_param.type.uuid_16.val = BT_UUID_16(group_type)->val;
 
 	ret = bt_ots_obj_add(bt_mcs_get_ots(), &add_param);
-	if (ret < 0) {
-		LOG_WRN("Unable to add parent group object");
+	if (ret) {
+		BT_WARN("Unable to add parent group object");
 		obj.busy = false;
-
-		return ret;
 	}
-
-	return 0;
+	return ret;
 }
 
 /* Add a single group to the OTS */
@@ -603,12 +596,12 @@ static int add_group_object(struct mpl_group *group)
 	int ret;
 
 	if (obj.busy) {
-		LOG_ERR("Object busy");
+		BT_ERR("Object busy");
 		return 0;
 	}
 
 	if (!group) {
-		LOG_ERR("No group");
+		BT_ERR("No group");
 		return -EINVAL;
 	}
 
@@ -627,14 +620,13 @@ static int add_group_object(struct mpl_group *group)
 	add_param.type.uuid_16.val = BT_UUID_16(group_type)->val;
 
 	ret = bt_ots_obj_add(bt_mcs_get_ots(), &add_param);
-	if (ret < 0) {
-		LOG_WRN("Unable to add group object: %d", ret);
-		obj.busy = false;
 
-		return ret;
+	if (ret) {
+		BT_WARN("Unable to add group object: %d", ret);
+		obj.busy = false;
 	}
 
-	return 0;
+	return ret;
 }
 
 /* Add all tracks of a group to the OTS */
@@ -699,7 +691,7 @@ static int add_group_and_track_objects(struct mpl_mediaplayer *pl)
 static int on_obj_deleted(struct bt_ots *ots, struct bt_conn *conn,
 			   uint64_t id)
 {
-	LOG_DBG_OBJ_ID("Object Id deleted: ", id);
+	BT_DBG_OBJ_ID("Object Id deleted: ", id);
 
 	return 0;
 }
@@ -710,38 +702,38 @@ static void on_obj_selected(struct bt_ots *ots, struct bt_conn *conn,
 	if (obj.busy) {
 		/* TODO: Can there be a collision between select and internal */
 		/* activities, like adding new objects? */
-		LOG_ERR("Object busy - select not performed");
+		BT_ERR("Object busy - select not performed");
 		return;
 	}
 	obj.busy = true;
 
-	LOG_DBG_OBJ_ID("Object Id selected: ", id);
+	BT_DBG_OBJ_ID("Object Id selected: ", id);
 
 	if (id == pl.icon_id) {
-		LOG_DBG("Icon Object ID");
+		BT_DBG("Icon Object ID");
 		(void)setup_icon_object();
 	} else if (id == pl.group->track->segments_id) {
-		LOG_DBG("Current Track Segments Object ID");
+		BT_DBG("Current Track Segments Object ID");
 		(void)setup_segments_object(pl.group->track);
 	} else if (id == pl.group->track->id) {
-		LOG_DBG("Current Track Object ID");
+		BT_DBG("Current Track Object ID");
 		(void)setup_track_object(pl.group->track);
 	} else if (pl.next_track_set && id == pl.next.track->id) {
 		/* Next track, if the next track has been explicitly set */
-		LOG_DBG("Next Track Object ID");
+		BT_DBG("Next Track Object ID");
 		(void)setup_track_object(pl.next.track);
 	} else if (id == pl.group->track->next->id) {
 		/* Next track, if next track has not been explicitly set */
-		LOG_DBG("Next Track Object ID");
+		BT_DBG("Next Track Object ID");
 		(void)setup_track_object(pl.group->track->next);
 	} else if (id == pl.group->parent->id) {
-		LOG_DBG("Parent Group Object ID");
+		BT_DBG("Parent Group Object ID");
 		(void)setup_parent_group_object(pl.group);
 	} else if (id == pl.group->id) {
-		LOG_DBG("Current Group Object ID");
+		BT_DBG("Current Group Object ID");
 		(void)setup_group_object(pl.group);
 	} else {
-		LOG_ERR("Unknown Object ID");
+		BT_ERR("Unknown Object ID");
 		obj.busy = false;
 		return;
 	}
@@ -754,58 +746,58 @@ static int on_obj_created(struct bt_ots *ots, struct bt_conn *conn, uint64_t id,
 			  const struct bt_ots_obj_add_param *add_param,
 			  struct bt_ots_obj_created_desc *created_desc)
 {
-	LOG_DBG_OBJ_ID("Object Id created: ", id);
+	BT_DBG_OBJ_ID("Object Id created: ", id);
 
 	*created_desc = *obj.desc;
 
 	if (!bt_uuid_cmp(&add_param->type.uuid, BT_UUID_OTS_TYPE_MPL_ICON)) {
-		LOG_DBG("Icon Obj Type");
+		BT_DBG("Icon Obj Type");
 		if (obj.add_type == MPL_OBJ_ICON) {
 			obj.add_type = MPL_OBJ_NONE;
 			pl.icon_id = id;
 		} else {
-			LOG_DBG("Unexpected object creation");
+			BT_DBG("Unexpected object creation");
 		}
 
 	} else if (!bt_uuid_cmp(&add_param->type.uuid,
 				BT_UUID_OTS_TYPE_TRACK_SEGMENT)) {
-		LOG_DBG("Track Segments Obj Type");
+		BT_DBG("Track Segments Obj Type");
 		if (obj.add_type == MPL_OBJ_TRACK_SEGMENTS) {
 			obj.add_type = MPL_OBJ_NONE;
 			pl.group->track->segments_id = id;
 		} else {
-			LOG_DBG("Unexpected object creation");
+			BT_DBG("Unexpected object creation");
 		}
 
 	} else if (!bt_uuid_cmp(&add_param->type.uuid,
 				 BT_UUID_OTS_TYPE_TRACK)) {
-		LOG_DBG("Track Obj Type");
+		BT_DBG("Track Obj Type");
 		if (obj.add_type == MPL_OBJ_TRACK) {
 			obj.add_type = MPL_OBJ_NONE;
 			obj.add_track->id = id;
 			obj.add_track = NULL;
 		} else {
-			LOG_DBG("Unexpected object creation");
+			BT_DBG("Unexpected object creation");
 		}
 
 	} else if (!bt_uuid_cmp(&add_param->type.uuid,
 				 BT_UUID_OTS_TYPE_GROUP)) {
-		LOG_DBG("Group Obj Type");
+		BT_DBG("Group Obj Type");
 		if (obj.add_type == MPL_OBJ_PARENT_GROUP) {
-			LOG_DBG("Parent group");
+			BT_DBG("Parent group");
 			obj.add_type = MPL_OBJ_NONE;
 			pl.group->parent->id = id;
 		} else if (obj.add_type == MPL_OBJ_GROUP) {
-			LOG_DBG("Other group");
+			BT_DBG("Other group");
 			obj.add_type = MPL_OBJ_NONE;
 			obj.add_group->id = id;
 			obj.add_group = NULL;
 		} else {
-			LOG_DBG("Unexpected object creation");
+			BT_DBG("Unexpected object creation");
 		}
 
 	} else {
-		LOG_DBG("Unknown Object ID");
+		BT_DBG("Unknown Object ID");
 	}
 
 	if (obj.add_type == MPL_OBJ_NONE) {
@@ -822,38 +814,39 @@ static ssize_t on_object_send(struct bt_ots *ots, struct bt_conn *conn,
 	if (obj.busy) {
 		/* TODO: Can there be a collision between select and internal */
 		/* activities, like adding new objects? */
-		LOG_ERR("Object busy");
+		BT_ERR("Object busy");
 		return 0;
 	}
 	obj.busy = true;
 
-	if (IS_ENABLED(CONFIG_BT_MPL_LOG_LEVEL_DBG)) {
+	if (IS_ENABLED(CONFIG_BT_DEBUG_MPL)) {
 		char t[BT_OTS_OBJ_ID_STR_LEN];
 		(void)bt_ots_obj_id_to_str(id, t, sizeof(t));
-		LOG_DBG("Object Id %s, offset %lu, length %zu", t, (long)offset, len);
+		BT_DBG("Object Id %s, offset %lu, length %zu", t,
+		       (long)offset, len);
 	}
 
 	if (id != obj.selected_id) {
-		LOG_ERR("Read from unselected object");
+		BT_ERR("Read from unselected object");
 		obj.busy = false;
 		return 0;
 	}
 
 	if (!data) {
-		LOG_DBG("Read complete");
+		BT_DBG("Read complete");
 		obj.busy = false;
 		return 0;
 	}
 
 	if (offset >= obj.content->len) {
-		LOG_DBG("Offset too large");
+		BT_DBG("Offset too large");
 		obj.busy = false;
 		return 0;
 	}
 
-	if (IS_ENABLED(CONFIG_BT_MPL_LOG_LEVEL_DBG)) {
+	if (IS_ENABLED(CONFIG_BT_DEBUG_MPL)) {
 		if (len > obj.content->len - offset) {
-			LOG_DBG("Requested len too large");
+			BT_DBG("Requested len too large");
 		}
 	}
 
@@ -878,53 +871,62 @@ static struct bt_ots_cb ots_cbs = {
 
 void do_prev_segment(struct mpl_mediaplayer *pl)
 {
-	LOG_DBG("Segment name before: %s", pl->group->track->segment->name);
+	BT_DBG("Segment name before: %s",
+	       pl->group->track->segment->name);
 
 	if (pl->group->track->segment->prev != NULL) {
 		pl->group->track->segment = pl->group->track->segment->prev;
 	}
 
-	LOG_DBG("Segment name after: %s", pl->group->track->segment->name);
+	BT_DBG("Segment name after: %s",
+	       pl->group->track->segment->name);
 }
 
 void do_next_segment(struct mpl_mediaplayer *pl)
 {
-	LOG_DBG("Segment name before: %s", pl->group->track->segment->name);
+	BT_DBG("Segment name before: %s",
+	       pl->group->track->segment->name);
 
 	if (pl->group->track->segment->next != NULL) {
 		pl->group->track->segment = pl->group->track->segment->next;
 	}
 
-	LOG_DBG("Segment name after: %s", pl->group->track->segment->name);
+	BT_DBG("Segment name after: %s",
+	       pl->group->track->segment->name);
 }
 
 void do_first_segment(struct mpl_mediaplayer *pl)
 {
-	LOG_DBG("Segment name before: %s", pl->group->track->segment->name);
+	BT_DBG("Segment name before: %s",
+	       pl->group->track->segment->name);
 
 	while (pl->group->track->segment->prev != NULL) {
 		pl->group->track->segment = pl->group->track->segment->prev;
 	}
 
-	LOG_DBG("Segment name after: %s", pl->group->track->segment->name);
+	BT_DBG("Segment name after: %s",
+	       pl->group->track->segment->name);
 }
 
 void do_last_segment(struct mpl_mediaplayer *pl)
 {
-	LOG_DBG("Segment name before: %s", pl->group->track->segment->name);
+	BT_DBG("Segment name before: %s",
+	       pl->group->track->segment->name);
 
 	while (pl->group->track->segment->next != NULL) {
 		pl->group->track->segment = pl->group->track->segment->next;
 	}
 
-	LOG_DBG("Segment name after: %s", pl->group->track->segment->name);
+	BT_DBG("Segment name after: %s",
+	       pl->group->track->segment->name);
 }
 
 void do_goto_segment(struct mpl_mediaplayer *pl, int32_t segnum)
 {
 	int32_t k;
 
-	LOG_DBG("Segment name before: %s", pl->group->track->segment->name);
+	BT_DBG("Segment name before: %s",
+	       pl->group->track->segment->name);
 
 	if (segnum > 0) {
 		/* Goto first segment */
@@ -956,7 +958,8 @@ void do_goto_segment(struct mpl_mediaplayer *pl, int32_t segnum)
 		}
 	}
 
-	LOG_DBG("Segment name after: %s", pl->group->track->segment->name);
+	BT_DBG("Segment name after: %s",
+	       pl->group->track->segment->name);
 }
 
 static bool do_prev_track(struct mpl_mediaplayer *pl)
@@ -964,7 +967,7 @@ static bool do_prev_track(struct mpl_mediaplayer *pl)
 	bool track_changed = false;
 
 #ifdef CONFIG_BT_MPL_OBJECTS
-	LOG_DBG_OBJ_ID("Track ID before: ", pl->group->track->id);
+	BT_DBG_OBJ_ID("Track ID before: ", pl->group->track->id);
 #endif /* CONFIG_BT_MPL_OBJECTS */
 
 	if (pl->group->track->prev != NULL) {
@@ -973,7 +976,7 @@ static bool do_prev_track(struct mpl_mediaplayer *pl)
 	}
 
 #ifdef CONFIG_BT_MPL_OBJECTS
-	LOG_DBG_OBJ_ID("Track ID after: ", pl->group->track->id);
+	BT_DBG_OBJ_ID("Track ID after: ", pl->group->track->id);
 #endif /* CONFIG_BT_MPL_OBJECTS */
 
 	return track_changed;
@@ -985,7 +988,7 @@ static bool do_next_track_normal_order(struct mpl_mediaplayer *pl)
 	bool track_changed = false;
 
 #ifdef CONFIG_BT_MPL_OBJECTS
-	LOG_DBG_OBJ_ID("Track ID before: ", pl->group->track->id);
+	BT_DBG_OBJ_ID("Track ID before: ", pl->group->track->id);
 #endif /* CONFIG_BT_MPL_OBJECTS */
 
 	if (pl->group->track->next != NULL) {
@@ -994,7 +997,7 @@ static bool do_next_track_normal_order(struct mpl_mediaplayer *pl)
 	}
 
 #ifdef CONFIG_BT_MPL_OBJECTS
-	LOG_DBG_OBJ_ID("Track ID after: ", pl->group->track->id);
+	BT_DBG_OBJ_ID("Track ID after: ", pl->group->track->id);
 #endif /* CONFIG_BT_MPL_OBJECTS */
 
 	return track_changed;
@@ -1030,7 +1033,7 @@ static bool do_first_track(struct mpl_mediaplayer *pl)
 	bool track_changed = false;
 
 #ifdef CONFIG_BT_MPL_OBJECTS
-	LOG_DBG_OBJ_ID("Track ID before: ", pl->group->track->id);
+	BT_DBG_OBJ_ID("Track ID before: ", pl->group->track->id);
 #endif /* CONFIG_BT_MPL_OBJECTS */
 
 	if (pl->group->track->prev != NULL) {
@@ -1042,7 +1045,7 @@ static bool do_first_track(struct mpl_mediaplayer *pl)
 	}
 
 #ifdef CONFIG_BT_MPL_OBJECTS
-	LOG_DBG_OBJ_ID("Track ID after: ", pl->group->track->id);
+	BT_DBG_OBJ_ID("Track ID after: ", pl->group->track->id);
 #endif /* CONFIG_BT_MPL_OBJECTS */
 
 	return track_changed;
@@ -1053,7 +1056,7 @@ static bool do_last_track(struct mpl_mediaplayer *pl)
 	bool track_changed = false;
 
 #ifdef CONFIG_BT_MPL_OBJECTS
-	LOG_DBG_OBJ_ID("Track ID before: ", pl->group->track->id);
+	BT_DBG_OBJ_ID("Track ID before: ", pl->group->track->id);
 #endif /* CONFIG_BT_MPL_OBJECTS */
 
 	if (pl->group->track->next != NULL) {
@@ -1065,7 +1068,7 @@ static bool do_last_track(struct mpl_mediaplayer *pl)
 	}
 
 #ifdef CONFIG_BT_MPL_OBJECTS
-	LOG_DBG_OBJ_ID("Track ID after: ", pl->group->track->id);
+	BT_DBG_OBJ_ID("Track ID after: ", pl->group->track->id);
 #endif /* CONFIG_BT_MPL_OBJECTS */
 
 	return track_changed;
@@ -1077,7 +1080,7 @@ static bool do_goto_track(struct mpl_mediaplayer *pl, int32_t tracknum)
 	int32_t k;
 
 #ifdef CONFIG_BT_MPL_OBJECTS
-	LOG_DBG_OBJ_ID("Track ID before: ", pl->group->track->id);
+	BT_DBG_OBJ_ID("Track ID before: ", pl->group->track->id);
 #endif /* CONFIG_BT_MPL_OBJECTS */
 
 	if (tracknum > 0) {
@@ -1111,7 +1114,7 @@ static bool do_goto_track(struct mpl_mediaplayer *pl, int32_t tracknum)
 	}
 
 #ifdef CONFIG_BT_MPL_OBJECTS
-	LOG_DBG_OBJ_ID("Track ID after: ", pl->group->track->id);
+	BT_DBG_OBJ_ID("Track ID after: ", pl->group->track->id);
 #endif /* CONFIG_BT_MPL_OBJECTS */
 
 	/* The track has changed if we have moved more in one direction */
@@ -1125,7 +1128,7 @@ static bool do_prev_group(struct mpl_mediaplayer *pl)
 	bool group_changed = false;
 
 #ifdef CONFIG_BT_MPL_OBJECTS
-	LOG_DBG_OBJ_ID("Group ID before: ", pl->group->id);
+	BT_DBG_OBJ_ID("Group ID before: ", pl->group->id);
 #endif /* CONFIG_BT_MPL_OBJECTS */
 
 	if (pl->group->prev != NULL) {
@@ -1134,7 +1137,7 @@ static bool do_prev_group(struct mpl_mediaplayer *pl)
 	}
 
 #ifdef CONFIG_BT_MPL_OBJECTS
-	LOG_DBG_OBJ_ID("Group ID after: ", pl->group->id);
+	BT_DBG_OBJ_ID("Group ID after: ", pl->group->id);
 #endif /* CONFIG_BT_MPL_OBJECTS */
 
 	return group_changed;
@@ -1145,7 +1148,7 @@ static bool do_next_group(struct mpl_mediaplayer *pl)
 	bool group_changed = false;
 
 #ifdef CONFIG_BT_MPL_OBJECTS
-	LOG_DBG_OBJ_ID("Group ID before: ", pl->group->id);
+	BT_DBG_OBJ_ID("Group ID before: ", pl->group->id);
 #endif /* CONFIG_BT_MPL_OBJECTS */
 
 	if (pl->group->next != NULL) {
@@ -1154,7 +1157,7 @@ static bool do_next_group(struct mpl_mediaplayer *pl)
 	}
 
 #ifdef CONFIG_BT_MPL_OBJECTS
-	LOG_DBG_OBJ_ID("Group ID after: ", pl->group->id);
+	BT_DBG_OBJ_ID("Group ID after: ", pl->group->id);
 #endif /* CONFIG_BT_MPL_OBJECTS */
 
 	return group_changed;
@@ -1165,7 +1168,7 @@ static bool do_first_group(struct mpl_mediaplayer *pl)
 	bool group_changed = false;
 
 #ifdef CONFIG_BT_MPL_OBJECTS
-	LOG_DBG_OBJ_ID("Group ID before: ", pl->group->id);
+	BT_DBG_OBJ_ID("Group ID before: ", pl->group->id);
 #endif /* CONFIG_BT_MPL_OBJECTS */
 
 	if (pl->group->prev != NULL) {
@@ -1177,7 +1180,7 @@ static bool do_first_group(struct mpl_mediaplayer *pl)
 	}
 
 #ifdef CONFIG_BT_MPL_OBJECTS
-	LOG_DBG_OBJ_ID("Group ID after: ", pl->group->id);
+	BT_DBG_OBJ_ID("Group ID after: ", pl->group->id);
 #endif /* CONFIG_BT_MPL_OBJECTS */
 
 	return group_changed;
@@ -1188,7 +1191,7 @@ static bool do_last_group(struct mpl_mediaplayer *pl)
 	bool group_changed = false;
 
 #ifdef CONFIG_BT_MPL_OBJECTS
-	LOG_DBG_OBJ_ID("Group ID before: ", pl->group->id);
+	BT_DBG_OBJ_ID("Group ID before: ", pl->group->id);
 #endif /* CONFIG_BT_MPL_OBJECTS */
 
 	if (pl->group->next != NULL) {
@@ -1200,7 +1203,7 @@ static bool do_last_group(struct mpl_mediaplayer *pl)
 	}
 
 #ifdef CONFIG_BT_MPL_OBJECTS
-	LOG_DBG_OBJ_ID("Group ID after: ", pl->group->id);
+	BT_DBG_OBJ_ID("Group ID after: ", pl->group->id);
 #endif /* CONFIG_BT_MPL_OBJECTS */
 
 	return group_changed;
@@ -1212,7 +1215,7 @@ static bool  do_goto_group(struct mpl_mediaplayer *pl, int32_t groupnum)
 	int32_t k;
 
 #ifdef CONFIG_BT_MPL_OBJECTS
-	LOG_DBG_OBJ_ID("Group ID before: ", pl->group->id);
+	BT_DBG_OBJ_ID("Group ID before: ", pl->group->id);
 #endif /* CONFIG_BT_MPL_OBJECTS */
 
 	if (groupnum > 0) {
@@ -1246,7 +1249,7 @@ static bool  do_goto_group(struct mpl_mediaplayer *pl, int32_t groupnum)
 	}
 
 #ifdef CONFIG_BT_MPL_OBJECTS
-	LOG_DBG_OBJ_ID("Group ID after: ", pl->group->id);
+	BT_DBG_OBJ_ID("Group ID after: ", pl->group->id);
 #endif /* CONFIG_BT_MPL_OBJECTS */
 
 	/* The group has changed if we have moved more in one direction */
@@ -1397,10 +1400,10 @@ void do_full_goto_group(struct mpl_mediaplayer *pl, int32_t groupnum)
 void inactive_state_command_handler(const struct mpl_cmd *command,
 				    struct mpl_cmd_ntf *ntf)
 {
-	LOG_DBG("Command opcode: %d", command->opcode);
-	if (IS_ENABLED(CONFIG_BT_MPL_LOG_LEVEL_DBG)) {
+	BT_DBG("Command opcode: %d", command->opcode);
+	if (IS_ENABLED(CONFIG_BT_DEBUG_MPL)) {
 		if (command->use_param) {
-			LOG_DBG("Command parameter: %d", command->param);
+			BT_DBG("Command parameter: %d", command->param);
 		}
 	}
 	switch (command->opcode) {
@@ -1440,7 +1443,7 @@ void inactive_state_command_handler(const struct mpl_cmd *command,
 		 * with the "next" order hardcoded into the group and track structure
 		 */
 		if (pl.next_track_set) {
-			LOG_DBG("Next track set");
+			BT_DBG("Next track set");
 			if (do_next_track_next_track_set(&pl)) {
 				do_group_change_notifications(&pl);
 			}
@@ -1547,7 +1550,7 @@ void inactive_state_command_handler(const struct mpl_cmd *command,
 		media_proxy_pl_command_cb(ntf);
 		break;
 	default:
-		LOG_DBG("Invalid command: %d", command->opcode);
+		BT_DBG("Invalid command: %d", command->opcode);
 		ntf->result_code = MEDIA_PROXY_CMD_NOT_SUPPORTED;
 		media_proxy_pl_command_cb(ntf);
 		break;
@@ -1557,10 +1560,10 @@ void inactive_state_command_handler(const struct mpl_cmd *command,
 void playing_state_command_handler(const struct mpl_cmd *command,
 				   struct mpl_cmd_ntf *ntf)
 {
-	LOG_DBG("Command opcode: %d", command->opcode);
-	if (IS_ENABLED(CONFIG_BT_MPL_LOG_LEVEL_DBG)) {
+	BT_DBG("Command opcode: %d", command->opcode);
+	if (IS_ENABLED(CONFIG_BT_DEBUG_MPL)) {
 		if (command->use_param) {
-			LOG_DBG("Command parameter: %d", command->param);
+			BT_DBG("Command parameter: %d", command->param);
 		}
 	}
 	switch (command->opcode) {
@@ -1684,7 +1687,7 @@ void playing_state_command_handler(const struct mpl_cmd *command,
 		break;
 	case MEDIA_PROXY_OP_NEXT_TRACK:
 		if (pl.next_track_set) {
-			LOG_DBG("Next track set");
+			BT_DBG("Next track set");
 			if (do_next_track_next_track_set(&pl)) {
 				do_group_change_notifications(&pl);
 			}
@@ -1773,7 +1776,7 @@ void playing_state_command_handler(const struct mpl_cmd *command,
 		media_proxy_pl_command_cb(ntf);
 		break;
 	default:
-		LOG_DBG("Invalid command: %d", command->opcode);
+		BT_DBG("Invalid command: %d", command->opcode);
 		ntf->result_code = MEDIA_PROXY_CMD_NOT_SUPPORTED;
 		media_proxy_pl_command_cb(ntf);
 		break;
@@ -1783,10 +1786,10 @@ void playing_state_command_handler(const struct mpl_cmd *command,
 void paused_state_command_handler(const struct mpl_cmd *command,
 				  struct mpl_cmd_ntf *ntf)
 {
-	LOG_DBG("Command opcode: %d", command->opcode);
-	if (IS_ENABLED(CONFIG_BT_MPL_LOG_LEVEL_DBG)) {
+	BT_DBG("Command opcode: %d", command->opcode);
+	if (IS_ENABLED(CONFIG_BT_DEBUG_MPL)) {
 		if (command->use_param) {
-			LOG_DBG("Command parameter: %d", command->param);
+			BT_DBG("Command parameter: %d", command->param);
 		}
 	}
 	switch (command->opcode) {
@@ -1910,7 +1913,7 @@ void paused_state_command_handler(const struct mpl_cmd *command,
 		break;
 	case MEDIA_PROXY_OP_NEXT_TRACK:
 		if (pl.next_track_set) {
-			LOG_DBG("Next track set");
+			BT_DBG("Next track set");
 			if (do_next_track_next_track_set(&pl)) {
 				do_group_change_notifications(&pl);
 			}
@@ -1999,7 +2002,7 @@ void paused_state_command_handler(const struct mpl_cmd *command,
 		media_proxy_pl_command_cb(ntf);
 		break;
 	default:
-		LOG_DBG("Invalid command: %d", command->opcode);
+		BT_DBG("Invalid command: %d", command->opcode);
 		ntf->result_code = MEDIA_PROXY_CMD_NOT_SUPPORTED;
 		media_proxy_pl_command_cb(ntf);
 		break;
@@ -2009,10 +2012,10 @@ void paused_state_command_handler(const struct mpl_cmd *command,
 void seeking_state_command_handler(const struct mpl_cmd *command,
 				   struct mpl_cmd_ntf *ntf)
 {
-	LOG_DBG("Command opcode: %d", command->opcode);
-	if (IS_ENABLED(CONFIG_BT_MPL_LOG_LEVEL_DBG)) {
+	BT_DBG("Command opcode: %d", command->opcode);
+	if (IS_ENABLED(CONFIG_BT_DEBUG_MPL)) {
 		if (command->use_param) {
-			LOG_DBG("Command parameter: %d", command->param);
+			BT_DBG("Command parameter: %d", command->param);
 		}
 	}
 	switch (command->opcode) {
@@ -2154,7 +2157,7 @@ void seeking_state_command_handler(const struct mpl_cmd *command,
 		break;
 	case MEDIA_PROXY_OP_NEXT_TRACK:
 		if (pl.next_track_set) {
-			LOG_DBG("Next track set");
+			BT_DBG("Next track set");
 			if (do_next_track_next_track_set(&pl)) {
 				do_group_change_notifications(&pl);
 			}
@@ -2265,7 +2268,7 @@ void seeking_state_command_handler(const struct mpl_cmd *command,
 		media_proxy_pl_command_cb(ntf);
 		break;
 	default:
-		LOG_DBG("Invalid command: %d", command->opcode);
+		BT_DBG("Invalid command: %d", command->opcode);
 		ntf->result_code = MEDIA_PROXY_CMD_NOT_SUPPORTED;
 		media_proxy_pl_command_cb(ntf);
 		break;
@@ -2411,8 +2414,8 @@ void set_track_position(int32_t position)
 		}
 	}
 
-	LOG_DBG("Pos. given: %d, resulting pos.: %d (duration is %d)", position, new_pos,
-		pl.group->track->duration);
+	BT_DBG("Pos. given: %d, resulting pos.: %d (duration is %d)",
+	       position, new_pos, pl.group->track->duration);
 
 	if (new_pos != old_pos) {
 		/* Set new position and notify it */
@@ -2456,7 +2459,7 @@ void set_current_track_id(uint64_t id)
 	struct mpl_group *group;
 	struct mpl_track *track;
 
-	LOG_DBG_OBJ_ID("Track ID to set: ", id);
+	BT_DBG_OBJ_ID("Track ID to set: ", id);
 
 	if (find_track_by_id(&pl, id, &group, &track)) {
 
@@ -2475,7 +2478,7 @@ void set_current_track_id(uint64_t id)
 		return;
 	}
 
-	LOG_DBG("Track not found");
+	BT_DBG("Track not found");
 
 	/* TODO: Should an error be returned here?
 	 * That would require a rewrite of the MPL api to add return values to the functions.
@@ -2503,7 +2506,7 @@ void set_next_track_id(uint64_t id)
 	struct mpl_group *group;
 	struct mpl_track *track;
 
-	LOG_DBG_OBJ_ID("Next Track ID to set: ", id);
+	BT_DBG_OBJ_ID("Next Track ID to set: ", id);
 
 	if (find_track_by_id(&pl, id, &group, &track)) {
 
@@ -2514,7 +2517,7 @@ void set_next_track_id(uint64_t id)
 		return;
 	}
 
-	LOG_DBG("Track not found");
+	BT_DBG("Track not found");
 }
 
 uint64_t get_parent_group_id(void)
@@ -2532,7 +2535,7 @@ void set_current_group_id(uint64_t id)
 	struct mpl_group *group;
 	bool track_change;
 
-	LOG_DBG_OBJ_ID("Group ID to set: ", id);
+	BT_DBG_OBJ_ID("Group ID to set: ", id);
 
 	if (find_group_by_id(&pl, id, &group)) {
 
@@ -2550,7 +2553,7 @@ void set_current_group_id(uint64_t id)
 		return;
 	}
 
-	LOG_DBG("Group not found");
+	BT_DBG("Group not found");
 }
 #endif /* CONFIG_BT_MPL_OBJECTS */
 
@@ -2584,16 +2587,16 @@ void send_command(const struct mpl_cmd *command)
 	struct mpl_cmd_ntf ntf;
 
 	if (command->use_param) {
-		LOG_DBG("opcode: %d, param: %d", command->opcode, command->param);
+		BT_DBG("opcode: %d, param: %d", command->opcode, command->param);
 	} else {
-		LOG_DBG("opcode: %d", command->opcode);
+		BT_DBG("opcode: %d", command->opcode);
 	}
 
 	if (pl.state < MEDIA_PROXY_STATE_LAST) {
 		ntf.requested_opcode = command->opcode;
 		command_handlers[pl.state](command, &ntf);
 	} else {
-		LOG_DBG("INVALID STATE");
+		BT_DBG("INVALID STATE");
 	}
 }
 
@@ -2611,20 +2614,20 @@ static void parse_search(const struct mpl_search *search)
 	bool search_failed = false;
 
 	if (search->len > SEARCH_LEN_MAX) {
-		LOG_WRN("Search too long (%d) - aborting", search->len);
+		BT_WARN("Search too long (%d) - aborting", search->len);
 		search_failed = true;
 	} else {
-		LOG_DBG("Parsing %d octets search", search->len);
+		BT_DBG("Parsing %d octets search", search->len);
 
 		while (search->len - index > 0) {
 			sci.len = (uint8_t)search->search[index++];
 			if (sci.len < SEARCH_SCI_LEN_MIN) {
-				LOG_WRN("Invalid length field - too small");
+				BT_WARN("Invalid length field - too small");
 				search_failed = true;
 				break;
 			}
 			if (sci.len > (search->len - index)) {
-				LOG_WRN("Incomplete search control item");
+				BT_WARN("Incomplete search control item");
 				search_failed = true;
 				break;
 			}
@@ -2637,8 +2640,8 @@ static void parse_search(const struct mpl_search *search)
 			(void)memcpy(&sci.param, &search->search[index], sci.len - 1);
 			index += sci.len - 1;
 
-			LOG_DBG("SCI # %d: type: %d", sci_num, sci.type);
-			LOG_HEXDUMP_DBG(sci.param, sci.len - 1, "param:");
+			BT_DBG("SCI # %d: type: %d", sci_num, sci.type);
+			BT_HEXDUMP_DBG(sci.param, sci.len-1, "param:");
 			sci_num++;
 		}
 	}
@@ -2661,10 +2664,10 @@ static void parse_search(const struct mpl_search *search)
 void send_search(const struct mpl_search *search)
 {
 	if (search->len > SEARCH_LEN_MAX) {
-		LOG_WRN("Search too long: %d", search->len);
+		BT_WARN("Search too long: %d", search->len);
 	}
 
-	LOG_HEXDUMP_DBG(search->search, search->len, "Search");
+	BT_HEXDUMP_DBG(search->search, search->len, "Search");
 
 	parse_search(search);
 }
@@ -2686,7 +2689,7 @@ int media_proxy_pl_init(void)
 	int ret;
 
 	if (initialized) {
-		LOG_DBG("Already initialized");
+		BT_DBG("Already initialized");
 		return -EALREADY;
 	}
 
@@ -2702,11 +2705,11 @@ int media_proxy_pl_init(void)
 	ret = bt_mcs_init(NULL);
 #endif /* CONFIG_BT_MPL_OBJECTS */
 	if (ret < 0) {
-		LOG_ERR("Could not init MCS: %d", ret);
+		BT_ERR("Could not init MCS: %d", ret);
 		return ret;
 	}
 #else
-	LOG_WRN("MCS not configured");
+	BT_WARN("MCS not configured");
 #endif /* CONFIG_BT_MCS */
 
 	/* Get a Content Control ID */
@@ -2719,14 +2722,14 @@ int media_proxy_pl_init(void)
 	/* Icon Object */
 	ret = add_icon_object(&pl);
 	if (ret < 0) {
-		LOG_ERR("Unable to add icon object, error %d", ret);
+		BT_ERR("Unable to add icon object, error %d", ret);
 		return ret;
 	}
 
 	/* Add all tracks and groups to OTS */
 	ret = add_group_and_track_objects(&pl);
 	if (ret < 0) {
-		LOG_ERR("Error adding tracks and groups to OTS, error %d", ret);
+		BT_ERR("Error adding tracks and groups to OTS, error %d", ret);
 		return ret;
 	}
 
@@ -2735,7 +2738,7 @@ int media_proxy_pl_init(void)
 	/* but for no only one of the tracks has segments .*/
 	ret = add_current_track_segments_object(&pl);
 	if (ret < 0) {
-		LOG_ERR("Error adding Track Segments Object to OTS, error %d", ret);
+		BT_ERR("Error adding Track Segments Object to OTS, error %d", ret);
 		return ret;
 	}
 #endif /* CONFIG_BT_MPL_OBJECTS */
@@ -2768,7 +2771,6 @@ int media_proxy_pl_init(void)
 	pl.calls.get_playing_orders_supported = get_playing_orders_supported;
 	pl.calls.get_media_state              = get_media_state;
 	pl.calls.send_command                 = send_command;
-	pl.calls.get_commands_supported       = get_commands_supported;
 #ifdef CONFIG_BT_MPL_OBJECTS
 	pl.calls.send_search                  = send_search;
 	pl.calls.get_search_results_id        = get_search_results_id;
@@ -2777,7 +2779,7 @@ int media_proxy_pl_init(void)
 
 	ret = media_proxy_pl_register(&pl.calls);
 	if (ret < 0) {
-		LOG_ERR("Unable to register player");
+		BT_ERR("Unable to register player");
 		return ret;
 	}
 
@@ -2785,7 +2787,7 @@ int media_proxy_pl_init(void)
 	return 0;
 }
 
-#if CONFIG_BT_MPL_LOG_LEVEL_DBG /* Special commands for debugging */
+#if CONFIG_BT_DEBUG_MPL /* Special commands for debugging */
 
 void mpl_debug_dump_state(void)
 {
@@ -2795,52 +2797,52 @@ void mpl_debug_dump_state(void)
 	struct mpl_track *track;
 #endif /* CONFIG_BT_MPL_OBJECTS */
 
-	LOG_DBG("Mediaplayer name: %s", pl.name);
+	BT_DBG("Mediaplayer name: %s", pl.name);
 
 #if CONFIG_BT_MPL_OBJECTS
 	(void)bt_ots_obj_id_to_str(pl.icon_id, t, sizeof(t));
-	LOG_DBG("Icon ID: %s", t);
+	BT_DBG("Icon ID: %s", t);
 #endif /* CONFIG_BT_MPL_OBJECTS */
 
-	LOG_DBG("Icon URL: %s", pl.icon_url);
-	LOG_DBG("Track position: %d", pl.track_pos);
-	LOG_DBG("Media state: %d", pl.state);
-	LOG_DBG("Playback speed parameter: %d", pl.playback_speed_param);
-	LOG_DBG("Seeking speed factor: %d", pl.seeking_speed_factor);
-	LOG_DBG("Playing order: %d", pl.playing_order);
-	LOG_DBG("Playing orders supported: 0x%x", pl.playing_orders_supported);
-	LOG_DBG("Opcodes supported: %d", pl.opcodes_supported);
-	LOG_DBG("Content control ID: %d", pl.content_ctrl_id);
+	BT_DBG("Icon URL: %s", pl.icon_url);
+	BT_DBG("Track position: %d", pl.track_pos);
+	BT_DBG("Media state: %d", pl.state);
+	BT_DBG("Playback speed parameter: %d", pl.playback_speed_param);
+	BT_DBG("Seeking speed factor: %d", pl.seeking_speed_factor);
+	BT_DBG("Playing order: %d", pl.playing_order);
+	BT_DBG("Playing orders supported: 0x%x", pl.playing_orders_supported);
+	BT_DBG("Opcodes supported: %d", pl.opcodes_supported);
+	BT_DBG("Content control ID: %d", pl.content_ctrl_id);
 
 #if CONFIG_BT_MPL_OBJECTS
 	(void)bt_ots_obj_id_to_str(pl.group->parent->id, t, sizeof(t));
-	LOG_DBG("Current group's parent: %s", t);
+	BT_DBG("Current group's parent: %s", t);
 
 	(void)bt_ots_obj_id_to_str(pl.group->id, t, sizeof(t));
-	LOG_DBG("Current group: %s", t);
+	BT_DBG("Current group: %s", t);
 
 	(void)bt_ots_obj_id_to_str(pl.group->track->id, t, sizeof(t));
-	LOG_DBG("Current track: %s", t);
+	BT_DBG("Current track: %s", t);
 
 	if (pl.next_track_set) {
 		(void)bt_ots_obj_id_to_str(pl.next.track->id, t, sizeof(t));
-		LOG_DBG("Next track: %s", t);
+		BT_DBG("Next track: %s", t);
 	} else if (pl.group->track->next) {
 		(void)bt_ots_obj_id_to_str(pl.group->track->next->id, t,
 					   sizeof(t));
-		LOG_DBG("Next track: %s", t);
+		BT_DBG("Next track: %s", t);
 	} else {
-		LOG_DBG("No next track");
+		BT_DBG("No next track");
 	}
 
 	if (pl.search_results_id) {
 		(void)bt_ots_obj_id_to_str(pl.search_results_id, t, sizeof(t));
-		LOG_DBG("Search results: %s", t);
+		BT_DBG("Search results: %s", t);
 	} else {
-		LOG_DBG("No search results");
+		BT_DBG("No search results");
 	}
 
-	LOG_DBG("Groups and tracks:");
+	BT_DBG("Groups and tracks:");
 	group = pl.group;
 
 	while (group->prev != NULL) {
@@ -2849,10 +2851,12 @@ void mpl_debug_dump_state(void)
 
 	while (group) {
 		(void)bt_ots_obj_id_to_str(group->id, t, sizeof(t));
-		LOG_DBG("Group: %s, %s", t, group->title);
+		BT_DBG("Group: %s, %s", t,
+		       group->title);
 
 		(void)bt_ots_obj_id_to_str(group->parent->id, t, sizeof(t));
-		LOG_DBG("\tParent: %s, %s", t, group->parent->title);
+		BT_DBG("\tParent: %s, %s", t,
+		       group->parent->title);
 
 		track = group->track;
 		while (track->prev != NULL) {
@@ -2861,7 +2865,8 @@ void mpl_debug_dump_state(void)
 
 		while (track) {
 			(void)bt_ots_obj_id_to_str(track->id, t, sizeof(t));
-			LOG_DBG("\tTrack: %s, %s, duration: %d", t, track->title, track->duration);
+			BT_DBG("\tTrack: %s, %s, duration: %d", t,
+			       track->title, track->duration);
 			track = track->next;
 		}
 
@@ -2869,15 +2874,15 @@ void mpl_debug_dump_state(void)
 	}
 #endif /* CONFIG_BT_MPL_OBJECTS */
 }
-#endif /* CONFIG_BT_MPL_LOG_LEVEL_DBG */
+#endif /* CONFIG_BT_DEBUG_MPL */
 
-#if defined(CONFIG_BT_MPL_LOG_LEVEL_DBG) &&                                                        \
-	defined(CONFIG_BT_TESTING) /* Special commands for testing */
+
+#if defined(CONFIG_BT_DEBUG_MPL) && defined(CONFIG_BT_TESTING) /* Special commands for testing */
 
 #if CONFIG_BT_MPL_OBJECTS
 void mpl_test_unset_parent_group(void)
 {
-	LOG_DBG("Setting current group to be it's own parent");
+	BT_DBG("Setting current group to be it's own parent");
 	pl.group->parent = pl.group;
 }
 #endif /* CONFIG_BT_MPL_OBJECTS */
@@ -2886,16 +2891,6 @@ void mpl_test_media_state_set(uint8_t state)
 {
 	pl.state = state;
 	media_proxy_pl_media_state_cb(pl.state);
-}
-
-void mpl_test_player_name_changed_cb(void)
-{
-	media_proxy_pl_name_cb(pl.name);
-}
-
-void mpl_test_player_icon_url_changed_cb(void)
-{
-	media_proxy_pl_icon_url_cb(pl.icon_url);
 }
 
 void mpl_test_track_changed_cb(void)
@@ -2972,4 +2967,4 @@ void mpl_test_search_results_changed_cb(void)
 }
 #endif /* CONFIG_BT_MPL_OBJECTS */
 
-#endif /* CONFIG_BT_MPL_LOG_LEVEL_DBG && CONFIG_BT_TESTING */
+#endif /* CONFIG_BT_DEBUG_MPL && CONFIG_BT_TESTING */

@@ -8,12 +8,11 @@
 #include <zephyr/ztest.h>
 #include <zephyr/sys/p4wq.h>
 
-#define MAX_NUM_THREADS (CONFIG_MP_MAX_NUM_CPUS * 2)
-#define NUM_THREADS (arch_num_cpus() * 2)
-#define MAX_ITEMS (MAX_NUM_THREADS * 8)
+#define NUM_THREADS (CONFIG_MP_NUM_CPUS * 2)
+#define MAX_ITEMS (NUM_THREADS * 8)
 #define MAX_EVENTS 1024
 
-K_P4WQ_DEFINE(wq, MAX_NUM_THREADS, 2048);
+K_P4WQ_DEFINE(wq, NUM_THREADS, 2048);
 
 static struct k_p4wq_work simple_item;
 static volatile int has_run;
@@ -130,7 +129,7 @@ static int active_count(void)
 		count++;
 	}
 
-	count = MAX_NUM_THREADS - count;
+	count = NUM_THREADS - count;
 	return count;
 }
 
@@ -181,10 +180,7 @@ ZTEST(lib_p4wq, test_fill_queue)
 	 * we can be sure to run).  They should all be made active
 	 * when added.
 	 */
-	unsigned int num_cpus = arch_num_cpus();
-	unsigned int num_threads = NUM_THREADS;
-
-	for (int i = 0; i < num_cpus; i++) {
+	for (int i = 0; i < CONFIG_MP_NUM_CPUS; i++) {
 		zassert_true(add_new_item(p0), "thread should be active");
 	}
 
@@ -196,11 +192,11 @@ ZTEST(lib_p4wq, test_fill_queue)
 	 * we run out of threads.
 	 */
 	for (int pri = p0 - 1; pri >= p0 - 4; pri++) {
-		for (int i = 0; i < num_cpus; i++) {
+		for (int i = 0; i < CONFIG_MP_NUM_CPUS; i++) {
 			bool active = add_new_item(pri);
 
 			if (!active) {
-				zassert_equal(active_count(), num_threads,
+				zassert_equal(active_count(), NUM_THREADS,
 					      "thread max not reached");
 				goto done;
 			}

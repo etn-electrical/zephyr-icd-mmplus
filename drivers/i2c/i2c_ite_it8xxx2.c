@@ -9,10 +9,7 @@
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/i2c.h>
 #include <zephyr/drivers/pinctrl.h>
-#include <zephyr/irq.h>
-#include <zephyr/kernel.h>
 #include <errno.h>
-#include <ilm.h>
 #include <soc.h>
 #include <soc_dt.h>
 #include <zephyr/dt-bindings/i2c/it8xxx2-i2c.h>
@@ -128,36 +125,23 @@ enum i2c_reset_cause {
 
 static int i2c_parsing_return_value(const struct device *dev)
 {
-	const struct i2c_it8xxx2_config *config = dev->config;
 	struct i2c_it8xxx2_data *data = dev->data;
 
 	if (!data->err) {
 		return 0;
 	}
 
+	/* Connection timed out */
 	if (data->err == ETIMEDOUT) {
-		/* Connection timed out */
-		LOG_ERR("I2C ch%d Address:0x%X Transaction time out.",
-			config->port, data->addr_16bit);
-	} else {
-		LOG_DBG("I2C ch%d Address:0x%X Host error bits message:",
-			config->port, data->addr_16bit);
-		/* Host error bits message*/
-		if (data->err & HOSTA_TMOE) {
-			LOG_ERR("Time-out error: hardware time-out error.");
-		}
-		if (data->err & HOSTA_NACK) {
-			LOG_DBG("NACK error: device does not response ACK.");
-		}
-		if (data->err & HOSTA_FAIL) {
-			LOG_ERR("Fail: a processing transmission is killed.");
-		}
-		if (data->err & HOSTA_BSER) {
-			LOG_ERR("BUS error: SMBus has lost arbitration.");
-		}
+		return -ETIMEDOUT;
 	}
 
-	return -EIO;
+	/* The device does not respond ACK */
+	if (data->err == HOSTA_NACK) {
+		return -ENXIO;
+	} else {
+		return -EIO;
+	}
 }
 
 static int i2c_get_line_levels(const struct device *dev)
@@ -926,7 +910,7 @@ static int i2c_it8xxx2_transfer(const struct device *dev, struct i2c_msg *msgs,
 {
 	struct i2c_it8xxx2_data *data = dev->data;
 	const struct i2c_it8xxx2_config *config = dev->config;
-	int res, ret;
+	int res;
 
 	/* Lock mutex of i2c controller */
 	k_mutex_lock(&data->mutex, K_FOREVER);
@@ -1051,12 +1035,10 @@ static int i2c_it8xxx2_transfer(const struct device *dev, struct i2c_msg *msgs,
 	if (data->err || (data->active_msg->flags & I2C_MSG_STOP)) {
 		data->i2ccs = I2C_CH_NORMAL;
 	}
-	/* Save return value. */
-	ret = i2c_parsing_return_value(dev);
 	/* Unlock mutex of i2c controller */
 	k_mutex_unlock(&data->mutex);
 
-	return ret;
+	return i2c_parsing_return_value(dev);
 }
 
 static void i2c_it8xxx2_isr(const struct device *dev)

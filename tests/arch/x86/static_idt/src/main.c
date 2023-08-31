@@ -175,12 +175,7 @@ ZTEST(static_idt, test_static_idt)
 	 * issuing a 'divide by zero' warning.
 	 */
 	error = 32;     /* avoid static checker uninitialized warnings */
-
-	__asm__ volatile ("movl $0x0, %%edx\n\t"
-			  "movl %0, %%eax\n\t"
-			  "movl %1, %%ebx\n\t"
-			  "idivl %%ebx;" : : "g" (error), "g" (exc_handler_executed) :
-			  "eax", "edx");
+	error = error / exc_handler_executed;
 
 	zassert_not_equal(exc_handler_executed, 0,
 			  "Exception handler did not execute");

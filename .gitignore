@@ -13,7 +13,6 @@ build*/
 !doc/build/
 !scripts/build
 !tests/drivers/build_all
-!scripts/pylib/build_helpers
 cscope.*
 .dir
 
@@ -63,17 +62,3 @@ TAGS
 tags
 
 .idea
-
-# from check_compliance.py
-BinaryFiles.txt
-Checkpatch.txt
-DevicetreeBindings.txt
-Gitlint.txt
-Identity.txt
-ImageSize.txt
-Kconfig.txt
-KconfigBasic.txt
-MaintainersFormat.txt
-Nits.txt
-Pylint.txt
-YAMLLint.txt

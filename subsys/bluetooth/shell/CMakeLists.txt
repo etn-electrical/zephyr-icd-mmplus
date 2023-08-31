@@ -26,12 +26,12 @@ zephyr_library_sources_ifdef(
   iso.c
   )
 zephyr_library_sources_ifdef(
-  CONFIG_BT_VCP_VOL_REND
-  vcp_vol_rend.c
+  CONFIG_BT_VCS
+  vcs.c
   )
 zephyr_library_sources_ifdef(
-  CONFIG_BT_VCP_VOL_CTLR
-  vcp_vol_ctlr.c
+  CONFIG_BT_VCS_CLIENT
+  vcs_client.c
   )
 zephyr_library_sources_ifdef(
   CONFIG_BT_MICP_MIC_DEV
@@ -42,12 +42,12 @@ zephyr_library_sources_ifdef(
   micp_mic_ctlr.c
   )
 zephyr_library_sources_ifdef(
-  CONFIG_BT_CSIP_SET_MEMBER
-  csip_set_member.c
+  CONFIG_BT_CSIS
+  csis.c
   )
 zephyr_library_sources_ifdef(
-  CONFIG_BT_CSIP_SET_COORDINATOR
-  csip_set_coordinator.c
+  CONFIG_BT_CSIS_CLIENT
+  csis_client.c
   )
 zephyr_library_sources_ifdef(
   CONFIG_BT_TBS
@@ -74,14 +74,6 @@ zephyr_library_sources_ifdef(
   has.c
   )
 zephyr_library_sources_ifdef(
-  CONFIG_BT_CAP_ACCEPTOR_SET_MEMBER
-  cap_acceptor.c
-  )
-zephyr_library_sources_ifdef(
-  CONFIG_BT_CAP_INITIATOR
-  cap_initiator.c
-  )
-zephyr_library_sources_ifdef(
   CONFIG_BT_HAS_CLIENT
   has_client.c
   )
@@ -93,12 +85,12 @@ zephyr_library_sources_ifdef(
   )
 
 zephyr_library_sources_ifdef(
-  CONFIG_BT_BAP_SCAN_DELEGATOR
-  bap_scan_delegator.c
+  CONFIG_BT_BASS
+  bass.c
   )
 zephyr_library_sources_ifdef(
-  CONFIG_BT_BAP_BROADCAST_ASSISTANT
-  bap_broadcast_assistant.c
+  CONFIG_BT_BASS_CLIENT
+  bass_client.c
   )
 
 zephyr_library_sources_ifdef(

@@ -2,9 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 config LVGL
-	bool "LVGL GUI library"
+	bool "LittlevGL GUI library"
+	depends on !CPU_CORTEX_M0 && !CPU_CORTEX_M0PLUS
 	help
-	  This option enables the LVGL GUI library.
+	  This option enables the LittlevGL GUI library.
 
 if LVGL
 
@@ -26,7 +27,7 @@ config LV_Z_POINTER_KSCAN_INVERT_Y
 
 choice LV_COLOR_DEPTH
 	default LV_COLOR_DEPTH_16
-	prompt "Color depth (bits per pixel)"
+	prompt "Color depth."
 	depends on LVGL
 
 	config LV_COLOR_DEPTH_32
@@ -36,7 +37,7 @@ choice LV_COLOR_DEPTH
 	config LV_COLOR_DEPTH_8
 		bool "8: RGB232"
 	config LV_COLOR_DEPTH_1
-		bool "1: monochrome"
+		bool "1: 1 byte per pixel"
 endchoice
 
 config LV_COLOR_16_SWAP

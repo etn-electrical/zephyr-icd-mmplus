@@ -57,11 +57,7 @@
 #define RAM_SIZE KB(CONFIG_SRAM_SIZE)
 
 #ifdef CONFIG_RISCV_PMP
-	#if defined(CONFIG_PMP_NO_TOR) && defined(CONFIG_PMP_NO_NA4)
-		#define MPU_MIN_SIZE 8
-	#else
-		#define MPU_MIN_SIZE 4
-	#endif
+	#define MPU_MIN_SIZE 4
 	#define MPU_MIN_SIZE_ALIGN . = ALIGN(MPU_MIN_SIZE);
 	#if defined(CONFIG_MPU_REQUIRES_POWER_OF_TWO_ALIGNMENT)
 		#define MPU_ALIGN(region_size) \
@@ -149,6 +145,14 @@ SECTIONS
 		*(".text.*")
 		*(.gnu.linkonce.t.*)
 #include <zephyr/linker/kobject-text.ld>
+#ifdef CONFIG_SOC_FLASH_RAMCODE_SECTION
+		. = ALIGN(0x1000);
+		_ram_code_start = .;
+		KEEP(*(.__ram_code))
+		__ram_code_size = . - _ram_code_start;
+		ASSERT((__ram_code_size <= 0x1000),
+			"__ram_code_size <= 4k bytes");
+#endif
 	} GROUP_LINK_IN(ROMABLE_REGION)
 
     __text_region_end = .;
@@ -395,18 +399,13 @@ GROUP_END(DTCM)
  */
 #ifdef CONFIG_XIP
 /* Must be last in romable region */
-SECTION_PROLOGUE(.last_section,,)
+SECTION_PROLOGUE(.last_section,(NOLOAD),)
 {
-#ifdef CONFIG_LINKER_LAST_SECTION_ID
-  /* Fill last section with a word to ensure location counter and actual rom
-   * region data usage match. */
-  LONG(CONFIG_LINKER_LAST_SECTION_ID_PATTERN)
-#endif
 } GROUP_LINK_IN(ROMABLE_REGION)
 
 /* To provide the image size as a const expression,
  * calculate this value here. */
-__rom_region_end = LOADADDR(.last_section) + SIZEOF(.last_section);
+__rom_region_end = LOADADDR(.last_section);
 __rom_region_size = __rom_region_end - __rom_region_start;
 #endif
 

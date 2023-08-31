@@ -3,7 +3,6 @@
  */
 #include <zephyr/kernel.h>
 #include <string.h>
-#include <zephyr/irq.h>
 
 /* Fuzz testing is coverage-based, so we want to hide a failure case
  * (a write through a null pointer in this case) down inside a call

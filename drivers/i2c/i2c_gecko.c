@@ -8,7 +8,6 @@
 
 #include <errno.h>
 #include <zephyr/drivers/i2c.h>
-#include <zephyr/kernel.h>
 #include <zephyr/sys/util.h>
 #include <em_cmu.h>
 #include <em_i2c.h>
@@ -50,8 +49,8 @@ void i2c_gecko_config_pins(const struct device *dev,
 	I2C_TypeDef *base = DEV_BASE(dev);
 	const struct i2c_gecko_config *config = dev->config;
 
-	GPIO_PinModeSet(pin_scl->port, pin_scl->pin, pin_scl->mode, pin_scl->out);
-	GPIO_PinModeSet(pin_sda->port, pin_sda->pin, pin_sda->mode, pin_sda->out);
+	soc_gpio_configure(pin_scl);
+	soc_gpio_configure(pin_sda);
 
 #ifdef CONFIG_SOC_GECKO_HAS_INDIVIDUAL_PIN_LOCATION
 	base->ROUTEPEN = I2C_ROUTEPEN_SDAPEN | I2C_ROUTEPEN_SCLPEN;

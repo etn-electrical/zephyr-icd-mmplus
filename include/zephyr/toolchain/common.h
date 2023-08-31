@@ -187,11 +187,8 @@
  */
 #define Z_DECL_ALIGN(type) __aligned(__alignof(type)) type
 
-/* Check if a pointer is aligned for against a specific byte boundary  */
-#define IS_PTR_ALIGNED_BYTES(ptr, bytes) ((((uintptr_t)ptr) % bytes) == 0)
-
 /* Check if a pointer is aligned enough for a particular data type. */
-#define IS_PTR_ALIGNED(ptr, type) IS_PTR_ALIGNED_BYTES(ptr, __alignof(type))
+#define IS_PTR_ALIGNED(ptr, type) ((((uintptr_t)ptr) % __alignof(type)) == 0)
 
 /**
  * @brief Iterable Sections APIs
@@ -200,7 +197,7 @@
  */
 
 /**
- * @brief Defines a new element for an iterable section.
+ * @brief Defines a new iterable section.
  *
  * @details
  * Convenience helper combining __in_section() and Z_DECL_ALIGN().
@@ -209,16 +206,13 @@
  *
  * In the linker script, create output sections for these using
  * ITERABLE_SECTION_ROM() or ITERABLE_SECTION_RAM().
- *
- * @note In order to store the element in ROM, a const specifier has to
- * be added to the declaration: const STRUCT_SECTION_ITERABLE(...);
  */
 #define STRUCT_SECTION_ITERABLE(struct_type, name) \
 	Z_DECL_ALIGN(struct struct_type) name \
 	__in_section(_##struct_type, static, name) __used __noasan
 
 /**
- * @brief Defines a new element of alternate data type for an iterable section.
+ * @brief Defines an alternate data type iterable section.
  *
  * @details
  * Special variant of STRUCT_SECTION_ITERABLE(), for placing alternate
@@ -290,5 +284,20 @@
 #define LINKER_KEEP(symbol) \
 	static const void * const symbol##_ptr  __used \
 	__attribute__((__section__(".symbol_to_keep"))) = (void *)&symbol
+
+#define LOG2CEIL(x) \
+	((((x) <= 4) ? 2 : (((x) <= 8) ? 3 : (((x) <= 16) ? \
+	4 : (((x) <= 32) ? 5 : (((x) <= 64) ? 6 : (((x) <= 128) ? \
+	7 : (((x) <= 256) ? 8 : (((x) <= 512) ? 9 : (((x) <= 1024) ? \
+	10 : (((x) <= 2048) ? 11 : (((x) <= 4096) ? 12 : (((x) <= 8192) ? \
+	13 : (((x) <= 16384) ? 14 : (((x) <= 32768) ? 15:(((x) <= 65536) ? \
+	16 : (((x) <= 131072) ? 17 : (((x) <= 262144) ? 18:(((x) <= 524288) ? \
+	19 : (((x) <= 1048576) ? 20 : (((x) <= 2097152) ? \
+	21 : (((x) <= 4194304) ? 22 : (((x) <= 8388608) ? \
+	23 : (((x) <= 16777216) ? 24 : (((x) <= 33554432) ? \
+	25 : (((x) <= 67108864) ? 26 : (((x) <= 134217728) ? \
+	27 : (((x) <= 268435456) ? 28 : (((x) <= 536870912) ? \
+	29 : (((x) <= 1073741824) ? 30 : (((x) <= 2147483648) ? \
+	31 : 32)))))))))))))))))))))))))))))))
 
 #endif /* ZEPHYR_INCLUDE_TOOLCHAIN_COMMON_H_ */

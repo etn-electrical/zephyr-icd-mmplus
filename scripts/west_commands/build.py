@@ -156,13 +156,7 @@ class Build(Forceable):
         self._parse_remainder(remainder)
         # Parse testcase.yaml or sample.yaml files for additional options.
         if self.args.test_item:
-            # we get path + testitem
-            item = os.path.basename(self.args.test_item)
-            test_path = os.path.dirname(self.args.test_item)
-            if test_path:
-                self.args.source_dir = test_path
-            if not self._parse_test_item(item):
-                log.die("No test metadata found")
+            self._parse_test_item()
         if source_dir:
             if self.args.source_dir:
                 log.die("source directory specified twice:({} and {})".format(
@@ -251,13 +245,11 @@ class Build(Forceable):
         except IndexError:
             return
 
-    def _parse_test_item(self, test_item):
-        found_test_metadata = False
+    def _parse_test_item(self):
         for yp in ['sample.yaml', 'testcase.yaml']:
             yf = os.path.join(self.args.source_dir, yp)
             if not os.path.exists(yf):
                 continue
-            found_test_metadata = True
             with open(yf, 'r') as stream:
                 try:
                     y = yaml.safe_load(stream)
@@ -265,10 +257,10 @@ class Build(Forceable):
                     log.die(exc)
             tests = y.get('tests')
             if not tests:
-                log.die(f"No tests found in {yf}")
-            item = tests.get(test_item)
+                continue
+            item = tests.get(self.args.test_item)
             if not item:
-                log.die(f"Test item {test_item} not found in {yf}")
+                continue
 
             for data in ['extra_args', 'extra_configs']:
                 extra = item.get(data)
@@ -283,7 +275,6 @@ class Build(Forceable):
                     self.args.cmake_opts.extend(args)
                 else:
                     self.args.cmake_opts = args
-        return found_test_metadata
 
     def _sanity_precheck(self):
         app = self.args.source_dir

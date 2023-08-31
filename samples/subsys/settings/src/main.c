@@ -12,7 +12,7 @@
 #include <errno.h>
 #include <zephyr/sys/printk.h>
 
-#if defined(CONFIG_SETTINGS_FILE)
+#if IS_ENABLED(CONFIG_SETTINGS_FS)
 #include <zephyr/fs/fs.h>
 #include <zephyr/fs/littlefs.h>
 #endif
@@ -422,7 +422,7 @@ static void example_initialization(void)
 {
 	int rc;
 
-#if defined(CONFIG_SETTINGS_FILE)
+#if IS_ENABLED(CONFIG_SETTINGS_FS)
 	FS_LITTLEFS_DECLARE_DEFAULT_CONFIG(cstorage);
 
 	/* mounting info */
@@ -438,7 +438,7 @@ static void example_initialization(void)
 		printk("mounting littlefs error: [%d]\n", rc);
 	} else {
 
-		rc = fs_unlink(CONFIG_SETTINGS_FILE_PATH);
+		rc = fs_unlink(CONFIG_SETTINGS_FS_FILE);
 		if ((rc != 0) && (rc != -ENOENT)) {
 			printk("can't delete config file%d\n", rc);
 		} else {

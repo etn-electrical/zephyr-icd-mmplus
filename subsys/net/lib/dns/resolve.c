@@ -413,7 +413,7 @@ static inline void invoke_query_callback(int status,
 	/* Only notify if the slot is neither released nor in the process of
 	 * being released.
 	 */
-	if (pending_query->query != NULL && pending_query->cb != NULL)  {
+	if (pending_query->query != NULL)  {
 		pending_query->cb(status, info, pending_query->user_data);
 	}
 }
@@ -1501,10 +1501,5 @@ void dns_init_resolver(void)
 	if (ret < 0) {
 		NET_WARN("Cannot initialize DNS resolver (%d)", ret);
 	}
-#else
-	/* We must always call init even if there are no servers configured so
-	 * that DNS mutex gets initialized properly.
-	 */
-	(void)dns_resolve_init(dns_resolve_get_default(), NULL, NULL);
 #endif
 }

@@ -24,20 +24,13 @@ LOG_MODULE_REGISTER(rtio_executor_simple, CONFIG_RTIO_LOG_LEVEL);
  */
 int rtio_simple_submit(struct rtio *r)
 {
-	struct rtio_simple_executor *exc = (struct rtio_simple_executor *)r->executor;
-
-	/* Task is already running */
-	if (exc->task.sqe != NULL) {
-		return 0;
-	}
-
+	/* TODO For each submission queue entry chain,
+	 * submit the chain to the first iodev
+	 */
 	struct rtio_sqe *sqe = rtio_spsc_consume(r->sq);
 
-	exc->task.sqe = sqe;
-	exc->task.r = r;
-
 	if (sqe != NULL) {
-		rtio_iodev_submit(&exc->task);
+		rtio_iodev_submit(sqe, r);
 	}
 
 	return 0;
@@ -46,63 +39,36 @@ int rtio_simple_submit(struct rtio *r)
 /**
  * @brief Callback from an iodev describing success
  */
-void rtio_simple_ok(struct rtio_iodev_sqe *iodev_sqe, int result)
+void rtio_simple_ok(struct rtio *r, const struct rtio_sqe *sqe, int result)
 {
-	struct rtio *r = iodev_sqe->r;
-	const struct rtio_sqe *sqe = iodev_sqe->sqe;
-
-#ifdef CONFIG_ASSERT
-	struct rtio_simple_executor *exc =
-		(struct rtio_simple_executor *)r->executor;
-
-	__ASSERT_NO_MSG(iodev_sqe == &exc->task);
-#endif
-
-	void *userdata = sqe->userdata;
-
+	rtio_cqe_submit(r, result, sqe->userdata);
 	rtio_spsc_release(r->sq);
-	iodev_sqe->sqe = NULL;
-	rtio_cqe_submit(r, result, userdata);
 	rtio_simple_submit(r);
 }
 
 /**
  * @brief Callback from an iodev describing error
  */
-void rtio_simple_err(struct rtio_iodev_sqe *iodev_sqe, int result)
+void rtio_simple_err(struct rtio *r, const struct rtio_sqe *sqe, int result)
 {
-	const struct rtio_sqe *nsqe;
-	struct rtio *r = iodev_sqe->r;
-		const struct rtio_sqe *sqe = iodev_sqe->sqe;
-	void *userdata = sqe->userdata;
-	bool chained = sqe->flags & RTIO_SQE_CHAINED;
+	struct rtio_sqe *nsqe;
+	bool chained;
 
-#ifdef CONFIG_ASSERT
-	struct rtio_simple_executor *exc =
-		(struct rtio_simple_executor *)r->executor;
-
-	__ASSERT_NO_MSG(iodev_sqe == &exc->task);
-#endif
-
-
-	rtio_spsc_release(r->sq);
-	iodev_sqe->sqe = NULL;
 	rtio_cqe_submit(r, result, sqe->userdata);
+	chained = sqe->flags & RTIO_SQE_CHAINED;
+	rtio_spsc_release(r->sq);
 
 	if (chained) {
 
 		nsqe = rtio_spsc_consume(r->sq);
 		while (nsqe != NULL && nsqe->flags & RTIO_SQE_CHAINED) {
-			userdata = nsqe->userdata;
+			rtio_cqe_submit(r, -ECANCELED, nsqe->userdata);
 			rtio_spsc_release(r->sq);
-			rtio_cqe_submit(r, -ECANCELED, userdata);
 			nsqe = rtio_spsc_consume(r->sq);
 		}
 
 		if (nsqe != NULL) {
-
-			iodev_sqe->sqe = nsqe;
-			rtio_iodev_submit(iodev_sqe);
+			rtio_iodev_submit(nsqe, r);
 		}
 
 	} else {

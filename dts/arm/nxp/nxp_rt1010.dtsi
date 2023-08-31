@@ -22,14 +22,6 @@
 	reg = <0x20200000 DT_SIZE_K(64)>;
 };
 
-&ccm {
-	/delete-node/ arm-podf;
-
-	ipg-podf {
-		clock-div = <4>;
-	};
-};
-
 &gpio1 {
 	interrupts = <70 0>, <71 0>;
 };
@@ -187,9 +179,8 @@
 				compatible = "nxp,imx-pwm";
 				index = <0>;
 				interrupts = <34 0>;
-				#pwm-cells = <3>;
+				#pwm-cells = <2>;
 				clocks = <&ccm IMX_CCM_PWM_CLK 0 0>;
-				nxp,prescaler = <128>;
 				status = "disabled";
 			};
 
@@ -197,9 +188,8 @@
 				compatible = "nxp,imx-pwm";
 				index = <1>;
 				interrupts = <35 0>;
-				#pwm-cells = <3>;
+				#pwm-cells = <2>;
 				clocks = <&ccm IMX_CCM_PWM_CLK 0 0>;
-				nxp,prescaler = <128>;
 				status = "disabled";
 			};
 
@@ -207,9 +197,8 @@
 				compatible = "nxp,imx-pwm";
 				index = <2>;
 				interrupts = <36 0>;
-				#pwm-cells = <3>;
+				#pwm-cells = <2>;
 				clocks = <&ccm IMX_CCM_PWM_CLK 0 0>;
-				nxp,prescaler = <128>;
 				status = "disabled";
 			};
 
@@ -217,9 +206,8 @@
 				compatible = "nxp,imx-pwm";
 				index = <3>;
 				interrupts = <37 0>;
-				#pwm-cells = <3>;
+				#pwm-cells = <2>;
 				clocks = <&ccm IMX_CCM_PWM_CLK 0 0>;
-				nxp,prescaler = <128>;
 				status = "disabled";
 			};
 		};

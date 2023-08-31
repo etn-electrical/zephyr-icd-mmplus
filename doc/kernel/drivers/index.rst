@@ -312,7 +312,7 @@ Then when the particular instance is declared:
 
   DEVICE_DECLARE(my_driver_0);
 
-  static void my_driver_config_irq_0(const struct device *dev)
+  static void my_driver_config_irq_0(void)
   {
         IRQ_CONNECT(MY_DRIVER_0_IRQ, MY_DRIVER_0_PRI, my_driver_isr,
                     DEVICE_GET(my_driver_0), MY_DRIVER_0_FLAGS);
@@ -342,13 +342,6 @@ the use of kernel services. :c:func:`DEVICE_DEFINE()` and related APIs
 allow the user to specify at what time during the boot sequence the init
 function will be executed. Any driver will specify one of four
 initialization levels:
-
-``EARLY``
-        Used very early in the boot process, right after entering the C domain
-        (``z_cstart()``). This can be used in architectures and SoCs that extend
-        or implement architecture code and use drivers or system services that
-        have to be initialized before the Kernel calls any architecture specific
-        initialization code.
 
 ``PRE_KERNEL_1``
         Used for devices that have no dependencies, such as those that rely
@@ -606,7 +599,7 @@ may be used directly:
    void some_init_code(...)
    {
       ...
-      struct pcie_bar mbar;
+      struct pcie_mbar mbar;
       bool bar_found = pcie_get_mbar(bdf, index, &mbar);
 
       device_map(DEVICE_MMIO_RAM_PTR(dev), mbar.phys_addr, mbar.size, K_MEM_CACHE_NONE);

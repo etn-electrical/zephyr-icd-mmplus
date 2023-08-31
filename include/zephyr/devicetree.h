@@ -51,7 +51,6 @@
  * _IDX_<i>_PH: phandle array's phandle by index (or phandle, phandles)
  * _IDX_<i>_STRING_TOKEN: string array element value as a token
  * _IDX_<i>_STRING_UPPER_TOKEN: string array element value as a uppercased token
- * _IDX <i>_STRING_UNQUOTED: string array element value as a sequence of tokens, with no quotes
  * _IDX_<i>_VAL_<val>: phandle array's specifier value by index
  * _IDX_<i>_VAL_<val>_EXISTS: cell value exists, by index
  * _LEN: property logical length
@@ -60,7 +59,6 @@
  * _NAME_<name>_VAL_<val>_EXISTS: cell value exists, by name
  * _STRING_TOKEN: string property's value as a token
  * _STRING_UPPER_TOKEN: like _STRING_TOKEN, but uppercased
- * _STRING_UNQUOTED: string property's value as a sequence of tokens, with no quotes
  */
 
 /**
@@ -351,6 +349,13 @@
  * @return a node identifier for the node's parent
  */
 #define DT_PARENT(node_id) UTIL_CAT(node_id, _PARENT)
+
+/**
+ * @brief Get a `DT_DRV_COMPAT` parent's node identifier
+ * @param inst instance number
+ * @return a node identifier for the instance's parent
+ */
+#define DT_INST_PARENT(inst) DT_PARENT(DT_DRV_INST(inst))
 
 /**
  * @brief Get a node identifier for a grandparent node
@@ -701,8 +706,8 @@
  * Example usage:
  *
  * @code{.c}
- *     DT_PROP_HAS_NAME(DT_NODELABEL(nx), foos, event)    // 1
- *     DT_PROP_HAS_NAME(DT_NODELABEL(nx), foos, failure)  // 0
+ *     DT_PROP_HAS_NAME(nx, foos, event)    // 1
+ *     DT_PROP_HAS_NAME(nx, foos, failure)  // 0
  * @endcode
  *
  * @param node_id node identifier
@@ -985,67 +990,6 @@
 		(DT_STRING_UPPER_TOKEN(node_id, prop)), (default_value))
 
 /**
- * @brief Get a string property's value as an unquoted sequence of tokens
- *
- * This removes "the quotes" from string-valued properties.
- * That can be useful, for example,
- * when defining floating point values as a string in devicetree
- * that you would like to use to initialize a float or double variable in C.
- *
- * DT_STRING_UNQUOTED() can only be used for properties with string type.
- *
- * It is an error to use DT_STRING_UNQUOTED() in other circumstances.
- *
- * Example devicetree fragment:
- *
- *     n1: node-1 {
- *             prop = "12.7";
- *     };
- *     n2: node-2 {
- *             prop = "0.5";
- *     }
- *     n3: node-3 {
- *             prop = "A B C";
- *     };
- *
- * Example bindings fragment:
- *
- *     properties:
- *       prop:
- *         type: string
- *
- * Example usage:
- *
- *     DT_STRING_UNQUOTED(DT_NODELABEL(n1), prop) // 12.7
- *     DT_STRING_UNQUOTED(DT_NODELABEL(n2), prop) // 0.5
- *     DT_STRING_UNQUOTED(DT_NODELABEL(n3), prop) // A B C
- *
- * @param node_id node identifier
- * @param prop lowercase-and-underscores property name
- * @return the property's value as a sequence of tokens, with no quotes
- */
-#define DT_STRING_UNQUOTED(node_id, prop) \
-	DT_CAT4(node_id, _P_, prop, _STRING_UNQUOTED)
-
-/**
- * @brief Like DT_STRING_UNQUOTED(), but with a fallback to @p default_value
- *
- * If the value exists, this expands to DT_STRING_UNQUOTED(node_id, prop).
- * The @p default_value parameter is not expanded in this case.
- *
- * Otherwise, this expands to @p default_value.
- *
- * @param node_id node identifier
- * @param prop lowercase-and-underscores property name
- * @param default_value a fallback value to expand to
- * @return the property's value as a sequence of tokens, with no quotes,
- *         or @p default_value
- */
-#define DT_STRING_UNQUOTED_OR(node_id, prop, default_value) \
-	COND_CODE_1(DT_NODE_HAS_PROP(node_id, prop), \
-		(DT_STRING_UNQUOTED(node_id, prop)), (default_value))
-
-/**
  * @brief Get an element out of a string-array property as a token.
  *
  * This removes "the quotes" from an element in the array, and converts
@@ -1144,49 +1088,6 @@
  */
 #define DT_STRING_UPPER_TOKEN_BY_IDX(node_id, prop, idx) \
 	DT_CAT6(node_id, _P_, prop, _IDX_, idx, _STRING_UPPER_TOKEN)
-
-/**
- * @brief Get a string array item value as an unquoted sequence of tokens.
- *
- * This removes "the quotes" from string-valued item.
- * That can be useful, for example,
- * when defining floating point values as a string in devicetree
- * that you would like to use to initialize a float or double variable in C.
- *
- * DT_STRING_UNQUOTED_BY_IDX() can only be used for properties with
- * string-array type.
- *
- * It is an error to use DT_STRING_UNQUOTED_BY_IDX() in other circumstances.
- *
- * Example devicetree fragment:
- *
- *     n1: node-1 {
- *             prop = "12.7", "34.1";
- *     };
- *     n2: node-2 {
- *             prop = "A B", "C D";
- *     }
- *
- * Example bindings fragment:
- *
- *     properties:
- *       prop:
- *         type: string-array
- *
- * Example usage:
- *
- *     DT_STRING_UNQUOTED_BY_IDX(DT_NODELABEL(n1), prop, 0) // 12.7
- *     DT_STRING_UNQUOTED_BY_IDX(DT_NODELABEL(n1), prop, 1) // 34.1
- *     DT_STRING_UNQUOTED_BY_IDX(DT_NODELABEL(n2), prop, 0) // A B
- *     DT_STRING_UNQUOTED_BY_IDX(DT_NODELABEL(n2), prop, 1) // C D
- *
- * @param node_id node identifier
- * @param prop lowercase-and-underscores property name
- * @param idx the index to get
- * @return the property's value as a sequence of tokens, with no quotes
- */
-#define DT_STRING_UNQUOTED_BY_IDX(node_id, prop, idx) \
-	DT_CAT4(node_id, _P_, prop##_IDX_##idx, _STRING_UNQUOTED)
 
 /*
  * phandle properties
@@ -1963,7 +1864,7 @@
  */
 
 /**
- * @defgroup devicetree-generic-vendor Vendor and model name helpers
+ * @defgroup devicetree-generic-vendor Vendor name helpers
  * @ingroup devicetree
  * @{
  */
@@ -2049,82 +1950,6 @@
  */
 #define DT_NODE_VENDOR_OR(node_id, default_value) \
 	DT_NODE_VENDOR_BY_IDX_OR(node_id, 0, default_value)
-
-/**
- * @brief Get the model at index "idx" as a string literal
- *
- * The model is a string extracted from the compatible after the vendor prefix.
- *
- * Example vendor-prefixes.txt:
- *
- *	vnd	A stand-in for a real vendor
- *	zephyr	Zephyr-specific binding
- *
- * Example devicetree fragment:
- *
- *	n1: node-1 {
- *		compatible = "vnd,model1", "gpio", "zephyr,model2";
- *	};
- *
- * Example usage:
- *
- *	DT_NODE_MODEL_BY_IDX(DT_NODELABEL(n1), 0) // "model1"
- *	DT_NODE_MODEL_BY_IDX(DT_NODELABEL(n1), 2) // "model2"
- *
- * Notice that the compatible at index 1 doesn't match any entries in the
- * vendor prefix file and therefore index 1 is not a valid model index. Use
- * DT_NODE_MODEL_HAS_IDX(node_id, idx) to determine if an index is valid.
- *
- * @param node_id node identifier
- * @param idx index of the model to return
- * @return string literal of the idx-th model
- */
-#define DT_NODE_MODEL_BY_IDX(node_id, idx) \
-	DT_CAT3(node_id, _COMPAT_MODEL_IDX_, idx)
-
-/**
- * @brief Does a node's compatible property have a model at an index?
- *
- * If this returns 1, then DT_NODE_MODEL_BY_IDX(node_id, idx) is valid. If it
- * returns 0, it is an error to use DT_NODE_MODEL_BY_IDX(node_id, idx) with
- * index "idx".
- *
- * @param node_id node identifier
- * @param idx index of the model to check
- * @return 1 if "idx" is a valid model index,
- *         0 otherwise.
- */
-#define DT_NODE_MODEL_HAS_IDX(node_id, idx) \
-	IS_ENABLED(DT_CAT4(node_id, _COMPAT_MODEL_IDX_, idx, _EXISTS))
-
-/**
- * @brief Like DT_NODE_MODEL_BY_IDX(), but with a fallback to default_value.
- *
- * If the value exists, this expands to DT_NODE_MODEL_BY_IDX(node_id, idx).
- * The default_value parameter is not expanded in this case.
- *
- * Otherwise, this expands to default_value.
- *
- * @param node_id node identifier
- * @param idx index of the model to return
- * @return string literal of the idx-th model
- * @param default_value a fallback value to expand to
- * @return string literal of the idx-th model or "default_value"
- */
-#define DT_NODE_MODEL_BY_IDX_OR(node_id, idx, default_value) \
-	COND_CODE_1(DT_NODE_MODEL_HAS_IDX(node_id, idx), \
-		    (DT_NODE_MODEL_BY_IDX(node_id, idx)), (default_value))
-
-/**
- * @brief Get the node's (only) model as a string literal
- *
- * Equivalent to DT_NODE_MODEL_BY_IDX_OR(node_id, 0, default_value).
- *
- * @param node_id node identifier
- * @param default_value a fallback value to expand to
- */
-#define DT_NODE_MODEL_OR(node_id, default_value) \
-	DT_NODE_MODEL_BY_IDX_OR(node_id, 0, default_value)
 
 /**
  * @}
@@ -2684,53 +2509,6 @@
 
 /**
  * @brief Invokes @p fn for each element in the value of property @p prop with
- *        separator.
- *
- * Example devicetree fragment:
- *
- * @code{.dts}
- *     n: node {
- *             my-gpios = <&gpioa 0 GPIO_ACTICE_HIGH>,
- *                        <&gpiob 1 GPIO_ACTIVE_HIGH>;
- *     };
- * @endcode
- *
- * Example usage:
- *
- * @code{.c}
- *     struct gpio_dt_spec specs[] = {
- *             DT_FOREACH_PROP_ELEM_SEP(DT_NODELABEL(n), my_gpios,
- *                                      GPIO_DT_SPEC_GET_BY_IDX, (,))
- *     };
- * @endcode
- *
- * This expands as a first step to:
- *
- * @code{.c}
- *     struct gpio_dt_spec specs[] = {
- *     struct gpio_dt_spec specs[] = {
- *             GPIO_DT_SPEC_GET_BY_IDX(DT_NODELABEL(n), my_gpios, 0),
- *             GPIO_DT_SPEC_GET_BY_IDX(DT_NODELABEL(n), my_gpios, 1)
- *     };
- * @endcode
- *
- * The "prop" argument must refer to a property with type string,
- * array, uint8-array, string-array, phandles, or phandle-array. It is
- * an error to use this macro with properties of other types.
- *
- * @param node_id node identifier
- * @param prop lowercase-and-underscores property name
- * @param fn macro to invoke
- * @param sep Separator (e.g. comma or semicolon). Must be in parentheses;
- *            this is required to enable providing a comma as separator.
- *
- * @see DT_FOREACH_PROP_ELEM
- */
-#define DT_FOREACH_PROP_ELEM_SEP(node_id, prop, fn, sep) \
-	DT_CAT4(node_id, _P_, prop, _FOREACH_PROP_ELEM_SEP)(fn, sep)
-
-/**
- * @brief Invokes @p fn for each element in the value of property @p prop with
  * multiple arguments.
  *
  * The macro @p fn must take multiple parameters:
@@ -2748,23 +2526,6 @@
  */
 #define DT_FOREACH_PROP_ELEM_VARGS(node_id, prop, fn, ...)		\
 	DT_CAT4(node_id, _P_, prop, _FOREACH_PROP_ELEM_VARGS)(fn, __VA_ARGS__)
-
-/**
- * @brief Invokes @p fn for each element in the value of property @p prop with
- * multiple arguments and a separator.
- *
- * @param node_id node identifier
- * @param prop lowercase-and-underscores property name
- * @param fn macro to invoke
- * @param sep Separator (e.g. comma or semicolon). Must be in parentheses;
- *            this is required to enable providing a comma as separator.
- * @param ... variable number of arguments to pass to fn
- *
- * @see DT_FOREACH_PROP_ELEM_VARGS
- */
-#define DT_FOREACH_PROP_ELEM_SEP_VARGS(node_id, prop, fn, sep, ...)	\
-	DT_CAT4(node_id, _P_, prop, _FOREACH_PROP_ELEM_SEP_VARGS)(	\
-		fn, sep, __VA_ARGS__)
 
 /**
  * @brief Invokes @p fn for each status `okay` node of a compatible.
@@ -3154,24 +2915,6 @@
 #define DT_DRV_INST(inst) DT_INST(inst, DT_DRV_COMPAT)
 
 /**
- * @brief Get a `DT_DRV_COMPAT` parent's node identifier
- * @param inst instance number
- * @return a node identifier for the instance's parent
- *
- * @see DT_PARENT
- */
-#define DT_INST_PARENT(inst) DT_PARENT(DT_DRV_INST(inst))
-
-/**
- * @brief Get a `DT_DRV_COMPAT` grandparent's node identifier
- * @param inst instance number
- * @return a node identifier for the instance's grandparent
- *
- * @see DT_GPARENT
- */
-#define DT_INST_GPARENT(inst) DT_GPARENT(DT_DRV_INST(inst))
-
-/**
  * @brief Get a node identifier for a child node of DT_DRV_INST(inst)
  *
  * @param inst instance number
@@ -3408,7 +3151,7 @@
  *        token.
  *
  * @param inst instance number
- * @param prop lowercase-and-underscores property name
+ * @param prop lowercase-and-underscores property string name
  * @return the value of @p prop as a token, i.e. without any quotes
  *         and with special characters converted to underscores
  */
@@ -3418,7 +3161,7 @@
 /**
  * @brief Like DT_INST_STRING_TOKEN(), but uppercased.
  * @param inst instance number
- * @param prop lowercase-and-underscores property name
+ * @param prop lowercase-and-underscores property string name
  * @return the value of @p prop as an uppercased token, i.e. without
  *         any quotes and with special characters converted to underscores
  */
@@ -3426,20 +3169,9 @@
 	DT_STRING_UPPER_TOKEN(DT_DRV_INST(inst), prop)
 
 /**
- * @brief Get a `DT_DRV_COMPAT` instance's string property's value as
- *        an unquoted sequence of tokens.
- *
- * @param inst instance number
- * @param prop lowercase-and-underscores property name
- * @return the value of @p prop as a sequence of tokens, with no quotes
- */
-#define DT_INST_STRING_UNQUOTED(inst, prop) \
-	DT_STRING_UNQUOTED(DT_DRV_INST(inst), prop)
-
-/**
  * @brief Get an element out of string-array property as a token.
  * @param inst instance number
- * @param prop lowercase-and-underscores property name
+ * @param prop lowercase-and-underscores property string name
  * @param idx the index to get
  * @return the element in @p prop at index @p idx as a token
  */
@@ -3455,16 +3187,6 @@
  */
 #define DT_INST_STRING_UPPER_TOKEN_BY_IDX(inst, prop, idx) \
 	DT_STRING_UPPER_TOKEN_BY_IDX(DT_DRV_INST(inst), prop, idx)
-
-/**
- * @brief Get an element out of string-array property as an unquoted sequence of tokens.
- * @param inst instance number
- * @param prop lowercase-and-underscores property name
- * @param idx the index to get
- * @return the value of @p prop at index @p idx as a sequence of tokens, with no quotes
- */
-#define DT_INST_STRING_UNQUOTED_BY_IDX(inst, prop, idx) \
-	DT_STRING_UNQUOTED_BY_IDX(DT_DRV_INST(inst), prop, idx)
 
 /**
  * @brief Get a `DT_DRV_COMPAT` instance's property value from a phandle's node
@@ -3735,17 +3457,6 @@
 	DT_STRING_UPPER_TOKEN_OR(DT_DRV_INST(inst), name, default_value)
 
 /**
- * @brief Like DT_INST_STRING_UNQUOTED(), but with a fallback to
- *        @p default_value
- * @param inst instance number
- * @param name lowercase-and-underscores property name
- * @param default_value a fallback value to expand to
- * @return the property's value as a sequence of tokens, with no quotes, or @p default_value
- */
-#define DT_INST_STRING_UNQUOTED_OR(inst, name, default_value) \
-	DT_STRING_UNQUOTED_OR(DT_DRV_INST(inst), name, default_value)
-
-/**
  * @brief Test if any `DT_DRV_COMPAT` node is on a bus of a given type
  *        and has status okay
  *
@@ -3883,21 +3594,6 @@
 
 /**
  * @brief Invokes @p fn for each element of property @p prop for
- *        a `DT_DRV_COMPAT` instance with a separator.
- *
- * Equivalent to DT_FOREACH_PROP_ELEM_SEP(DT_DRV_INST(inst), prop, fn, sep).
- *
- * @param inst instance number
- * @param prop lowercase-and-underscores property name
- * @param fn macro to invoke
- * @param sep Separator (e.g. comma or semicolon). Must be in parentheses;
- *            this is required to enable providing a comma as separator.
- */
-#define DT_INST_FOREACH_PROP_ELEM_SEP(inst, prop, fn, sep) \
-	DT_FOREACH_PROP_ELEM_SEP(DT_DRV_INST(inst), prop, fn, sep)
-
-/**
- * @brief Invokes @p fn for each element of property @p prop for
  *        a `DT_DRV_COMPAT` instance with multiple arguments.
  *
  * Equivalent to
@@ -3914,28 +3610,7 @@
 	DT_FOREACH_PROP_ELEM_VARGS(DT_DRV_INST(inst), prop, fn, __VA_ARGS__)
 
 /**
- * @brief Invokes @p fn for each element of property @p prop for
- *        a `DT_DRV_COMPAT` instance with multiple arguments and a sepatator.
- *
- * Equivalent to
- *      DT_FOREACH_PROP_ELEM_SEP_VARGS(DT_DRV_INST(inst), prop, fn, sep,
- *                                     __VA_ARGS__)
- *
- * @param inst instance number
- * @param prop lowercase-and-underscores property name
- * @param fn macro to invoke
- * @param sep Separator (e.g. comma or semicolon). Must be in parentheses;
- *            this is required to enable providing a comma as separator.
- * @param ... variable number of arguments to pass to fn
- *
- * @see DT_INST_FOREACH_PROP_ELEM
- */
-#define DT_INST_FOREACH_PROP_ELEM_SEP_VARGS(inst, prop, fn, sep, ...)		\
-	DT_FOREACH_PROP_ELEM_SEP_VARGS(DT_DRV_INST(inst), prop, fn, sep,	\
-				       __VA_ARGS__)
-
-/**
- * @brief Does a DT_DRV_COMPAT instance have a property?
+ * @brief Does a `DT_DRV_COMPAT` instance have a property?
  * @param inst instance number
  * @param prop lowercase-and-underscores property name
  * @return 1 if the instance has the property, 0 otherwise.
@@ -4077,6 +3752,7 @@
 #include <zephyr/devicetree/dma.h>
 #include <zephyr/devicetree/pwms.h>
 #include <zephyr/devicetree/fixed-partitions.h>
+#include <zephyr/devicetree/zephyr.h>
 #include <zephyr/devicetree/ordinals.h>
 #include <zephyr/devicetree/pinctrl.h>
 #include <zephyr/devicetree/can.h>

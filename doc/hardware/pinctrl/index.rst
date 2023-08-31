@@ -397,7 +397,8 @@ followed:
   control states. These properties are defined in
   :file:`dts/bindings/pinctrl/pinctrl-device.yaml`.
 - Use standard pin configuration properties as defined in
-  :file:`dts/bindings/pinctrl/pincfg-node.yaml`.
+  :file:`dts/bindings/pinctrl/pincfg-node.yaml` or
+  :file:`dts/bindings/pinctrl/pincfg-node-group.yaml`.
 
 Representations not following these guidelines may be accepted if they are
 already used by the same vendor in other operating systems, e.g. Linux.

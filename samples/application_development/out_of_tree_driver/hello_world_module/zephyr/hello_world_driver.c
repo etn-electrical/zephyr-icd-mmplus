@@ -6,7 +6,6 @@
 
 #include "hello_world_driver.h"
 #include <zephyr/types.h>
-#include <zephyr/sys/printk.h>
 #include <zephyr/syscall_handler.h>
 
 /**

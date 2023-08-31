@@ -9,4 +9,3 @@ Debugging
    thread-analyzer.rst
    coredump.rst
    gdbstub.rst
-   debugmon.rst

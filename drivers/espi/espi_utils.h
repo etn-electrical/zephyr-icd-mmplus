@@ -32,8 +32,6 @@ static inline int espi_manage_callback(sys_slist_t *callbacks,
 				return -EINVAL;
 			}
 		}
-	} else if (!set) {
-		return -EINVAL;
 	}
 
 	if (set) {

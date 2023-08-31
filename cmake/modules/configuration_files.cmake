@@ -24,7 +24,6 @@ include_guard(GLOBAL)
 
 include(extensions)
 
-zephyr_get(APPLICATION_CONFIG_DIR)
 if(DEFINED APPLICATION_CONFIG_DIR)
   string(CONFIGURE ${APPLICATION_CONFIG_DIR} APPLICATION_CONFIG_DIR)
   if(NOT IS_ABSOLUTE ${APPLICATION_CONFIG_DIR})
@@ -48,8 +47,7 @@ if(DEFINED CONF_FILE)
 
   # In order to support a `prj_<name>.conf pattern for auto inclusion of board
   # overlays, then we must first ensure only a single conf file is provided.
-  string(CONFIGURE "${CONF_FILE}" CONF_FILE_EXPANDED)
-  string(REPLACE " " ";" CONF_FILE_AS_LIST "${CONF_FILE_EXPANDED}")
+  string(REPLACE " " ";" CONF_FILE_AS_LIST "${CONF_FILE}")
   list(LENGTH CONF_FILE_AS_LIST CONF_FILE_LENGTH)
   if(${CONF_FILE_LENGTH} EQUAL 1)
     # Need the file name to look for match.

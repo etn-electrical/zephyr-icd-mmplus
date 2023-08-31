@@ -27,7 +27,6 @@
 		sensor1 = &sensor1;
 		sensor2 = &sensor2;
 		accel0 = &sensor1;
-		watchdog0 = &wdt0;
 	};
 
 	chosen {
@@ -95,10 +94,6 @@
 	status = "okay";
 };
 
-&adc0 {
-	status = "okay";
-};
-
 &uart0 {
 	status = "okay";
 	current-speed = <115200>;
@@ -154,9 +149,5 @@
 };
 
 &ieee802154g {
-	status = "okay";
-};
-
-&wdt0 {
 	status = "okay";
 };

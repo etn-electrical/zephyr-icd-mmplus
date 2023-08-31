@@ -55,7 +55,7 @@ int ft8xx_drv_init(void)
 {
 	int ret;
 
-	if (!spi_is_ready_dt(&spi)) {
+	if (!spi_is_ready(&spi)) {
 		LOG_ERR("SPI bus %s not ready", spi.bus->name);
 		return -ENODEV;
 	}

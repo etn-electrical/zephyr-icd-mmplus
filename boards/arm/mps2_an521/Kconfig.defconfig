@@ -29,4 +29,11 @@ config UART_INTERRUPT_DRIVEN
 
 endif # SERIAL
 
+if IPM
+
+config IPM_MHU
+	default y
+
+endif # IPM
+
 endif

@@ -9,7 +9,6 @@
 
 #include <zephyr/drivers/uart.h>
 #include <zephyr/drivers/clock_control.h>
-#include <zephyr/irq.h>
 
 #include "uart_lpc11u6x.h"
 

@@ -112,7 +112,21 @@ description: |
 
 compatible: "espressif,esp32-pinctrl"
 
-include: base.yaml
+include:
+    - name: base.yaml
+    - name: pincfg-node-group.yaml
+      child-binding:
+        child-binding:
+          property-allowlist:
+            - bias-disable
+            - bias-pull-down
+            - bias-pull-up
+            - drive-push-pull
+            - drive-open-drain
+            - input-enable
+            - output-enable
+            - output-high
+            - output-low
 
 child-binding:
   description: |
@@ -120,20 +134,6 @@ child-binding:
   child-binding:
     description:
       Espressif pin controller pin configuration group.
-
-    include:
-      - name: pincfg-node.yaml
-        property-allowlist:
-          - bias-disable
-          - bias-pull-down
-          - bias-pull-up
-          - drive-push-pull
-          - drive-open-drain
-          - input-enable
-          - output-enable
-          - output-high
-          - output-low
-
     properties:
       pinmux:
         required: true

@@ -76,7 +76,16 @@ description: |
 
 compatible: "nordic,nrf-pinctrl"
 
-include: base.yaml
+include:
+    - name: base.yaml
+    - name: pincfg-node-group.yaml
+      child-binding:
+        child-binding:
+          property-allowlist:
+            - bias-disable
+            - bias-pull-down
+            - bias-pull-up
+            - low-power-enable
 
 child-binding:
   description: |
@@ -84,15 +93,6 @@ child-binding:
   child-binding:
     description: |
       nRF pin controller pin configuration group.
-
-    include:
-      - name: pincfg-node.yaml
-        property-allowlist:
-          - bias-disable
-          - bias-pull-down
-          - bias-pull-up
-          - low-power-enable
-
     properties:
       psels:
         required: true

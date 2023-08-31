@@ -16,9 +16,6 @@
 #include <zephyr/kernel.h>
 #include <kernel_internal.h>
 #include <stdlib.h>
-#if defined(CONFIG_SYS_HEAP_RUNTIME_STATS) && (CONFIG_HEAP_MEM_POOL_SIZE > 0)
-#include <zephyr/sys/sys_heap.h>
-#endif
 #if defined(CONFIG_LOG_RUNTIME_FILTERING)
 #include <zephyr/logging/log_ctrl.h>
 #endif
@@ -192,11 +189,11 @@ static void shell_stack_dump(const struct k_thread *thread, void *user_data)
 
 	shell_print(
 		(const struct shell *)user_data, "%p %-" STRINGIFY(THREAD_MAX_NAM_LEN) "s "
-		"(real size %4zu):\tunused %4zu\tusage %4zu / %4zu (%2u %%)",
+		"(real size %4zu):\tunused %4zu\tusage %4zu / %4zu (%u %%)",
 		thread, tname ? tname : "NA", size, unused, size - unused, size, pcnt);
 }
 
-K_KERNEL_STACK_ARRAY_DECLARE(z_interrupt_stacks, CONFIG_MP_MAX_NUM_CPUS,
+K_KERNEL_STACK_ARRAY_DECLARE(z_interrupt_stacks, CONFIG_MP_NUM_CPUS,
 			     CONFIG_ISR_STACK_SIZE);
 
 static int cmd_kernel_stacks(const struct shell *shell,
@@ -214,9 +211,7 @@ static int cmd_kernel_stacks(const struct shell *shell,
 	 * kernel support, including dumping arch-specific exception-related
 	 * stack buffers.
 	 */
-	unsigned int num_cpus = arch_num_cpus();
-
-	for (int i = 0; i < num_cpus; i++) {
+	for (int i = 0; i < CONFIG_MP_NUM_CPUS; i++) {
 		size_t unused;
 		const uint8_t *buf = Z_KERNEL_STACK_BUFFER(z_interrupt_stacks[i]);
 		size_t size = K_KERNEL_STACK_SIZEOF(z_interrupt_stacks[i]);
@@ -226,36 +221,10 @@ static int cmd_kernel_stacks(const struct shell *shell,
 		__ASSERT_NO_MSG(err == 0);
 
 		shell_print(shell,
-			    "%p IRQ %02d %s(real size %4zu):\tunused %4zu\tusage %4zu / %4zu (%2zu %%)",
+			    "%p IRQ %02d %s(real size %4zu):\tunused %4zu\tusage %4zu / %4zu (%zu %%)",
 			    &z_interrupt_stacks[i], i, pad, size, unused, size - unused, size,
 			    ((size - unused) * 100U) / size);
 	}
-
-	return 0;
-}
-#endif
-
-#if defined(CONFIG_SYS_HEAP_RUNTIME_STATS) && (CONFIG_HEAP_MEM_POOL_SIZE > 0)
-extern struct sys_heap _system_heap;
-
-static int cmd_kernel_heap(const struct shell *sh,
-			   size_t argc, char **argv)
-{
-	ARG_UNUSED(argc);
-	ARG_UNUSED(argv);
-
-	int err;
-	struct sys_memory_stats stats;
-
-	err = sys_heap_runtime_stats_get(&_system_heap, &stats);
-	if (err) {
-		shell_error(sh, "Failed to read kernel system heap statistics (err %d)", err);
-		return -ENOEXEC;
-	}
-
-	shell_print(sh, "free:           %zu", stats.free_bytes);
-	shell_print(sh, "allocated:      %zu", stats.allocated_bytes);
-	shell_print(sh, "max. allocated: %zu", stats.max_allocated_bytes);
 
 	return 0;
 }
@@ -358,9 +327,6 @@ SHELL_STATIC_SUBCMD_SET_CREATE(sub_kernel,
 		defined(CONFIG_THREAD_MONITOR)
 	SHELL_CMD(stacks, NULL, "List threads stack usage.", cmd_kernel_stacks),
 	SHELL_CMD(threads, NULL, "List kernel threads.", cmd_kernel_threads),
-#endif
-#if defined(CONFIG_SYS_HEAP_RUNTIME_STATS) && (CONFIG_HEAP_MEM_POOL_SIZE > 0)
-	SHELL_CMD(heap, NULL, "System heap usage statistics.", cmd_kernel_heap),
 #endif
 	SHELL_CMD(uptime, NULL, "Kernel uptime.", cmd_kernel_uptime),
 	SHELL_CMD(version, NULL, "Kernel version.", cmd_kernel_version),

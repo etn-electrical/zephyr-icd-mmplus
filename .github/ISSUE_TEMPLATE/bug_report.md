@@ -9,8 +9,6 @@ assignees: ''
 
 **Describe the bug**
 A clear and concise description of what the bug is.
-(Note that [Github Discussions](https://github.com/zephyrproject-rtos/zephyr/discussions) are available to first verify that the issue
-is a genuine Zephyr bug and not a consequence of Zephyr services misuse.)
 
 Please also mention any information which could help others to understand
 the problem you're facing:

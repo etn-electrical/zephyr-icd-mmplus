@@ -11,7 +11,6 @@
 #include <zephyr/drivers/pinctrl.h>
 #endif
 #include <zephyr/logging/log.h>
-#include <zephyr/irq.h>
 
 #include "can_mcan.h"
 

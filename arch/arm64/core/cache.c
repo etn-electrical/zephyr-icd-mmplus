@@ -13,7 +13,6 @@
  * This module contains functions for manipulation of the d-cache.
  */
 
-#include <zephyr/arch/arm64/cache.h>
 #include <zephyr/cache.h>
 
 #define	CTR_EL0_DMINLINE_SHIFT		16
@@ -66,7 +65,7 @@ size_t arch_dcache_line_size_get(void)
  *	 K_CACHE_WB: clean
  *	 K_CACHE_WB_INVD: clean and invalidate
  */
-int arm64_dcache_range(void *addr, size_t size, int op)
+int arch_dcache_range(void *addr, size_t size, int op)
 {
 	size_t line_size;
 	uintptr_t start_addr = (uintptr_t)addr;
@@ -137,7 +136,7 @@ done:
  *	 K_CACHE_WB: clean
  *	 K_CACHE_WB_INVD: clean and invalidate
  */
-int arm64_dcache_all(int op)
+int arch_dcache_all(int op)
 {
 	uint32_t clidr_el1, csselr_el1, ccsidr_el1;
 	uint8_t loc, ctype, cache_level, line_size, way_pos;
@@ -206,4 +205,14 @@ int arm64_dcache_all(int op)
 	isb();
 
 	return 0;
+}
+
+int arch_icache_range(void *addr, size_t size, int op)
+{
+	return -ENOTSUP;
+}
+
+int arch_icache_all(int op)
+{
+	return -ENOTSUP;
 }

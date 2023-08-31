@@ -9,7 +9,6 @@
 #include <zephyr/drivers/counter.h>
 #include <zephyr/drivers/pinctrl.h>
 #include <zephyr/device.h>
-#include <zephyr/irq.h>
 #include <soc.h>
 
 #include <zephyr/logging/log.h>

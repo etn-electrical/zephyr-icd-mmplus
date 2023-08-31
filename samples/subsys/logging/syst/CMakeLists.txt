@@ -6,7 +6,7 @@ project(syst)
 
 target_sources(app PRIVATE src/main.c)
 
-if(CONFIG_CPP)
+if(CONFIG_CPLUSPLUS)
   # When building for C++, force C++ compilation
   set_source_files_properties(src/main.c PROPERTIES LANGUAGE CXX)
 endif()

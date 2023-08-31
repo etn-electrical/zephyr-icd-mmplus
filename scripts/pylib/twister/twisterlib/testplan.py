@@ -14,7 +14,6 @@ from collections import OrderedDict
 from itertools import islice
 import logging
 import copy
-import shutil
 
 logger = logging.getLogger('twister')
 logger.setLevel(logging.DEBUG)
@@ -29,7 +28,6 @@ from twisterlib.error import TwisterRuntimeError
 from twisterlib.platform import Platform
 from twisterlib.config_parser import TwisterConfigParser
 from twisterlib.testinstance import TestInstance
-from twisterlib.quarantine import Quarantine
 
 
 from zephyr_module import parse_modules
@@ -53,10 +51,8 @@ class Filters:
     TESTSUITE = 'testsuite filter'
     # filters realted to platform definition
     PLATFORM = 'Platform related filter'
-    # in case a test suite was quarantined.
+    # in case a testcase was quarantined.
     QUARENTINE = 'Quarantine filter'
-    # in case a test suite is skipped intentionally .
-    SKIP = 'Skip filter'
 
 
 class TestPlan:
@@ -80,7 +76,7 @@ class TestPlan:
 
         # Keep track of which test cases we've filtered out and why
         self.testsuites = {}
-        self.quarantine = None
+        self.quarantine = {}
         self.platforms = []
         self.platform_names = []
         self.selected_platforms = []
@@ -129,15 +125,15 @@ class TestPlan:
 
         # handle quarantine
         ql = self.options.quarantine_list
-        qv = self.options.quarantine_verify
-        if qv and not ql:
-            logger.error("No quarantine list given to be verified")
-            raise TwisterRuntimeError("No quarantine list given to be verified")
         if ql:
-            for quarantine_file in ql:
-                # validate quarantine yaml file against the provided schema
-                scl.yaml_load_verify(quarantine_file, self.quarantine_schema)
-            self.quarantine = Quarantine(ql)
+            self.load_quarantine(ql)
+
+        qv = self.options.quarantine_verify
+        if qv:
+            if not ql:
+                logger.error("No quarantine list given to be verified")
+                raise TwisterRuntimeError("No quarantine list given to be verified")
+
 
     def load(self):
 
@@ -251,16 +247,15 @@ class TestPlan:
         return 1
 
     def report_duplicates(self):
-        all_identifiers = []
-        for _, ts in self.testsuites.items():
-            all_identifiers.append(ts.id)
-        dupes = [item for item, count in collections.Counter(all_identifiers).items() if count > 1]
+        all_tests = self.get_all_tests()
+
+        dupes = [item for item, count in collections.Counter(all_tests).items() if count > 1]
         if dupes:
             print("Tests with duplicate identifiers:")
             for dupe in dupes:
                 print("- {}".format(dupe))
                 for dc in self.get_testsuite(dupe):
-                    print("  - {}".format(dc.name))
+                    print("  - {}".format(dc))
         else:
             print("No duplicates found.")
 
@@ -429,11 +424,12 @@ class TestPlan:
                 logger.debug("Found possible testsuite in " + dirpath)
 
                 suite_yaml_path = os.path.join(dirpath, filename)
-                suite_path = os.path.dirname(suite_yaml_path)
 
                 try:
                     parsed_data = TwisterConfigParser(suite_yaml_path, self.suite_schema)
                     parsed_data.load()
+
+                    suite_path = os.path.dirname(suite_yaml_path)
 
                     subcases, ztest_suite_names = scan_testsuite_path(suite_path)
 
@@ -448,7 +444,7 @@ class TestPlan:
                             self.testsuites[suite.name] = suite
 
                 except Exception as e:
-                    logger.error(f"{suite_path}: can't load (skipping): {e!r}")
+                    logger.error("%s: can't load (skipping): %s" % (suite_path, e))
                     self.load_errors += 1
         return len(self.testsuites)
 
@@ -462,6 +458,35 @@ class TestPlan:
                 selected_platform = platform
                 break
         return selected_platform
+
+    def load_quarantine(self, file):
+        """
+        Loads quarantine list from the given yaml file. Creates a dictionary
+        of all tests configurations (platform + scenario: comment) that shall be
+        skipped due to quarantine
+        """
+
+        # Load yaml into quarantine_yaml
+        quarantine_yaml = scl.yaml_load_verify(file, self.quarantine_schema)
+
+        # Create quarantine_list with a product of the listed
+        # platforms and scenarios for each entry in quarantine yaml
+        quarantine_list = []
+        for quar_dict in quarantine_yaml:
+            if quar_dict['platforms'][0] == "all":
+                plat = self.platform_names
+            else:
+                plat = quar_dict['platforms']
+                self.verify_platforms_existence(plat, "quarantine-list")
+            comment = quar_dict.get('comment', "NA")
+            quarantine_list.append([{".".join([p, s]): comment}
+                                   for p in plat for s in quar_dict['scenarios']])
+
+        # Flatten the quarantine_list
+        quarantine_list = [it for sublist in quarantine_list for it in sublist]
+        # Change quarantine_list into a dictionary
+        for d in quarantine_list:
+            self.quarantine.update(d)
 
     def load_from_file(self, file, filter_platform=[]):
         with open(file, "r") as json_test_plan:
@@ -489,17 +514,14 @@ class TestPlan:
                 )
 
                 instance.metrics['handler_time'] = ts.get('execution_time', 0)
-                instance.metrics['used_ram'] = ts.get("used_ram", 0)
-                instance.metrics['used_rom']  = ts.get("used_rom",0)
-                instance.metrics['available_ram'] = ts.get('available_ram', 0)
-                instance.metrics['available_rom'] = ts.get('available_rom', 0)
+                instance.metrics['ram_size'] = ts.get("ram_size", 0)
+                instance.metrics['rom_size']  = ts.get("rom_size",0)
 
                 status = ts.get('status', None)
                 reason = ts.get("reason", "Unknown")
                 if status in ["error", "failed"]:
                     instance.status = None
                     instance.reason = None
-                    instance.retries += 1
                 # test marked as passed (built only) but can run when
                 # --test-only is used. Reset status to capture new results.
                 elif status == 'passed' and instance.run and self.options.test_only:
@@ -532,7 +554,9 @@ class TestPlan:
 
         toolchain = self.env.toolchain
         platform_filter = self.options.platform
-        exclude_platform = self.options.exclude_platform
+        # temporary workaround for exclusion of boards. setting twister in
+        # board yaml file to False does not really work. Need a better solution for the future.
+        exclude_platform = ['mec15xxevb_assy6853','mec1501modular_assy6885'] + self.options.exclude_platform
         testsuite_filter = self.run_individual_testsuite
         arch_filter = self.options.arch
         tag_filter = self.options.tag
@@ -541,7 +565,6 @@ class TestPlan:
         runnable = (self.options.device_testing or self.options.filter == 'runnable')
         force_toolchain = self.options.force_toolchain
         force_platform = self.options.force_platform
-        ignore_platform_key = self.options.ignore_platform_key
         emu_filter = self.options.emulation_only
 
         logger.debug("platform filter: " + str(platform_filter))
@@ -572,23 +595,11 @@ class TestPlan:
         elif arch_filter:
             platforms = list(filter(lambda p: p.arch in arch_filter, self.platforms))
         elif default_platforms:
-            _platforms = list(filter(lambda p: p.default, self.platforms))
-            platforms = []
-            # default platforms that can't be run are dropped from the list of
-            # the default platforms list. Default platforms should always be
-            # runnable.
-            for p in _platforms:
-                if p.simulation and p.simulation_exec:
-                    if shutil.which(p.simulation_exec):
-                        platforms.append(p)
-                else:
-                    platforms.append(p)
+            platforms = list(filter(lambda p: p.default, self.platforms))
         else:
             platforms = self.platforms
 
         logger.info("Building initial testsuite list...")
-
-        keyed_tests = {}
 
         for ts_name, ts in self.testsuites.items():
 
@@ -615,7 +626,6 @@ class TestPlan:
                 if not c:
                     platform_scope = list(filter(lambda item: item.name in ts.platform_allow, \
                                              self.platforms))
-
 
             # list of instances per testsuite, aka configurations.
             instance_list = []
@@ -655,7 +665,7 @@ class TestPlan:
                     instance.add_filter("Not part of integration platforms", Filters.TESTSUITE)
 
                 if ts.skip:
-                    instance.add_filter("Skip filter", Filters.SKIP)
+                    instance.add_filter("Skip filter", Filters.TESTSUITE)
 
                 if tag_filter and not ts.tags.intersection(tag_filter):
                     instance.add_filter("Command line testsuite tag filter", Filters.CMD_LINE)
@@ -721,42 +731,14 @@ class TestPlan:
                 if plat.only_tags and not set(plat.only_tags) & ts.tags:
                     instance.add_filter("Excluded tags per platform (only_tags)", Filters.PLATFORM)
 
-                # platform_key is a list of unique platform attributes that form a unique key a test
-                # will match against to determine if it should be scheduled to run. A key containing a
-                # field name that the platform does not have will filter the platform.
-                #
-                # A simple example is keying on arch and simulation to run a test once per unique (arch, simulation) platform.
-                if not ignore_platform_key and hasattr(ts, 'platform_key') and len(ts.platform_key) > 0:
-                    # form a key by sorting the key fields first, then fetching the key fields from plat if they exist
-                    # if a field does not exist the test is still scheduled on that platform as its undeterminable.
-                    key_fields = sorted(set(ts.platform_key))
-                    key = [getattr(plat, key_field) for key_field in key_fields]
-                    has_all_fields = True
-                    for key_field in key_fields:
-                        if key_field is None or key_field == 'na':
-                            has_all_fields = False
-                    if has_all_fields:
-                        test_key = copy.deepcopy(key)
-                        test_key.append(ts.name)
-                        test_key = tuple(test_key)
-                        keyed_test = keyed_tests.get(test_key)
-                        if keyed_test is not None:
-                            plat_key = {key_field: getattr(keyed_test['plat'], key_field) for key_field in key_fields}
-                            instance.add_filter(f"Excluded test already covered for key {tuple(key)} by platform {keyed_test['plat'].name} having key {plat_key}", Filters.TESTSUITE)
-                        else:
-                            keyed_tests[test_key] = {'plat': plat, 'ts': ts}
-                    else:
-                        instance.add_filter(f"Excluded platform missing key fields demanded by test {key_fields}", Filters.PLATFORM)
-
-                # handle quarantined tests
-                if self.quarantine:
-                    matched_quarantine = self.quarantine.get_matched_quarantine(
-                        instance.testsuite.id, plat.name, plat.arch, plat.simulation
-                    )
-                    if matched_quarantine and not self.options.quarantine_verify:
-                        instance.add_filter("Quarantine: " + matched_quarantine, Filters.QUARENTINE)
-                    if not matched_quarantine and self.options.quarantine_verify:
-                        instance.add_filter("Not under quarantine", Filters.QUARENTINE)
+                test_configuration = ".".join([instance.platform.name,
+                                               instance.testsuite.id])
+                # skip quarantined tests
+                if test_configuration in self.quarantine and not self.options.quarantine_verify:
+                    instance.add_filter(f"Quarantine: {self.quarantine[test_configuration]}", Filters.QUARENTINE)
+                # run only quarantined test to verify their statuses (skip everything else)
+                if self.options.quarantine_verify and test_configuration not in self.quarantine:
+                    instance.add_filter("Not under quarantine", Filters.QUARENTINE)
 
                 # if nothing stopped us until now, it means this configuration
                 # needs to be added.
@@ -801,10 +783,10 @@ class TestPlan:
         for filtered_instance in filtered_instances:
             # If integration mode is on all skips on integration_platforms are treated as errors.
             if self.options.integration and filtered_instance.platform.name in filtered_instance.testsuite.integration_platforms \
-                and "quarantine" not in filtered_instance.reason.lower():
+                and "Quarantine" not in filtered_instance.reason:
                 # Do not treat this as error if filter type is command line
                 filters = {t['type'] for t in filtered_instance.filters}
-                if Filters.CMD_LINE in filters or Filters.SKIP in filters:
+                if Filters.CMD_LINE in filters:
                     continue
                 filtered_instance.status = "error"
                 filtered_instance.reason += " but is one of the integration platforms"

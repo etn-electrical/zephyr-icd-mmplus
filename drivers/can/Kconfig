@@ -55,17 +55,30 @@ config CAN_STATS
 	help
 	  Enable CAN controller device statistics.
 
+config CAN_HAS_CANFD
+	bool
+	help
+	  driver supports CAN-FD
+
+config CAN_HAS_RX_TIMESTAMP
+	bool
+	help
+	  driver supports RX timestamps
+
 config CAN_FD_MODE
 	bool "CAN-FD"
+	default y
+	depends on CAN_HAS_CANFD
 	help
-	  Enable CAN-FD support. Not all CAN controllers support CAN-FD.
+	  Enable CAN-FD compatible API
 
 config CAN_RX_TIMESTAMP
 	bool "Receiving timestamps"
+	depends on CAN_HAS_RX_TIMESTAMP
 	help
 	  This option enables a timestamp value of the CAN free running timer.
 	  The value is incremented every bit time and starts when the controller
-	  is initialized. Not all CAN controllers support timestamps.
+	  is initialized.
 
 config CAN_AUTO_BUS_OFF_RECOVERY
 	bool "Automatic recovery from bus-off"
@@ -75,15 +88,6 @@ config CAN_AUTO_BUS_OFF_RECOVERY
 	  ISO 11898-1 (recovery after 128 occurrences of 11 consecutive
 	  recessive bits). When this option is enabled, the recovery API is not
 	  available.
-
-config CAN_QEMU_IFACE_NAME
-	string "SocketCAN interface name for QEMU"
-	default ""
-	depends on QEMU_TARGET
-	help
-	  The SocketCAN interface name for QEMU. This value, if set, is given as "if" parameter to
-	  the "-object can-host-socketcan" qemu command line option. The CAN interface must be
-	  configured before starting QEMU.
 
 source "drivers/can/Kconfig.sam"
 source "drivers/can/Kconfig.stm32"
@@ -97,8 +101,6 @@ source "drivers/can/Kconfig.loopback"
 source "drivers/can/Kconfig.native_posix_linux"
 source "drivers/can/Kconfig.sja1000"
 source "drivers/can/Kconfig.esp32"
-source "drivers/can/Kconfig.kvaser"
-source "drivers/can/Kconfig.fake"
 
 source "drivers/can/transceiver/Kconfig"
 

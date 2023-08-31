@@ -19,7 +19,7 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(cy8c95xx, CONFIG_GPIO_LOG_LEVEL);
 
-#include <zephyr/drivers/gpio/gpio_utils.h>
+#include "gpio_utils.h"
 
 /** Cache of the output configuration and data of the pins. */
 struct cy8c95xx_pin_state {
@@ -287,7 +287,7 @@ static const struct cy8c95xx_config cy8c95xx_##idx##_cfg = { \
 	.common = { \
 		.port_pin_mask = 0xFF, \
 	}, \
-	.i2c = I2C_DT_SPEC_GET(DT_PARENT(DT_INST(idx, DT_DRV_COMPAT))), \
+	.i2c = I2C_DT_SPEC_INST_GET(idx), \
 	.port_num = DT_INST_REG_ADDR(idx), \
 }; \
 static struct cy8c95xx_drv_data cy8c95xx_##idx##_drvdata = { \

@@ -25,8 +25,6 @@
 
 #include "ticker/ticker.h"
 
-#include "pdu_df.h"
-#include "pdu_vendor.h"
 #include "pdu.h"
 
 #include "lll.h"
@@ -45,10 +43,19 @@
 #include "lll_prof_internal.h"
 #include "lll_scan_internal.h"
 
+#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_DEBUG_HCI_DRIVER)
+#define LOG_MODULE_NAME bt_ctlr_lll_scan
+#include "common/log.h"
 #include "hal/debug.h"
 
 /* Maximum primary Advertising Radio Channels to scan */
 #define ADV_CHAN_MAX 3U
+
+#if defined(CONFIG_BT_CENTRAL) && defined(CONFIG_BT_CTLR_SCHED_ADVANCED)
+#define CONN_SPACING CONFIG_BT_CTLR_SCHED_ADVANCED_CENTRAL_CONN_SPACING
+#else
+#define CONN_SPACING 0U
+#endif /* CONFIG_BT_CENTRAL && CONFIG_BT_CTLR_SCHED_ADVANCED */
 
 static int init_reset(void);
 static int prepare_cb(struct lll_prepare_param *p);
@@ -287,13 +294,13 @@ void lll_scan_prepare_connect_req(struct lll_scan *lll, struct pdu_adv *pdu_tx,
 		*conn_space_us = conn_offset_us;
 		pdu_tx->connect_ind.win_offset = sys_cpu_to_le16(0);
 	} else {
-		uint32_t win_offset_us = lll->conn_win_offset_us;
+		uint32_t win_offset_us = lll->conn_win_offset_us +
+					 CONN_SPACING;
 
 		while ((win_offset_us & ((uint32_t)1 << 31)) ||
 		       (win_offset_us < conn_offset_us)) {
 			win_offset_us += conn_interval_us;
 		}
-
 		*conn_space_us = win_offset_us;
 		pdu_tx->connect_ind.win_offset =
 			sys_cpu_to_le16((win_offset_us - conn_offset_us) /
@@ -674,7 +681,7 @@ static void isr_rx(void *param)
 	uint8_t crc_ok;
 	uint8_t rl_idx;
 	bool has_adva;
-	int err = 0U;
+	int err;
 
 	if (IS_ENABLED(CONFIG_BT_CTLR_PROFILE_ISR)) {
 		lll_prof_latency_capture();
@@ -767,12 +774,7 @@ static void isr_rx(void *param)
 	}
 
 isr_rx_do_close:
-	if (IS_ENABLED(CONFIG_BT_CTLR_LOW_LAT) && (err == -ECANCELED)) {
-		radio_isr_set(isr_done_cleanup, lll);
-	} else {
-		radio_isr_set(isr_done, lll);
-	}
-
+	radio_isr_set(isr_done, lll);
 	radio_disable();
 }
 
@@ -1054,7 +1056,8 @@ static void isr_done_cleanup(void *param)
 		/* TODO: add other info by defining a payload struct */
 		node_rx->type = NODE_RX_TYPE_SCAN_INDICATION;
 
-		ull_rx_put_sched(node_rx->link, node_rx);
+		ull_rx_put(node_rx->link, node_rx);
+		ull_rx_sched();
 	}
 #endif /* CONFIG_BT_CTLR_SCAN_INDICATION */
 
@@ -1098,7 +1101,8 @@ static void isr_done_cleanup(void *param)
 
 		node_rx->hdr.rx_ftr.param = lll;
 
-		ull_rx_put_sched(node_rx->hdr.link, node_rx);
+		ull_rx_put(node_rx->hdr.link, node_rx);
+		ull_rx_sched();
 	}
 #endif  /* CONFIG_BT_CTLR_ADV_EXT */
 
@@ -1264,7 +1268,8 @@ static inline int isr_rx_pdu(struct lll_scan *lll, struct pdu_adv *pdu_adv_rx,
 			ftr->extra = ull_pdu_rx_alloc();
 		}
 
-		ull_rx_put_sched(rx->hdr.link, rx);
+		ull_rx_put(rx->hdr.link, rx);
+		ull_rx_sched();
 
 		return 0;
 #endif /* CONFIG_BT_CENTRAL */
@@ -1400,10 +1405,6 @@ static inline int isr_rx_pdu(struct lll_scan *lll, struct pdu_adv *pdu_adv_rx,
 			/* Auxiliary PDU LLL scanning has been setup */
 			if (IS_ENABLED(CONFIG_BT_CTLR_ADV_EXT) &&
 			    (err == -EBUSY)) {
-				if (IS_ENABLED(CONFIG_BT_CTLR_PROFILE_ISR)) {
-					lll_prof_cputime_capture();
-				}
-
 				return 0;
 			}
 
@@ -1597,7 +1598,8 @@ static int isr_rx_scan_report(struct lll_scan *lll, uint8_t devmatch_ok,
 	}
 #endif /* CONFIG_BT_CTLR_EXT_SCAN_FP */
 
-	ull_rx_put_sched(node_rx->hdr.link, node_rx);
+	ull_rx_put(node_rx->hdr.link, node_rx);
+	ull_rx_sched();
 
 	return err;
 }

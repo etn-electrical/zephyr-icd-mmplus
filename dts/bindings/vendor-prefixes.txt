@@ -262,7 +262,6 @@ hycon	Hycon Technology Corp.
 hydis	Hydis Technologies
 hynitron	Hynitron
 hyundai	Hyundai Technology
-hzgrow	Hangzhou Grow Technology Co., Ltd.
 i2se	I2SE GmbH
 ibm	International Business Machines (IBM)
 icplus	IC Plus Corp.
@@ -311,7 +310,6 @@ kobol	Kobol Innovations Pte. Ltd.
 koe	Kaohsiung Opto-Electronics Inc.
 kontron	Kontron S&T AG
 kosagi	Sutajio Ko-Usagi PTE Ltd.
-kvaser	Kvaser
 kvg	Kverneland Group
 kyo	Kyocera Corporation
 lacie	LaCie
@@ -342,7 +340,6 @@ logictechno	Logic Technologies Limited
 longcheer	Longcheer Technology (Shanghai) Co., Ltd.
 lontium	Lontium Semiconductor Corporation
 loongson	Loongson Technology Corporation Limited
-lowrisc	lowRISC Community Interest Company
 lsi	LSI Corp. (LSI Logic)
 lwn	Liebherr-Werk Nenzing GmbH
 lxa	Linux Automation GmbH
@@ -568,7 +565,6 @@ solidrun	SolidRun
 solomon	Solomon Systech Limited
 sony	Sony Corporation
 spansion	Spansion Inc.
-sparkfun	SparkFun Electronics
 sprd	Spreadtrum Communications Inc.
 sst	Silicon Storage Technology, Inc.
 sstar	Xiamen Xingchen(SigmaStar) Technology Co., Ltd. (formerly part of MStar Semiconductor, Inc.)

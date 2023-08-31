@@ -12,8 +12,6 @@
 extern "C" {
 #endif
 
-#ifndef CONFIG_NET_SOCKETS_POSIX_NAMES
-
 #define pollfd zsock_pollfd
 
 #define POLLIN ZSOCK_POLLIN
@@ -26,8 +24,6 @@ static inline int poll(struct pollfd *fds, int nfds, int timeout)
 {
 	return zsock_poll(fds, nfds, timeout);
 }
-
-#endif /* CONFIG_NET_SOCKETS_POSIX_NAMES */
 
 #ifdef __cplusplus
 }

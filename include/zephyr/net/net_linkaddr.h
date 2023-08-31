@@ -66,7 +66,7 @@ enum net_link_type {
  */
 struct net_linkaddr {
 	/** The array of byte representing the address */
-	uint8_t *addr; /* in big endian */
+	uint8_t *addr;
 
 	/** Length of that address array */
 	uint8_t len;
@@ -93,7 +93,7 @@ struct net_linkaddr_storage {
 	uint8_t len;
 
 	/** The array of bytes representing the address */
-	uint8_t addr[NET_LINK_ADDR_MAX_LENGTH]; /* in big endian */
+	uint8_t addr[NET_LINK_ADDR_MAX_LENGTH];
 };
 
 /**

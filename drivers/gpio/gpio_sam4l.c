@@ -13,9 +13,8 @@
 #include <zephyr/init.h>
 #include <soc.h>
 #include <zephyr/drivers/gpio.h>
-#include <zephyr/irq.h>
 
-#include <zephyr/drivers/gpio/gpio_utils.h>
+#include "gpio_utils.h"
 
 typedef void (*config_func_t)(const struct device *dev);
 

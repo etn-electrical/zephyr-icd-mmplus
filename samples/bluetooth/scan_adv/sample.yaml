@@ -1,11 +1,8 @@
 sample:
-  name: Bluetooth Scan & Advertise
-  description: Demonstrates combined BLE Broadcaster & Observer role
-    functionality
+  description: TBD
+  name: TBD
 tests:
   sample.bluetooth.scan_adv:
     harness: bluetooth
     platform_allow: qemu_cortex_m3 qemu_x86
     tags: bluetooth
-    integration_platforms:
-      - qemu_cortex_m3

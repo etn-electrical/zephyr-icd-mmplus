@@ -62,10 +62,8 @@ static struct net_buf rf2xx_ack_frame = {
 };
 static struct net_pkt rf2xx_ack_pkt = {
 	.buffer = &rf2xx_ack_frame,
-	.cb = {
-		.lqi = 80,
-		.rssi = -40,
-	}
+	.ieee802154_lqi = 80,
+	.ieee802154_rssi = -40,
 };
 #endif /* CONFIG_NET_L2_OPENTHREAD */
 
@@ -167,7 +165,7 @@ static void rf2xx_trx_rx(const struct device *dev)
 
 	/*
 	 * The rf2xx frame buffer can have length > 128 bytes. The
-	 * net_pkt_rx_alloc_with_buffer allocates max value of 128 bytes.
+	 * net_pkt_alloc_with_buffer allocates max value of 128 bytes.
 	 *
 	 * This obligate the driver to have rx_buf statically allocated with
 	 * RX2XX_MAX_FRAME_SIZE.
@@ -206,8 +204,8 @@ static void rf2xx_trx_rx(const struct device *dev)
 		pkt_len -= RX2XX_FRAME_FCS_LENGTH;
 	}
 
-	pkt = net_pkt_rx_alloc_with_buffer(ctx->iface, pkt_len,
-					   AF_UNSPEC, 0, K_NO_WAIT);
+	pkt = net_pkt_alloc_with_buffer(ctx->iface, pkt_len,
+					AF_UNSPEC, 0, K_NO_WAIT);
 
 	if (!pkt) {
 		LOG_ERR("No buf available");
@@ -267,7 +265,7 @@ static void rf2xx_process_tx_frame(const struct device *dev)
 	struct rf2xx_context *ctx = dev->data;
 
 	ctx->trx_trac = (rf2xx_iface_reg_read(dev, RF2XX_TRX_STATE_REG) >>
-			 RF2XX_TRAC_STATUS) & RF2XX_TRAC_BIT_MASK;
+			 RF2XX_TRAC_STATUS) & 7;
 	k_sem_give(&ctx->trx_tx_sync);
 	rf2xx_trx_set_rx_state(dev);
 }
@@ -326,8 +324,7 @@ static void rf2xx_thread_main(void *arg)
 				rf2xx_iface_sram_read(ctx->dev, 0,
 						      &ctx->rx_phr, 1);
 			}
-		}
-		if (isr_status & (1 << RF2XX_TRX_END)) {
+		} else if (isr_status & (1 << RF2XX_TRX_END)) {
 			rf2xx_process_trx_end(ctx->dev);
 		}
 	}
@@ -432,7 +429,7 @@ static int rf2xx_set_channel(const struct device *dev, uint16_t channel)
 
 	if (ctx->trx_model == RF2XX_TRX_MODEL_212) {
 		if ((ctx->cc_page == RF2XX_TRX_CC_PAGE_0
-		     || ctx->cc_page == RF2XX_TRX_CC_PAGE_2)
+		     && ctx->cc_page == RF2XX_TRX_CC_PAGE_2)
 		    && channel > 10) {
 			LOG_ERR("Unsupported channel %u", channel);
 			return -EINVAL;
@@ -965,7 +962,7 @@ static inline int configure_spi(const struct device *dev)
 {
 	const struct rf2xx_config *conf = dev->config;
 
-	if (!spi_is_ready_dt(&conf->spi)) {
+	if (!spi_is_ready(&conf->spi)) {
 		LOG_ERR("SPI bus %s is not ready",
 			conf->spi.bus->name);
 		return -ENODEV;

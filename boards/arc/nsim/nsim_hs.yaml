@@ -2,11 +2,9 @@ identifier: nsim_hs
 name: HS nSIM simulator
 type: sim
 simulation: nsim
-simulation_exec: nsimdrv
 arch: arc
 toolchain:
   - zephyr
-  - cross-compile
   - arcmwdt
 testing:
   ignore_tags:

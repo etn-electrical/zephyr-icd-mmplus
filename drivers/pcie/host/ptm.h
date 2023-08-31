@@ -38,7 +38,7 @@ union ptm_ctrl_reg {
 };
 
 struct pcie_ptm_root_config {
-	struct pcie_dev *pcie;
+	pcie_bdf_t bdf;
 };
 
 #endif /* ZEPHYR_DRIVERS_PCIE_HOST_PTM_H_ */

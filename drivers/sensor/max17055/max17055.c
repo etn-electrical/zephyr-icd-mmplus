@@ -6,7 +6,6 @@
 
 #include <zephyr/drivers/i2c.h>
 #include <zephyr/drivers/sensor.h>
-#include <zephyr/kernel.h>
 #include <zephyr/sys/byteorder.h>
 
 #include <zephyr/logging/log.h>
@@ -409,7 +408,7 @@ static const struct sensor_driver_api max17055_battery_driver_api = {
 		.v_empty = DT_INST_PROP(index, v_empty),				   \
 	};										   \
 											   \
-	SENSOR_DEVICE_DT_INST_DEFINE(index, &max17055_gauge_init,			   \
+	DEVICE_DT_INST_DEFINE(index, &max17055_gauge_init,				   \
 			      NULL,							   \
 			      &max17055_driver_##index,					   \
 			      &max17055_config_##index, POST_KERNEL,			   \

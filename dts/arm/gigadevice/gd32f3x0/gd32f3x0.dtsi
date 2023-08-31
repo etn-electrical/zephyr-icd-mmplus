@@ -97,22 +97,7 @@
 			interrupts = <9 0>, <10 0>, <11 0>, <48 0>;
 			clocks = <&cctl GD32_CLOCK_DMA>;
 			dma-channels = <7>;
-			#dma-cells = <2>;
-			status = "disabled";
-		};
-
-		fwdgt: watchdog@40003000 {
-			compatible = "gd,gd32-fwdgt";
-			reg = <0x40003000 0x400>;
-			status = "disabled";
-		};
-
-		wwdgt: watchdog@40002c00 {
-			compatible = "gd,gd32-wwdgt";
-			reg = <0x40002C00 0x400>;
-			clocks = <&cctl GD32_CLOCK_WWDGT>;
-			resets = <&rctl GD32_RESET_WWDGT>;
-			interrupts = <0 0>;
+			#dma-cells = <1>;
 			status = "disabled";
 		};
 

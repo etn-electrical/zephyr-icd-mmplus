@@ -39,22 +39,22 @@ description: |
 
 compatible: "nxp,rt-iocon-pinctrl"
 
-include: base.yaml
-
-child-binding:
-  description: iMX RT IOCON pin controller pin group
-  child-binding:
-    description: |
-      iMX RT IOCON pin controller pin configuration node
-
-    include:
-      - name: pincfg-node.yaml
+include:
+  - name: base.yaml
+  - name: pincfg-node-group.yaml
+    child-binding:
+      child-binding:
         property-allowlist:
           - drive-open-drain
           - bias-pull-up
           - bias-pull-down
           - input-enable
 
+child-binding:
+  description: iMX RT IOCON pin controller pin group
+  child-binding:
+    description: |
+      iMX RT IOCON pin controller pin configuration node
     properties:
       pinmux:
         required: true

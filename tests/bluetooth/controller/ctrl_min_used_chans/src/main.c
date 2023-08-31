@@ -6,6 +6,7 @@
 
 #include <zephyr/types.h>
 #include <zephyr/ztest.h>
+#include "kconfig.h"
 
 #include <zephyr/bluetooth/hci.h>
 #include <zephyr/sys/byteorder.h>
@@ -18,14 +19,12 @@
 #include "util/memq.h"
 #include "util/dbuf.h"
 
-#include "pdu_df.h"
-#include "lll/pdu_vendor.h"
 #include "pdu.h"
 #include "ll.h"
 #include "ll_settings.h"
 
 #include "lll.h"
-#include "lll/lll_df_types.h"
+#include "lll_df_types.h"
 #include "lll_conn.h"
 #include "lll_conn_iso.h"
 
@@ -42,9 +41,9 @@
 #include "helper_pdu.h"
 #include "helper_util.h"
 
-static struct ll_conn conn;
+struct ll_conn conn;
 
-static void muc_setup(void *data)
+static void setup(void)
 {
 	test_setup(&conn);
 }
@@ -63,7 +62,7 @@ static void muc_setup(void *data)
  *    |                            |                         |
  *    |                            |                         |
  */
-ZTEST(muc_periph, test_min_used_chans_periph_loc)
+void test_min_used_chans_periph_loc(void)
 {
 	uint8_t err;
 	struct node_tx *tx;
@@ -106,11 +105,11 @@ ZTEST(muc_periph, test_min_used_chans_periph_loc)
 	/* There should not be a host notifications */
 	ut_rx_q_is_empty();
 
-	zassert_equal(llcp_ctx_buffers_free(), test_ctx_buffers_cnt(),
-		      "Free CTX buffers %d", llcp_ctx_buffers_free());
+	zassert_equal(ctx_buffers_free(), test_ctx_buffers_cnt(),
+		      "Free CTX buffers %d", ctx_buffers_free());
 }
 
-ZTEST(muc_central, test_min_used_chans_central_loc)
+void test_min_used_chans_central_loc(void)
 {
 	uint8_t err;
 
@@ -124,11 +123,11 @@ ZTEST(muc_central, test_min_used_chans_central_loc)
 	err = ull_cp_min_used_chans(&conn, 1, 2);
 	zassert_equal(err, BT_HCI_ERR_CMD_DISALLOWED);
 
-	zassert_equal(llcp_ctx_buffers_free(), test_ctx_buffers_cnt(),
-		      "Free CTX buffers %d", llcp_ctx_buffers_free());
+	zassert_equal(ctx_buffers_free(), test_ctx_buffers_cnt(),
+		      "Free CTX buffers %d", ctx_buffers_free());
 }
 
-ZTEST(muc_central, test_min_used_chans_central_rem)
+void test_min_used_chans_central_rem(void)
 {
 	struct pdu_data_llctrl_min_used_chans_ind remote_muc_ind = { .phys = 1,
 		.min_used_chans = 2 };
@@ -160,9 +159,21 @@ ZTEST(muc_central, test_min_used_chans_central_rem)
 	/* There should not be a host notifications */
 	ut_rx_q_is_empty();
 
-	zassert_equal(llcp_ctx_buffers_free(), test_ctx_buffers_cnt(),
-		      "Free CTX buffers %d", llcp_ctx_buffers_free());
+	zassert_equal(ctx_buffers_free(), test_ctx_buffers_cnt(),
+		      "Free CTX buffers %d", ctx_buffers_free());
 }
 
-ZTEST_SUITE(muc_central, NULL, NULL, muc_setup, NULL, NULL);
-ZTEST_SUITE(muc_periph, NULL, NULL, muc_setup, NULL, NULL);
+void test_main(void)
+{
+	ztest_test_suite(
+		muc,
+		ztest_unit_test_setup_teardown(test_min_used_chans_periph_loc, setup,
+					       unit_test_noop),
+		ztest_unit_test_setup_teardown(test_min_used_chans_central_loc, setup,
+					       unit_test_noop),
+		ztest_unit_test_setup_teardown(test_min_used_chans_central_rem, setup,
+					       unit_test_noop)
+		);
+
+	ztest_run_test_suite(muc);
+}

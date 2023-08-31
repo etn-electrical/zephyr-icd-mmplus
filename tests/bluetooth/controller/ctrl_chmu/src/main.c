@@ -6,6 +6,7 @@
 
 #include <zephyr/types.h>
 #include <zephyr/ztest.h>
+#include "kconfig.h"
 
 #define ULL_LLCP_UNITTEST
 
@@ -20,14 +21,12 @@
 #include "util/memq.h"
 #include "util/dbuf.h"
 
-#include "pdu_df.h"
-#include "lll/pdu_vendor.h"
 #include "pdu.h"
 #include "ll.h"
 #include "ll_settings.h"
 
 #include "lll.h"
-#include "lll/lll_df_types.h"
+#include "lll_df_types.h"
 #include "lll_conn.h"
 #include "lll_conn_iso.h"
 
@@ -46,7 +45,7 @@
 
 static struct ll_conn conn;
 
-static void chmu_setup(void *data)
+static void setup(void)
 {
 	test_setup(&conn);
 }
@@ -56,7 +55,7 @@ static bool is_instant_reached(struct ll_conn *conn, uint16_t instant)
 	return ((event_counter(conn) - instant) & 0xFFFF) <= 0x7FFF;
 }
 
-ZTEST(chmu, test_channel_map_update_central_loc)
+void test_channel_map_update_central_loc(void)
 {
 	uint8_t chm[5] = { 0x00, 0x04, 0x05, 0x06, 0x00 };
 	uint8_t initial_chm[5];
@@ -134,11 +133,11 @@ ZTEST(chmu, test_channel_map_update_central_loc)
 	zassert_mem_equal(conn.lll.data_chan_map, chm, sizeof(conn.lll.data_chan_map),
 			  "Channel map invalid");
 
-	zassert_equal(llcp_ctx_buffers_free(), test_ctx_buffers_cnt(),
-				  "Free CTX buffers %d", llcp_ctx_buffers_free());
+	zassert_equal(ctx_buffers_free(), test_ctx_buffers_cnt(),
+				  "Free CTX buffers %d", ctx_buffers_free());
 }
 
-ZTEST(chmu, test_channel_map_update_central_invalid)
+void test_channel_map_update_central_invalid(void)
 {
 	uint8_t chm[5] = { 0x00, 0x04, 0x05, 0x06, 0x00 };
 	uint8_t err;
@@ -205,11 +204,11 @@ ZTEST(chmu, test_channel_map_update_central_invalid)
 	zassert_equal(conn.llcp_terminate.reason_final, BT_HCI_ERR_LMP_PDU_NOT_ALLOWED,
 		      "Terminate reason %d", conn.llcp_terminate.reason_final);
 
-	zassert_equal(llcp_ctx_buffers_free(), test_ctx_buffers_cnt(),
-				  "Free CTX buffers %d", llcp_ctx_buffers_free());
+	zassert_equal(ctx_buffers_free(), test_ctx_buffers_cnt(),
+				  "Free CTX buffers %d", ctx_buffers_free());
 }
 
-ZTEST(chmu, test_channel_map_update_periph_rem)
+void test_channel_map_update_periph_rem(void)
 {
 	uint8_t chm[5] = { 0x00, 0x04, 0x05, 0x06, 0x00 };
 	uint8_t initial_chm[5];
@@ -276,11 +275,11 @@ ZTEST(chmu, test_channel_map_update_periph_rem)
 	zassert_mem_equal(conn.lll.data_chan_map, chm, sizeof(conn.lll.data_chan_map),
 			  "Channel map invalid");
 
-	zassert_equal(llcp_ctx_buffers_free(), test_ctx_buffers_cnt(),
-				  "Free CTX buffers %d", llcp_ctx_buffers_free());
+	zassert_equal(ctx_buffers_free(), test_ctx_buffers_cnt(),
+				  "Free CTX buffers %d", ctx_buffers_free());
 }
 
-ZTEST(chmu, test_channel_map_update_periph_invalid)
+void test_channel_map_update_periph_invalid(void)
 {
 	struct pdu_data_llctrl_chan_map_ind chmu_ind = {
 		.instant = 6,
@@ -335,11 +334,11 @@ ZTEST(chmu, test_channel_map_update_periph_invalid)
 	zassert_equal(conn.llcp_terminate.reason_final, BT_HCI_ERR_LMP_PDU_NOT_ALLOWED,
 		      "Terminate reason %d", conn.llcp_terminate.reason_final);
 
-	zassert_equal(llcp_ctx_buffers_free(), test_ctx_buffers_cnt(),
-				  "Free CTX buffers %d", llcp_ctx_buffers_free());
+	zassert_equal(ctx_buffers_free(), test_ctx_buffers_cnt(),
+				  "Free CTX buffers %d", ctx_buffers_free());
 }
 
-ZTEST(chmu, test_channel_map_update_periph_loc)
+void test_channel_map_update_periph_loc(void)
 {
 	uint8_t err;
 	uint8_t chm[5] = { 0x00, 0x06, 0x06, 0x06, 0x00 };
@@ -353,8 +352,23 @@ ZTEST(chmu, test_channel_map_update_periph_loc)
 	err = ull_cp_chan_map_update(&conn, chm);
 	zassert_equal(err, BT_HCI_ERR_CMD_DISALLOWED);
 
-	zassert_equal(llcp_ctx_buffers_free(), test_ctx_buffers_cnt(),
-				  "Free CTX buffers %d", llcp_ctx_buffers_free());
+	zassert_equal(ctx_buffers_free(), test_ctx_buffers_cnt(),
+				  "Free CTX buffers %d", ctx_buffers_free());
 }
 
-ZTEST_SUITE(chmu, NULL, NULL, chmu_setup, NULL, NULL);
+void test_main(void)
+{
+	ztest_test_suite(chmu,
+			 ztest_unit_test_setup_teardown(test_channel_map_update_central_loc, setup,
+							unit_test_noop),
+			 ztest_unit_test_setup_teardown(test_channel_map_update_central_invalid,
+							setup, unit_test_noop),
+			 ztest_unit_test_setup_teardown(test_channel_map_update_periph_rem, setup,
+							unit_test_noop),
+			 ztest_unit_test_setup_teardown(test_channel_map_update_periph_invalid,
+							setup, unit_test_noop),
+			 ztest_unit_test_setup_teardown(test_channel_map_update_periph_loc, setup,
+							unit_test_noop));
+
+	ztest_run_test_suite(chmu);
+}

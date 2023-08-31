@@ -22,4 +22,5 @@ supported:
   - xpro_serial
   - xpro_spi
   - can
+  - canfd
   - hwinfo

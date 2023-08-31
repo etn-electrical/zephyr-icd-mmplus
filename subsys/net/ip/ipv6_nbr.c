@@ -23,7 +23,6 @@ LOG_MODULE_DECLARE(net_ipv6, CONFIG_NET_IPV6_LOG_LEVEL);
 #include <zephyr/net/net_stats.h>
 #include <zephyr/net/net_context.h>
 #include <zephyr/net/net_mgmt.h>
-#include <zephyr/net/dns_resolve.h>
 #include "net_private.h"
 #include "connection.h"
 #include "icmpv6.h"
@@ -593,11 +592,11 @@ struct net_nbr *net_ipv6_nbr_add(struct net_if *iface,
 	if (!nbr) {
 		NET_ERR("Could not add router neighbor %s [%s]",
 			net_sprint_ipv6_addr(addr),
-			lladdr ? net_sprint_ll_addr(lladdr->addr, lladdr->len) : "unknown");
+			net_sprint_ll_addr(lladdr->addr, lladdr->len));
 		return NULL;
 	}
 
-	if (lladdr && net_nbr_link(nbr, iface, lladdr) == -EALREADY &&
+	if (net_nbr_link(nbr, iface, lladdr) == -EALREADY &&
 	    net_ipv6_nbr_data(nbr)->state != NET_IPV6_NBR_STATE_STATIC) {
 		/* Update the lladdr if the node was already known */
 		struct net_linkaddr_storage *cached_lladdr;
@@ -630,7 +629,7 @@ struct net_nbr *net_ipv6_nbr_add(struct net_if *iface,
 	NET_DBG("[%d] nbr %p state %d router %d IPv6 %s ll %s iface %p/%d",
 		nbr->idx, nbr, state, is_router,
 		net_sprint_ipv6_addr(addr),
-		lladdr ? net_sprint_ll_addr(lladdr->addr, lladdr->len) : "[unknown]",
+		net_sprint_ll_addr(lladdr->addr, lladdr->len),
 		nbr->iface, net_if_get_by_iface(nbr->iface));
 
 #if defined(CONFIG_NET_MGMT_EVENT_INFO)
@@ -1105,7 +1104,6 @@ int net_ipv6_send_na(struct net_if *iface, const struct in6_addr *src,
 		goto drop;
 	}
 
-	net_stats_update_icmp_sent(net_pkt_iface(pkt));
 	net_stats_update_ipv6_nd_sent(iface);
 
 	return 0;
@@ -1817,6 +1815,8 @@ static enum net_verdict handle_na_input(struct net_pkt *pkt,
 		goto drop;
 	}
 
+	net_stats_update_ipv6_nd_sent(net_pkt_iface(pkt));
+
 	net_pkt_unref(pkt);
 
 	return NET_OK;
@@ -1954,7 +1954,6 @@ int net_ipv6_send_ns(struct net_if *iface,
 		goto drop;
 	}
 
-	net_stats_update_icmp_sent(net_pkt_iface(pkt));
 	net_stats_update_ipv6_nd_sent(iface);
 
 	return 0;
@@ -2026,7 +2025,6 @@ int net_ipv6_send_rs(struct net_if *iface)
 		goto drop;
 	}
 
-	net_stats_update_icmp_sent(net_pkt_iface(pkt));
 	net_stats_update_ipv6_nd_sent(iface);
 
 	return 0;
@@ -2328,63 +2326,6 @@ static inline bool handle_ra_route_info(struct net_pkt *pkt, uint8_t len)
 	return true;
 }
 
-#if defined(CONFIG_NET_IPV6_RA_RDNSS)
-static inline bool handle_ra_rdnss(struct net_pkt *pkt, uint8_t len)
-{
-	NET_PKT_DATA_ACCESS_DEFINE(rdnss_access, struct net_icmpv6_nd_opt_rdnss);
-	struct net_icmpv6_nd_opt_rdnss *rdnss;
-	struct dns_resolve_context *ctx;
-	struct sockaddr_in6 dns = {
-		.sin6_family = AF_INET6
-	};
-	const struct sockaddr *dns_servers[] = {
-		(struct sockaddr *)&dns, NULL
-	};
-	size_t rdnss_size;
-	int ret;
-
-	rdnss = (struct net_icmpv6_nd_opt_rdnss *) net_pkt_get_data(pkt, &rdnss_access);
-	if (!rdnss) {
-		return false;
-	}
-
-	ret = net_pkt_acknowledge_data(pkt, &rdnss_access);
-	if (ret < 0) {
-		return false;
-	}
-
-	rdnss_size = len * 8U - 2 - sizeof(struct net_icmpv6_nd_opt_rdnss);
-	if ((rdnss_size % NET_IPV6_ADDR_SIZE) != 0) {
-		return false;
-	}
-
-	/* Recursive DNS servers option may present 1 or more addresses,
-	 * each 16 bytes in length. DNS servers should be listed in order
-	 * of preference, choose the first and skip the rest.
-	 */
-	ret = net_pkt_read(pkt, dns.sin6_addr.s6_addr, NET_IPV6_ADDR_SIZE);
-	if (ret < 0) {
-		NET_ERR("Failed to read RDNSS address, %d", ret);
-		return false;
-	}
-
-	/* Skip the rest of the DNS servers. */
-	if (net_pkt_skip(pkt, rdnss_size - NET_IPV6_ADDR_SIZE)) {
-		NET_ERR("Failed to skip RDNSS address, %d", ret);
-		return false;
-	}
-
-	/* TODO: Handle lifetime. */
-	ctx = dns_resolve_get_default();
-	ret = dns_resolve_reconfigure(ctx, NULL, dns_servers);
-	if (ret < 0) {
-		NET_DBG("Failed to set RDNSS resolve address: %d", ret);
-	}
-
-	return true;
-}
-#endif
-
 static enum net_verdict handle_ra_input(struct net_pkt *pkt,
 					struct net_ipv6_hdr *ip_hdr,
 					struct net_icmp_hdr *icmp_hdr)
@@ -2452,19 +2393,11 @@ static enum net_verdict handle_ra_input(struct net_pkt *pkt,
 
 	nd_opt_hdr = (struct net_icmpv6_nd_opt_hdr *)
 				net_pkt_get_data(pkt, &nd_access);
-
-	/* Add neighbor cache entry using link local address, regardless of link layer address
-	 * presence in Router Advertisement.
-	 */
-	nbr = net_ipv6_nbr_add(net_pkt_iface(pkt), (struct in6_addr *)NET_IPV6_HDR(pkt)->src, NULL,
-				true, NET_IPV6_NBR_STATE_INCOMPLETE);
-
 	while (nd_opt_hdr) {
 		net_pkt_acknowledge_data(pkt, &nd_access);
 
 		switch (nd_opt_hdr->type) {
 		case NET_ICMPV6_ND_OPT_SLLAO:
-			/* Update existing neighbor cache entry with link layer address. */
 			nbr = handle_ra_neighbor(pkt, nd_opt_hdr->len);
 			if (!nbr) {
 				goto drop;
@@ -2535,10 +2468,8 @@ static enum net_verdict handle_ra_input(struct net_pkt *pkt,
 			break;
 #if defined(CONFIG_NET_IPV6_RA_RDNSS)
 		case NET_ICMPV6_ND_OPT_RDNSS:
-			if (!handle_ra_rdnss(pkt, nd_opt_hdr->len)) {
-				goto drop;
-			}
-			break;
+			NET_DBG("RDNSS option skipped");
+			goto skip;
 #endif
 
 		case NET_ICMPV6_ND_OPT_DNSSL:

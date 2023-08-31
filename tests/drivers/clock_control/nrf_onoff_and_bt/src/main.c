@@ -18,31 +18,34 @@ LOG_MODULE_REGISTER(test);
 
 static bool test_end;
 
+#include <hal/nrf_gpio.h>
+
 static const struct device *const entropy = DEVICE_DT_GET(DT_CHOSEN(zephyr_entropy));
-static const struct device *const clock_dev = DEVICE_DT_GET_ONE(nordic_nrf_clock);
 static struct onoff_manager *hf_mgr;
-static struct onoff_client cli;
 static uint32_t iteration;
 
-static void *setup(void)
+static void before(void *data)
 {
+	ARG_UNUSED(data);
 	zassert_true(device_is_ready(entropy));
-	zassert_true(device_is_ready(clock_dev));
 
 	hf_mgr = z_nrf_clock_control_get_onoff(CLOCK_CONTROL_NRF_SUBSYS_HF);
 	zassert_true(hf_mgr);
 
-	return NULL;
+	iteration = 0;
 }
 
 static void bt_timeout_handler(struct k_timer *timer)
 {
 	static bool on;
 
+	nrf_gpio_cfg_output(27);
 	if (on) {
 		on = false;
+		nrf_gpio_pin_clear(27);
 		z_nrf_clock_bt_ctlr_hf_release();
 	} else {
+		nrf_gpio_pin_set(27);
 		on = true;
 		z_nrf_clock_bt_ctlr_hf_request();
 	}
@@ -52,9 +55,9 @@ static void bt_timeout_handler(struct k_timer *timer)
 		static bool long_timeout;
 
 		if (!on) {
-			timeout = K_USEC(200);
+			timeout = Z_TIMEOUT_US(200);
 		} else {
-			timeout = long_timeout ? K_USEC(300) : K_USEC(100);
+			timeout = Z_TIMEOUT_US(long_timeout ? 300 : 100);
 			long_timeout = !long_timeout;
 		}
 		k_timer_start(timer, timeout, K_NO_WAIT);
@@ -95,6 +98,8 @@ static void check_hf_status(const struct device *dev, bool exp_on,
  */
 ZTEST(nrf_onoff_and_bt, test_onoff_interrupted)
 {
+	const struct device *const clock_dev = DEVICE_DT_GET_ONE(nordic_nrf_clock);
+	struct onoff_client cli;
 	uint64_t start_time = k_uptime_get();
 	uint64_t elapsed;
 	uint64_t checkpoint = 1000;
@@ -102,12 +107,11 @@ ZTEST(nrf_onoff_and_bt, test_onoff_interrupted)
 	uint8_t rand;
 	int backoff;
 
-	iteration = 0;
-	test_end = false;
+	zassert_true(device_is_ready(clock_dev), "Device is not ready");
 
 	k_timer_start(&timer1, K_MSEC(1), K_NO_WAIT);
 
-	do {
+	while (1) {
 		iteration++;
 
 		err = entropy_get_entropy(entropy, &rand, 1);
@@ -132,9 +136,13 @@ ZTEST(nrf_onoff_and_bt, test_onoff_interrupted)
 			printk("test continues\n");
 			checkpoint += 1000;
 		}
-	} while (elapsed <= TEST_TIME_MS);
 
-	test_end = true;
+		if (elapsed > TEST_TIME_MS) {
+			test_end = true;
+			break;
+		}
+	}
+
 	k_msleep(100);
 	check_hf_status(clock_dev, false, true);
 }
@@ -142,6 +150,7 @@ ZTEST(nrf_onoff_and_bt, test_onoff_interrupted)
 static void onoff_timeout_handler(struct k_timer *timer)
 {
 	static bool on;
+	static struct onoff_client cli;
 	static uint32_t cnt;
 	int err;
 
@@ -162,9 +171,9 @@ static void onoff_timeout_handler(struct k_timer *timer)
 		static bool long_timeout;
 
 		if (!on) {
-			timeout = K_USEC(200);
+			timeout = Z_TIMEOUT_US(200);
 		} else {
-			timeout = long_timeout ? K_USEC(300) : K_USEC(100);
+			timeout = Z_TIMEOUT_US(long_timeout ? 300 : 100);
 			long_timeout = !long_timeout;
 		}
 		k_timer_start(timer, timeout, K_NO_WAIT);
@@ -183,6 +192,7 @@ K_TIMER_DEFINE(timer2, onoff_timeout_handler, NULL);
  */
 ZTEST(nrf_onoff_and_bt, test_bt_interrupted)
 {
+	const struct device *const clock_dev = DEVICE_DT_GET_ONE(nordic_nrf_clock);
 	uint64_t start_time = k_uptime_get();
 	uint64_t elapsed;
 	uint64_t checkpoint = 1000;
@@ -190,12 +200,11 @@ ZTEST(nrf_onoff_and_bt, test_bt_interrupted)
 	uint8_t rand;
 	int backoff;
 
-	iteration = 0;
-	test_end = false;
+	zassert_true(device_is_ready(clock_dev), "Device is not ready");
 
 	k_timer_start(&timer2, K_MSEC(1), K_NO_WAIT);
 
-	do {
+	while (1) {
 		iteration++;
 
 		err = entropy_get_entropy(entropy, &rand, 1);
@@ -217,10 +226,14 @@ ZTEST(nrf_onoff_and_bt, test_bt_interrupted)
 			printk("test continues\n");
 			checkpoint += 1000;
 		}
-	} while (elapsed <= TEST_TIME_MS);
 
-	test_end = true;
+		if (elapsed > TEST_TIME_MS) {
+			test_end = true;
+			break;
+		}
+	}
+
 	k_msleep(100);
 	check_hf_status(clock_dev, false, true);
 }
-ZTEST_SUITE(nrf_onoff_and_bt, NULL, setup, NULL, NULL, NULL);
+ZTEST_SUITE(nrf_onoff_and_bt, NULL, NULL, before, NULL, NULL);

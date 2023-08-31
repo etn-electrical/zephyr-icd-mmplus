@@ -6,8 +6,6 @@
 #ifndef ZEPHYR_INCLUDE_ARCH_XTENSA_XTENSA_IRQ_H_
 #define ZEPHYR_INCLUDE_ARCH_XTENSA_XTENSA_IRQ_H_
 
-#include <stdint.h>
-
 #include <zephyr/toolchain.h>
 #include <xtensa/config/core-isa.h>
 

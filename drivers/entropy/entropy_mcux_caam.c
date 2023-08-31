@@ -17,9 +17,7 @@ struct mcux_entropy_config {
 	CAAM_Type *base;
 };
 
-static caam_job_ring_interface_t jrif0 __attribute__((__section__(".nocache")));
-static uint8_t rng_buff_pool[CONFIG_ENTRY_MCUX_CAAM_POOL_SIZE]
-					__attribute__((__section__(".nocache")));
+static caam_job_ring_interface_t jrif;
 
 static int entropy_mcux_caam_get_entropy(const struct device *dev,
 					 uint8_t *buffer,
@@ -28,26 +26,13 @@ static int entropy_mcux_caam_get_entropy(const struct device *dev,
 	const struct mcux_entropy_config *config = dev->config;
 	status_t status;
 	caam_handle_t handle;
-	uint16_t read_length = 0;
-	uint16_t insert_idx = 0;
 
 	handle.jobRing = kCAAM_JobRing0;
 
-	/*
-	 * The buffer passed to the CAAM RNG function needs to be in non-cache
-	 * memory. Use an intermediate buffer to stage the data to the user
-	 * buffer.
-	 */
-	while (insert_idx < length) {
-		read_length = MIN(sizeof(rng_buff_pool), (length - insert_idx));
-
-		status = CAAM_RNG_GetRandomData(
-				config->base, &handle, kCAAM_RngStateHandle0,
-				&rng_buff_pool[0], read_length, kCAAM_RngDataAny, NULL);
-
-		memcpy(&buffer[insert_idx], &rng_buff_pool[0], read_length);
-		insert_idx += read_length;
-	}
+	status = CAAM_RNG_GetRandomData(
+			config->base, &handle, kCAAM_RngStateHandle0,
+			buffer, length, kCAAM_RngDataAny, NULL);
+	__ASSERT_NO_MSG(!status);
 
 	return 0;
 }
@@ -67,7 +52,7 @@ static int entropy_mcux_caam_init(const struct device *dev)
 	status_t status;
 
 	CAAM_GetDefaultConfig(&conf);
-	conf.jobRingInterface[0] = &jrif0;
+	conf.jobRingInterface[0] = &jrif;
 
 	status = CAAM_Init(config->base, &conf);
 	__ASSERT_NO_MSG(!status);

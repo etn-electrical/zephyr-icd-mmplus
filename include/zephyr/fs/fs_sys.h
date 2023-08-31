@@ -38,8 +38,6 @@ extern "C" {
  * @param stat Checks the status of a file or directory specified by the path
  * @param statvfs Returns the total and available space on the file system
  *        volume
- * @param mkfs Formats a device to specified file system type. Note that this
- *        operation destroys existing data on a target device.
  */
 struct fs_file_system_t {
 	/* File operations */
@@ -68,9 +66,6 @@ struct fs_file_system_t {
 					struct fs_dirent *entry);
 	int (*statvfs)(struct fs_mount_t *mountp, const char *path,
 					struct fs_statvfs *stat);
-#if defined(CONFIG_FILE_SYSTEM_MKFS)
-	int (*mkfs)(uintptr_t dev_id, void *cfg, int flags);
-#endif
 };
 
 /**

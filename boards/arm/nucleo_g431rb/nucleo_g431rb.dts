@@ -52,14 +52,6 @@
 	};
 };
 
-&clk_lsi {
-	status = "okay";
-};
-
-&clk_lse {
-	status = "okay";
-};
-
 &clk_hse {
 	clock-frequency = <DT_FREQ_M(24)>;
 	status = "okay";
@@ -135,15 +127,7 @@
 	};
 };
 
-&lptim1 {
-	clocks = <&rcc STM32_CLOCK_BUS_APB1 0x80000000>,
-		 <&rcc STM32_SRC_LSE LPTIM1_SEL(3)>;
-	status = "okay";
-};
-
 &rtc {
-	clocks = <&rcc STM32_CLOCK_BUS_APB1 0x00000400>,
-		 <&rcc STM32_SRC_LSI RTC_SEL(2)>;
 	status = "okay";
 };
 

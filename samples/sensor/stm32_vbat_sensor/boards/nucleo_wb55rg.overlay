@@ -16,6 +16,6 @@
 };
 
 &adc1 {
-	vbat-channel = <18>;
+	has-vbat-channel;
 	vref-mv = <3300>;
 };

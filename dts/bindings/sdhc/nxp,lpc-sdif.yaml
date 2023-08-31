@@ -13,6 +13,7 @@ properties:
 
   data-timeout:
     type: int
+    required: false
     default: 0xFFFFFF
     description: |
       Data timeout, as multiple of the SD clock. See DATA_TIMEOUT field of SDIF.
@@ -20,6 +21,7 @@ properties:
 
   response-timeout:
     type: int
+    required: false
     default: 0xFF
     description: |
       Response timeout, as multiple of the SD clock. See RESPONSE_TIMEOUT field
@@ -27,6 +29,7 @@ properties:
 
   cd-debounce-clocks:
     type: int
+    required: false
     default: 0xFFFFFF
     description: |
       Number of SD host clocks to use as a chip detect debounce filter. See

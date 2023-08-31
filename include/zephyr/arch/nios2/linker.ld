@@ -42,10 +42,11 @@
 
 #ifdef CONFIG_XIP
 	#define ROMABLE_REGION FLASH
+	#define RAMABLE_REGION SRAM
 #else
-	#define ROMABLE_REGION RAM
+	#define ROMABLE_REGION SRAM
+	#define RAMABLE_REGION SRAM
 #endif
-#define RAMABLE_REGION RAM
 
 #ifdef CONFIG_XIP
 
@@ -55,7 +56,7 @@ MEMORY
     {
     RESET (rx) : ORIGIN = _RESET_VECTOR, LENGTH = 0x20
     FLASH (rx) : ORIGIN = _RESET_VECTOR + 0x20 , LENGTH = (_ROM_SIZE - 0x20)
-    RAM   (wx) : ORIGIN = _EXC_VECTOR, LENGTH = _RAM_SIZE - (_EXC_VECTOR - _RAM_ADDR)
+    SRAM  (wx) : ORIGIN = _EXC_VECTOR, LENGTH = _RAM_SIZE - (_EXC_VECTOR - _RAM_ADDR)
     /* Used by and documented in include/linker/intlist.ld */
     IDT_LIST  (wx)      : ORIGIN = 0xFFFFF7FF, LENGTH = 2K
 
@@ -66,7 +67,7 @@ MEMORY
 MEMORY
     {
     RESET (wx) : ORIGIN = _RESET_VECTOR, LENGTH = 0x20
-    RAM   (wx) : ORIGIN = _EXC_VECTOR, LENGTH = _RAM_SIZE - (_EXC_VECTOR - _RAM_ADDR)
+    SRAM  (wx) : ORIGIN = _EXC_VECTOR, LENGTH = _RAM_SIZE - (_EXC_VECTOR - _RAM_ADDR)
 
     /* Used by and documented in include/linker/intlist.ld */
     IDT_LIST  (wx)      : ORIGIN = 0xFFFFF7FF, LENGTH = 2K

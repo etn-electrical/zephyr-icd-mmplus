@@ -18,10 +18,7 @@
 #include "util/memq.h"
 #include "util/dbuf.h"
 
-#include "pdu_df.h"
-#include "lll/pdu_vendor.h"
 #include "pdu.h"
-
 #include "ll.h"
 #include "ll_settings.h"
 #include "ll_feat.h"
@@ -44,9 +41,13 @@
 #include "ull_llcp_features.h"
 #include "ull_llcp_internal.h"
 
+#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_DEBUG_HCI_DRIVER)
+#define LOG_MODULE_NAME bt_ctlr_ull_llcp_remote
+#include "common/log.h"
 #include <soc.h>
 #include "hal/debug.h"
 
+static void rr_check_done(struct ll_conn *conn, struct proc_ctx *ctx);
 static struct proc_ctx *rr_dequeue(struct ll_conn *conn);
 static void rr_abort(struct ll_conn *conn);
 
@@ -93,7 +94,6 @@ static bool proc_with_instant(struct proc_ctx *ctx)
 	case PROC_CTE_REQ:
 	case PROC_CIS_TERMINATE:
 	case PROC_CIS_CREATE:
-	case PROC_SCA_UPDATE:
 		return 0U;
 	case PROC_PHY_UPDATE:
 	case PROC_CONN_UPDATE:
@@ -109,7 +109,7 @@ static bool proc_with_instant(struct proc_ctx *ctx)
 	return 0U;
 }
 
-void llcp_rr_check_done(struct ll_conn *conn, struct proc_ctx *ctx)
+static void rr_check_done(struct ll_conn *conn, struct proc_ctx *ctx)
 {
 	if (ctx->done) {
 		struct proc_ctx *ctx_header;
@@ -278,17 +278,12 @@ void llcp_rr_rx(struct ll_conn *conn, struct proc_ctx *ctx, struct node_rx_pdu *
 		llcp_rp_comm_rx(conn, ctx, rx);
 		break;
 #endif /* CONFIG_BT_CTLR_CENTRAL_ISO || CONFIG_BT_CTLR_PERIPHERAL_ISO */
-#if defined(CONFIG_BT_CTLR_SCA_UPDATE)
-	case PROC_SCA_UPDATE:
-		llcp_rp_comm_rx(conn, ctx, rx);
-		break;
-#endif /* CONFIG_BT_CTLR_SCA_UPDATE */
 	default:
 		/* Unknown procedure */
 		LL_ASSERT(0);
 		break;
 	}
-	llcp_rr_check_done(conn, ctx);
+	rr_check_done(conn, ctx);
 }
 
 void llcp_rr_tx_ack(struct ll_conn *conn, struct proc_ctx *ctx, struct node_tx *tx)
@@ -309,17 +304,12 @@ void llcp_rr_tx_ack(struct ll_conn *conn, struct proc_ctx *ctx, struct node_tx *
 		llcp_rp_comm_tx_ack(conn, ctx, tx);
 		break;
 #endif /* CONFIG_BT_CTLR_DF_CONN_CTE_RSP */
-#if defined(CONFIG_BT_CTLR_SCA_UPDATE)
-	case PROC_SCA_UPDATE:
-		llcp_rp_comm_tx_ack(conn, ctx, tx);
-		break;
-#endif /* CONFIG_BT_CTLR_DF_CONN_CTE_RSP */
 	default:
 		/* Ignore tx_ack */
 		break;
 	}
 
-	llcp_rr_check_done(conn, ctx);
+	rr_check_done(conn, ctx);
 }
 
 void llcp_rr_tx_ntf(struct ll_conn *conn, struct proc_ctx *ctx)
@@ -340,7 +330,7 @@ void llcp_rr_tx_ntf(struct ll_conn *conn, struct proc_ctx *ctx)
 		break;
 	}
 
-	llcp_rr_check_done(conn, ctx);
+	rr_check_done(conn, ctx);
 }
 
 static void rr_act_run(struct ll_conn *conn)
@@ -409,18 +399,13 @@ static void rr_act_run(struct ll_conn *conn)
 		llcp_rp_comm_run(conn, ctx, NULL);
 		break;
 #endif /* CONFIG_BT_CTLR_CENTRAL_ISO || CONFIG_BT_CTLR_PERIPHERAL_ISO */
-#if defined(CONFIG_BT_CTLR_SCA_UPDATE)
-	case PROC_SCA_UPDATE:
-		llcp_rp_comm_run(conn, ctx, NULL);
-		break;
-#endif /* CONFIG_BT_CTLR_SCA_UPDATE */
 	default:
 		/* Unknown procedure */
 		LL_ASSERT(0);
 		break;
 	}
 
-	llcp_rr_check_done(conn, ctx);
+	rr_check_done(conn, ctx);
 }
 
 static void rr_tx(struct ll_conn *conn, struct proc_ctx *ctx, uint8_t opcode)
@@ -841,22 +826,11 @@ static const struct proc_role new_proc_lut[] = {
 #endif /* CONFIG_BT_CTLR_DF_CONN_CTE_RSP */
 	[PDU_DATA_LLCTRL_TYPE_CTE_RSP] = { PROC_UNKNOWN, ACCEPT_ROLE_NONE },
 #if defined(CONFIG_BT_CTLR_CENTRAL_ISO) || defined(CONFIG_BT_CTLR_PERIPHERAL_ISO)
-#if !defined(CONFIG_BT_CTLR_PERIPHERAL_ISO)
-	[PDU_DATA_LLCTRL_TYPE_CIS_TERMINATE_IND] = { PROC_CIS_TERMINATE, ACCEPT_ROLE_CENTRAL },
-#else
-#if !defined(CONFIG_BT_CTLR_CENTRAL_ISO)
-	[PDU_DATA_LLCTRL_TYPE_CIS_TERMINATE_IND] = { PROC_CIS_TERMINATE, ACCEPT_ROLE_PERIPHERAL },
-#else
 	[PDU_DATA_LLCTRL_TYPE_CIS_TERMINATE_IND] = { PROC_CIS_TERMINATE, ACCEPT_ROLE_BOTH },
-#endif /* !defined(CONFIG_BT_CTLR_CENTRAL_ISO) */
-#endif /* !defined(CONFIG_BT_CTLR_PERIPHERAL_ISO) */
-#endif /* defined(CONFIG_BT_CTLR_CENTRAL_ISO) || defined(CONFIG_BT_CTLR_PERIPHERAL_ISO) */
+#endif /* CONFIG_BT_CTLR_CENTRAL_ISO || CONFIG_BT_CTLR_PERIPHERAL_ISO */
 #if defined(CONFIG_BT_CTLR_PERIPHERAL_ISO)
 	[PDU_DATA_LLCTRL_TYPE_CIS_REQ] = { PROC_CIS_CREATE, ACCEPT_ROLE_PERIPHERAL },
-#endif /* defined(CONFIG_BT_CTLR_PERIPHERAL_ISO) */
-#if defined(CONFIG_BT_CTLR_SCA_UPDATE)
-	[PDU_DATA_LLCTRL_TYPE_CLOCK_ACCURACY_REQ] = { PROC_SCA_UPDATE, ACCEPT_ROLE_BOTH },
-#endif /* CONFIG_BT_CTLR_SCA_UPDATE */
+#endif /* CONFIG_BT_CTLR_CENTRAL_ISO */
 };
 
 void llcp_rr_new(struct ll_conn *conn, struct node_rx_pdu *rx, bool valid_pdu)
@@ -893,7 +867,7 @@ void llcp_rr_new(struct ll_conn *conn, struct node_rx_pdu *rx, bool valid_pdu)
 	/* Prepare procedure */
 	llcp_rr_prepare(conn, rx);
 
-	llcp_rr_check_done(conn, ctx);
+	rr_check_done(conn, ctx);
 
 	/* Handle PDU */
 	ctx = llcp_rr_peek(conn);
@@ -920,24 +894,48 @@ static void rr_abort(struct ll_conn *conn)
 
 #ifdef ZTEST_UNITTEST
 
-bool llcp_rr_is_disconnected(struct ll_conn *conn)
+bool rr_is_disconnected(struct ll_conn *conn)
 {
 	return conn->llcp.remote.state == RR_STATE_DISCONNECT;
 }
 
-bool llcp_rr_is_idle(struct ll_conn *conn)
+bool rr_is_idle(struct ll_conn *conn)
 {
 	return conn->llcp.remote.state == RR_STATE_IDLE;
 }
 
-struct proc_ctx *llcp_rr_dequeue(struct ll_conn *conn)
+void test_int_remote_pending_requests(void)
 {
-	return rr_dequeue(conn);
-}
+	struct ll_conn conn;
+	struct proc_ctx *peek_ctx;
+	struct proc_ctx *dequeue_ctx;
+	struct proc_ctx ctx;
 
-void llcp_rr_enqueue(struct ll_conn *conn, struct proc_ctx *ctx)
-{
-	rr_enqueue(conn, ctx);
+	ull_cp_init();
+	ull_tx_q_init(&conn.tx_q);
+	ull_llcp_init(&conn);
+
+	peek_ctx = llcp_rr_peek(&conn);
+	zassert_is_null(peek_ctx, NULL);
+
+	dequeue_ctx = rr_dequeue(&conn);
+	zassert_is_null(dequeue_ctx, NULL);
+
+	rr_enqueue(&conn, &ctx);
+	peek_ctx = (struct proc_ctx *)sys_slist_peek_head(&conn.llcp.remote.pend_proc_list);
+	zassert_equal_ptr(peek_ctx, &ctx, NULL);
+
+	peek_ctx = llcp_rr_peek(&conn);
+	zassert_equal_ptr(peek_ctx, &ctx, NULL);
+
+	dequeue_ctx = rr_dequeue(&conn);
+	zassert_equal_ptr(dequeue_ctx, &ctx, NULL);
+
+	peek_ctx = llcp_rr_peek(&conn);
+	zassert_is_null(peek_ctx, NULL);
+
+	dequeue_ctx = rr_dequeue(&conn);
+	zassert_is_null(dequeue_ctx, NULL);
 }
 
 #endif

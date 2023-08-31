@@ -4,6 +4,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 tests:
-  mgmt.mcumgr.smp.reassembly:
+  smp.reassembly:
     platform_allow: native_posix
-    tags: smp_reassembly mgmt mcumgr
+    tags: smp_reassembly
