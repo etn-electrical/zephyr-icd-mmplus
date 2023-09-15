@@ -16,13 +16,11 @@
  * generate an interrupt every tick.
  */
 
-#include <zephyr/device.h>
+#include <device.h>
 #include <soc.h>
-#include <zephyr/drivers/clock_control.h>
-#include <zephyr/drivers/timer/system_timer.h>
-#include <zephyr/drivers/pinctrl.h>
-#include <zephyr/sys_clock.h>
-#include <zephyr/irq.h>
+#include <drivers/clock_control.h>
+#include <drivers/timer/system_timer.h>
+#include <sys_clock.h>
 
 /* RTC registers. */
 #define RTC0 ((RtcMode0 *) DT_INST_REG_ADDR(0))
@@ -79,9 +77,6 @@ static volatile uint32_t rtc_counter;
 
 /* Tick value of the next timeout. */
 static volatile uint32_t rtc_timeout;
-
-PINCTRL_DT_INST_DEFINE(0);
-static const struct pinctrl_dev_config *pcfg = PINCTRL_DT_INST_DEV_CONFIG_GET(0);
 
 #endif /* CONFIG_TICKLESS_KERNEL */
 
@@ -222,7 +217,7 @@ void sys_clock_set_timeout(int32_t ticks, bool idle)
 	/* Avoid race condition between reading counter and ISR incrementing
 	 * it.
 	 */
-	unsigned int key = irq_lock();
+	int key = irq_lock();
 
 	rtc_timeout = rtc_counter + ticks;
 	irq_unlock(key);
@@ -247,8 +242,6 @@ uint32_t sys_clock_cycle_get_32(void)
 
 static int sys_clock_driver_init(const struct device *dev)
 {
-	int retval;
-
 	ARG_UNUSED(dev);
 
 #ifdef MCLK
@@ -264,11 +257,6 @@ static int sys_clock_driver_init(const struct device *dev)
 	while (GCLK->STATUS.bit.SYNCBUSY) {
 	}
 #endif
-
-	retval = pinctrl_apply_state(pcfg, PINCTRL_STATE_DEFAULT);
-	if (retval < 0) {
-		return retval;
-	}
 
 	/* Reset module to hardware defaults. */
 	rtc_reset();

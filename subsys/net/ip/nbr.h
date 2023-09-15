@@ -14,7 +14,7 @@
 #include <zephyr/types.h>
 #include <stdbool.h>
 
-#include <zephyr/net/net_if.h>
+#include <net/net_if.h>
 
 #ifdef __cplusplus
 extern "C" {

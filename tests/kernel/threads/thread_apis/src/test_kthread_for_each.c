@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
-#include <zephyr/irq_offload.h>
-#include <zephyr/debug/stack.h>
+#include <ztest.h>
+#include <irq_offload.h>
+#include <debug/stack.h>
 
 #include "tests_thread_apis.h"
 
@@ -82,7 +82,7 @@ void thread_callback_unlocked(const struct k_thread *thread, void *user_data)
  *
  * @see k_thread_foreach()
  */
-ZTEST(threads_lifecycle_1cpu, test_k_thread_foreach)
+void test_k_thread_foreach(void)
 {
 	int count;
 
@@ -128,7 +128,7 @@ ZTEST(threads_lifecycle_1cpu, test_k_thread_foreach)
  * @see k_thread_foreach_unlocked()
  * @ingroup kernel_thread_tests
  */
-ZTEST(threads_lifecycle_1cpu, test_k_thread_foreach_unlocked)
+void test_k_thread_foreach_unlocked(void)
 {
 	int count;
 
@@ -180,12 +180,13 @@ ZTEST(threads_lifecycle_1cpu, test_k_thread_foreach_unlocked)
 /**
  * @brief Test k_thread_foreach API with null callback
  *
- * @details Call k_thread_foreach() with null callback will trigger __ASSERT()
+ * @details Call k_thread_foreach() with null callback will triger __ASSERT()
  * and this test thread will be aborted by z_fatal_error()
  * @see k_thread_foreach()
  * @ingroup kernel_thread_tests
  */
-ZTEST(threads_lifecycle_1cpu, test_k_thread_foreach_null_cb)
+
+void test_k_thread_foreach_null_cb(void)
 {
 	k_thread_foreach(NULL, TEST_STRING);
 }
@@ -193,14 +194,14 @@ ZTEST(threads_lifecycle_1cpu, test_k_thread_foreach_null_cb)
 /**
  * @brief Test k_thread_foreach_unlocked API with null callback
  *
- * @details Call k_thread_foreach_unlocked() with null callback will trigger
+ * @details Call k_thread_foreach_unlocked() with null callback will triger
  * __ASSERT() and this test thread will be aborted by z_fatal_error()
  *
  * @see k_thread_foreach_unlocked()
  * @ingroup kernel_thread_tests
  */
 
-ZTEST(threads_lifecycle_1cpu, test_k_thread_foreach_unlocked_null_cb)
+void test_k_thread_foreach_unlocked_null_cb(void)
 {
 	k_thread_foreach_unlocked(NULL, TEST_STRING_UNLOCKED);
 }
@@ -209,59 +210,41 @@ ZTEST(threads_lifecycle_1cpu, test_k_thread_foreach_unlocked_null_cb)
  * @brief Test k_thread_state_str API with null callback
  *
  * @details It's impossible to sched a thread step by step manually to
- * experience each state from _THREAD_PRESTART to _THREAD_DEAD. To cover each
+ * experence each state from _THREAD_PRESTART to _THREAD_DEAD. To cover each
  * line of function k_thread_state_str(), set thread_state of tdata1 and check
  * the string this function returns
  *
  * @see k_thread_state_str()
  * @ingroup kernel_thread_tests
  */
-ZTEST(threads_lifecycle_1cpu, test_k_thread_state_str)
+void test_k_thread_state_str(void)
 {
-	char state_str[32];
-	const char *str;
 	k_tid_t tid = &tdata1;
 
 	tid->base.thread_state = 0;
-	str = k_thread_state_str(tid, state_str, sizeof(state_str));
-	zassert_true(strcmp(str, "") == 0);
+	zassert_true(strcmp(k_thread_state_str(tid), "") == 0, NULL);
 
 	tid->base.thread_state = _THREAD_DUMMY;
-
-	str = k_thread_state_str(tid, NULL, sizeof(state_str));
-	zassert_true(strcmp(str, "") == 0);
-
-	str = k_thread_state_str(tid, state_str, 0);
-	zassert_true(strcmp(str, "") == 0);
-
-	str = k_thread_state_str(tid, state_str, sizeof(state_str));
-	zassert_true(strcmp(str, "dummy") == 0);
+	zassert_true(strcmp(k_thread_state_str(tid), "dummy") == 0, NULL);
 
 	tid->base.thread_state = _THREAD_PENDING;
-	str = k_thread_state_str(tid, state_str, sizeof(state_str));
-	zassert_true(strcmp(str, "pending") == 0);
+	zassert_true(strcmp(k_thread_state_str(tid), "pending") == 0, NULL);
 
 	tid->base.thread_state = _THREAD_PRESTART;
-	str = k_thread_state_str(tid, state_str, sizeof(state_str));
-	zassert_true(strcmp(str, "prestart") == 0);
+	zassert_true(strcmp(k_thread_state_str(tid), "prestart") == 0, NULL);
 
 	tid->base.thread_state = _THREAD_DEAD;
-	str = k_thread_state_str(tid, state_str, sizeof(state_str));
-	zassert_true(strcmp(str, "dead") == 0);
+	zassert_true(strcmp(k_thread_state_str(tid), "dead") == 0, NULL);
 
 	tid->base.thread_state = _THREAD_SUSPENDED;
-	str = k_thread_state_str(tid, state_str, sizeof(state_str));
-	zassert_true(strcmp(str, "suspended") == 0);
+	zassert_true(strcmp(k_thread_state_str(tid), "suspended") == 0, NULL);
 
 	tid->base.thread_state = _THREAD_ABORTING;
-	str = k_thread_state_str(tid, state_str, sizeof(state_str));
-	zassert_true(strcmp(str, "aborting") == 0);
+	zassert_true(strcmp(k_thread_state_str(tid), "aborting") == 0, NULL);
 
 	tid->base.thread_state = _THREAD_QUEUED;
-	str = k_thread_state_str(tid, state_str, sizeof(state_str));
-	zassert_true(strcmp(str, "queued") == 0);
+	zassert_true(strcmp(k_thread_state_str(tid), "queued") == 0, NULL);
 
-	tid->base.thread_state = _THREAD_PENDING | _THREAD_SUSPENDED;
-	str = k_thread_state_str(tid, state_str, sizeof(state_str));
-	zassert_true(strcmp(str, "pending+suspended") == 0);
+	tid->base.thread_state = 0xFF;
+	zassert_true(strcmp(k_thread_state_str(tid), "unknown") == 0, NULL);
 }

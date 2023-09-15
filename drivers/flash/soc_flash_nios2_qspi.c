@@ -9,22 +9,20 @@
  * Nios-II QSPI Controller HAL driver.
  */
 
-#define DT_DRV_COMPAT altr_nios2_qspi_nor
-
-#include <zephyr/kernel.h>
-#include <zephyr/device.h>
+#include <kernel.h>
+#include <device.h>
 #include <string.h>
-#include <zephyr/drivers/flash.h>
+#include <drivers/flash.h>
 #include <errno.h>
-#include <zephyr/init.h>
+#include <init.h>
 #include <soc.h>
-#include <zephyr/sys/util.h>
+#include <sys/util.h>
 #include "flash_priv.h"
 #include "altera_generic_quad_spi_controller2_regs.h"
 #include "altera_generic_quad_spi_controller2.h"
 
 #define LOG_LEVEL CONFIG_FLASH_LOG_LEVEL
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(flash_nios2_qspi);
 
 /*
@@ -235,7 +233,7 @@ static int flash_nios2_qspi_write_block(const struct device *dev,
 			}
 		}
 
-		/* Check memcpy length is within NIOS2_WRITE_BLOCK_SIZE */
+		/* Check memcpy lentgh is with in NIOS2_WRITE_BLOCK_SIZE */
 		if (padding + bytes_to_copy > NIOS2_WRITE_BLOCK_SIZE) {
 			rc = -EINVAL;
 			goto qspi_write_block_err;
@@ -522,10 +520,8 @@ struct flash_nios2_qspi_config flash_cfg = {
 	}
 };
 
-BUILD_ASSERT(DT_NUM_INST_STATUS_OKAY(DT_DRV_COMPAT) == 1,
-	"only one 'altr,nios2-qspi-nor' compatible node may be present");
-
-DEVICE_DT_INST_DEFINE(0,
+DEVICE_DEFINE(flash_nios2_qspi,
+		CONFIG_SOC_FLASH_NIOS2_QSPI_DEV_NAME,
 		flash_nios2_qspi_init, NULL, &flash_cfg, NULL,
 		POST_KERNEL, CONFIG_FLASH_INIT_PRIORITY,
 		&flash_nios2_qspi_api);

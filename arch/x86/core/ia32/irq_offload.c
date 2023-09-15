@@ -8,8 +8,8 @@
  * @file IRQ offload - x86 implementation
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/irq_offload.h>
+#include <kernel.h>
+#include <irq_offload.h>
 
 extern void (*_irq_sw_handler)(void);
 NANO_CPU_INT_REGISTER(_irq_sw_handler, NANO_SOFT_IRQ,

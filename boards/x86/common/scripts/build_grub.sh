@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 # Originally from the Galileo port in contiki
 # https://github.com/otcshare/contiki-x86

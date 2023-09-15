@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/drivers/hwinfo.h>
+#include <drivers/hwinfo.h>
 #include <string.h>
 #include <fsl_sim.h>
-#include <zephyr/sys/byteorder.h>
+#include <sys/byteorder.h>
 
 #if defined(SIM_UIDH)
 #define HWINFO_DEVICE_ID_LENGTH_H 1

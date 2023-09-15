@@ -12,11 +12,11 @@
 #define LOG_MODULE_NAME net_ipso_filling_sensor
 #define LOG_LEVEL CONFIG_LWM2M_LOG_LEVEL
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 
 #include <stdint.h>
-#include <zephyr/init.h>
+#include <init.h>
 
 #include "lwm2m_object.h"
 #include "lwm2m_engine.h"
@@ -48,8 +48,8 @@ static bool container_full[MAX_INSTANCE_COUNT];
 static double low_threshold[MAX_INSTANCE_COUNT];
 static bool container_empty[MAX_INSTANCE_COUNT];
 static double average_fill_speed[MAX_INSTANCE_COUNT];
-static time_t forecast_full_date[MAX_INSTANCE_COUNT];
-static time_t forecast_empty_date[MAX_INSTANCE_COUNT];
+static int64_t forecast_full_date[MAX_INSTANCE_COUNT];
+static int64_t forecast_empty_date[MAX_INSTANCE_COUNT];
 static bool container_out_of_location[MAX_INSTANCE_COUNT];
 static bool container_out_of_position[MAX_INSTANCE_COUNT];
 
@@ -107,14 +107,14 @@ static void update(uint16_t obj_inst_id, uint16_t res_id, int index)
 	full = actual_fill_percentage[index] > high_threshold[index];
 	if (container_full[index] != full) {
 		container_full[index] = full;
-		lwm2m_notify_observer(IPSO_OBJECT_ID, obj_inst_id,
+		NOTIFY_OBSERVER(IPSO_OBJECT_ID, obj_inst_id,
 				CONTAINER_FULL_FILLING_SENSOR_RID);
 	}
 
 	empty = actual_fill_percentage[index] < low_threshold[index];
 	if (container_empty[index] != empty) {
 		container_empty[index] = empty;
-		lwm2m_notify_observer(IPSO_OBJECT_ID, obj_inst_id,
+		NOTIFY_OBSERVER(IPSO_OBJECT_ID, obj_inst_id,
 				CONTAINER_EMPTY_FILLING_SENSOR_RID);
 	}
 }

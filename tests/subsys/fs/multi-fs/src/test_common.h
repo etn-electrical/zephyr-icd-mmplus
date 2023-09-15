@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
-#include <zephyr/fs/fs.h>
+#include <ztest.h>
+#include <fs/fs.h>
 #include <limits.h>
 
 void test_clear_flash(void);

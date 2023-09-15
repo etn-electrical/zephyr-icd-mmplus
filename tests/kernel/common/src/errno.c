@@ -4,10 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
-#include <zephyr/kernel.h>
+#include <ztest.h>
+#include <zephyr.h>
 #include <errno.h>
-#include <zephyr/sys/errno_private.h>
 
 /**
  * @brief Test the thread context
@@ -20,7 +19,7 @@
  * @}
  */
 #define N_THREADS 2
-#define STACK_SIZE (384 + CONFIG_TEST_EXTRA_STACK_SIZE)
+#define STACK_SIZE (384 + CONFIG_TEST_EXTRA_STACKSIZE)
 
 static K_THREAD_STACK_ARRAY_DEFINE(stacks, N_THREADS, STACK_SIZE);
 static struct k_thread threads[N_THREADS];
@@ -52,10 +51,10 @@ static void errno_thread(void *_n, void *_my_errno, void *_unused)
 
 	k_msleep(30 - (n * 10));
 	if (errno == my_errno) {
-		result[n].pass = TC_PASS;
+		result[n].pass = 1;
 	}
 
-	zassert_equal(errno, my_errno);
+	zassert_equal(errno, my_errno, NULL);
 
 	k_fifo_put(&fifo, &result[n]);
 }
@@ -68,7 +67,7 @@ static void errno_thread(void *_n, void *_my_errno, void *_unused)
  * @details Check whether variable value per-thread are saved during
  *	context switch
  */
-ZTEST(common_errno, test_thread_context)
+void test_thread_context(void)
 {
 	int rv = TC_PASS, test_errno;
 
@@ -92,12 +91,12 @@ ZTEST(common_errno, test_thread_context)
 	for (int ii = 0; ii < N_THREADS; ii++) {
 		struct result *p = k_fifo_get(&fifo, K_MSEC(100));
 
-		if (!p || (p->pass != TC_PASS)) {
+		if (!p || !p->pass) {
 			rv = TC_FAIL;
 		}
 	}
 
-	zassert_equal(errno, test_errno);
+	zassert_equal(errno, test_errno, NULL);
 
 	if (errno != errno_values[N_THREADS]) {
 		rv = TC_FAIL;
@@ -106,10 +105,6 @@ ZTEST(common_errno, test_thread_context)
 	/* Make sure all the test thread end. */
 	for (int ii = 0; ii < N_THREADS; ii++) {
 		k_thread_join(&threads[ii], K_FOREVER);
-	}
-
-	if (rv != TC_PASS) {
-		ztest_test_fail();
 	}
 }
 
@@ -144,7 +139,7 @@ void thread_entry_user(void *p1, void *p2, void *p3)
  *
  * @ingroup kernel_threadcontext_tests
  */
-ZTEST_USER(common_errno, test_errno)
+void test_errno(void)
 {
 	k_tid_t tid;
 	uint32_t perm = K_INHERIT_PERMS;

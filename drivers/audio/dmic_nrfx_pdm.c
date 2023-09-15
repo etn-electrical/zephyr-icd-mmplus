@@ -4,14 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/audio/dmic.h>
-#include <zephyr/drivers/clock_control/nrf_clock_control.h>
-#include <zephyr/drivers/pinctrl.h>
-#include <soc.h>
+#include <audio/dmic.h>
+#include <drivers/clock_control/nrf_clock_control.h>
 #include <nrfx_pdm.h>
 
-#include <zephyr/logging/log.h>
-#include <zephyr/irq.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(dmic_nrfx_pdm, CONFIG_AUDIO_DMIC_LOG_LEVEL);
 
 struct dmic_nrfx_pdm_drv_data {
@@ -29,7 +26,6 @@ struct dmic_nrfx_pdm_drv_data {
 struct dmic_nrfx_pdm_drv_cfg {
 	nrfx_pdm_event_handler_t event_handler;
 	nrfx_pdm_config_t nrfx_def_cfg;
-	const struct pinctrl_dev_config *pcfg;
 	enum clock_source {
 		PCLK32M,
 		PCLK32M_HFXO,
@@ -93,8 +89,8 @@ static void event_handler(const struct device *dev, const nrfx_pdm_evt_t *evt)
 	}
 
 	if (stop) {
-		drv_data->stopping = true;
 		nrfx_pdm_stop();
+		drv_data->stopping = true;
 	}
 }
 
@@ -459,8 +455,8 @@ static int dmic_nrfx_pdm_trigger(const struct device *dev,
 	case DMIC_TRIGGER_PAUSE:
 	case DMIC_TRIGGER_STOP:
 		if (drv_data->active) {
-			drv_data->stopping = true;
 			nrfx_pdm_stop();
+			drv_data->stopping = true;
 		}
 		break;
 
@@ -545,12 +541,7 @@ static const struct _dmic_ops dmic_ops = {
 	{								     \
 		IRQ_CONNECT(DT_IRQN(PDM(idx)), DT_IRQ(PDM(idx), priority),   \
 			    nrfx_isr, nrfx_pdm_irq_handler, 0);		     \
-		const struct dmic_nrfx_pdm_drv_cfg *drv_cfg = dev->config;   \
-		int err = pinctrl_apply_state(drv_cfg->pcfg,		     \
-					      PINCTRL_STATE_DEFAULT);	     \
-		if (err < 0) {						     \
-			return err;					     \
-		}							     \
+		irq_enable(DT_IRQN(PDM(idx)));				     \
 		k_msgq_init(&dmic_nrfx_pdm_data##idx.rx_queue,		     \
 			    (char *)rx_msgs##idx, sizeof(void *),	     \
 			    ARRAY_SIZE(rx_msgs##idx));			     \
@@ -561,13 +552,11 @@ static const struct _dmic_ops dmic_ops = {
 	{								     \
 		event_handler(DEVICE_DT_GET(PDM(idx)), evt);		     \
 	}								     \
-	PINCTRL_DT_DEFINE(PDM(idx));					     \
 	static const struct dmic_nrfx_pdm_drv_cfg dmic_nrfx_pdm_cfg##idx = { \
 		.event_handler = event_handler##idx,			     \
-		.nrfx_def_cfg =	NRFX_PDM_DEFAULT_CONFIG(0, 0),		     \
-		.nrfx_def_cfg.skip_gpio_cfg = true,			     \
-		.nrfx_def_cfg.skip_psel_cfg = true,			     \
-		.pcfg = PINCTRL_DT_DEV_CONFIG_GET(PDM(idx)),		     \
+		.nrfx_def_cfg =	NRFX_PDM_DEFAULT_CONFIG(		     \
+					DT_PROP(PDM(idx), clk_pin),	     \
+					DT_PROP(PDM(idx), din_pin)),	     \
 		.clk_src = PDM_CLK_SRC(idx),				     \
 	};								     \
 	BUILD_ASSERT(PDM_CLK_SRC(idx) != ACLK || NRF_PDM_HAS_MCLKCONFIG,     \

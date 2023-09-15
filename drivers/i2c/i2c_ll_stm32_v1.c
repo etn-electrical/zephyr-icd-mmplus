@@ -8,18 +8,18 @@
  *
  */
 
-#include <zephyr/drivers/clock_control/stm32_clock_control.h>
-#include <zephyr/drivers/clock_control.h>
-#include <zephyr/sys/util.h>
-#include <zephyr/kernel.h>
+#include <drivers/clock_control/stm32_clock_control.h>
+#include <drivers/clock_control.h>
+#include <sys/util.h>
+#include <kernel.h>
 #include <soc.h>
 #include <stm32_ll_i2c.h>
 #include <errno.h>
-#include <zephyr/drivers/i2c.h>
+#include <drivers/i2c.h>
 #include "i2c_ll_stm32.h"
 
 #define LOG_LEVEL CONFIG_I2C_LOG_LEVEL
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(i2c_ll_stm32_v1);
 
 #include "i2c-priv.h"
@@ -124,7 +124,7 @@ static void stm32_i2c_master_finish(const struct device *dev)
 	stm32_i2c_disable_transfer_interrupts(dev);
 #endif
 
-#if defined(CONFIG_I2C_TARGET)
+#if defined(CONFIG_I2C_SLAVE)
 	struct i2c_stm32_data *data = dev->data;
 	data->master_active = false;
 	if (!data->slave_attached) {
@@ -161,7 +161,7 @@ static inline void msg_init(const struct device *dev, struct i2c_msg *msg,
 	data->current.is_err = 0U;
 	data->current.is_nack = 0U;
 	data->current.msg = msg;
-#if defined(CONFIG_I2C_TARGET)
+#if defined(CONFIG_I2C_SLAVE)
 	data->master_active = true;
 #endif
 	data->slave_address = slave;
@@ -420,13 +420,13 @@ static inline void handle_btf(const struct device *dev)
 }
 
 
-#if defined(CONFIG_I2C_TARGET)
+#if defined(CONFIG_I2C_SLAVE)
 static void stm32_i2c_slave_event(const struct device *dev)
 {
 	const struct i2c_stm32_config *cfg = dev->config;
 	struct i2c_stm32_data *data = dev->data;
 	I2C_TypeDef *i2c = cfg->i2c;
-	const struct i2c_target_callbacks *slave_cb =
+	const struct i2c_slave_callbacks *slave_cb =
 		data->slave_cfg->callbacks;
 
 	if (LL_I2C_IsActiveFlag_TXE(i2c) && LL_I2C_IsActiveFlag_BTF(i2c)) {
@@ -472,7 +472,8 @@ static void stm32_i2c_slave_event(const struct device *dev)
 }
 
 /* Attach and start I2C as slave */
-int i2c_stm32_target_register(const struct device *dev, struct i2c_target_config *config)
+int i2c_stm32_slave_register(const struct device *dev,
+			     struct i2c_slave_config *config)
 {
 	const struct i2c_stm32_config *cfg = dev->config;
 	struct i2c_stm32_data *data = dev->data;
@@ -504,13 +505,12 @@ int i2c_stm32_target_register(const struct device *dev, struct i2c_target_config
 
 	LL_I2C_Enable(i2c);
 
-	if (data->slave_cfg->flags == I2C_TARGET_FLAGS_ADDR_10_BITS)	{
-		return -ENOTSUP;
-	}
-	LL_I2C_SetOwnAddress1(i2c, config->address << 1U, LL_I2C_OWNADDRESS1_7BIT);
+	LL_I2C_SetOwnAddress1(i2c, config->address << 1,
+			      LL_I2C_OWNADDRESS1_7BIT);
+
 	data->slave_attached = true;
 
-	LOG_DBG("i2c: target registered");
+	LOG_DBG("i2c: slave registered");
 
 	stm32_i2c_enable_transfer_interrupts(dev);
 	LL_I2C_AcknowledgeNextData(i2c, LL_I2C_ACK);
@@ -518,7 +518,8 @@ int i2c_stm32_target_register(const struct device *dev, struct i2c_target_config
 	return 0;
 }
 
-int i2c_stm32_target_unregister(const struct device *dev, struct i2c_target_config *config)
+int i2c_stm32_slave_unregister(const struct device *dev,
+			       struct i2c_slave_config *config)
 {
 	const struct i2c_stm32_config *cfg = dev->config;
 	struct i2c_stm32_data *data = dev->data;
@@ -546,7 +547,7 @@ int i2c_stm32_target_unregister(const struct device *dev, struct i2c_target_conf
 
 	return 0;
 }
-#endif /* defined(CONFIG_I2C_TARGET) */
+#endif /* defined(CONFIG_I2C_SLAVE) */
 
 void stm32_i2c_event_isr(void *arg)
 {
@@ -555,7 +556,7 @@ void stm32_i2c_event_isr(void *arg)
 	struct i2c_stm32_data *data = dev->data;
 	I2C_TypeDef *i2c = cfg->i2c;
 
-#if defined(CONFIG_I2C_TARGET)
+#if defined(CONFIG_I2C_SLAVE)
 	if (data->slave_attached && !data->master_active) {
 		stm32_i2c_slave_event(dev);
 		return;
@@ -584,7 +585,7 @@ void stm32_i2c_error_isr(void *arg)
 	struct i2c_stm32_data *data = dev->data;
 	I2C_TypeDef *i2c = cfg->i2c;
 
-#if defined(CONFIG_I2C_TARGET)
+#if defined(CONFIG_I2C_SLAVE)
 	if (data->slave_attached && !data->master_active) {
 		/* No need for a slave error function right now. */
 		return;

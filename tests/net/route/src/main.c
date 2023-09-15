@@ -6,27 +6,27 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(net_test, CONFIG_NET_ROUTE_LOG_LEVEL);
 
 #include <zephyr/types.h>
-#include <zephyr/ztest.h>
+#include <ztest.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <string.h>
 #include <errno.h>
-#include <zephyr/sys/printk.h>
-#include <zephyr/linker/sections.h>
-#include <zephyr/random/rand32.h>
+#include <sys/printk.h>
+#include <linker/sections.h>
+#include <random/rand32.h>
 
-#include <zephyr/tc_util.h>
+#include <tc_util.h>
 
-#include <zephyr/net/ethernet.h>
-#include <zephyr/net/dummy.h>
-#include <zephyr/net/buf.h>
-#include <zephyr/net/net_ip.h>
-#include <zephyr/net/net_if.h>
-#include <zephyr/net/net_context.h>
+#include <net/ethernet.h>
+#include <net/dummy.h>
+#include <net/buf.h>
+#include <net/net_ip.h>
+#include <net/net_if.h>
+#include <net/net_context.h>
 
 #define NET_LOG_ENABLED 1
 #include "net_private.h"
@@ -259,7 +259,7 @@ static void test_init(void)
 	zassert_not_null(ifaddr,
 			 "Cannot add IPv6 address");
 
-	/* For testing purposes we need to set the addresses preferred */
+	/* For testing purposes we need to set the adddresses preferred */
 	ifaddr->addr_state = NET_ADDR_PREFERRED;
 
 	ifaddr = net_if_ipv6_addr_add(my_iface, &ll_addr,
@@ -343,7 +343,7 @@ static void test_populate_nbr_cache(void)
 
 	recipient = my_iface;
 
-	zassert_true(net_test_send_ns(peer_iface, &peer_addr));
+	zassert_true(net_test_send_ns(peer_iface, &peer_addr), NULL);
 
 	nbr = net_ipv6_nbr_add(net_if_get_first_by_type(&NET_L2_GET_NAME(DUMMY)),
 			       &peer_addr,
@@ -352,7 +352,7 @@ static void test_populate_nbr_cache(void)
 			       NET_IPV6_NBR_STATE_REACHABLE);
 	zassert_not_null(nbr, "Cannot add peer to neighbor cache");
 
-	zassert_true(net_test_send_ns(peer_iface, &peer_addr_alt));
+	zassert_true(net_test_send_ns(peer_iface, &peer_addr_alt), NULL);
 
 	nbr = net_ipv6_nbr_add(net_if_get_first_by_type(&NET_L2_GET_NAME(DUMMY)),
 			       &peer_addr_alt,
@@ -369,7 +369,7 @@ static void test_populate_nbr_cache(void)
 
 	data_failure = false;
 
-	zassert_true(net_test_nbr_lookup_ok(my_iface, &peer_addr));
+	zassert_true(net_test_nbr_lookup_ok(my_iface, &peer_addr), NULL);
 }
 
 static void test_route_add(void)
@@ -546,26 +546,26 @@ static void test_route_preference(void)
 
 
 /*test case main entry*/
-ZTEST(route_test_suite, test_route)
+void test_main(void)
 {
-	test_init();
-	test_net_ctx_create();
-	test_populate_nbr_cache();
-	test_route_add();
-	test_route_update();
-	test_route_get_nexthop();
-	test_route_lookup_ok();
-	test_route_lookup_fail();
-	test_route_del();
-	test_route_add();
-	test_route_del_nexthop();
-	test_route_del_again();
-	test_route_del_nexthop_again();
-	test_populate_nbr_cache();
-	test_route_add_many();
-	test_route_del_many();
-	test_route_lifetime();
-	test_route_preference();
+	ztest_test_suite(test_route,
+			ztest_unit_test(test_init),
+			ztest_unit_test(test_net_ctx_create),
+			ztest_unit_test(test_populate_nbr_cache),
+			ztest_unit_test(test_route_add),
+			ztest_unit_test(test_route_update),
+			ztest_unit_test(test_route_get_nexthop),
+			ztest_unit_test(test_route_lookup_ok),
+			ztest_unit_test(test_route_lookup_fail),
+			ztest_unit_test(test_route_del),
+			ztest_unit_test(test_route_add),
+			ztest_unit_test(test_route_del_nexthop),
+			ztest_unit_test(test_route_del_again),
+			ztest_unit_test(test_route_del_nexthop_again),
+			ztest_unit_test(test_populate_nbr_cache),
+			ztest_unit_test(test_route_add_many),
+			ztest_unit_test(test_route_del_many),
+			ztest_unit_test(test_route_lifetime),
+			ztest_unit_test(test_route_preference));
+	ztest_run_test_suite(test_route);
 }
-
-ZTEST_SUITE(route_test_suite, NULL, NULL, NULL, NULL, NULL);

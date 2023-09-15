@@ -11,10 +11,10 @@
  * context switch.
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/timing/timing.h>
+#include <zephyr.h>
+#include <timing/timing.h>
 #include <stdlib.h>
-#include <zephyr/timestamp.h>
+#include "timestamp.h"
 #include "utils.h" /* PRINT () and other macros */
 
 /* context switch enough time so our measurement is precise */
@@ -22,7 +22,7 @@
 
 static uint32_t helper_thread_iterations;
 
-#define Y_STACK_SIZE (512 + CONFIG_TEST_EXTRA_STACK_SIZE)
+#define Y_STACK_SIZE (512 + CONFIG_TEST_EXTRA_STACKSIZE)
 #define Y_PRIORITY K_PRIO_PREEMPT(10)
 
 K_THREAD_STACK_DEFINE(y_stack_area, Y_STACK_SIZE);

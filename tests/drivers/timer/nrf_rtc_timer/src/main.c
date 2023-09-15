@@ -3,11 +3,11 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#include <zephyr/ztest.h>
-#include <zephyr/drivers/timer/nrf_rtc_timer.h>
+#include <ztest.h>
+#include <drivers/timer/nrf_rtc_timer.h>
 #include <hal/nrf_rtc.h>
 #include <hal/nrf_timer.h>
-#include <zephyr/irq.h>
+#include <irq.h>
 
 struct test_data {
 	uint64_t target_time;
@@ -31,7 +31,7 @@ static void init_zli_timer0(void)
 {
 	nrf_timer_mode_set(NRF_TIMER0, NRF_TIMER_MODE_TIMER);
 	nrf_timer_bit_width_set(NRF_TIMER0, NRF_TIMER_BIT_WIDTH_32);
-	nrf_timer_prescaler_set(NRF_TIMER0, NRF_TIMER_FREQ_1MHz);
+	nrf_timer_frequency_set(NRF_TIMER0, NRF_TIMER_FREQ_1MHz);
 	nrf_timer_cc_set(NRF_TIMER0, 0, 100);
 	nrf_timer_int_enable(NRF_TIMER0, NRF_TIMER_INT_COMPARE0_MASK);
 	nrf_timer_shorts_enable(NRF_TIMER0,
@@ -106,7 +106,7 @@ static void test_timeout(int32_t chan, k_timeout_t t, bool ext_window)
 }
 
 
-ZTEST(nrf_rtc_timer, test_basic)
+static void test_basic(void)
 {
 	int32_t chan = z_nrf_rtc_timer_chan_alloc();
 
@@ -135,7 +135,7 @@ ZTEST(nrf_rtc_timer, test_basic)
 	z_nrf_rtc_timer_chan_free(chan);
 }
 
-ZTEST(nrf_rtc_timer, test_z_nrf_rtc_timer_compare_evt_address_get)
+static void test_z_nrf_rtc_timer_compare_evt_address_get(void)
 {
 	uint32_t evt_addr;
 
@@ -144,7 +144,7 @@ ZTEST(nrf_rtc_timer, test_z_nrf_rtc_timer_compare_evt_address_get)
 			"Unexpected event addr:%x", evt_addr);
 }
 
-ZTEST(nrf_rtc_timer, test_int_disable_enabled)
+static void test_int_disable_enabled(void)
 {
 	uint64_t now = z_nrf_rtc_timer_read();
 	uint64_t t = 1000;
@@ -176,7 +176,7 @@ ZTEST(nrf_rtc_timer, test_int_disable_enabled)
 	z_nrf_rtc_timer_chan_free(chan);
 }
 
-ZTEST(nrf_rtc_timer, test_get_ticks)
+static void test_get_ticks(void)
 {
 	k_timeout_t t = K_MSEC(1);
 	uint64_t exp_ticks = z_nrf_rtc_timer_read() + t.ticks;
@@ -219,7 +219,7 @@ static void sched_handler(int32_t id, uint64_t expire_time, void *user_data)
 	    k_ticks_to_us_floor64(now - (rtc_ticks_now - expire_time));
 }
 
-ZTEST(nrf_rtc_timer, test_absolute_scheduling)
+static void test_absolute_scheduling(void)
 {
 	k_timeout_t t;
 	int64_t now_us = k_ticks_to_us_floor64(sys_clock_tick_get());
@@ -259,7 +259,7 @@ ZTEST(nrf_rtc_timer, test_absolute_scheduling)
 	z_nrf_rtc_timer_chan_free(chan);
 }
 
-ZTEST(nrf_rtc_timer, test_alloc_free)
+static void test_alloc_free(void)
 {
 	int32_t chan[CONFIG_NRF_RTC_TIMER_USER_CHAN_COUNT];
 	int32_t inv_ch;
@@ -277,7 +277,7 @@ ZTEST(nrf_rtc_timer, test_alloc_free)
 	}
 }
 
-ZTEST(nrf_rtc_timer, test_stress)
+static void test_stress(void)
 {
 	int x = 0;
 	uint32_t start = k_uptime_get_32();
@@ -304,7 +304,7 @@ ZTEST(nrf_rtc_timer, test_stress)
 	z_nrf_rtc_timer_chan_free(chan);
 }
 
-ZTEST(nrf_rtc_timer, test_resetting_cc)
+static void test_resetting_cc(void)
 {
 	uint32_t start = k_uptime_get_32();
 	uint32_t test_time = 1000;
@@ -359,7 +359,7 @@ static void overflow_sched_handler(int32_t id, uint64_t expire_time,
 /* This test is to be executed as the last, due to interference in overflow
  * counter, resulting in nRF RTC timer ticks and kernel ticks desynchronization.
  */
-ZTEST(nrf_rtc_timer, test_overflow)
+static void test_overflow(void)
 {
 	PRINT("RTC ticks before overflow injection: %u\r\n",
 	      (uint32_t)z_nrf_rtc_timer_read());
@@ -427,124 +427,20 @@ ZTEST(nrf_rtc_timer, test_overflow)
 	z_nrf_rtc_timer_chan_free(chan);
 }
 
-static void next_cycle_timeout_handler(int32_t chan,
-				       uint64_t expire_time,
-				       void *user_data)
-{
-	static uint32_t delay;
-	uint32_t *timeouts_left = (uint32_t *)user_data;
-
-	if (--*timeouts_left) {
-		k_busy_wait(delay);
-		++delay;
-
-		z_nrf_rtc_timer_set(chan, z_nrf_rtc_timer_read() + 1,
-			next_cycle_timeout_handler, user_data);
-	}
-}
-
-ZTEST(nrf_rtc_timer, test_next_cycle_timeouts)
-{
-	enum {
-		MAX_TIMEOUTS = 60,
-		/* Allow 5 cycles per each expected timeout. */
-		CYCLES_TO_WAIT = 5 * MAX_TIMEOUTS,
-	};
-	volatile uint32_t timeouts_left = MAX_TIMEOUTS;
-	int32_t chan;
-	uint32_t start;
-
-	chan = z_nrf_rtc_timer_chan_alloc();
-	zassert_true(chan > 0, "Failed to allocate RTC channel.");
-
-	/* First timeout is scheduled here, all further ones are scheduled
-	 * from the timeout handler, always on the next cycle of the system
-	 * timer but after a delay that increases 1 microsecond each time.
-	 */
-	z_nrf_rtc_timer_set(chan, z_nrf_rtc_timer_read() + 1,
-		next_cycle_timeout_handler, (void *)&timeouts_left);
-
-	start = k_cycle_get_32();
-	while (timeouts_left) {
-		if ((k_cycle_get_32() - start) > CYCLES_TO_WAIT) {
-			break;
-		}
-	}
-
-	zassert_equal(0, timeouts_left,
-		"Failed to get %u timeouts.", timeouts_left);
-
-	z_nrf_rtc_timer_chan_free(chan);
-}
-
-static void tight_rescheduling_handler(int32_t chan,
-				       uint64_t expire_time,
-				       void *user_data)
-{
-	if (user_data) {
-		*(bool *)user_data = true;
-	}
-}
-
-ZTEST(nrf_rtc_timer, test_tight_rescheduling)
-{
-	int32_t chan;
-	volatile bool expired;
-	/* This test tries to schedule an alarm to CYCLE_DIFF cycles from
-	 * the current moment and then, after a delay that is changed in
-	 * each iteration, tries to reschedule this alarm to one cycle later.
-	 * It does not matter if the first alarm actually occurs, the key
-	 * thing is to always get the second one.
-	 */
-	enum {
-		CYCLE_DIFF = 5,
-		/* One RTC cycle is ~30.5 us. Check a range of delays from
-		 * more than one cycle before the moment on which the first
-		 * alarm is scheduled to a few microseconds after that alarm
-		 * (when it is actually too late for rescheduling).
-		 */
-		DELAY_MIN = 30 * CYCLE_DIFF - 40,
-		DELAY_MAX = 30 * CYCLE_DIFF + 10,
-	};
-
-	chan = z_nrf_rtc_timer_chan_alloc();
-	zassert_true(chan > 0, "Failed to allocate RTC channel.");
-
-	/* Repeat the whole test a couple of times to get also (presumably)
-	 * various micro delays resulting from execution of the test routine
-	 * itself asynchronously to the RTC.
-	 */
-	for (uint32_t i = 0; i < 20; ++i) {
-		for (uint32_t delay = DELAY_MIN; delay <= DELAY_MAX; ++delay) {
-			uint64_t start = z_nrf_rtc_timer_read();
-
-			z_nrf_rtc_timer_set(chan, start + CYCLE_DIFF,
-				tight_rescheduling_handler, NULL);
-
-			k_busy_wait(delay);
-
-			expired = false;
-			z_nrf_rtc_timer_set(chan, start + CYCLE_DIFF + 1,
-				tight_rescheduling_handler, (void *)&expired);
-
-			while (!expired &&
-				(z_nrf_rtc_timer_read() - start) <
-					CYCLE_DIFF + 10) {
-			}
-			zassert_true(expired,
-				"Timeout expiration missed (d: %u us, i: %u)",
-				delay, i);
-		}
-	}
-
-	z_nrf_rtc_timer_chan_free(chan);
-}
-
-static void *rtc_timer_setup(void)
+void test_main(void)
 {
 	init_zli_timer0();
 
-	return NULL;
+	ztest_test_suite(test_nrf_rtc_timer,
+		ztest_unit_test(test_basic),
+		ztest_unit_test(test_z_nrf_rtc_timer_compare_evt_address_get),
+		ztest_unit_test(test_int_disable_enabled),
+		ztest_unit_test(test_get_ticks),
+		ztest_unit_test(test_absolute_scheduling),
+		ztest_unit_test(test_alloc_free),
+		ztest_unit_test(test_stress),
+		ztest_unit_test(test_resetting_cc),
+		ztest_unit_test(test_overflow)
+			 );
+	ztest_run_test_suite(test_nrf_rtc_timer);
 }
-
-ZTEST_SUITE(nrf_rtc_timer, NULL, rtc_timer_setup, NULL, NULL, NULL);

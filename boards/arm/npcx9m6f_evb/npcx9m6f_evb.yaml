@@ -18,6 +18,7 @@ supported:
   - clock
   - gpio
   - i2c
+  - pinmux
   - pm
   - pwm
   - psl

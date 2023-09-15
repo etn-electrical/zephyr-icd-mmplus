@@ -110,7 +110,7 @@ config NUM_METAIRQ_PRIORITIES
 	  from application code.
 
 config SCHED_DEADLINE
-	bool "Earliest-deadline-first scheduling"
+	bool "Enable earliest-deadline-first scheduling"
 	help
 	  This enables a simple "earliest deadline first" scheduling
 	  mode where threads can set "deadline" deltas measured in
@@ -119,7 +119,7 @@ config SCHED_DEADLINE
 	  not simply the least recently added thread.
 
 config SCHED_CPU_MASK
-	bool "CPU mask affinity/pinning API"
+	bool "Enable CPU mask affinity/pinning API"
 	depends on SCHED_DUMB
 	help
 	  When true, the application will have access to the
@@ -148,15 +148,14 @@ config SCHED_CPU_MASK_PIN_ONLY
 	  architecture and want to make their own decisions about how
 	  to assign work to CPUs.  In that circumstance, some moderate
 	  optimizations can be made (e.g. having a separate run queue
-	  per CPU, keeping the list length shorter). When selected,
-	  the CPU mask becomes an immutable thread attribute. It can
-	  only be modified before a thread is started.  Most
+	  per CPU, keeping the list length shorter).  Most
 	  applications don't want this.
 
 config MAIN_STACK_SIZE
 	int "Size of stack for initialization and main thread"
 	default 2048 if COVERAGE_GCOV
-	default 512 if ZTEST && !(RISCV || X86 || ARM)
+	default 1024 if TEST_ARM_CORTEX_M
+	default 512 if ZTEST && !(RISCV || X86)
 	default 1024
 	help
 	  When the initialization is complete, the thread executing it then
@@ -203,14 +202,8 @@ config THREAD_USERSPACE_LOCAL_DATA
 	depends on USERSPACE
 	default y if ERRNO && !ERRNO_IN_TLS
 
-config LIBC_ERRNO
-	bool
-	help
-	  Use external libc errno, not the internal one. This eliminates any
-	  locally allocated errno storage and usage.
-
 config ERRNO
-	bool "Errno support"
+	bool "Enable errno support"
 	default y
 	help
 	  Enable per-thread errno in the kernel. Application and library code must
@@ -220,7 +213,7 @@ config ERRNO
 
 config ERRNO_IN_TLS
 	bool "Store errno in thread local storage (TLS)"
-	depends on ERRNO && THREAD_LOCAL_STORAGE && !LIBC_ERRNO
+	depends on ERRNO && THREAD_LOCAL_STORAGE
 	default y
 	help
 	  Use thread local storage to store errno instead of storing it in
@@ -323,6 +316,7 @@ config INIT_STACKS
 config BOOT_BANNER
 	bool "Boot banner"
 	default y
+	depends on CONSOLE_HAS_DRIVER
 	select PRINTK
 	select EARLY_CONSOLE
 	help
@@ -330,7 +324,6 @@ config BOOT_BANNER
 
 config BOOT_DELAY
 	int "Boot delay in milliseconds"
-	depends on MULTITHREADING
 	default 0
 	help
 	  This option delays bootup for the specified amount of
@@ -507,14 +500,6 @@ config TIMESLICE_PRIORITY
 	  takes effect; threads having a higher priority than this ceiling are
 	  not subject to time slicing.
 
-config TIMESLICE_PER_THREAD
-	bool "Support per-thread timeslice values"
-	depends on TIMESLICING
-	help
-	  When set, this enables an API for setting timeslice values on
-	  a per-thread basis, with an application callback invoked when
-	  a thread reaches the end of its timeslice.
-
 config POLL
 	bool "Async I/O Framework"
 	help
@@ -528,7 +513,7 @@ endmenu
 menu "Other Kernel Object Options"
 
 config MEM_SLAB_TRACE_MAX_UTILIZATION
-	bool "Getting maximum slab utilization"
+	bool "Enable getting maximum slab utilization"
 	help
 	  This adds variable to the k_mem_slab structure to hold
 	  maximum utilization of the slab.
@@ -545,7 +530,7 @@ config NUM_MBOX_ASYNC_MSGS
 	  mailbox messages.
 
 config EVENTS
-	bool "Event objects"
+	bool "Enable event objects"
 	help
 	  This option enables event objects. Threads may wait on event
 	  objects for specific events, but both threads and ISRs may deliver
@@ -553,13 +538,6 @@ config EVENTS
 
 	  Note that setting this option slightly increases the size of the
 	  thread structure.
-
-config PIPES
-	bool "Pipe objects"
-	help
-	  This option enables kernel pipes. A pipe is a kernel object that
-	  allows a thread to send a byte stream to another thread. Pipes can
-	  be used to synchronously transfer chunks of data in whole or in part.
 
 config KERNEL_MEM_POOL
 	bool "Use Kernel Memory Pool"
@@ -650,11 +628,10 @@ config SYS_CLOCK_EXISTS
 	bool "System clock exists and is enabled"
 	default y
 	help
-	  This option specifies that the kernel has timer support.
-
+	  This option specifies that the kernel lacks timer support.
 	  Some device configurations can eliminate significant code if
 	  this is disabled.  Obviously timeout-related APIs will not
-	  work when disabled.
+	  work.
 
 config TIMEOUT_64BIT
 	bool "Store kernel timeouts in 64 bit precision"
@@ -741,7 +718,7 @@ config STACK_CANARIES
 	  will occur at build time.
 
 config EXECUTE_XOR_WRITE
-	bool "W^X for memory partitions"
+	bool "Enable W^X for memory partitions"
 	depends on USERSPACE
 	depends on ARCH_HAS_EXECUTABLE_PAGE_BIT
 	default y
@@ -775,7 +752,7 @@ config STACK_POINTER_RANDOM
 	  grow towards lower memory addresses.
 
 config BOUNDS_CHECK_BYPASS_MITIGATION
-	bool "Bounds check bypass mitigations for speculative execution"
+	bool "Enable bounds check bypass mitigations for speculative execution"
 	depends on USERSPACE
 	help
 	  Untrusted parameters from user mode may be used in system calls to
@@ -838,13 +815,6 @@ config ARCH_MEM_DOMAIN_SYNCHRONOUS_API
 
 menu "SMP Options"
 
-config SMP
-	bool "Symmetric multiprocessing support"
-	depends on USE_SWITCH
-	help
-	  When true, kernel will be built with SMP support, allowing
-	  more than one CPU to schedule Zephyr tasks at a time.
-
 config USE_SWITCH
 	bool "Use new-style _arch_switch instead of arch_swap"
 	depends on USE_SWITCH_SUPPORTED
@@ -863,6 +833,13 @@ config USE_SWITCH_SUPPORTED
 	  currently enabled platform. This option should be selected by
 	  platforms that implement it.
 
+config SMP
+	bool "Enable symmetric multithreading support"
+	depends on USE_SWITCH
+	help
+	  When true, kernel will be built with SMP support, allowing
+	  more than one CPU to schedule Zephyr tasks at a time.
+
 config SMP_BOOT_DELAY
 	bool "Delay booting secondary cores"
 	depends on SMP
@@ -873,18 +850,10 @@ config SMP_BOOT_DELAY
 
 config MP_NUM_CPUS
 	int "Number of CPUs/cores"
-	default MP_MAX_NUM_CPUS
-	range 1 4
-	help
-	  Number of multiprocessing-capable cores available to the
-	  multicpu API and SMP features.
-
-config MP_MAX_NUM_CPUS
-	int "Maximum number of CPUs/cores"
 	default 1
 	range 1 4
 	help
-	  Maximum number of multiprocessing-capable cores available to the
+	  Number of multiprocessing-capable cores available to the
 	  multicpu API and SMP features.
 
 config SCHED_IPI_SUPPORTED
@@ -899,7 +868,7 @@ config SCHED_IPI_SUPPORTED
 	  future).
 
 config TRACE_SCHED_IPI
-	bool "Test IPI"
+	bool "Enable Test IPI"
 	help
 	  When true, it will add a hook into z_sched_ipi(), in order
 	  to check if schedule IPI has called or not, for testing
@@ -937,7 +906,7 @@ config TICKLESS_KERNEL
 
 config TOOLCHAIN_SUPPORTS_THREAD_LOCAL_STORAGE
 	bool
-	default y if "$(ZEPHYR_TOOLCHAIN_VARIANT)" = "zephyr" || "$(ZEPHYR_TOOLCHAIN_SUPPORTS_THREAD_LOCAL_STORAGE)" = "y"
+	default y if "$(ZEPHYR_TOOLCHAIN_VARIANT)" = "zephyr"
 	help
 	  Hidden option to signal that toolchain supports generating code
 	  with thread local storage.
@@ -948,16 +917,6 @@ config THREAD_LOCAL_STORAGE
 	select NEED_LIBC_MEM_PARTITION if (CPU_CORTEX_M && USERSPACE)
 	help
 	  This option enables thread local storage (TLS) support in kernel.
-
-endmenu
-
-menu "Device Options"
-
-config HAS_DYNAMIC_DEVICE_HANDLES
-	bool
-	help
-	  Hidden option that makes possible to manipulate device handles at
-	  runtime.
 
 endmenu
 

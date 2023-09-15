@@ -6,10 +6,9 @@
 
 #include "analog.h"
 
-#include <zephyr/device.h>
-#include <zephyr/drivers/gpio.h>
-#include <zephyr/irq.h>
-#include <zephyr/drivers/gpio/gpio_utils.h>
+#include <device.h>
+#include <drivers/gpio.h>
+#include "gpio_utils.h"
 
 
 /* Driver dts compatibility: telink,b91_gpio */
@@ -167,7 +166,7 @@ void gpio_b91_irq_set(const struct device *dev, gpio_pin_t pin,
 	uint8_t irq_prioriy = GET_IRQ_PRIORITY(dev);
 	volatile struct gpio_b91_t *gpio = GET_GPIO(dev);
 
-	/* Get level and mask based on IRQ number */
+	/* Get level and mask bsed on IRQ number */
 	if (irq_num == IRQ_GPIO) {
 		irq_lvl = FLD_GPIO_IRQ_LVL_GPIO;
 		irq_mask = FLD_GPIO_IRQ_MASK_GPIO;
@@ -322,6 +321,11 @@ static int gpio_b91_pin_configure(const struct device *dev,
 
 	/* Check input parameters: simultaneous in/out mode */
 	if ((flags & GPIO_OUTPUT) && (flags & GPIO_INPUT)) {
+		return -ENOTSUP;
+	}
+
+	/* Strengths not implemented */
+	if ((flags & GPIO_DS_ALT) != 0) {
 		return -ENOTSUP;
 	}
 

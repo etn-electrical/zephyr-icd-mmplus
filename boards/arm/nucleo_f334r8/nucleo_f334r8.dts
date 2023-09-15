@@ -39,12 +39,7 @@
 	aliases {
 		led0 = &green_led_2;
 		sw0 = &user_button;
-		watchdog0 = &iwdg;
 	};
-};
-
-&clk_lsi {
-	status = "okay";
 };
 
 &clk_hse {
@@ -114,8 +109,6 @@
 };
 
 &rtc {
-	clocks = <&rcc STM32_CLOCK_BUS_APB1 0x10000000>,
-		 <&rcc STM32_SRC_LSI RTC_SEL(2)>;
 	status = "okay";
 };
 
@@ -133,7 +126,7 @@
 		/* Set 6Kb of storage at the end of the 64Kb of flash */
 		storage_partition: partition@e800 {
 			label = "storage";
-			reg = <0x0000e800 DT_SIZE_K(6)>;
+			reg = <0x0000e800 0x00001800>;
 		};
 	};
 };

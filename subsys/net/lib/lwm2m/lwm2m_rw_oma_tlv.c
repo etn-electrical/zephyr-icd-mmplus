@@ -60,16 +60,18 @@
 #define LOG_MODULE_NAME net_lwm2m_oma_tlv
 #define LOG_LEVEL CONFIG_LWM2M_LOG_LEVEL
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 
 #include <string.h>
 #include <stdint.h>
-#include <zephyr/sys/byteorder.h>
+#include <sys/byteorder.h>
 
 #include "lwm2m_rw_oma_tlv.h"
 #include "lwm2m_engine.h"
+#ifdef CONFIG_LWM2M_RD_CLIENT_SUPPORT
 #include "lwm2m_rd_client.h"
+#endif
 #include "lwm2m_util.h"
 
 enum {
@@ -334,11 +336,6 @@ static int put_begin_oi(struct lwm2m_output_context *out,
 {
 	struct tlv_out_formatter_data *fd;
 
-	/* No need for oi level TLV constructs */
-	if (path->level > LWM2M_PATH_LEVEL_OBJECT) {
-		return 0;
-	}
-
 	fd = engine_get_out_user_data(out);
 	if (!fd) {
 		return -EINVAL;
@@ -351,10 +348,6 @@ static int put_end_oi(struct lwm2m_output_context *out,
 		      struct lwm2m_obj_path *path)
 {
 	struct tlv_out_formatter_data *fd;
-
-	if (path->level > LWM2M_PATH_LEVEL_OBJECT) {
-		return 0;
-	}
 
 	fd = engine_get_out_user_data(out);
 	if (!fd) {
@@ -387,12 +380,6 @@ static int put_end_ri(struct lwm2m_output_context *out,
 	fd = engine_get_out_user_data(out);
 	if (!fd) {
 		return -EINVAL;
-	}
-
-	/* Skip writing Multiple Resource TLV if path level is 4 */
-	if (IS_ENABLED(CONFIG_LWM2M_VERSION_1_1) &&
-		path->level == LWM2M_PATH_LEVEL_RESOURCE_INST) {
-		return 0;
 	}
 
 	return put_end_tlv(out, fd->mark_pos_ri, &fd->writer_flags,
@@ -493,12 +480,6 @@ static int put_s64(struct lwm2m_output_context *out,
 
 	len = oma_tlv_put(&tlv, out, (uint8_t *)&net_value, false);
 	return len;
-}
-
-
-static int put_time(struct lwm2m_output_context *out, struct lwm2m_obj_path *path, time_t value)
-{
-	return put_s64(out, path, (int64_t)value);
 }
 
 static int put_string(struct lwm2m_output_context *out,
@@ -626,17 +607,6 @@ static int get_number(struct lwm2m_input_context *in, int64_t *value,
 static int get_s64(struct lwm2m_input_context *in, int64_t *value)
 {
 	return get_number(in, value, 8);
-}
-
-static int get_time(struct lwm2m_input_context *in, time_t *value)
-{
-	int64_t temp64;
-	int ret;
-
-	ret = get_number(in, &temp64, 8);
-	*value = (time_t)temp64;
-
-	return ret;
 }
 
 static int get_s32(struct lwm2m_input_context *in, int32_t *value)
@@ -787,7 +757,6 @@ const struct lwm2m_writer oma_tlv_writer = {
 	.put_s64 = put_s64,
 	.put_string = put_string,
 	.put_float = put_float,
-	.put_time = put_time,
 	.put_bool = put_bool,
 	.put_opaque = put_opaque,
 	.put_objlnk = put_objlnk,
@@ -797,7 +766,6 @@ const struct lwm2m_reader oma_tlv_reader = {
 	.get_s32 = get_s32,
 	.get_s64 = get_s64,
 	.get_string = get_string,
-	.get_time = get_time,
 	.get_float = get_float,
 	.get_bool = get_bool,
 	.get_opaque = get_opaque,
@@ -839,21 +807,49 @@ static int do_write_op_tlv_item(struct lwm2m_message *msg)
 	struct lwm2m_engine_res_inst *res_inst = NULL;
 	struct lwm2m_engine_obj_field *obj_field = NULL;
 	uint8_t created = 0U;
-	int ret;
+	int ret, i;
 
 	ret = lwm2m_get_or_create_engine_obj(msg, &obj_inst, &created);
 	if (ret < 0) {
 		goto error;
 	}
 
-	ret = lwm2m_engine_validate_write_access(msg, obj_inst, &obj_field);
-	if (ret < 0) {
+	obj_field = lwm2m_get_engine_obj_field(obj_inst->obj,
+					       msg->path.res_id);
+	if (!obj_field) {
+		ret = -ENOENT;
 		goto error;
 	}
 
-	ret = lwm2m_engine_get_create_res_inst(&msg->path, &res, &res_inst);
+	if (!LWM2M_HAS_PERM(obj_field, LWM2M_PERM_W) &&
+	    !lwm2m_engine_bootstrap_override(msg->ctx, &msg->path)) {
+		ret = -EPERM;
+		goto error;
+	}
 
-	if (ret < 0) {
+	if (!obj_inst->resources || obj_inst->resource_count == 0U) {
+		ret = -EINVAL;
+		goto error;
+	}
+
+	for (i = 0; i < obj_inst->resource_count; i++) {
+		if (obj_inst->resources[i].res_id == msg->path.res_id) {
+			res = &obj_inst->resources[i];
+			break;
+		}
+	}
+
+	if (res) {
+		for (i = 0; i < res->res_inst_count; i++) {
+			if (res->res_instances[i].res_inst_id ==
+			    msg->path.res_inst_id) {
+				res_inst = &res->res_instances[i];
+				break;
+			}
+		}
+	}
+
+	if (!res || !res_inst) {
 		/* if OPTIONAL and BOOTSTRAP-WRITE or CREATE use ENOTSUP */
 		if ((msg->ctx->bootstrap_mode ||
 		     msg->operation == LWM2M_OP_CREATE) &&
@@ -902,51 +898,6 @@ static int write_tlv_resource(struct lwm2m_message *msg, struct oma_tlv *tlv)
 	      (msg->ctx->bootstrap_mode ||
 	       msg->operation == LWM2M_OP_CREATE))) {
 		return ret;
-	}
-
-	return 0;
-}
-
-static int lwm2m_multi_resource_tlv_parse(struct lwm2m_message *msg,
-					  struct oma_tlv *multi_resource_tlv)
-{
-	struct oma_tlv tlv_resource_instance;
-	int len2;
-	int pos = 0;
-	int ret;
-
-	if (msg->in.block_ctx) {
-		msg->in.block_ctx->res_id = multi_resource_tlv->id;
-	}
-
-	if (multi_resource_tlv->length == 0U) {
-		/* No data for resource instances, so create only a resource */
-		return write_tlv_resource(msg, multi_resource_tlv);
-	}
-
-	while (pos < multi_resource_tlv->length &&
-	       (len2 = oma_tlv_get(&tlv_resource_instance, &msg->in, true))) {
-		if (tlv_resource_instance.type != OMA_TLV_TYPE_RESOURCE_INSTANCE) {
-			LOG_ERR("Multi resource id not supported %u %d", tlv_resource_instance.id,
-				tlv_resource_instance.length);
-			return -ENOTSUP;
-		}
-
-		msg->path.res_id = multi_resource_tlv->id;
-		msg->path.res_inst_id = tlv_resource_instance.id;
-		msg->path.level = LWM2M_PATH_LEVEL_RESOURCE_INST;
-		ret = do_write_op_tlv_item(msg);
-
-		/*
-		 * Ignore errors on optional resources when doing
-		 * BOOTSTRAP WRITE or CREATE operation.
-		 */
-		if (ret < 0 && !((ret == -ENOTSUP) &&
-				 (msg->ctx->bootstrap_mode || msg->operation == LWM2M_OP_CREATE))) {
-			return ret;
-		}
-
-		pos += len2;
 	}
 
 	return 0;
@@ -1001,45 +952,29 @@ int do_write_op_tlv(struct lwm2m_message *msg)
 					return ret;
 				}
 
+#ifdef CONFIG_LWM2M_RD_CLIENT_SUPPORT
 				if (!msg->ctx->bootstrap_mode) {
 					engine_trigger_update(true);
 				}
+#endif
 			}
 
 			while (pos < tlv.length &&
 			       (len2 = oma_tlv_get(&tlv2, &msg->in, true))) {
-				if (tlv2.type == OMA_TLV_TYPE_RESOURCE) {
-					ret = write_tlv_resource(msg, &tlv2);
-					if (ret) {
-						return ret;
-					}
-				} else if (tlv2.type == OMA_TLV_TYPE_MULTI_RESOURCE) {
-					oma_tlv_get(&tlv2, &msg->in, false);
-					ret = lwm2m_multi_resource_tlv_parse(msg, &tlv2);
-					if (ret) {
-						return ret;
-					}
-				} else {
-					/* Skip Unsupported TLV type */
-					return -ENOTSUP;
+				if (tlv2.type != OMA_TLV_TYPE_RESOURCE) {
+					pos += len2;
+					continue;
+				}
+
+				ret = write_tlv_resource(msg, &tlv2);
+				if (ret) {
+					return ret;
 				}
 
 				pos += len2;
 			}
 		} else if (tlv.type == OMA_TLV_TYPE_RESOURCE) {
-			if (msg->path.level < LWM2M_PATH_LEVEL_OBJECT_INST) {
-				return -ENOTSUP;
-			}
 			ret = write_tlv_resource(msg, &tlv);
-			if (ret) {
-				return ret;
-			}
-		} else if (tlv.type == OMA_TLV_TYPE_MULTI_RESOURCE) {
-			if (msg->path.level < LWM2M_PATH_LEVEL_OBJECT_INST) {
-				return -ENOTSUP;
-			}
-			oma_tlv_get(&tlv, &msg->in, false);
-			ret = lwm2m_multi_resource_tlv_parse(msg, &tlv);
 			if (ret) {
 				return ret;
 			}

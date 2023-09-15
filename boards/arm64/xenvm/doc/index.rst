@@ -10,10 +10,16 @@ This board allows to run Zephyr as Xen guest on any ARMv8 board that supports
 ARM Virtualization Extensions. This is example configuration, as almost any VM
 configuration is unique in many aspects.
 
+.. figure:: xen_project_logo.png
+   :align: center
+   :alt: XenVM
+
+   Xen virtual Guest (Credit: Xen Project)
+
 It provides minimal set of devices:
 
 * ARM Generic timer
-* GICv2/GICv3
+* GICv2
 
 Hardware
 ********
@@ -31,12 +37,6 @@ The following hardware features are supported:
 +--------------+-------------+----------------------+
 
 The kernel currently does not support other hardware features on this platform.
-
-The default configuration using GICv2 can be found in the defconfig file:
-    ``boards/arm64/xenvm/xenvm_defconfig``
-
-The default configuration using GICv3 can be found in the defconfig file:
-    ``boards/arm64/xenvm/xenvm_gicv3_defconfig``
 
 Devices
 ========
@@ -56,11 +56,9 @@ boot log:
 Interrupt Controller
 --------------------
 
-Depending on the version of the GIC on your hardware, you may choose one of the
-following board configurations:
-
-- ``xenvm_defconfig`` selects GICv2
-- ``xenvm_gicv3_defconfig`` selects GICv3
+By default, GICv2 is selected. If your hardware is based on GICv3, you can
+configure Zephyr to use it, by amending device tree and Kconfig
+option in "xenvm" SoC as well as guest configuration file.
 
 CPU Core type
 -------------
@@ -81,14 +79,14 @@ in detail in next section.
 
 Most of Xen-specific features are not supported at the moment. This includes:
 * XenBus (under development)
+* Xen grant tables (under development)
 * Xen PV drivers
 
 Now only following features are supported:
 * Xen Enlighten memory page
-* Xen event channels
+* Xen event channels (currently only pre-defined - PV console, Xenbus)
 * Xen PV console (2 versions: regular ring buffer based for DomU and consoleio for Dom0)
 * Xen early console_io interface (mainly for debug purposes - requires debug version of Xen)
-* Xen grant tables (granting access for own grants and map/unmap foreign grants)
 
 Building and Running
 ********************
@@ -96,17 +94,10 @@ Building and Running
 Use this configuration to run basic Zephyr applications and kernel tests as Xen
 guest, for example, with the :ref:`synchronization_sample`:
 
-- if your hardware is based on GICv2:
 
 .. code-block::
 
    $ west build -b xenvm samples/synchronization
-
-- if your hardware is based on GICv3:
-
-.. code-block::
-
-   $ west build -b xenvm_gicv3 samples/synchronization
 
 This will build an image with the synchronization sample app. Next, you need to
 create guest configuration file :code:`zephyr.conf`. There is example:
@@ -119,9 +110,6 @@ create guest configuration file :code:`zephyr.conf`. There is example:
    memory=16
    gic_version="v2"
    on_crash="preserve"
-
-When using ``xenvm_gicv3`` configuration, you need to remove the ``gic_version``
-parameter or set it to ``"v3"``.
 
 You need to upload both :code:`zephyr.bin` and :code:`zephyr.conf` to your Dom0
 and then you can run Zephyr by issuing

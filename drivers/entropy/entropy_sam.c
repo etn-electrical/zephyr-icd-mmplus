@@ -6,11 +6,10 @@
 
 #define DT_DRV_COMPAT atmel_sam_trng
 
-#include <zephyr/device.h>
-#include <zephyr/drivers/entropy.h>
+#include <device.h>
+#include <drivers/entropy.h>
 #include <errno.h>
-#include <zephyr/init.h>
-#include <zephyr/kernel.h>
+#include <init.h>
 #include <soc.h>
 #include <string.h>
 

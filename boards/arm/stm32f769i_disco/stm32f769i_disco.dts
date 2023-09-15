@@ -20,15 +20,13 @@
 		zephyr,flash = &flash0;
 		zephyr,dtcm = &dtcm;
 		zephyr,flash-controller = &mx25l51245g;
-		zephyr,keyboard-scan = &touch_controller;
 	};
 
 	sdram1: sdram@c0000000 {
-		compatible = "zephyr,memory-region", "mmio-sram";
+		compatible = "mmio-sram";
 		device_type = "memory";
 		reg = <0xc0000000 DT_SIZE_M(16)>;
 		zephyr,memory-region = "SDRAM1";
-		zephyr,memory-region-mpu = "RAM";
 	};
 
 	leds {
@@ -66,7 +64,6 @@
 		led3 = &red_led_4;
 		sw0 = &user_button;
 		kscan0 = &touch_controller;
-		spi-flash0 = &mx25l51245g;
 	};
 };
 
@@ -126,6 +123,7 @@ arduino_serial: &usart6 {};
 	touch_controller: ft6202@2a {
 		compatible = "focaltech,ft5336";
 		reg = <0x2a>;
+		label = "FT6202";
 		int-gpios = <&gpioi 13 0>;
 	};
 };
@@ -168,6 +166,7 @@ arduino_serial: &usart6 {};
 
 	mx25l51245g: qspi-nor-flash@0 {
 		compatible = "st,stm32-qspi-nor";
+		label = "MX25L51245G";
 		reg = <0>;
 		qspi-max-frequency = <72000000>;
 		size = <DT_SIZE_M(64*8)>;
@@ -180,7 +179,7 @@ arduino_serial: &usart6 {};
 
 			slot1_partition: partition@0 {
 				label = "image-1";
-				reg = <0x00000000 DT_SIZE_K(1664)>;
+				reg = <0x00000000 0x001a0000>;
 				};
 
 			storage_partition: partition@1a0000 {

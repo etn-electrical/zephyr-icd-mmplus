@@ -3,12 +3,12 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#include <zephyr/ztest.h>
-#include <zephyr/drivers/clock_control.h>
-#include <zephyr/drivers/clock_control/nrf_clock_control.h>
+#include <ztest.h>
+#include <drivers/clock_control.h>
+#include <drivers/clock_control/nrf_clock_control.h>
 #include <hal/nrf_clock.h>
-#include <zephyr/drivers/sensor.h>
-#include <zephyr/logging/log.h>
+#include <drivers/sensor.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(test);
 
 #ifndef CONFIG_CLOCK_CONTROL_NRF_K32SRC_RC
@@ -95,7 +95,7 @@ static void sync_just_after_calibration(void)
 /* Test checks if calibration and calibration skips are performed according
  * to timing configuration.
  */
-ZTEST(nrf_clock_calibration, test_basic_clock_calibration)
+static void test_basic_clock_calibration(void)
 {
 	int wait_ms = CONFIG_CLOCK_CONTROL_NRF_CALIBRATION_PERIOD *
 		(CONFIG_CLOCK_CONTROL_NRF_CALIBRATION_MAX_SKIP + 1) +
@@ -110,7 +110,7 @@ ZTEST(nrf_clock_calibration, test_basic_clock_calibration)
 }
 
 /* Test checks if calibration happens just after clock is enabled. */
-ZTEST(nrf_clock_calibration, test_calibration_after_enabling_lfclk)
+static void test_calibration_after_enabling_lfclk(void)
 {
 	if (IS_ENABLED(CONFIG_SOC_NRF52832)) {
 		/* On nrf52832 LF clock cannot be stopped because it leads
@@ -120,10 +120,9 @@ ZTEST(nrf_clock_calibration, test_calibration_after_enabling_lfclk)
 		ztest_test_skip();
 	}
 
-	const struct device *const clk_dev = DEVICE_DT_GET_ONE(nordic_nrf_clock);
+	const struct device *clk_dev =
+		device_get_binding(DT_LABEL(DT_INST(0, nordic_nrf_clock)));
 	struct sensor_value value = { .val1 = 0, .val2 = 0 };
-
-	zassert_true(device_is_ready(clk_dev), "Device is not ready");
 
 	mock_temp_nrf5_value_set(&value);
 
@@ -138,7 +137,7 @@ ZTEST(nrf_clock_calibration, test_calibration_after_enabling_lfclk)
 }
 
 /* Test checks if temperature change triggers calibration. */
-ZTEST(nrf_clock_calibration, test_temp_change_triggers_calibration)
+static void test_temp_change_triggers_calibration(void)
 {
 	struct sensor_value value = { .val1 = 0, .val2 = 0 };
 
@@ -170,7 +169,7 @@ ZTEST(nrf_clock_calibration, test_temp_change_triggers_calibration)
 /* Test checks if z_nrf_clock_calibration_force_start() results in immediate
  * calibration.
  */
-ZTEST(nrf_clock_calibration, test_force_calibration)
+static void test_force_calibration(void)
 {
 	sync_just_after_calibration();
 
@@ -187,4 +186,14 @@ ZTEST(nrf_clock_calibration, test_force_calibration)
 		CALIBRATION_PROCESS_TIME_MS);
 
 }
-ZTEST_SUITE(nrf_clock_calibration, NULL, NULL, NULL, NULL, NULL);
+
+void test_main(void)
+{
+	ztest_test_suite(test_nrf_clock_calibration,
+		ztest_unit_test(test_basic_clock_calibration),
+		ztest_unit_test(test_calibration_after_enabling_lfclk),
+		ztest_unit_test(test_temp_change_triggers_calibration),
+		ztest_unit_test(test_force_calibration)
+			 );
+	ztest_run_test_suite(test_nrf_clock_calibration);
+}

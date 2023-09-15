@@ -8,4 +8,4 @@
  * @brief Linker script for the SiFive Freedom processor
  */
 
-#include <zephyr/arch/riscv/common/linker.ld>
+#include <arch/riscv/common/linker.ld>

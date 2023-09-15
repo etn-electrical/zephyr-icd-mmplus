@@ -14,13 +14,13 @@
  */
 
 #include <offsets_short.h>
-#include <zephyr/toolchain.h>
-#include <zephyr/linker/sections.h>
-#include <zephyr/sw_isr_table.h>
-#include <zephyr/kernel_structs.h>
-#include <zephyr/arch/cpu.h>
+#include <toolchain.h>
+#include <linker/sections.h>
+#include <sw_isr_table.h>
+#include <kernel_structs.h>
+#include <arch/cpu.h>
 #include <swap_macros.h>
-#include <zephyr/arch/arc/asm-compat/assembler.h>
+#include <arch/arc/asm-compat/assembler.h>
 
 GTEXT(_isr_wrapper)
 GTEXT(_isr_demux)
@@ -272,9 +272,7 @@ SECTION_FUNC(TEXT, _isr_demux)
 	PUSHR r30
 #ifdef CONFIG_ARC_HAS_ACCL_REGS
 	PUSHR r58
-#ifndef CONFIG_64BIT
 	PUSHR r59
-#endif /* !CONFIG_64BIT */
 #endif
 
 #ifdef CONFIG_SCHED_THREAD_USAGE
@@ -312,9 +310,7 @@ irq_hint_handled:
 #endif
 
 #ifdef CONFIG_ARC_HAS_ACCL_REGS
-#ifndef CONFIG_64BIT
 	POPR r59
-#endif /* !CONFIG_64BIT */
 	POPR r58
 #endif
 

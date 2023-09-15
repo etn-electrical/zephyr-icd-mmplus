@@ -11,26 +11,24 @@
  * @}
  */
 
-#include <zephyr/drivers/uart.h>
-#include <zephyr/ztest.h>
-#include <zephyr/drivers/counter.h>
-#include <zephyr/random/rand32.h>
+#include <drivers/uart.h>
+#include <ztest.h>
+#include <drivers/counter.h>
+#include <random/rand32.h>
 /* RX and TX pins have to be connected together*/
 
 #if defined(CONFIG_BOARD_NRF52840DK_NRF52840)
-#define UART_DEVICE_DEV DT_NODELABEL(uart0)
-#elif defined(CONFIG_BOARD_NRF5340DK_NRF5340_CPUAPP)
-#define UART_DEVICE_DEV DT_NODELABEL(uart1)
+#define UART_DEVICE_NAME DT_LABEL(DT_NODELABEL(uart0))
 #elif defined(CONFIG_BOARD_NRF9160DK_NRF9160)
-#define UART_DEVICE_DEV DT_NODELABEL(uart1)
+#define UART_DEVICE_NAME DT_LABEL(DT_NODELABEL(uart1))
 #elif defined(CONFIG_BOARD_ATSAMD21_XPRO)
-#define UART_DEVICE_DEV DT_NODELABEL(sercom1)
+#define UART_DEVICE_NAME DT_LABEL(DT_NODELABEL(sercom1))
 #elif defined(CONFIG_BOARD_ATSAMR21_XPRO)
-#define UART_DEVICE_DEV DT_NODELABEL(sercom3)
+#define UART_DEVICE_NAME DT_LABEL(DT_NODELABEL(sercom3))
 #elif defined(CONFIG_BOARD_ATSAME54_XPRO)
-#define UART_DEVICE_DEV DT_NODELABEL(sercom1)
+#define UART_DEVICE_NAME DT_LABEL(DT_NODELABEL(sercom1))
 #else
-#define UART_DEVICE_DEV DT_CHOSEN(zephyr_console)
+#define UART_DEVICE_NAME DT_LABEL(DT_CHOSEN(zephyr_console))
 #endif
 
 struct rx_source {
@@ -62,10 +60,8 @@ static struct rx_source source[4];
 static struct test_data test_data[3];
 static struct test_data int_async_data;
 
-static const struct device *const counter_dev =
-	DEVICE_DT_GET(DT_NODELABEL(timer0));
-static const struct device *const uart_dev =
-	DEVICE_DT_GET(UART_DEVICE_DEV);
+static const struct device *counter_dev;
+static const struct device *uart_dev;
 
 static bool async;
 static bool int_driven;
@@ -107,7 +103,7 @@ static void counter_top_handler(const struct device *dev, void *user_data)
 
 		err = uart_rx_enable(uart_dev, async_rx_buf,
 				     sizeof(async_rx_buf), 1 * USEC_PER_MSEC);
-		zassert_true(err >= 0);
+		zassert_true(err >= 0, NULL);
 		async_rx_enabled = true;
 	} else if (int_driven) {
 		if (enable) {
@@ -135,7 +131,8 @@ static void init_test(void)
 		.flags = 0
 	};
 
-	zassert_true(device_is_ready(uart_dev), "uart device is not ready");
+	uart_dev = device_get_binding(UART_DEVICE_NAME);
+	zassert_true(uart_dev != NULL, NULL);
 
 	if (uart_callback_set(uart_dev, async_callback, NULL) == 0) {
 		async = true;
@@ -150,15 +147,16 @@ static void init_test(void)
 	/* Setup counter which will periodically enable/disable UART RX,
 	 * Disabling RX should lead to flow control being activated.
 	 */
-	zassert_true(device_is_ready(counter_dev));
+	counter_dev = device_get_binding("TIMER_0");
+	zassert_true(counter_dev != NULL, NULL);
 
 	top_cfg.ticks = counter_us_to_ticks(counter_dev, 1000);
 
 	err = counter_set_top_value(counter_dev, &top_cfg);
-	zassert_true(err >= 0);
+	zassert_true(err >= 0, NULL);
 
 	err = counter_start(counter_dev);
-	zassert_true(err >= 0);
+	zassert_true(err >= 0, NULL);
 }
 
 static void rx_isr(void)
@@ -258,7 +256,7 @@ static void int_async_thread_func(void *p_data, void *base, void *range)
 			int err;
 
 			err = k_sem_take(&async_tx_sem, K_MSEC(1000));
-			zassert_true(err >= 0);
+			zassert_true(err >= 0, NULL);
 
 			int idx = data->cnt & 0xF;
 			size_t len = (idx < BUF_SIZE / 2) ? 5 : 1; /* Try various lengths */
@@ -313,7 +311,7 @@ static void init_test_data(struct test_data *data, const uint8_t *buf, int repea
 	data->max = repeat;
 }
 
-ZTEST(uart_mix_fifo_poll, test_mixed_uart_access)
+static void test_mixed_uart_access(void)
 {
 	int repeat = 10000;
 	int err;
@@ -347,12 +345,12 @@ ZTEST(uart_mix_fifo_poll, test_mixed_uart_access)
 
 	for (int i = 0; i < num_of_contexts; i++) {
 		err = k_sem_take(&test_data[i].sem, K_MSEC(10000));
-		zassert_equal(err, 0);
+		zassert_equal(err, 0, NULL);
 	}
 
 	if (async || int_driven) {
 		err = k_sem_take(&int_async_data.sem, K_MSEC(10000));
-		zassert_equal(err, 0);
+		zassert_equal(err, 0, NULL);
 	}
 
 	k_msleep(10);
@@ -364,12 +362,12 @@ ZTEST(uart_mix_fifo_poll, test_mixed_uart_access)
 	}
 }
 
-void *uart_mix_setup(void)
+void test_main(void)
 {
 	init_test();
 
-	return NULL;
+	ztest_test_suite(uart_mix_fifo_poll_test,
+			 ztest_unit_test(test_mixed_uart_access)
+			 );
+	ztest_run_test_suite(uart_mix_fifo_poll_test);
 }
-
-ZTEST_SUITE(uart_mix_fifo_poll, NULL, uart_mix_setup,
-		NULL, NULL, NULL);

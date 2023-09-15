@@ -37,8 +37,12 @@ Here are some highlights of the STM32F072-EVAL board:
 
 
 .. image:: img/stm32f072_eval.jpg
+     :width: 540px
      :align: center
+     :height: 549px
      :alt: STM32F072-EVAL
+
+More information about the board can be found at the `STM32F072-EVAL website`_.
 
 Hardware
 ********
@@ -110,7 +114,7 @@ Pin Mapping
 STM32F072-EVAL Discovery kit has 6 GPIO controllers. These controllers are responsible for pin muxing,
 input/output, pull-up, etc.
 
-For mode details please refer to STM32F072-EVAL board User Manual.
+For mode details please refer to `STM32F072-EVAL board User Manual`_.
 
 Default Zephyr Peripheral Mapping:
 ----------------------------------
@@ -177,6 +181,12 @@ You can debug an application in the usual way.  Here is an example for the
    :maybe-skip-config:
    :goals: debug
 
+
+.. _STM32F072-EVAL website:
+   http://www.st.com/en/evaluation-tools/stm32072b-eval.html
+
+.. _STM32F072-EVAL board User Manual:
+   http://www.st.com/resource/en/user_manual/dm00104135.pdf
 
 .. _STM32F072VB on www.st.com:
    http://www.st.com/en/microcontrollers/stm32f072vb.html

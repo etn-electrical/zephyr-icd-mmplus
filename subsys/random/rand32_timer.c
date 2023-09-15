@@ -14,20 +14,26 @@
  * provide a random number generator.
  */
 
-#include <zephyr/random/rand32.h>
-#include <zephyr/drivers/timer/system_timer.h>
-#include <zephyr/kernel.h>
-#include <zephyr/spinlock.h>
+#include <random/rand32.h>
+#include <drivers/timer/system_timer.h>
+#include <kernel.h>
+#include <sys/atomic.h>
 #include <string.h>
 
 #if defined(__GNUC__)
 
-static struct k_spinlock rand32_lock;
+/*
+ * Symbols used to ensure a rapid series of calls to random number generator
+ * return different values.
+ */
+static atomic_val_t _rand32_counter;
+
+#define _RAND32_INC 1000000003U
 
 /**
  * @brief Get a 32 bit random number
  *
- * This pseudo-random number generator returns values that are based off the
+ * The non-random number generator returns values that are based off the
  * target's clock counter, which means that successive calls will return
  * different values.
  *
@@ -35,21 +41,13 @@ static struct k_spinlock rand32_lock;
  */
 uint32_t z_impl_sys_rand32_get(void)
 {
-	static uint64_t state = 123456789UL;  /* initial seed value */
-	k_spinlock_key_t key = k_spin_lock(&rand32_lock);
-
-	state = state + k_cycle_get_32();
-	state = state * 2862933555777941757ULL + 3037000493ULL;
-	uint32_t val = (uint32_t)(state >> 32);
-
-	k_spin_unlock(&rand32_lock, key);
-	return val;
+	return k_cycle_get_32() + atomic_add(&_rand32_counter, _RAND32_INC);
 }
 
 /**
  * @brief Fill destination buffer with random numbers
  *
- * The pseudo-random number generator returns values that are based off the
+ * The non-random number generator returns values that are based off the
  * target's clock counter, which means that successive calls will return
  * different values.
  *

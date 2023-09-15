@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
-#include <zephyr/arch/cpu.h>
-#include <zephyr/arch/arm/aarch32/cortex_m/cmsis.h>
-#include <zephyr/linker/sections.h>
+#include <ztest.h>
+#include <arch/cpu.h>
+#include <arch/arm/aarch32/cortex_m/cmsis.h>
+#include <linker/sections.h>
 
 
 /*
@@ -137,7 +137,7 @@ void isr2(void)
  * @see irq_enable(), z_irq_priority_set(), NVIC_SetPendingIRQ()
  *
  */
-ZTEST(vector_table, test_arm_irq_vector_table)
+void test_arm_irq_vector_table(void)
 {
 	printk("Test Cortex-M IRQs installed directly in the vector table\n");
 

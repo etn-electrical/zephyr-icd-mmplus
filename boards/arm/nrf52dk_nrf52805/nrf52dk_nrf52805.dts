@@ -6,7 +6,6 @@
 
 /dts-v1/;
 #include <nordic/nrf52805_caaa.dtsi>
-#include "nrf52dk_nrf52805-pinctrl.dtsi"
 
 / {
 	model = "Nordic nRF52 DK NRF52805";
@@ -74,9 +73,6 @@
 		sw2 = &button2;
 		sw3 = &button3;
 		bootloader-led0 = &led0;
-		mcuboot-button0 = &button0;
-		mcuboot-led0 = &led0;
-		watchdog0 = &wdt0;
 	};
 };
 
@@ -95,29 +91,33 @@
 &i2c0 {
 	compatible = "nordic,nrf-twi";
 	status = "okay";
-	pinctrl-0 = <&i2c0_default>;
-	pinctrl-1 = <&i2c0_sleep>;
-	pinctrl-names = "default", "sleep";
+	sda-pin = <26>;
+	scl-pin = <27>;
 };
 
 &spi0 {
 	compatible = "nordic,nrf-spi";
 	status = "okay";
-	pinctrl-0 = <&spi0_default>;
-	pinctrl-1 = <&spi0_sleep>;
-	pinctrl-names = "default", "sleep";
+	sck-pin = <29>;
+	mosi-pin = <31>;
+	miso-pin = <30>;
 };
 
 &uart0 {
 	compatible = "nordic,nrf-uarte";
 	status = "okay";
 	current-speed = <115200>;
-	pinctrl-0 = <&uart0_default>;
-	pinctrl-1 = <&uart0_sleep>;
-	pinctrl-names = "default", "sleep";
+	tx-pin = <6>;
+	rx-pin = <8>;
+	rts-pin = <5>;
+	cts-pin = <7>;
 };
 
 &flash0 {
+	/*
+	 * For more information, see:
+	 * http://docs.zephyrproject.org/latest/guides/dts/index.html#flash-partitions
+	 */
 	partitions {
 		compatible = "fixed-partitions";
 		#address-cells = <1>;
@@ -129,15 +129,19 @@
 		};
 		slot0_partition: partition@c000 {
 			label = "image-0";
-			reg = <0x0000C000 0xe000>;
+			reg = <0x0000C000 0xd000>;
 		};
 		slot1_partition: partition@19000 {
 			label = "image-1";
-			reg = <0x00020000 0xe000>;
+			reg = <0x00019000 0xd000>;
 		};
-		storage_partition: partition@28000 {
+		scratch_partition: partition@26000 {
+			label = "image-scratch";
+			reg = <0x00026000 0x3000>;
+		};
+		storage_partition: partition@29000 {
 			label = "storage";
-			reg = <0x00028000 0x00008000>;
+			reg = <0x00029000 0x00007000>;
 		};
 	};
 };

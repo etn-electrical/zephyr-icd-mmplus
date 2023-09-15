@@ -12,13 +12,13 @@
  * hardware for the nxp_lpc54114 platform.
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/device.h>
-#include <zephyr/init.h>
+#include <kernel.h>
+#include <device.h>
+#include <init.h>
 #include <soc.h>
-#include <zephyr/drivers/uart.h>
-#include <zephyr/linker/sections.h>
-#include <zephyr/arch/cpu.h>
+#include <drivers/uart.h>
+#include <linker/sections.h>
+#include <arch/cpu.h>
 #include <aarch32/cortex_m/exc.h>
 #include <fsl_power.h>
 #include <fsl_clock.h>
@@ -26,17 +26,6 @@
 #include <fsl_device_registers.h>
 #ifdef CONFIG_GPIO_MCUX_LPC
 #include <fsl_pint.h>
-#endif
-#if  defined(CONFIG_SECOND_CORE_MCUX) && defined(CONFIG_SOC_LPC54114_M4)
-#include <zephyr_image_info.h>
-/* Memcpy macro to copy segments from secondary core image stored in flash
- * to RAM section that secondary core boots from.
- * n is the segment number, as defined in zephyr_image_info.h
- */
-#define MEMCPY_SEGMENT(n, _)							\
-	memcpy((uint32_t *)((SEGMENT_LMA_ADDRESS_ ## n) - ADJUSTED_LMA),	\
-		(uint32_t *)(SEGMENT_LMA_ADDRESS_ ## n),			\
-		(SEGMENT_SIZE_ ## n))
 #endif
 
 /**
@@ -139,22 +128,14 @@ static int nxp_lpc54114_init(const struct device *arg)
 
 SYS_INIT(nxp_lpc54114_init, PRE_KERNEL_1, 0);
 
-#if defined(CONFIG_PLATFORM_SPECIFIC_INIT) && defined(CONFIG_SOC_LPC54114_M0)
 
-/* M4 core has a custom platform initialization routine in assembly,
- * but M0 core does not. install one here to call SystemInit.
- */
-void z_arm_platform_init(void)
-{
-	SystemInit();
-}
-
-#endif /* CONFIG_PLATFORM_SPECIFIC_INIT */
-
-
-#if defined(CONFIG_SECOND_CORE_MCUX) && defined(CONFIG_SOC_LPC54114_M4)
+#ifdef CONFIG_SECOND_CORE_MCUX
 
 #define CORE_M0_BOOT_ADDRESS ((void *)CONFIG_SECOND_CORE_BOOT_ADDRESS_MCUX)
+
+static const char core_m0[] = {
+#include "core-m0.inc"
+};
 
 /**
  *
@@ -176,7 +157,7 @@ int _slave_init(const struct device *arg)
 	SYSCON->AHBCLKCTRLSET[0] = SYSCON_AHBCLKCTRL_SRAM2_MASK;
 
 	/* Copy second core image to SRAM */
-	LISTIFY(SEGMENT_NUM, MEMCPY_SEGMENT, (;));
+	memcpy(CORE_M0_BOOT_ADDRESS, (void *)core_m0, sizeof(core_m0));
 
 	/* Setup the reset handler pointer (PC) and stack pointer value.
 	 * This is used once the second core runs its startup code.
@@ -184,7 +165,7 @@ int _slave_init(const struct device *arg)
 	 * and then detects its identity (Cortex-M0, slave) and checks
 	 * registers CPBOOT and CPSTACK and use them to continue the
 	 * boot process.
-	 * Make sure the startup code for the current core (Cortex-M4) is
+	 * Make sure the startup code for current core (Cortex-M4) is
 	 * appropriate and shareable with the Cortex-M0 core!
 	 */
 	SYSCON->CPBOOT = SYSCON_CPBOOT_BOOTADDR(
@@ -205,4 +186,4 @@ int _slave_init(const struct device *arg)
 
 SYS_INIT(_slave_init, PRE_KERNEL_2, CONFIG_KERNEL_INIT_PRIORITY_DEFAULT);
 
-#endif /*CONFIG_SECOND_CORE_MCUX && CONFIG_SOC_LPC54114_M4 */
+#endif /*CONFIG_SECOND_CORE_MCUX*/

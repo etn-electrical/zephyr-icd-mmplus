@@ -13,7 +13,8 @@ with additional expansion ports around the Arduino footprint, along
 with a PMod/host interface port and MikroElektronika Click module
 site.
 
-.. image:: lpcxpresso55S16.jpg
+.. image:: ./lpcxpresso55S16.jpg
+   :width: 720px
    :align: center
    :alt: LPCXpresso55S16
 
@@ -48,12 +49,8 @@ For more information about the LPC55S16 SoC and LPCXPresso55S16 board, see:
 Supported Features
 ==================
 
-The lpcxpresso55s16 board configuration supports the hardware features listed
-below.  For additional features not yet supported, please also refer to the
-:ref:`lpcxpresso55s69` , which is the superset board in NXP's LPC55xx series.
-NXP prioritizes enabling the superset board with NXP's Full Platform Support for
-Zephyr.  Therefore, the lpcxpresso55s69 board may have additional features
-already supported, which can also be re-used on this lpcxpresso55s16 board:
+The lpcxpresso55s16 board configuration supports the following
+hardware features:
 
 +-----------+------------+-------------------------------------+
 | Interface | Controller | Driver/Component                    |
@@ -70,19 +67,13 @@ already supported, which can also be re-used on this lpcxpresso55s16 board:
 +-----------+------------+-------------------------------------+
 | SPI       | on-chip    | spi                                 |
 +-----------+------------+-------------------------------------+
-| USART     | on-chip    | serial port-polling;                |
-|           |            | serial port-interrupt               |
+| USART     | on-chip    | serial port                         |
 +-----------+------------+-------------------------------------+
 | SENSOR    | off-chip   | fxos8700 trigger                    |
 +-----------+------------+-------------------------------------+
 | CLOCK     | on-chip    | clock_control                       |
 +-----------+------------+-------------------------------------+
 | CAN       | on-chip    | canbus                              |
-+-----------+------------+-------------------------------------+
-| RNG       | on-chip    | entropy;                            |
-|           |            | random                              |
-+-----------+------------+-------------------------------------+
-| IAP       | on-chip    | flash programming                   |
 +-----------+------------+-------------------------------------+
 
 Other hardware features are not currently enabled.
@@ -224,7 +215,7 @@ should see the following message in the terminal:
    https://www.nxp.com/products/processors-and-microcontrollers/arm-microcontrollers/general-purpose-mcus/lpc5500-cortex-m33/lpc551x-s1x-baseline-arm-cortex-m33-based-microcontroller-family:LPC551X-S1X
 
 .. _LPC55S16 Datasheet:
-    https://www.nxp.com/docs/en/nxp/data-sheets/LPC55S1x_LPC551x_DS.pdf
+    https://www.nxp.com/docs/en/nxp/data-sheets/LPC55S1x_PDS.pdf
 
 .. _LPC55S16 User Manual:
    https://www.nxp.com/webapp/Download?colCode=UM11295
@@ -233,7 +224,7 @@ should see the following message in the terminal:
    https://www.nxp.com/design/development-boards/lpcxpresso-boards/lpcxpresso55s16-development-board:LPC55S16-EVK
 
 .. _LPCXpresso55S16 User Manual:
-   https://www.nxp.com/webapp/Download?colCode=UMLPCXPRESSO55S16
+   https://www.nxp.com/docs/en/user-guide/UMLPCXPRESSO55S16.pdf
 
 .. _LPCXpresso55S16 Development Board Design Files:
-   https://www.nxp.com/webapp/Download?colCode=LPCXPRESSSO55S16-DESIGN-FILES
+   https://www.nxp.com/downloads/en/design-support/LPCXPRESSSO55S16-DESIGN-FILES.zip

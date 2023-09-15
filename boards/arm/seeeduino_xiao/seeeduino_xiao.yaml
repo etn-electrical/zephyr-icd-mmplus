@@ -12,6 +12,7 @@ supported:
   - dma
   - gpio
   - hwinfo
+  - pinmux
   - spi
   - i2c
   - uart

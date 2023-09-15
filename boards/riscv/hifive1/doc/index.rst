@@ -9,11 +9,7 @@ Overview
 The HiFive1 is an Arduino-compatible development board with
 an FE310 RISC-V SoC.
 More information can be found on
-`SiFive's website <https://www.sifive.com/boards/hifive1>`_.
-
-.. image:: img/hifive1.jpg
-   :align: center
-   :alt: SiFive HiFive1 board
+`SiFive's website <https://www.sifive.com/products/hifive1>`_.
 
 Programming and debugging
 *************************

@@ -7,7 +7,6 @@
 
 /dts-v1/;
 #include <nordic/nrf52832_qfaa.dtsi>
-#include "nrf52832_mdk-pinctrl.dtsi"
 
 / {
 	model = "nRF52832-MDK Micro Dev Kit";
@@ -43,15 +42,15 @@
 	pwmleds {
 		compatible = "pwm-leds";
 		pwm_led0_green: pwm_led_0 {
-			pwms = <&pwm0 0 PWM_MSEC(20) PWM_POLARITY_INVERTED>;
+			pwms = <&pwm0 22>;
 			label = "Green PWM LED 0";
 		};
 		pwm_led1_red: pwm_led_1 {
-			pwms = <&pwm0 1 PWM_MSEC(20) PWM_POLARITY_INVERTED>;
+			pwms = <&pwm0 23>;
 			label = "Red PWM LED 1";
 		};
 		pwm_led2_blue: pwm_led_2 {
-			pwms = <&pwm0 2 PWM_MSEC(20) PWM_POLARITY_INVERTED>;
+			pwms = <&pwm0 24>;
 			label = "Blue PWM LED 1";
 		};
 	};
@@ -79,7 +78,6 @@
 		green-pwm-led = &pwm_led0_green;
 		red-pwm-led = &pwm_led1_red;
 		blue-pwm-led = &pwm_led2_blue;
-		watchdog0 = &wdt0;
 	};
 
 };
@@ -96,32 +94,34 @@
 	status = "okay";
 	compatible = "nordic,nrf-uart";
 	current-speed = <115200>;
-	pinctrl-0 = <&uart0_default>;
-	pinctrl-1 = <&uart0_sleep>;
-	pinctrl-names = "default", "sleep";
+	tx-pin = <20>;
+	rx-pin = <19>;
+	rts-pin = <5>;
+	cts-pin = <7>;
 };
 
 &i2c0 {
 	compatible = "nordic,nrf-twi";
 	status = "okay";
-	pinctrl-0 = <&i2c0_default>;
-	pinctrl-1 = <&i2c0_sleep>;
-	pinctrl-names = "default", "sleep";
+	sda-pin = <26>;
+	scl-pin = <27>;
 };
 
 &i2c1 {
 	compatible = "nordic,nrf-twi";
 	status = "okay";
-	pinctrl-0 = <&i2c1_default>;
-	pinctrl-1 = <&i2c1_sleep>;
-	pinctrl-names = "default", "sleep";
+	sda-pin = <30>;
+	scl-pin = <31>;
 };
 
 &pwm0 {
 	status = "okay";
-	pinctrl-0 = <&pwm0_default>;
-	pinctrl-1 = <&pwm0_sleep>;
-	pinctrl-names = "default", "sleep";
+	ch0-pin = <22>;
+	ch0-inverted;
+	ch1-pin = <23>;
+	ch1-inverted;
+	ch2-pin = <24>;
+	ch2-inverted;
 };
 
 &flash0 {

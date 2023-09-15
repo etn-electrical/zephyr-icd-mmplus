@@ -6,13 +6,13 @@
 
 #define DT_DRV_COMPAT ti_ina219
 
-#include <zephyr/device.h>
-#include <zephyr/drivers/i2c.h>
-#include <zephyr/kernel.h>
-#include <zephyr/drivers/sensor.h>
-#include <zephyr/logging/log.h>
-#include <zephyr/pm/device.h>
-#include <zephyr/sys/byteorder.h>
+#include <device.h>
+#include <drivers/i2c.h>
+#include <kernel.h>
+#include <drivers/sensor.h>
+#include <logging/log.h>
+#include <pm/device.h>
+#include <sys/byteorder.h>
 
 #include "ina219.h"
 
@@ -195,9 +195,11 @@ static int ina219_channel_get(const struct device *dev,
 	switch (chan) {
 	case SENSOR_CHAN_VOLTAGE:
 		tmp = data->v_bus * INA219_V_BUS_MUL;
+		sensor_value_from_double(val, tmp);
 		break;
 	case SENSOR_CHAN_POWER:
 		tmp = data->power * cfg->current_lsb * INA219_POWER_MUL * INA219_SI_MUL;
+		sensor_value_from_double(val, tmp);
 		break;
 	case SENSOR_CHAN_CURRENT:
 		if (INA219_SIGN_BIT(data->current)) {
@@ -205,13 +207,14 @@ static int ina219_channel_get(const struct device *dev,
 			sign = -1;
 		}
 		tmp = sign * data->current * cfg->current_lsb * INA219_SI_MUL;
+		sensor_value_from_double(val, tmp);
 		break;
 	default:
 		LOG_DBG("Channel not supported by device!");
 		return -ENOTSUP;
 	}
 
-	return sensor_value_from_double(val, tmp);
+	return 0;
 }
 
 #ifdef CONFIG_PM_DEVICE
@@ -302,7 +305,7 @@ static const struct sensor_driver_api ina219_api = {
 								\
 	PM_DEVICE_DT_INST_DEFINE(n, ina219_pm_action);		\
 								\
-	SENSOR_DEVICE_DT_INST_DEFINE(n,				\
+	DEVICE_DT_INST_DEFINE(n,				\
 			      ina219_init,			\
 			      PM_DEVICE_DT_INST_GET(n),		\
 			      &ina219_data_##n,			\

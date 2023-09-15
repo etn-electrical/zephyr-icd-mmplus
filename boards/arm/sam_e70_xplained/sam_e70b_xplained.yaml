@@ -16,5 +16,3 @@ supported:
   - watchdog
   - usb_device
   - pwm
-  - can
-  - hwinfo

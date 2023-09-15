@@ -5,7 +5,7 @@
  */
 
 #include <string.h>
-#include <zephyr/debug/coredump.h>
+#include <debug/coredump.h>
 
 #define ARCH_HDR_VER			1
 

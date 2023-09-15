@@ -4,10 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define _GNU_SOURCE
 #include <stdbool.h>
 #include <stdlib.h>
-#include <zephyr/ztest.h>
+#include <ztest.h>
 
 static int compare_ints(const void *a, const void *b)
 {
@@ -17,12 +16,7 @@ static int compare_ints(const void *a, const void *b)
 	return (aa > bb) - (aa < bb);
 }
 
-/**
- *
- * @brief Test qsort function
- *
- */
-ZTEST(test_c_lib, test_qsort)
+void test_qsort(void)
 {
 	{
 		int actual_int[] = { 1, 3, 2 };
@@ -126,28 +120,4 @@ ZTEST(test_c_lib, test_qsort)
 		zassert_mem_equal(actual_int, expect_int, sizeof(expect_int),
 				  "size 93 not sorted");
 	}
-}
-
-static int compare_ints_with_boolp_arg(const void *a, const void *b, void *argp)
-{
-	int aa = *(const int *)a;
-	int bb = *(const int *)b;
-
-	*(bool *)argp = true;
-
-	return (aa > bb) - (aa < bb);
-}
-
-ZTEST(test_c_lib, test_qsort_r)
-{
-	bool arg = false;
-
-	const int expect_int[] = { 1, 5, 7 };
-	int actual_int[] = { 1, 7, 5 };
-
-	qsort_r(actual_int, ARRAY_SIZE(actual_int), sizeof(actual_int[0]),
-		compare_ints_with_boolp_arg, &arg);
-
-	zassert_mem_equal(actual_int, expect_int, sizeof(expect_int), "array not sorted");
-	zassert_true(arg, "arg not modified");
 }

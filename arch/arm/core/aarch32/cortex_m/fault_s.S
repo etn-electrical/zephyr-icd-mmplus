@@ -12,8 +12,8 @@
  * Fault handlers for ARM Cortex-M processors.
  */
 
-#include <zephyr/toolchain.h>
-#include <zephyr/linker/sections.h>
+#include <toolchain.h>
+#include <linker/sections.h>
 
 _ASM_FILE_PROLOGUE
 
@@ -29,7 +29,7 @@ GTEXT(z_arm_usage_fault)
 #if defined(CONFIG_ARM_SECURE_FIRMWARE)
 GTEXT(z_arm_secure_fault)
 #endif /* CONFIG_ARM_SECURE_FIRMWARE*/
-WTEXT(z_arm_debug_monitor)
+GTEXT(z_arm_debug_monitor)
 #else
 #error Unknown ARM architecture
 #endif /* CONFIG_ARMV6_M_ARMV8_M_BASELINE */

@@ -21,7 +21,7 @@ If you are interested in character by character console input, see
 Requirements
 ************
 
-UART console is required to run this sample.
+UART console is required to run this simple.
 
 
 Building and Running

@@ -25,6 +25,10 @@ if(CONFIG_BT_LL_SW_SPLIT)
 		    "default value change could change Zephyr Bluetooth "
 		    "Controller's functional behavior.")
   endif()
+  if(CONFIG_BT_CTLR_ADV_EXT)
+    message(WARNING "\nCONFIG_BT_CTLR_ADV_EXT=y, Advertising Extensions "
+		    "Feature in Zephyr Bluetooth Controller is EXPERIMENTAL.")
+  endif()
   zephyr_library_sources(
     ll_sw/ll_feat.c
     ll_sw/ull.c
@@ -71,19 +75,13 @@ if(CONFIG_BT_LL_SW_SPLIT)
     if(CONFIG_BT_LL_SW_LLCP_LEGACY)
     else()
       zephyr_library_sources_ifdef(
-        CONFIG_BT_CTLR_PHY
+        CONFIG_BT_PHY_UPDATE
         ll_sw/ull_llcp_phy.c
         )
       zephyr_library_sources_ifdef(
         CONFIG_BT_CTLR_LE_ENC
         ll_sw/ull_llcp_enc.c
         )
-      if (CONFIG_BT_CTLR_PERIPHERAL_ISO OR
-          CONFIG_BT_CTLR_CENTRAL_ISO)
-        zephyr_library_sources(
-          ll_sw/ull_llcp_cc.c
-        )
-	  endif()
       zephyr_library_sources(
         ll_sw/ull_tx_queue.c
         ll_sw/ull_llcp.c
@@ -113,11 +111,11 @@ if(CONFIG_BT_LL_SW_SPLIT)
         ll_sw/ull_central_iso.c
       )
     endif()
-  endif()
-  if(CONFIG_BT_CTLR_SCHED_ADVANCED)
-    zephyr_library_sources(
-      ll_sw/ull_sched.c
-    )
+    if(CONFIG_BT_CTLR_SCHED_ADVANCED)
+      zephyr_library_sources(
+        ll_sw/ull_sched.c
+      )
+    endif()
   endif()
   if(CONFIG_BT_CTLR_DF)
     zephyr_library_sources(
@@ -171,7 +169,7 @@ zephyr_library_sources_ifdef(
 zephyr_library_include_directories(
   .
   include
-  ../crypto
+  ll_sw
   )
 
 zephyr_library_compile_options_ifdef(

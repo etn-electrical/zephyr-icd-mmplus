@@ -24,7 +24,7 @@ The source code for this sample application can be found at:
 Requirements
 ************
 
-- :ref:`networking_with_eth_qemu`, :ref:`networking_with_qemu` or :ref:`networking_with_native_posix`
+- :ref:`networking_with_qemu`
 - Linux machine
 - Leshan Demo Server (https://eclipse.org/leshan/)
 
@@ -62,8 +62,8 @@ Build the lwm2m-client sample application like this:
    :compact:
 
 The easiest way to setup this sample application is to build and run it
-as native POSIX application or as a QEMU target using the default configuration :file:`prj.conf`.
-This requires a small amount of setup described in :ref:`networking_with_eth_qemu`, :ref:`networking_with_qemu` and :ref:`networking_with_native_posix`.
+via QEMU using the default configuration :file:`prj.conf`.
+This requires a small amount of setup described in :ref:`networking_with_qemu`.
 
 Download and run the latest build of the Leshan Demo Server:
 
@@ -136,7 +136,7 @@ You can now open a web browser to: http://localhost:8888 The Demo Bootstrap
 Server web UI will open, this is where you can configure your device for
 bootstrap.
 
-Configure the lwm2m-client sample in the Demo Bootstrap Server:
+Configure the lwm2m-client sample in the Demo Bootsrap Server:
 
 1. Click on "Add new client bootstrap configuration"
 #. Enter the following data:
@@ -165,7 +165,7 @@ following:
 The sample will start and automatically connect to the Leshan Demo Bootstrap
 Server to obtain the LwM2M Server information. After that, the sample will
 automatically connect to the Leshan Demo Sever, as it was indicated in the
-Bootstrap Server configuration.
+Bootstrap Server configuraion.
 
 It is possible to combine overlay files, to enable DTLS and Bootstrap for
 instance. In that case, the user should make sure to update the port number in
@@ -230,7 +230,7 @@ from console:
    ot extpanid <extpanid>
    ot thread start
 
-You could get all parameters for existing OT network from your OTBR with
+You could get all parameters for existng OT network from your OTBR with
 the following command:
 
 .. code-block:: console

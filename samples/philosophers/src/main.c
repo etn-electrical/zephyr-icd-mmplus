@@ -35,15 +35,15 @@
  * header file.
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr.h>
 
 #if defined(CONFIG_STDOUT_CONSOLE)
 #include <stdio.h>
 #else
-#include <zephyr/sys/printk.h>
+#include <sys/printk.h>
 #endif
 
-#include <zephyr/sys/__assert.h>
+#include <sys/__assert.h>
 
 #define SEMAPHORES 1
 #define MUTEXES 2
@@ -83,7 +83,7 @@
 /* end - control behaviour of the demo */
 /***************************************/
 
-#define STACK_SIZE (2048)
+#define STACK_SIZE (768 + CONFIG_TEST_EXTRA_STACKSIZE)
 
 #include "phil_obj_abstract.h"
 

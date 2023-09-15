@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
+#include <ztest.h>
 
 void dummy_fn(struct k_timer *timer)
 {
@@ -20,14 +20,13 @@ K_MSGQ_DEFINE(msgq_s, sizeof(int), 2, 4);
 K_MBOX_DEFINE(mbox_s);
 K_PIPE_DEFINE(pipe_s, 64, 4);
 K_QUEUE_DEFINE(queue_s);
-K_EVENT_DEFINE(event_s);
 
 unsigned char __aligned(4) pipe_buffer[64];
 char __aligned(4) slab_buffer[8 * 4];
 stack_data_t stack_array[8 * 4];
 int msgq_buffer[64];
 
-ZTEST(obj_tracking, test_obj_tracking_sanity)
+void test_obj_tracking_sanity(void)
 {
 	struct k_timer timer;
 	struct k_mem_slab slab;
@@ -38,7 +37,6 @@ ZTEST(obj_tracking, test_obj_tracking_sanity)
 	struct k_mbox mbox;
 	struct k_pipe pipe;
 	struct k_queue queue;
-	struct k_event event;
 	void *list;
 	int count;
 
@@ -140,19 +138,13 @@ ZTEST(obj_tracking, test_obj_tracking_sanity)
 		list = SYS_PORT_TRACK_NEXT((struct k_queue *)list);
 	}
 	zassert_equal(count, 2, "Wrong number of queue objects");
-
-	k_event_init(&event);
-	count = 0;
-	list = _track_list_k_event;
-	while (list != NULL) {
-		if (list == &event || list == &event_s) {
-			count++;
-		}
-		list = SYS_PORT_TRACK_NEXT((struct k_event *)list);
-	}
-	zassert_equal(count, 2, "Wrong number of queue objects");
-
-
 }
 
-ZTEST_SUITE(obj_tracking, NULL, NULL, NULL, NULL, NULL);
+void test_main(void)
+{
+	ztest_test_suite(obj_tracking,
+			 ztest_unit_test(test_obj_tracking_sanity)
+			 );
+
+	ztest_run_test_suite(obj_tracking);
+}

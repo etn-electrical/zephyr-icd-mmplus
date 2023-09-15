@@ -5,7 +5,7 @@
  */
 
 #if defined(CONFIG_APP_FORMATTER_PRINTK)
-#include <zephyr/sys/printk.h>
+#include <sys/printk.h>
 #define PRINT_S "printk"
 #define PRINT(...) printk(__VA_ARGS__)
 #elif defined(CONFIG_APP_FORMATTER_PRINTF)
@@ -17,7 +17,7 @@
 #endif /* NEWLIB_LIBC */
 #define PRINT(...) printf(__VA_ARGS__)
 #elif defined(CONFIG_APP_FORMATTER_PRINTFCB)
-#include <zephyr/sys/cbprintf.h>
+#include <sys/cbprintf.h>
 #ifdef CONFIG_NEWLIB_LIBC
 #define PRINT_S "printfcb/newlib"
 #else /* NEWLIB_LIBC */
@@ -29,7 +29,7 @@
 #define PRINT_S "fprintf"
 #define PRINT(...) fprintf(stdout, __VA_ARGS__)
 #elif defined(CONFIG_APP_FORMATTER_FPRINTFCB)
-#include <zephyr/sys/cbprintf.h>
+#include <sys/cbprintf.h>
 #define PRINT_S "fprintfcb"
 #define PRINT(...) fprintfcb(stdout, __VA_ARGS__)
 #else

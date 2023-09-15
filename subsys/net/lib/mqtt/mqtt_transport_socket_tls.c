@@ -9,12 +9,12 @@
  * @brief Internal functions to handle transport over TLS socket.
  */
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(net_mqtt_sock_tls, CONFIG_MQTT_LOG_LEVEL);
 
 #include <errno.h>
-#include <zephyr/net/socket.h>
-#include <zephyr/net/mqtt.h>
+#include <net/socket.h>
+#include <net/mqtt.h>
 
 #include "mqtt_os.h"
 
@@ -30,7 +30,7 @@ int mqtt_client_tls_connect(struct mqtt_client *client)
 		return -errno;
 	}
 
-	NET_DBG("Created socket %d", client->transport.tls.sock);
+	MQTT_TRC("Created socket %d", client->transport.tls.sock);
 
 #if defined(CONFIG_SOCKS)
 	if (client->transport.proxy.addrlen != 0) {
@@ -72,7 +72,7 @@ int mqtt_client_tls_connect(struct mqtt_client *client)
 	if (tls_config->hostname) {
 		ret = zsock_setsockopt(client->transport.tls.sock, SOL_TLS,
 				       TLS_HOSTNAME, tls_config->hostname,
-				       strlen(tls_config->hostname) + 1);
+				       strlen(tls_config->hostname));
 		if (ret < 0) {
 			goto error;
 		}
@@ -99,7 +99,7 @@ int mqtt_client_tls_connect(struct mqtt_client *client)
 		goto error;
 	}
 
-	NET_DBG("Connect completed");
+	MQTT_TRC("Connect completed");
 	return 0;
 
 error:
@@ -187,7 +187,7 @@ int mqtt_client_tls_disconnect(struct mqtt_client *client)
 {
 	int ret;
 
-	NET_INFO("Closing socket %d", client->transport.tls.sock);
+	MQTT_TRC("Closing socket %d", client->transport.tls.sock);
 	ret = zsock_close(client->transport.tls.sock);
 	if (ret < 0) {
 		return -errno;

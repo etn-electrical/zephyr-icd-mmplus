@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
+#include <kernel.h>
 #include <kernel_internal.h>
 #include <ia32/exception.h>
 #include <inttypes.h>
-#include <zephyr/debug/gdbstub.h>
+#include <debug/gdbstub.h>
 
 
 static struct gdb_ctx ctx;
@@ -175,7 +175,7 @@ size_t arch_gdb_reg_readone(struct gdb_ctx *ctx, uint8_t *buf, size_t buflen,
 		 * "info registers all".
 		 */
 		if (buflen >= 2) {
-			memcpy(buf, "xx", 2);
+			strncpy(buf, "xx", 2);
 			ret = 2;
 		} else {
 			ret = 0;
@@ -196,7 +196,7 @@ size_t arch_gdb_reg_writeone(struct gdb_ctx *ctx, uint8_t *hex, size_t hexlen,
 
 	if (regno == GDB_ORIG_EAX) {
 		/* GDB requires orig_eax that seems to be
-		 * Linux specific. Unfortunately if we just
+		 * Linux specific. Unfortunely if we just
 		 * return error, GDB will stop working.
 		 * So just fake an OK response by saying
 		 * that we have processed the hex string.

@@ -10,18 +10,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr.h>
 #include <stddef.h>
 #include <errno.h>
 #include <string.h>
 
-#include "common/bt_str.h"
+#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_DEBUG_RPA)
+#define LOG_MODULE_NAME bt_rpa
+#include "common/log.h"
 
-#include <zephyr/bluetooth/crypto.h>
-
-#define LOG_LEVEL CONFIG_BT_RPA_LOG_LEVEL
-#include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(bt_rpa);
+#include <bluetooth/crypto.h>
 
 #if defined(CONFIG_BT_CTLR) && defined(CONFIG_BT_HOST_CRYPTO)
 #include "../controller/util/util.h"
@@ -58,8 +56,8 @@ static int ah(const uint8_t irk[16], const uint8_t r[3], uint8_t out[3])
 	uint8_t res[16];
 	int err;
 
-	LOG_DBG("irk %s", bt_hex(irk, 16));
-	LOG_DBG("r %s", bt_hex(r, 3));
+	BT_DBG("irk %s", bt_hex(irk, 16));
+	BT_DBG("r %s", bt_hex(r, 3));
 
 	/* r' = padding || r */
 	memcpy(res, r, 3);
@@ -87,7 +85,7 @@ bool bt_rpa_irk_matches(const uint8_t irk[16], const bt_addr_t *addr)
 	uint8_t hash[3];
 	int err;
 
-	LOG_DBG("IRK %s bdaddr %s", bt_hex(irk, 16), bt_addr_str(addr));
+	BT_DBG("IRK %s bdaddr %s", bt_hex(irk, 16), bt_addr_str(addr));
 
 	err = ah(irk, addr->val + 3, hash);
 	if (err) {
@@ -115,7 +113,7 @@ int bt_rpa_create(const uint8_t irk[16], bt_addr_t *rpa)
 		return err;
 	}
 
-	LOG_DBG("Created RPA %s", bt_addr_str((bt_addr_t *)rpa->val));
+	BT_DBG("Created RPA %s", bt_addr_str((bt_addr_t *)rpa->val));
 
 	return 0;
 }

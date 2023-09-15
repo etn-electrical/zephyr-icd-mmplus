@@ -11,11 +11,14 @@ config BOARD
 config BT_CTLR
 	default BT
 
-if FLASH
+if DISPLAY
 
-config SPI_NOR_FLASH_LAYOUT_PAGE_SIZE
-	default 4096
+config SPI
+	default y
 
-endif # FLASH
+config ST7789V
+	default y
+
+endif # DISPLAY
 
 endif # BOARD_PINETIME_DEVKIT0

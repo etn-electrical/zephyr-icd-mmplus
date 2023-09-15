@@ -8,15 +8,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/drivers/sensor.h>
-#include <zephyr/init.h>
-#include <zephyr/drivers/gpio.h>
-#include <zephyr/pm/device.h>
-#include <zephyr/sys/byteorder.h>
-#include <zephyr/sys/__assert.h>
+#include <kernel.h>
+#include <drivers/sensor.h>
+#include <init.h>
+#include <drivers/gpio.h>
+#include <pm/device.h>
+#include <sys/byteorder.h>
+#include <sys/__assert.h>
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 
 #include "bme280.h"
 
@@ -446,7 +446,7 @@ static int bme280_pm_action(const struct device *dev,
 									\
 	PM_DEVICE_DT_INST_DEFINE(inst, bme280_pm_action);		\
 									\
-	SENSOR_DEVICE_DT_INST_DEFINE(inst,				\
+	DEVICE_DT_INST_DEFINE(inst,					\
 			 bme280_chip_init,				\
 			 PM_DEVICE_DT_INST_GET(inst),			\
 			 &bme280_data_##inst,				\

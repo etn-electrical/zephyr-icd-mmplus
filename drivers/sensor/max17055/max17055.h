@@ -7,8 +7,6 @@
 #ifndef ZEPHYR_DRIVERS_SENSOR_BATTERY_MAX17055_H_
 #define ZEPHYR_DRIVERS_SENSOR_BATTERY_MAX17055_H_
 
-#include <zephyr/drivers/i2c.h>
-
 /* Register addresses */
 enum {
 	STATUS          = 0x0,
@@ -30,7 +28,6 @@ enum {
 	SOFT_WAKEUP     = 0x60,
 	HIB_CFG         = 0xba,
 	MODEL_CFG       = 0xdb,
-	VFOCV           = 0xfb,
 };
 
 /* Masks */
@@ -44,10 +41,9 @@ enum {
 };
 
 struct max17055_data {
+	const struct device *i2c;
 	/* Current cell voltage in units of 1.25/16mV */
 	uint16_t voltage;
-	/* Current cell open circuit voltage in units of 1.25/16mV */
-	uint16_t ocv;
 	/* Average current in units of 1.5625uV / Rsense */
 	int16_t avg_current;
 	/* Remaining capacity as a %age */
@@ -58,9 +54,9 @@ struct max17055_data {
 	uint16_t full_cap;
 	/* Remaining capacity in 5/Rsense uA */
 	uint16_t remaining_cap;
-	/* Time to empty in units of 5.625s */
+	/* Time to empty in seconds */
 	uint16_t time_to_empty;
-	/* Time to full in units of 5.625s */
+	/* Time to full in seconds */
 	uint16_t time_to_full;
 	/* Cycle count in 1/100ths (number of charge/discharge cycles) */
 	uint16_t cycle_count;
@@ -69,8 +65,8 @@ struct max17055_data {
 };
 
 struct max17055_config {
-	struct i2c_dt_spec i2c;
-	/* Value of Rsense resistor in milliohms (typically 5 or 10) */
+	char *bus_name;
+	/* Value of Rsense resistor in milliohms (typicallly 5 or 10) */
 	uint16_t rsense_mohms;
 	/* The design capacity (aka label capacity) of the cell in mAh */
 	uint16_t design_capacity;

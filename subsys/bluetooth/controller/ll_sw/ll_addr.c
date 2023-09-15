@@ -7,19 +7,15 @@
 #include <stddef.h>
 #include <string.h>
 
-#include <zephyr/kernel.h>
+#include <zephyr.h>
 #include <soc.h>
-#include <zephyr/bluetooth/hci.h>
-#include <zephyr/bluetooth/controller.h>
-
-#include "hal/ccm.h"
+#include <bluetooth/hci.h>
+#include <bluetooth/controller.h>
 
 #include "util/util.h"
 #include "util/memq.h"
 #include "util/mem.h"
 
-#include "pdu_df.h"
-#include "lll/pdu_vendor.h"
 #include "pdu.h"
 
 #include "lll.h"
@@ -56,17 +52,9 @@ uint8_t ll_addr_set(uint8_t addr_type, uint8_t const *const bdaddr)
 	}
 
 	if (addr_type) {
-		if (bdaddr) {
-			(void)memcpy(rnd_addr, bdaddr, BDADDR_SIZE);
-		} else {
-			(void)memset(rnd_addr, 0, BDADDR_SIZE);
-		}
+		memcpy(rnd_addr, bdaddr, BDADDR_SIZE);
 	} else {
-		if (bdaddr) {
-			(void)memcpy(pub_addr, bdaddr, BDADDR_SIZE);
-		} else {
-			(void)memset(pub_addr, 0, BDADDR_SIZE);
-		}
+		memcpy(pub_addr, bdaddr, BDADDR_SIZE);
 	}
 
 	return 0;

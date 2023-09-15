@@ -4,17 +4,18 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/sys/printk.h>
-#include <zephyr/drivers/gpio.h>
-#include <zephyr/device.h>
+#include <zephyr.h>
+#include <sys/printk.h>
+#include <board.h>
+#include <drivers/gpio.h>
+#include <device.h>
 #include <string.h>
-#include <zephyr/drivers/pwm.h>
-#include <zephyr/debug/stack.h>
+#include <drivers/pwm.h>
+#include <debug/stack.h>
 
-#include <zephyr/display/mb_display.h>
+#include <display/mb_display.h>
 
-#include <zephyr/bluetooth/bluetooth.h>
+#include <bluetooth/bluetooth.h>
 
 #include "pong.h"
 
@@ -106,10 +107,11 @@ static struct x_y ball_vel = { 0, 0 };
 static int64_t a_timestamp;
 static int64_t b_timestamp;
 
-#define SOUND_PERIOD_PADDLE  PWM_USEC(200)
-#define SOUND_PERIOD_WALL    PWM_USEC(1000)
+#define SOUND_PIN            EXT_P0_GPIO_PIN
+#define SOUND_PERIOD_PADDLE  200
+#define SOUND_PERIOD_WALL    1000
 
-static const struct pwm_dt_spec pwm = PWM_DT_SPEC_GET(DT_PATH(zephyr_user));
+static const struct device *pwm;
 
 static enum sound_state {
 	SOUND_IDLE,    /* No sound */
@@ -117,15 +119,9 @@ static enum sound_state {
 	SOUND_WALL,    /* Ball has hit a wall */
 } sound_state;
 
-static const struct gpio_dt_spec sw0_gpio = GPIO_DT_SPEC_GET(DT_ALIAS(sw0), gpios);
-static const struct gpio_dt_spec sw1_gpio = GPIO_DT_SPEC_GET(DT_ALIAS(sw1), gpios);
-
-/* ensure SW0 & SW1 are on same gpio controller */
-BUILD_ASSERT(DT_SAME_NODE(DT_GPIO_CTLR(DT_ALIAS(sw0), gpios), DT_GPIO_CTLR(DT_ALIAS(sw1), gpios)));
-
-static inline void beep(uint32_t period)
+static inline void beep(int period)
 {
-	pwm_set_dt(&pwm, period, period / 2);
+	pwm_pin_set_usec(pwm, SOUND_PIN, period, period / 2, 0);
 }
 
 static void sound_set(enum sound_state state)
@@ -400,7 +396,7 @@ static void button_pressed(const struct device *dev, struct gpio_callback *cb,
 			   uint32_t pins)
 {
 	/* Filter out spurious presses */
-	if (pins & BIT(sw0_gpio.pin)) {
+	if (pins & BIT(DT_GPIO_PIN(DT_ALIAS(sw0), gpios))) {
 		printk("A pressed\n");
 		if (k_uptime_delta(&a_timestamp) < 100) {
 			printk("Too quick A presses\n");
@@ -433,7 +429,7 @@ static void button_pressed(const struct device *dev, struct gpio_callback *cb,
 		return;
 	}
 
-	if (pins & BIT(sw0_gpio.pin)) {
+	if (pins & BIT(DT_GPIO_PIN(DT_ALIAS(sw0), gpios))) {
 		if (select) {
 			pong_select_change();
 			return;
@@ -494,23 +490,26 @@ void pong_remote_lost(void)
 static void configure_buttons(void)
 {
 	static struct gpio_callback button_cb_data;
+	const struct device *gpio;
 
-	/* since sw0_gpio.port == sw1_gpio.port, we only need to check ready once */
-	if (!device_is_ready(sw0_gpio.port)) {
-		printk("%s: device not ready.\n", sw0_gpio.port->name);
-		return;
-	}
+	gpio = device_get_binding(DT_GPIO_LABEL(DT_ALIAS(sw0), gpios));
 
-	gpio_pin_configure_dt(&sw0_gpio, GPIO_INPUT);
-	gpio_pin_configure_dt(&sw1_gpio, GPIO_INPUT);
+	gpio_pin_configure(gpio, DT_GPIO_PIN(DT_ALIAS(sw0), gpios),
+			   DT_GPIO_FLAGS(DT_ALIAS(sw0), gpios) | GPIO_INPUT);
+	gpio_pin_configure(gpio, DT_GPIO_PIN(DT_ALIAS(sw1), gpios),
+			   DT_GPIO_FLAGS(DT_ALIAS(sw1), gpios) | GPIO_INPUT);
 
-	gpio_pin_interrupt_configure_dt(&sw0_gpio, GPIO_INT_EDGE_TO_ACTIVE);
-	gpio_pin_interrupt_configure_dt(&sw1_gpio, GPIO_INT_EDGE_TO_ACTIVE);
+	gpio_pin_interrupt_configure(gpio, DT_GPIO_PIN(DT_ALIAS(sw0), gpios),
+				     GPIO_INT_EDGE_TO_ACTIVE);
+
+	gpio_pin_interrupt_configure(gpio, DT_GPIO_PIN(DT_ALIAS(sw1), gpios),
+				     GPIO_INT_EDGE_TO_ACTIVE);
 
 	gpio_init_callback(&button_cb_data, button_pressed,
-			   BIT(sw0_gpio.pin) | BIT(sw1_gpio.pin));
+			   BIT(DT_GPIO_PIN(DT_ALIAS(sw0), gpios)) |
+			   BIT(DT_GPIO_PIN(DT_ALIAS(sw1), gpios)));
 
-	gpio_add_callback(sw0_gpio.port, &button_cb_data);
+	gpio_add_callback(gpio, &button_cb_data);
 }
 
 void main(void)
@@ -521,10 +520,7 @@ void main(void)
 
 	k_work_init_delayable(&refresh, game_refresh);
 
-	if (!device_is_ready(pwm.dev)) {
-		printk("%s: device not ready.\n", pwm.dev->name);
-		return;
-	}
+	pwm = device_get_binding(DT_LABEL(DT_INST(0, nordic_nrf_sw_pwm)));
 
 	ble_init();
 

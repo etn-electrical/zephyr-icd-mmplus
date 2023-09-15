@@ -14,14 +14,8 @@ module = PWM
 module-str = pwm
 source "subsys/logging/Kconfig.template.log_config"
 
-config PWM_INIT_PRIORITY
-	int "PWM initialization priority"
-	default KERNEL_INIT_PRIORITY_DEVICE
-	help
-	  System initialization priority for PWM drivers.
-
 config PWM_SHELL
-	bool "PWM shell"
+	bool "Enable PWM shell"
 	default y
 	depends on SHELL
 	help
@@ -76,13 +70,5 @@ source "drivers/pwm/Kconfig.mcux_pwt"
 source "drivers/pwm/Kconfig.gecko"
 
 source "drivers/pwm/Kconfig.gd32"
-
-source "drivers/pwm/Kconfig.rcar"
-
-source "drivers/pwm/Kconfig.pca9685"
-
-source "drivers/pwm/Kconfig.test"
-
-source "drivers/pwm/Kconfig.rpi_pico"
 
 endif # PWM

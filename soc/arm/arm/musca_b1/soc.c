@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/arch/cpu.h>
-#include <zephyr/init.h>
+#include <arch/cpu.h>
+#include <init.h>
 #include <soc.h>
-#include <zephyr/linker/linker-defs.h>
+#include <linker/linker-defs.h>
 
 /* (Secure System Control) Base Address */
 #define SSE_200_SYSTEM_CTRL_S_BASE	(0x50021000UL)
@@ -20,7 +20,7 @@
 #define BL2_HEADER_SIZE		(0x400)
 
 /**
- * @brief Wake up CPU 1 from another CPU, this is platform specific.
+ * @brief Wake up CPU 1 from another CPU, this is plaform specific.
  *
  */
 void wakeup_cpu1(void)
@@ -36,7 +36,7 @@ void wakeup_cpu1(void)
 }
 
 /**
- * @brief Get the current CPU ID, this is platform specific.
+ * @brief Get the current CPU ID, this is plaform specific.
  *
  * @return Current CPU ID
  */

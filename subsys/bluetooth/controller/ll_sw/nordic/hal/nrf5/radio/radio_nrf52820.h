@@ -387,25 +387,9 @@
 #endif /* !CONFIG_BT_CTLR_SW_SWITCH_SINGLE_TIMER */
 #endif /* !CONFIG_BT_CTLR_TIFS_HW */
 
-/* SoC specific NRF_RADIO power-on reset value. Refer to Product Specification,
- * RADIO Registers section for the documented reset values.
- *
- * NOTE: Only implementation used values defined here.
- *       In the future if MDK or nRFx header include these, use them instead.
- */
-#define HAL_RADIO_RESET_VALUE_DFEMODE       0x00000000UL
-#define HAL_RADIO_RESET_VALUE_CTEINLINECONF 0x00002800UL
-
 static inline void hal_radio_reset(void)
 {
-	/* TODO: Add any required setup for each radio event
-	 */
-}
 
-static inline void hal_radio_stop(void)
-{
-	/* TODO: Add any required cleanup of actions taken in hal_radio_reset()
-	 */
 }
 
 static inline void hal_radio_ram_prio_setup(void)

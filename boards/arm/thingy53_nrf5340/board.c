@@ -4,12 +4,24 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/device.h>
-#include <zephyr/kernel.h>
-#include <zephyr/logging/log.h>
-#include <soc.h>
+#include <init.h>
+#include <hal/nrf_gpio.h>
+#include <nrfx.h>
+#include <device.h>
+#include <drivers/gpio.h>
 
+#include <logging/log.h>
 LOG_MODULE_REGISTER(thingy53_board_init);
+
+#define ADXL362_NODE			DT_NODELABEL(adxl362)
+#define ADXL362_GPIO_NODE		DT_SPI_DEV_CS_GPIOS_CTLR(ADXL362_NODE)
+#define ADXL362_CS			DT_SPI_DEV_CS_GPIOS_PIN(ADXL362_NODE)
+#define ADXL362_FLAGS			DT_SPI_DEV_CS_GPIOS_FLAGS(ADXL362_NODE)
+
+#define BMI270_NODE			DT_NODELABEL(bmi270)
+#define BMI270_GPIO_NODE		DT_SPI_DEV_CS_GPIOS_CTLR(BMI270_NODE)
+#define BMI270_CS			DT_SPI_DEV_CS_GPIOS_PIN(BMI270_NODE)
+#define BMI270_FLAGS			DT_SPI_DEV_CS_GPIOS_FLAGS(BMI270_NODE)
 
 /* Initialization chain of Thingy:53 board requires some delays before on board sensors
  * could be accessed after power up. In particular bme680 and bmm150 sensors require,
@@ -18,10 +30,8 @@ LOG_MODULE_REGISTER(thingy53_board_init);
  * on board regulators, board init (this), sensors init.
  */
 #if !defined(CONFIG_TRUSTED_EXECUTION_SECURE)
-#if defined(CONFIG_REGULATOR_FIXED)
 BUILD_ASSERT(CONFIG_THINGY53_INIT_PRIORITY > CONFIG_REGULATOR_FIXED_INIT_PRIORITY,
 	"CONFIG_THINGY53_INIT_PRIORITY must be higher than CONFIG_REGULATOR_FIXED_INIT_PRIORITY");
-#endif /* CONFIG_REGULATOR_FIXED */
 #if defined(CONFIG_IEEE802154_NRF5)
 BUILD_ASSERT(CONFIG_THINGY53_INIT_PRIORITY < CONFIG_IEEE802154_NRF5_INIT_PRIO,
 	"CONFIG_THINGY53_INIT_PRIORITY must be less than CONFIG_IEEE802154_NRF5_INIT_PRIO");
@@ -60,15 +70,40 @@ static void enable_cpunet(void)
 static int setup(const struct device *dev)
 {
 	ARG_UNUSED(dev);
-
 #if !defined(CONFIG_TRUSTED_EXECUTION_SECURE)
+
+	const struct device *gpio;
+	int err;
+
+	gpio = DEVICE_DT_GET(ADXL362_GPIO_NODE);
+	if (!device_is_ready(gpio)) {
+		LOG_ERR("%s device not ready", gpio->name);
+		return -ENODEV;
+	}
+	err = gpio_pin_configure(gpio, ADXL362_CS, ADXL362_FLAGS | GPIO_OUTPUT_INACTIVE);
+	if (err < 0) {
+		LOG_ERR("Failed to configure ADXL362 CS Pin");
+		return err;
+	}
+
+	gpio = DEVICE_DT_GET(BMI270_GPIO_NODE);
+	if (!device_is_ready(gpio)) {
+		LOG_ERR("%s device not ready", gpio->name);
+		return -ENODEV;
+	}
+	err = gpio_pin_configure(gpio, BMI270_CS, BMI270_FLAGS | GPIO_OUTPUT_INACTIVE);
+	if (err < 0) {
+		LOG_ERR("Failed to configure BMI270 CS Pin");
+		return err;
+	}
+
 	if (IS_ENABLED(CONFIG_SENSOR)) {
 		/* Initialization chain of Thingy:53 board requires some delays before on board
 		 * sensors could be accessed after power up. In particular bme680 and bmm150
 		 * sensors require, 2ms and 1ms power on delay respectively. In order not to sum
 		 * delays, common delay is introduced in the board start up file. This code is
 		 * executed after sensors are powered up and before their initialization.
-		 * It's ensured by build asserts at the beginning of this file.
+		 * It's ensured by build asserts at the beggining of this file.
 		 */
 		k_msleep(2);
 	}

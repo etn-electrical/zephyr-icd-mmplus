@@ -9,20 +9,24 @@ compatible: "ti,tca9538"
 include: [i2c-device.yaml, gpio-controller.yaml]
 
 properties:
-  "#gpio-cells":
-    const: 2
+    label:
+      required: true
 
-  ngpios:
-    required: true
-    const: 8
-    description: |
-      Number of GPIOs available on port expander.
+    "#gpio-cells":
+      const: 2
 
-  nint-gpios:
-    type: phandle-array
-    description: |
-      Connection for the NINT signal. This signal is active-low when
-      produced by tca9538 GPIO node.
+    ngpios:
+      required: true
+      const: 8
+      description: |
+        Number of GPIOs available on port expander.
+
+    nint-gpios:
+      type: phandle-array
+      required: false
+      description: |
+        Connection for the NINT signal. This signal is active-low when
+        produced by tca9538 GPIO node.
 
 gpio-cells:
   - pin

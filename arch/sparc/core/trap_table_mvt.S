@@ -10,8 +10,8 @@
  * instructions.
  */
 
-#include <zephyr/toolchain.h>
-#include <zephyr/linker/sections.h>
+#include <toolchain.h>
+#include <linker/sections.h>
 
 #define BAD_TRAP \
 	rd	%psr, %l0; \

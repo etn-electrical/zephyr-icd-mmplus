@@ -3,18 +3,11 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#include <zephyr/ztress.h>
-#include <zephyr/ztest_test.h>
-#include <zephyr/sys/printk.h>
-#include <zephyr/random/rand32.h>
+#include <ztress.h>
+#include <sys/printk.h>
+#include <random/rand32.h>
 #include <string.h>
 
-/* Flag set at startup which determines if stress test can run on this platform.
- * Stress test should not run on the platform which system clock is too high
- * compared to cpu clock. System clock is sometimes set globally for the test
- * and for some platforms it may be unacceptable.
- */
-static bool cpu_sys_clock_ok;
 
 /* Timer used for adjusting contexts backoff time to get optimal CPU load. */
 static void ctrl_timeout(struct k_timer *timer);
@@ -46,12 +39,12 @@ static uint32_t exec_cnt[CONFIG_ZTRESS_MAX_THREADS];
 static k_timeout_t backoff[CONFIG_ZTRESS_MAX_THREADS];
 static k_timeout_t init_backoff[CONFIG_ZTRESS_MAX_THREADS];
 K_THREAD_STACK_ARRAY_DEFINE(stacks, CONFIG_ZTRESS_MAX_THREADS, CONFIG_ZTRESS_STACK_SIZE);
-static k_tid_t idle_tid[CONFIG_MP_MAX_NUM_CPUS];
+static k_tid_t idle_tid;
 
-#define THREAD_NAME(i, _) STRINGIFY(ztress_##i)
+#define THREAD_NAME(i, _) STRINGIFY(ztress_##i),
 
 static const char * const thread_names[] = {
-	LISTIFY(CONFIG_ZTRESS_MAX_THREADS, THREAD_NAME, (,))
+	UTIL_LISTIFY(CONFIG_ZTRESS_MAX_THREADS, THREAD_NAME, _)
 };
 
 struct ztress_runtime {
@@ -66,7 +59,7 @@ static void test_timeout(struct k_timer *timer)
 	ztress_abort();
 }
 
-/* Ratio is 1/16, e.g using ratio 14 reduces all timeouts by multiplying it by 14/16.
+/* Ratio is 1/16, e.g using ratio 14 reduces all timeouts by multipling it by 14/16.
  * 16 fraction is used to avoid dividing which may take more time on certain platforms.
  */
 static void adjust_load(uint8_t ratio)
@@ -83,16 +76,15 @@ static void progress_timeout(struct k_timer *timer)
 	struct ztress_context_data *thread_data = k_timer_user_data_get(timer);
 	uint32_t progress = 100;
 	uint32_t cnt = context_cnt;
-	uint32_t thread_data_start_index = 0;
 
 	if (tmr_data != NULL) {
-		thread_data_start_index = 1;
-		if (tmr_data->exec_cnt != 0 && exec_cnt[0] != 0) {
-			progress = (100 * exec_cnt[0]) / tmr_data->exec_cnt;
+		cnt--;
+		if (tmr_data->exec_cnt != 0 && exec_cnt[cnt] != 0) {
+			progress = (100 * exec_cnt[cnt]) / tmr_data->exec_cnt;
 		}
 	}
 
-	for (uint32_t i = thread_data_start_index; i < cnt; i++) {
+	for (uint32_t i = 0; i < cnt; i++) {
 		if (thread_data[i].exec_cnt == 0 && thread_data[i].preempt_cnt == 0) {
 			continue;
 		}
@@ -115,22 +107,16 @@ static void progress_timeout(struct k_timer *timer)
 
 static void control_load(void)
 {
-	static uint64_t prev_idle_cycles;
+	static uint64_t prev_cycles;
 	static uint64_t total_cycles;
-	uint64_t idle_cycles = 0;
+
+	k_thread_runtime_stats_t rt_stats_thread;
 	k_thread_runtime_stats_t rt_stats_all;
 	int err = 0;
-	unsigned int num_cpus = arch_num_cpus();
 
-	for (int i = 0; i < num_cpus; i++) {
-		k_thread_runtime_stats_t thread_stats;
-
-		err = k_thread_runtime_stats_get(idle_tid[i], &thread_stats);
-		if (err < 0) {
-			return;
-		}
-
-		idle_cycles += thread_stats.execution_cycles;
+	err = k_thread_runtime_stats_get(idle_tid, &rt_stats_thread);
+	if (err < 0) {
+		return;
 	}
 
 	err = k_thread_runtime_stats_all_get(&rt_stats_all);
@@ -138,10 +124,10 @@ static void control_load(void)
 		return;
 	}
 
-	int load = 1000 - (1000 * (idle_cycles - prev_idle_cycles) /
+	int load = 1000 - (1000 * (rt_stats_thread.execution_cycles - prev_cycles) /
 			(rt_stats_all.execution_cycles - total_cycles));
 
-	prev_idle_cycles = idle_cycles;
+	prev_cycles = rt_stats_thread.execution_cycles;
 	total_cycles = rt_stats_all.execution_cycles;
 
 	int avg_load = (rt.cpu_load * rt.cpu_load_measurements + load) /
@@ -273,15 +259,11 @@ static void ztress_thread(void *data, void *prio, void *unused)
 
 static void thread_cb(const struct k_thread *cthread, void *user_data)
 {
-#define GET_IDLE_TID(i, tid) do {\
-	if (strcmp(tname, (CONFIG_MP_MAX_NUM_CPUS == 1) ? "idle" : "idle 0" STRINGIFY(i)) == 0) { \
-		idle_tid[i] = tid; \
-	} \
-} while (0)
-
 	const char *tname = k_thread_name_get((struct k_thread *)cthread);
 
-	LISTIFY(CONFIG_MP_MAX_NUM_CPUS, GET_IDLE_TID, (;), (k_tid_t)cthread);
+	if (strcmp(tname, "idle 00") == 0) {
+		idle_tid = (struct k_thread *)cthread;
+	}
 }
 
 static void ztress_init(struct ztress_context_data *thread_data)
@@ -291,6 +273,10 @@ static void ztress_init(struct ztress_context_data *thread_data)
 	memset(&rt, 0, sizeof(rt));
 	k_thread_foreach(thread_cb, NULL);
 	k_msleep(10);
+
+	if (idle_tid == NULL) {
+		printk("Failed to identify idle thread. CPU load will not be tracked\n");
+	}
 
 	k_timer_start(&ctrl_timer, K_MSEC(100), K_MSEC(100));
 	k_timer_user_data_set(&progress_timer, thread_data);
@@ -333,14 +319,6 @@ int ztress_execute(struct ztress_context_data *timer_data,
 		return -EINVAL;
 	}
 
-	/* Skip test if system clock is set too high compared to CPU frequency.
-	 * It can happen when system clock is set globally for the test which is
-	 * run on various platforms.
-	 */
-	if (!cpu_sys_clock_ok) {
-		ztest_test_skip();
-	}
-
 	ztress_init(thread_data);
 
 	context_cnt = cnt + (timer_data ? 1 : 0);
@@ -366,16 +344,15 @@ int ztress_execute(struct ztress_context_data *timer_data,
 		tids[i] = k_thread_create(&threads[i], stacks[i], CONFIG_ZTRESS_STACK_SIZE,
 					  ztress_thread,
 					  &thread_data[i], (void *)(uintptr_t)ztress_prio, NULL,
-					  priority, 0, K_MSEC(10));
+					  priority, 0, K_NO_WAIT);
 		(void)k_thread_name_set(tids[i], thread_names[i]);
 		priority++;
 		ztress_prio++;
 	}
 
 	if (timer_data != NULL) {
-		k_timer_start(&ztress_timer, K_MSEC(10), K_NO_WAIT);
+		k_timer_start(&ztress_timer, backoff[0], K_NO_WAIT);
 	}
-
 
 	/* Wait until all threads complete. */
 	for (int i = 0; i < cnt; i++) {
@@ -388,7 +365,7 @@ int ztress_execute(struct ztress_context_data *timer_data,
 		(void)k_timer_status_sync(&ztress_timer);
 	}
 
-	/* print report */
+	/* print raport */
 	ztress_report();
 
 	ztress_end(old_prio);
@@ -416,7 +393,7 @@ void ztress_report(void)
 			(uint32_t)init_backoff[i].ticks, (uint32_t)backoff[i].ticks);
 	}
 
-	printk("\tAverage CPU load:%u%%, measurements:%u\n",
+	printk("\tAvarage CPU load:%u%%, measurements:%u\n",
 			rt.cpu_load / 10, rt.cpu_load_measurements);
 }
 
@@ -446,35 +423,3 @@ uint32_t ztress_optimized_ticks(uint32_t id)
 
 	return backoff[id].ticks;
 }
-
-/* Doing it here and not before each test because test may have some additional
- * cpu load (e.g. busy simulator) running that would influence the result.
- *
- */
-static int ztress_cpu_clock_to_sys_clock_check(const struct device *unused)
-{
-	static volatile int cnt = 2000;
-	uint32_t t = sys_clock_tick_get_32();
-
-	while (cnt-- > 0) {
-		/* empty */
-	}
-
-	t = sys_clock_tick_get_32() - t;
-	/* Threshold is arbitrary. Derived from nRF platorm where CPU runs at 64MHz and
-	 * system clock at 32kHz (sys clock interrupt every 1950 cycles). That ratio is
-	 * ok even for no optimization case.
-	 * If some valid platforms are cut because of that, it can be changed.
-	 */
-	cpu_sys_clock_ok = t <= 12;
-
-	/* Read first random number. There are some generators which do not support
-	 * reading first random number from an interrupt context (initialization
-	 * is performed at the first read).
-	 */
-	(void)sys_rand32_get();
-
-	return 0;
-}
-
-SYS_INIT(ztress_cpu_clock_to_sys_clock_check, POST_KERNEL, CONFIG_KERNEL_INIT_PRIORITY_DEVICE);

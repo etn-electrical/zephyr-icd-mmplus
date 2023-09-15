@@ -6,13 +6,13 @@
 
 #define DT_DRV_COMPAT nxp_lpc_syscon
 #include <errno.h>
-#include <zephyr/drivers/clock_control.h>
-#include <zephyr/dt-bindings/clock/mcux_lpc_syscon_clock.h>
 #include <soc.h>
+#include <drivers/clock_control.h>
+#include <dt-bindings/clock/mcux_lpc_syscon_clock.h>
 #include <fsl_clock.h>
 
 #define LOG_LEVEL CONFIG_CLOCK_CONTROL_LOG_LEVEL
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(clock_control);
 
 static int mcux_lpc_syscon_clock_control_on(const struct device *dev,
@@ -99,9 +99,6 @@ static int mcux_lpc_syscon_clock_control_get_subsys_rate(
 		*rate = CLOCK_GetFlexCommClkFreq(14);
 #endif
 		break;
-	case MCUX_HS_SPI1_CLK:
-		*rate = CLOCK_GetFlexCommClkFreq(16);
-		break;
 #endif
 
 #if (defined(FSL_FEATURE_SOC_USDHC_COUNT) && FSL_FEATURE_SOC_USDHC_COUNT)
@@ -110,14 +107,6 @@ static int mcux_lpc_syscon_clock_control_get_subsys_rate(
 		break;
 	case MCUX_USDHC2_CLK:
 		*rate = CLOCK_GetSdioClkFreq(1);
-		break;
-#endif
-
-#if (defined(FSL_FEATURE_SOC_SDIF_COUNT) && \
-	(FSL_FEATURE_SOC_SDIF_COUNT)) && \
-	CONFIG_MCUX_SDIF
-	case MCUX_SDIF_CLK:
-		*rate = CLOCK_GetSdioClkFreq();
 		break;
 #endif
 
@@ -142,16 +131,6 @@ static int mcux_lpc_syscon_clock_control_get_subsys_rate(
 		break;
 	case (MCUX_CTIMER4_CLK + MCUX_CTIMER_CLK_OFFSET):
 		*rate = CLOCK_GetCTimerClkFreq(4);
-		break;
-#endif
-
-	case MCUX_BUS_CLK:
-		*rate = CLOCK_GetFreq(kCLOCK_BusClk);
-		break;
-
-#if defined(CONFIG_I3C_MCUX)
-	case MCUX_I3C_CLK:
-		*rate = CLOCK_GetI3cClkFreq();
 		break;
 #endif
 	}

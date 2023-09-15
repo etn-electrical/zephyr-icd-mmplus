@@ -23,8 +23,8 @@
 #else
 
 #include <fcntl.h>
-#include <zephyr/net/socket.h>
-#include <zephyr/kernel.h>
+#include <net/socket.h>
+#include <kernel.h>
 
 #ifdef CONFIG_NET_IPV6
 #define USE_IPV6

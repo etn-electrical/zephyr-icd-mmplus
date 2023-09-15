@@ -4,19 +4,19 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 #define LOG_LEVEL LOG_LEVEL_DBG
 LOG_MODULE_REGISTER(net_dumb_http_srv_mt_sample);
 
-#include <zephyr/kernel.h>
+#include <zephyr.h>
 #include <errno.h>
-#include <zephyr/net/net_ip.h>
-#include <zephyr/net/socket.h>
-#include <zephyr/net/tls_credentials.h>
+#include <net/net_ip.h>
+#include <net/socket.h>
+#include <net/tls_credentials.h>
 
-#include <zephyr/net/net_mgmt.h>
-#include <zephyr/net/net_event.h>
-#include <zephyr/net/net_conn_mgr.h>
+#include <net/net_mgmt.h>
+#include <net/net_event.h>
+#include <net/net_conn_mgr.h>
 
 #define MY_PORT 8080
 
@@ -36,7 +36,7 @@ static const unsigned char private_key[] = {
 #else
 #define STACK_SIZE 1024
 #endif
-#if defined(CONFIG_NET_TC_THREAD_COOPERATIVE)
+#if IS_ENABLED(CONFIG_NET_TC_THREAD_COOPERATIVE)
 #define THREAD_PRIORITY K_PRIO_COOP(CONFIG_NUM_COOP_PRIORITIES - 1)
 #else
 #define THREAD_PRIORITY K_PRIO_PREEMPT(8)
@@ -205,6 +205,7 @@ static void client_conn_handler(void *ptr1, void *ptr2, void *ptr3)
 		if (received == 0) {
 			/* Connection closed */
 			LOG_DBG("[%d] Connection closed by peer", client);
+			ret = 0;
 			break;
 		} else if (received < 0) {
 			/* Socket error */
@@ -320,7 +321,7 @@ static int process_tcp(int *sock, int *accepted)
 
 		LOG_DBG("[%d] Connection #%d from %s",
 			client, ++counter,
-			addr_str);
+			log_strdup(addr_str));
 	}
 
 	return 0;

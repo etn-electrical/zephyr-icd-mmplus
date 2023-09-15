@@ -74,7 +74,6 @@
 		led2 = &led_3;
 		led3 = &led_4;
 		sw0 = &button;
-		watchdog0 = &iwdg;
 	};
 };
 
@@ -95,7 +94,6 @@
 	ahb-prescaler = <1>;
 	apb1-prescaler = <2>;
 	apb2-prescaler = <1>;
-	/* usbpre not set: USB clock = 72 / 1.5: 48MHz */
 };
 
 &usart1 {
@@ -141,7 +139,7 @@
 };
 
 &can1 {
-	pinctrl-0 = <&can_rx_remap1_pb8 &can_tx_remap1_pb9>;
+	pinctrl-0 = <&can_rx_pb8 &can_tx_pb9>;
 	pinctrl-names = "default";
 	/*
 	 * make sure CAN and USB are not enabled at the same time
@@ -150,6 +148,10 @@
 	 */
 	status = "disabled";
 	bus-speed = <125000>;
+	sjw = <1>;
+	prop-seg = <0>;
+	phase-seg1 = <5>;
+	phase-seg2 = <6>;
 };
 
 zephyr_udc0: &usb {
@@ -169,7 +171,7 @@ zephyr_udc0: &usb {
 
 	pwm1: pwm {
 		status = "okay";
-		pinctrl-0 = <&tim1_ch1_pwm_out_pa8>;
+		pinctrl-0 = <&tim1_ch1_pwm_pa8>;
 		pinctrl-names = "default";
 	};
 };

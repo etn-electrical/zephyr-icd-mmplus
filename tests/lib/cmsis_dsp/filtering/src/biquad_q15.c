@@ -5,8 +5,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
-#include <zephyr/kernel.h>
+#include <ztest.h>
+#include <zephyr.h>
 #include <stdlib.h>
 #include <arm_math.h>
 #include "../../common/test_common.h"
@@ -16,7 +16,7 @@
 #define SNR_ERROR_THRESH	((float32_t)30)
 #define ABS_ERROR_THRESH_Q15	((q15_t)500)
 
-ZTEST(filtering_biquad_q15, test_arm_biquad_cascade_df1_q15)
+static void test_arm_biquad_cascade_df1_q15(void)
 {
 	size_t index;
 	size_t length = ARRAY_SIZE(ref_default);
@@ -64,4 +64,11 @@ ZTEST(filtering_biquad_q15, test_arm_biquad_cascade_df1_q15)
 	free(output_buf);
 }
 
-ZTEST_SUITE(filtering_biquad_q15, NULL, NULL, NULL, NULL, NULL);
+void test_filtering_biquad_q15(void)
+{
+	ztest_test_suite(filtering_biquad_q15,
+		ztest_unit_test(test_arm_biquad_cascade_df1_q15)
+		);
+
+	ztest_run_test_suite(filtering_biquad_q15);
+}

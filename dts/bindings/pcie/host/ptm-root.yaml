@@ -3,4 +3,8 @@
 
 # Common fields for PCIe PTM root
 
-include: [base.yaml, pcie-device.yaml]
+include: base.yaml
+
+properties:
+    reg:
+      required: true

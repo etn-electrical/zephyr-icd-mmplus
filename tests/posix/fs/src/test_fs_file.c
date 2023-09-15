@@ -6,22 +6,19 @@
 
 #include <string.h>
 #include <fcntl.h>
-#include <zephyr/posix/unistd.h>
+#include <posix/unistd.h>
 #include "test_fs.h"
 
 const char test_str[] = "hello world!";
-int file = -1;
+int file;
 
 static int test_file_open(void)
 {
 	int res;
 
 	res = open(TEST_FILE, O_CREAT | O_RDWR);
-	if (res < 0) {
-		TC_ERROR("Failed opening file: %d, errno=%d\n", res, errno);
-		/* FIXME: restructure tests as per #46897 */
-		__ASSERT_NO_MSG(res >= 0);
-	}
+
+	zassert_true(res >= 0, "Failed opening file: %d, errno=%d\n", res, errno);
 
 	file = res;
 
@@ -37,7 +34,6 @@ int test_file_write(void)
 	if (res != 0) {
 		TC_PRINT("lseek failed [%d]\n", (int)res);
 		close(file);
-		file = -1;
 		return TC_FAIL;
 	}
 
@@ -45,7 +41,6 @@ int test_file_write(void)
 	if (brw < 0) {
 		TC_PRINT("Failed writing to file [%d]\n", (int)brw);
 		close(file);
-		file = -1;
 		return TC_FAIL;
 	}
 
@@ -53,7 +48,6 @@ int test_file_write(void)
 		TC_PRINT("Unable to complete write. Volume full.\n");
 		TC_PRINT("Number of bytes written: [%d]\n", (int)brw);
 		close(file);
-		file = -1;
 		return TC_FAIL;
 	}
 
@@ -71,7 +65,6 @@ static int test_file_read(void)
 	if (res != 0) {
 		TC_PRINT("lseek failed [%d]\n", (int)res);
 		close(file);
-		file = -1;
 		return TC_FAIL;
 	}
 
@@ -79,7 +72,6 @@ static int test_file_read(void)
 	if (brw < 0) {
 		TC_PRINT("Failed reading file [%d]\n", (int)brw);
 		close(file);
-		file = -1;
 		return TC_FAIL;
 	}
 
@@ -97,7 +89,6 @@ static int test_file_read(void)
 	if (res != 2) {
 		TC_PRINT("lseek failed [%d]\n", (int)res);
 		close(file);
-		file = -1;
 		return TC_FAIL;
 	}
 
@@ -105,7 +96,6 @@ static int test_file_read(void)
 	if (brw < 0) {
 		TC_PRINT("Failed reading file [%d]\n", (int)brw);
 		close(file);
-		file = -1;
 		return TC_FAIL;
 	}
 
@@ -125,18 +115,10 @@ static int test_file_read(void)
 
 static int test_file_close(void)
 {
-	int res = 0;
+	int res;
 
-	if (file >= 0) {
-		res = close(file);
-		if (res < 0) {
-			TC_ERROR("Failed closing file: %d, errno=%d\n", res, errno);
-			/* FIXME: restructure tests as per #46897 */
-			__ASSERT_NO_MSG(res == 0);
-		}
-
-		file = -1;
-	}
+	res = close(file);
+	zassert_true(res == 0, "Failed closing file: %d, errno=%d\n", res, errno);
 
 	return res;
 }
@@ -154,26 +136,14 @@ static int test_file_delete(void)
 	return res;
 }
 
-static void after_fn(void *unused)
-{
-	ARG_UNUSED(unused);
-
-	test_file_close();
-	unlink(TEST_FILE);
-}
-
-ZTEST_SUITE(posix_fs_file_test, NULL, test_mount, NULL, after_fn,
-	    test_unmount);
-
 /**
  * @brief Test for POSIX open API
  *
  * @details Test opens new file through POSIX open API.
  */
-ZTEST(posix_fs_file_test, test_fs_open)
+void test_fs_open(void)
 {
-	/* FIXME: restructure tests as per #46897 */
-	zassert_true(test_file_open() == TC_PASS);
+	zassert_true(test_file_open() == TC_PASS, NULL);
 }
 
 /**
@@ -181,11 +151,9 @@ ZTEST(posix_fs_file_test, test_fs_open)
  *
  * @details Test writes some data through POSIX write API.
  */
-ZTEST(posix_fs_file_test, test_fs_write)
+void test_fs_write(void)
 {
-	/* FIXME: restructure tests as per #46897 */
-	zassert_true(test_file_open() == TC_PASS);
-	zassert_true(test_file_write() == TC_PASS);
+	zassert_true(test_file_write() == TC_PASS, NULL);
 }
 
 /**
@@ -193,12 +161,9 @@ ZTEST(posix_fs_file_test, test_fs_write)
  *
  * @details Test reads data back through POSIX read API.
  */
-ZTEST(posix_fs_file_test, test_fs_read)
+void test_fs_read(void)
 {
-	/* FIXME: restructure tests as per #46897 */
-	zassert_true(test_file_open() == TC_PASS);
-	zassert_true(test_file_write() == TC_PASS);
-	zassert_true(test_file_read() == TC_PASS);
+	zassert_true(test_file_read() == TC_PASS, NULL);
 }
 
 /**
@@ -206,11 +171,9 @@ ZTEST(posix_fs_file_test, test_fs_read)
  *
  * @details Test closes the open file through POSIX close API.
  */
-ZTEST(posix_fs_file_test, test_fs_close)
+void test_fs_close(void)
 {
-	/* FIXME: restructure tests as per #46897 */
-	zassert_true(test_file_open() == TC_PASS);
-	zassert_true(test_file_close() == TC_PASS);
+	zassert_true(test_file_close() == TC_PASS, NULL);
 }
 
 /**
@@ -218,24 +181,18 @@ ZTEST(posix_fs_file_test, test_fs_close)
  *
  * @details Test deletes a file through POSIX unlink API.
  */
-ZTEST(posix_fs_file_test, test_fs_unlink)
+void test_fs_unlink(void)
 {
-	zassert_true(test_file_open() == TC_PASS);
-	zassert_true(test_file_delete() == TC_PASS);
+	zassert_true(test_file_delete() == TC_PASS, NULL);
 }
 
-ZTEST(posix_fs_file_test, test_fs_fd_leak)
+void test_fs_fd_leak(void)
 {
 	const int reps =
 	    MAX(CONFIG_POSIX_MAX_OPEN_FILES, CONFIG_POSIX_MAX_FDS) + 5;
 
 	for (int i = 0; i < reps; i++) {
-		if (i > 0) {
-			zassert_true(test_file_open() == TC_PASS);
-		}
-
-		if (i < reps - 1) {
-			zassert_true(test_file_close() == TC_PASS);
-		}
+		test_fs_open();
+		test_fs_close();
 	}
 }

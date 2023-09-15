@@ -9,16 +9,15 @@
 
 #define LOG_MODULE_NAME eth_stellaris
 #define LOG_LEVEL CONFIG_ETHERNET_LOG_LEVEL
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 
-#include <zephyr/net/ethernet.h>
-#include <zephyr/net/net_pkt.h>
-#include <zephyr/net/net_if.h>
-#include <zephyr/device.h>
+#include <net/ethernet.h>
+#include <net/net_pkt.h>
+#include <net/net_if.h>
+#include <device.h>
 #include <soc.h>
 #include <ethernet/eth_stats.h>
-#include <zephyr/irq.h>
 #include "eth_stellaris_priv.h"
 
 static void eth_stellaris_assign_mac(const struct device *dev)
@@ -294,7 +293,7 @@ static struct net_stats_eth *eth_stellaris_stats(const struct device *dev)
 {
 	struct eth_stellaris_runtime *dev_data = dev->data;
 
-	return &dev_data->stats;
+	return &data->stats;
 }
 #endif
 

@@ -7,9 +7,9 @@
 #define DT_DRV_COMPAT nxp_imx_src
 
 #include <soc.h>
-#include <zephyr/drivers/hwinfo.h>
+#include <drivers/hwinfo.h>
 #include <string.h>
-#include <zephyr/sys/byteorder.h>
+#include <sys/byteorder.h>
 
 #include <fsl_src.h>
 

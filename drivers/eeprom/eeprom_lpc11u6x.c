@@ -13,15 +13,14 @@
  * This driver supports the on-chip EEPROM found on NXP LPC11U6x MCUs.
  *
  * @note This driver is only a wrapper for the IAP (In-Application Programming)
- *       EEPROM functions.
+ *       EEPROM funcions.
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/drivers/eeprom.h>
+#include <drivers/eeprom.h>
 #include <iap.h>
 
 #define LOG_LEVEL CONFIG_EEPROM_LOG_LEVEL
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(eeprom_lpc11u6x);
 
 struct eeprom_lpc11u6x_config {

@@ -42,13 +42,13 @@
  *  - AES128 CCM mode encryption RFC 3610 test vector #8
  *  - AES128 CCM mode encryption RFC 3610 test vector #9
  *  - AES128 CCM mode encryption No associated data
- * - AES128 CCM mode encryption No payload data
+ * - AES128 CCM mode encryption No payhoad data
  */
 
 #include <tinycrypt/ccm_mode.h>
 #include <tinycrypt/constants.h>
-#include <zephyr/test_utils.h>
-#include <zephyr/ztest.h>
+#include <test_utils.h>
+#include <ztest.h>
 
 #include <string.h>
 
@@ -120,7 +120,7 @@ uint32_t do_test(const uint8_t *key,
 	return result;
 }
 
-ZTEST(tinycrypt, test_ccm_vector_1)
+void test_ccm_vector_1(void)
 {
 	uint32_t result = TC_PASS;
 	/* RFC 3610 test vector #1 */
@@ -158,7 +158,7 @@ ZTEST(tinycrypt, test_ccm_vector_1)
 	zassert_false(result, "CCM test #1 (RFC 3610 test vector #1) failed.");
 }
 
-ZTEST(tinycrypt, test_ccm_vector_2)
+void test_ccm_vector_2(void)
 {
 	uint32_t result = TC_PASS;
 	/* RFC 3610 test vector #2 */
@@ -196,7 +196,7 @@ ZTEST(tinycrypt, test_ccm_vector_2)
 	zassert_false(result, "CCM test #2 failed.");
 }
 
-ZTEST(tinycrypt, test_ccm_vector_3)
+void test_ccm_vector_3(void)
 {
 	uint32_t result = TC_PASS;
 	/* RFC 3610 test vector #3  */
@@ -236,7 +236,7 @@ ZTEST(tinycrypt, test_ccm_vector_3)
 	zassert_false(result, "CCM test #3 failed.");
 }
 
-ZTEST(tinycrypt,  test_ccm_vector_4)
+void test_ccm_vector_4(void)
 {
 	uint32_t result = TC_PASS;
 	/* RFC 3610 test vector #7  */
@@ -275,7 +275,7 @@ ZTEST(tinycrypt,  test_ccm_vector_4)
 	zassert_false(result, "CCM test #4 failed.");
 }
 
-ZTEST(tinycrypt, test_ccm_vector_5)
+void test_ccm_vector_5(void)
 {
 	uint32_t result = TC_PASS;
 	/* RFC 3610 test vector #8  */
@@ -314,7 +314,7 @@ ZTEST(tinycrypt, test_ccm_vector_5)
 	zassert_false(result, "CCM test #5 failed.");
 }
 
-ZTEST(tinycrypt, test_ccm_vector_6)
+void test_ccm_vector_6(void)
 {
 	uint32_t result = TC_PASS;
 	/* RFC 3610 test vector #9  */
@@ -354,7 +354,7 @@ ZTEST(tinycrypt, test_ccm_vector_6)
 	zassert_false(result, "CCM test #6 failed.");
 }
 
-ZTEST(tinycrypt, test_ccm_vector_7)
+void test_ccm_vector_7(void)
 {
 	uint32_t result = TC_PASS;
 	/* Test based on RFC 3610 test vector #9 but with no associated data */
@@ -415,7 +415,7 @@ ZTEST(tinycrypt, test_ccm_vector_7)
 
 }
 
-ZTEST(tinycrypt, test_ccm_vector_8)
+void test_ccm_vector_8(void)
 {
 	uint32_t result = TC_PASS;
 	/* Test based on RFC 3610 test vector #9 but with no payload data */

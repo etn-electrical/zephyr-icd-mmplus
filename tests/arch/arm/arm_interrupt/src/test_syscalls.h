@@ -6,7 +6,7 @@
 
 #ifndef _TEST_SYSCALLS_H_
 #define _TEST_SYSCALLS_H_
-#include <zephyr/kernel.h>
+#include <zephyr.h>
 
 __syscall void test_arm_user_interrupt_syscall(void);
 

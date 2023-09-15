@@ -3,16 +3,12 @@ name: ESP WROVER KIT
 type: mcu
 arch: xtensa
 toolchain:
-  - zephyr
+  - espressif
 supported:
   - gpio
   - i2c
   - spi
   - watchdog
   - uart
+  - pinmux
   - nvs
-  - pwm
-testing:
-  ignore_tags:
-    - net
-    - bluetooth

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/sys/util.h>
+#include <sys/util.h>
 
 uint8_t u8_to_dec(char *buf, uint8_t buflen, uint8_t value)
 {

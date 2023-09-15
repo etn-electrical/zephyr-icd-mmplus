@@ -5,6 +5,7 @@
 
 menuconfig GPIO
 	bool "GPIO Drivers"
+	select HAS_DTS_GPIO
 	help
 	  Include GPIO drivers in system config
 
@@ -15,7 +16,7 @@ module-str = gpio
 source "subsys/logging/Kconfig.template.log_config"
 
 config GPIO_SHELL
-	bool "GPIO Shell"
+	bool "Enable GPIO Shell"
 	depends on SHELL
 	help
 	  Enable GPIO Shell for testing.
@@ -25,39 +26,6 @@ config GPIO_INIT_PRIORITY
 	default KERNEL_INIT_PRIORITY_DEFAULT
 	help
 	  GPIO driver device initialization priority.
-
-config GPIO_GET_DIRECTION
-	bool "Support for querying GPIO direction [EXPERIMENTAL]"
-	select EXPERIMENTAL
-	help
-	  Enable this option if the application does not maintain its own GPIO
-	  direction state.
-
-	  With this option enabled, the application may query GPIO direction
-	  via gpio_port_get_direction(), gpio_pin_is_input(), and
-	  gpio_pin_is_output().
-
-config GPIO_GET_CONFIG
-	bool "Support for get configuration function [EXPERIMENTAL]"
-	select EXPERIMENTAL
-	help
-	  This option enables the support for getting the current configurations
-	  of GPIOs. The driver must implement it to work.
-
-config GPIO_HOGS
-	bool "Support for GPIO hogs"
-	default $(dt_gpio_hogs_enabled)
-	help
-	  Enable support for GPIO hogs. GPIO hogging is a mechanism for providing
-	  automatic GPIO configuration via devicetree.
-
-config GPIO_HOGS_INIT_PRIORITY
-	int "GPIO hogs init priority"
-	default 41
-	depends on GPIO_HOGS
-	help
-	  GPIO hogs initialization priority. GPIO hogs must be initialized after the
-	  GPIO controller drivers.
 
 source "drivers/gpio/Kconfig.b91"
 
@@ -103,8 +71,6 @@ source "drivers/gpio/Kconfig.imx"
 
 source "drivers/gpio/Kconfig.it8xxx2"
 
-source "drivers/gpio/Kconfig.ifx_cat1"
-
 source "drivers/gpio/Kconfig.intel"
 
 source "drivers/gpio/Kconfig.xec"
@@ -127,11 +93,9 @@ source "drivers/gpio/Kconfig.npcx"
 
 source "drivers/gpio/Kconfig.emul"
 
-source "drivers/gpio/Kconfig.emul_sdl"
-
 source "drivers/gpio/Kconfig.psoc6"
 
-source "drivers/gpio/Kconfig.pcal64xxa"
+source "drivers/gpio/Kconfig.pcal6408a"
 
 source "drivers/gpio/Kconfig.eos_s3"
 
@@ -145,8 +109,6 @@ source "drivers/gpio/Kconfig.stmpe1600"
 
 source "drivers/gpio/Kconfig.pca953x"
 
-source "drivers/gpio/Kconfig.pcf8574"
-
 source "drivers/gpio/Kconfig.fxl6408"
 
 source "drivers/gpio/Kconfig.andes_atcgpio100"
@@ -158,29 +120,5 @@ source "drivers/gpio/Kconfig.nct38xx"
 source "drivers/gpio/Kconfig.test"
 
 source "drivers/gpio/Kconfig.gd32"
-
-source "drivers/gpio/Kconfig.xlnx_ps"
-
-source "drivers/gpio/Kconfig.sn74hc595"
-
-source "drivers/gpio/Kconfig.mchp_mss"
-
-source "drivers/gpio/Kconfig.xmc4xxx"
-
-source "drivers/gpio/Kconfig.smartbond"
-
-source "drivers/gpio/Kconfig.nxp_s32"
-
-source "drivers/gpio/Kconfig.tca6424a"
-
-source "drivers/gpio/Kconfig.npm6001"
-
-source "drivers/gpio/Kconfig.rt1718s"
-
-source "drivers/gpio/Kconfig.numicro"
-
-source "drivers/gpio/Kconfig.bd8lb600fs"
-
-source "drivers/gpio/Kconfig.zephyr"
 
 endif # GPIO

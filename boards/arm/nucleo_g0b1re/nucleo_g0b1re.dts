@@ -6,7 +6,7 @@
 
 /dts-v1/;
 #include <st/g0/stm32g0b1Xe.dtsi>
-#include <st/g0/stm32g0b1r(b-c-e)tx-pinctrl.dtsi>
+#include <st/g0/stm32g0b1r(c-e)tx-pinctrl.dtsi>
 #include "arduino_r3_connector.dtsi"
 
 / {
@@ -20,7 +20,6 @@
 		zephyr,sram = &sram0;
 		zephyr,flash = &flash0;
 		zephyr,code-partition = &slot0_partition;
-		zephyr,canbus = &can1;
 	};
 
 	power-states {
@@ -57,19 +56,10 @@
 	aliases {
 		led0 = &green_led_1;
 		sw0 = &user_button;
-		watchdog0 = &iwdg;
 	};
 };
 
-&clk_lsi {
-	status = "okay";
-};
-
 &clk_hsi {
-	status = "okay";
-};
-
-&clk_hsi48 {
 	status = "okay";
 };
 
@@ -111,8 +101,6 @@ zephyr_udc0: &usb {
 };
 
 &rtc {
-	clocks = <&rcc STM32_CLOCK_BUS_APB1 0x00000400>,
-		 <&rcc STM32_SRC_LSI RTC_SEL(2)>;
 	status = "okay";
 };
 
@@ -174,24 +162,10 @@ zephyr_udc0: &usb {
 	status = "okay";
 };
 
-&die_temp {
-	status = "okay";
-};
-
 &dac1 {
 	status = "okay";
 	pinctrl-0 = <&dac1_out1_pa4>;
 	pinctrl-names = "default";
-};
-
-&can1 {
-	clocks = <&rcc STM32_CLOCK_BUS_APB1 0x00001000>,
-		 <&rcc STM32_SRC_PLL_Q FDCAN_SEL(1)>;
-	pinctrl-0 = <&fdcan1_rx_pa11 &fdcan1_tx_pa12>;
-	pinctrl-names = "default";
-	bus-speed = <125000>;
-	bus-speed-data = <1000000>;
-	status = "okay";
 };
 
 &flash0 {
@@ -202,21 +176,21 @@ zephyr_udc0: &usb {
 
 		boot_partition: partition@0 {
 			label = "mcuboot";
-			reg = <0x00000000 DT_SIZE_K(48)>;
+			reg = <0x00000000 0x0000C000>;
 			read-only;
 		};
 		slot0_partition: partition@C000 {
 			label = "image-0";
-			reg = <0x0000C000 DT_SIZE_K(200)>;
+			reg = <0x0000C000 0x00032000>;
 		};
 		slot1_partition: partition@3E000 {
 			label = "image-1";
-			reg = <0x0003E000 DT_SIZE_K(200)>;
+			reg = <0x0003E000 0x00032000>;
 		};
 		/* final 64KiB reserved for app storage partition */
 		storage_partition: partition@70000 {
 			label = "storage";
-			reg = <0x00070000 DT_SIZE_K(64)>;
+			reg = <0x00070000 0x00010000>;
 		};
 	};
 };
@@ -226,7 +200,5 @@ zephyr_udc0: &usb {
 };
 
 &lptim1 {
-	clocks = <&rcc STM32_CLOCK_BUS_APB1 0x80000000>,
-		 <&rcc STM32_SRC_LSI LPTIM1_SEL(1)>;
 	status = "okay";
 };

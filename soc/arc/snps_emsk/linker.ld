@@ -8,7 +8,8 @@
  * @brief Linker script for the Synopsys EM Starterkit platform.
  */
 
-#include <zephyr/devicetree.h>
+#include <devicetree.h>
+#include <autoconf.h>
 
 /*
  * DRAM base address and size
@@ -39,5 +40,4 @@
 #define DCCM_SIZE		DT_REG_SIZE(DT_INST(0, arc_dccm))
 #endif
 
-#include <zephyr/arch/arc/v2/xy_mem.ld>
-#include <zephyr/arch/arc/v2/linker.ld>
+#include <arch/arc/v2/linker.ld>

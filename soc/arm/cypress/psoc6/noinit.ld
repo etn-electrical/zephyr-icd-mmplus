@@ -15,6 +15,3 @@ KEEP(*(.heap))
 
 . = ALIGN(4);
 KEEP(*(.stack))
-
-. = ALIGN(4);
-KEEP(*(.cy_sharedmem))

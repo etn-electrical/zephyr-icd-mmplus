@@ -5,10 +5,10 @@
 
 #define DT_DRV_COMPAT zephyr_bbram_emul
 
-#include <zephyr/drivers/bbram.h>
+#include <drivers/bbram.h>
 #include <string.h>
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(bbram, CONFIG_BBRAM_LOG_LEVEL);
 
 /** Device config */

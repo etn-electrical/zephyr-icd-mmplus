@@ -6,10 +6,10 @@
 
 #define DT_DRV_COMPAT silabs_gecko_pwm
 
-#include <zephyr/drivers/pwm.h>
-#include <zephyr/dt-bindings/pwm/pwm.h>
-#include <em_cmu.h>
-#include <em_timer.h>
+#include <drivers/pwm.h>
+#include <dt-bindings/pwm/pwm.h>
+#include "em_cmu.h"
+#include "em_timer.h"
 
 /** PWM configuration. */
 struct pwm_gecko_config {
@@ -23,47 +23,47 @@ struct pwm_gecko_config {
 	uint8_t pin;
 };
 
-static int pwm_gecko_set_cycles(const struct device *dev, uint32_t channel,
-				uint32_t period_cycles, uint32_t pulse_cycles,
-				pwm_flags_t flags)
+static int pwm_gecko_pin_set(const struct device *dev, uint32_t pwm,
+			     uint32_t period_cycles, uint32_t pulse_cycles,
+			     pwm_flags_t flags)
 {
 	TIMER_InitCC_TypeDef compare_config = TIMER_INITCC_DEFAULT;
 	const struct pwm_gecko_config *cfg = dev->config;
 
-	if (BUS_RegMaskedRead(&cfg->timer->CC[channel].CTRL,
+	if (BUS_RegMaskedRead(&cfg->timer->CC[pwm].CTRL,
 		_TIMER_CC_CTRL_MODE_MASK) != timerCCModePWM) {
 
 #ifdef _TIMER_ROUTE_MASK
 		BUS_RegMaskedWrite(&cfg->timer->ROUTE,
 			_TIMER_ROUTE_LOCATION_MASK,
 			cfg->location << _TIMER_ROUTE_LOCATION_SHIFT);
-		BUS_RegMaskedSet(&cfg->timer->ROUTE, 1 << channel);
+		BUS_RegMaskedSet(&pwm->timer->ROUTE, 1 << pwm);
 #elif defined(_TIMER_ROUTELOC0_MASK)
 		BUS_RegMaskedWrite(&cfg->timer->ROUTELOC0,
-			_TIMER_ROUTELOC0_CC0LOC_MASK <<
-			(channel * _TIMER_ROUTELOC0_CC1LOC_SHIFT),
-			cfg->location << (channel * _TIMER_ROUTELOC0_CC1LOC_SHIFT));
-		BUS_RegMaskedSet(&cfg->timer->ROUTEPEN, 1 << channel);
+			_TIMER_ROUTELOC0_CC0LOC_MASK << (pwm * _TIMER_ROUTELOC0_CC1LOC_SHIFT),
+			cfg->location << (pwm * _TIMER_ROUTELOC0_CC1LOC_SHIFT));
+		BUS_RegMaskedSet(&cfg->timer->ROUTEPEN, 1 << pwm);
 #else
 #error Unsupported device
 #endif
 
 		compare_config.mode = timerCCModePWM;
-		TIMER_InitCC(cfg->timer, channel, &compare_config);
+		TIMER_InitCC(cfg->timer, pwm, &compare_config);
 	}
 
-	cfg->timer->CC[channel].CTRL |= (flags & PWM_POLARITY_INVERTED) ?
+	cfg->timer->CC[pwm].CTRL |= (flags & PWM_POLARITY_INVERTED) ?
 		TIMER_CC_CTRL_OUTINV : 0;
 
 	TIMER_TopSet(cfg->timer, period_cycles);
 
-	TIMER_CompareBufSet(cfg->timer, channel, pulse_cycles);
+	TIMER_CompareBufSet(cfg->timer, pwm, pulse_cycles);
 
 	return 0;
 }
 
 static int pwm_gecko_get_cycles_per_sec(const struct device *dev,
-					uint32_t channel, uint64_t *cycles)
+					uint32_t pwm,
+					uint64_t *cycles)
 {
 	const struct pwm_gecko_config *cfg = dev->config;
 
@@ -73,8 +73,8 @@ static int pwm_gecko_get_cycles_per_sec(const struct device *dev,
 }
 
 static const struct pwm_driver_api pwm_gecko_driver_api = {
-	.set_cycles = pwm_gecko_set_cycles,
-	.get_cycles_per_sec = pwm_gecko_get_cycles_per_sec,
+	.pin_set = pwm_gecko_pin_set,
+	.get_cycles_per_sec = pwm_gecko_get_cycles_per_sec
 };
 
 static int pwm_gecko_init(const struct device *dev)
@@ -112,7 +112,7 @@ static int pwm_gecko_init(const struct device *dev)
 										\
 	DEVICE_DT_INST_DEFINE(index, &pwm_gecko_init, NULL, NULL,		\
 				&pwm_gecko_config_##index, POST_KERNEL,		\
-				CONFIG_PWM_INIT_PRIORITY,			\
+				CONFIG_KERNEL_INIT_PRIORITY_DEVICE,		\
 				&pwm_gecko_driver_api);
 
 DT_INST_FOREACH_STATUS_OKAY(PWM_GECKO_INIT)

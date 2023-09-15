@@ -11,7 +11,8 @@ high-performance feature set in low-cost LQFP packages, further simplifying
 board design and layout for customers. The i.MX RT1024 runs on the Arm®
 Cortex®-M7 core at 500 MHz.
 
-.. image:: mimxrt1024_evk.jpg
+.. image:: ./mimxrt1024_evk.jpg
+   :width: 720px
    :align: center
    :alt: MIMXRT1024-EVK
 
@@ -24,7 +25,7 @@ Hardware
 - Memory
 
   - 256 Mbit SDRAM
-  - 32 Mbit QSPI Flash
+  - 64 Mbit QSPI Flash
   - TF socket for SD card
 
 - Connectivity
@@ -67,12 +68,8 @@ these references:
 Supported Features
 ==================
 
-The mimxrt1024_evk board configuration supports the hardware features listed
-below.  For additional features not yet supported, please also refer to the
-:ref:`mimxrt1064_evk` , which is the superset board in NXP's i.MX RT10xx family.
-NXP prioritizes enabling the superset board with NXP's Full Platform Support for
-Zephyr.  Therefore, the mimxrt1064_evk board may have additional features
-already supported, which can also be re-used on this mimxrt1024_evk board:
+The mimxrt1024_evk board configuration supports the following hardware
+features:
 
 +-----------+------------+-------------------------------------+
 | Interface | Controller | Driver/Component                    |
@@ -103,12 +100,6 @@ already supported, which can also be re-used on this mimxrt1024_evk board:
 | ADC       | on-chip    | adc                                 |
 +-----------+------------+-------------------------------------+
 | GPT       | on-chip    | gpt                                 |
-+-----------+------------+-------------------------------------+
-| USB       | on-chip    | USB                                 |
-+-----------+------------+-------------------------------------+
-| TRNG      | on-chip    | entropy                             |
-+-----------+------------+-------------------------------------+
-| FLEXSPI   | on-chip    | flash programming                   |
 +-----------+------------+-------------------------------------+
 
 The default configuration can be found in the defconfig file:
@@ -172,13 +163,8 @@ The MIMXRT1024 SoC has five pairs of pinmux/gpio controllers.
 System Clock
 ============
 
-The MIMXRT1024 SoC is configured to use SysTick as the system clock source,
-running at 500MHz.
-
-When power management is enabled, the 32 KHz low frequency
-oscillator on the board will be used as a source for the GPT timer to
-generate a system clock. This clock enables lower power states, at the
-cost of reduced resolution
+The MIMXRT1024 SoC is configured to use the 32 KHz low frequency oscillator on
+the board as a source for the GPT timer to generate a system clock.
 
 Serial Port
 ===========
@@ -269,10 +255,10 @@ should see the following message in the terminal:
    https://www.nxp.com/design/development-boards/i-mx-evaluation-and-development-boards/i-mx-rt1024-evaluation-kit:MIMXRT1024-EVK
 
 .. _MIMXRT1024-EVK User Guide:
-   https://www.nxp.com/webapp/Download?colCode=MIMXRT1024EVKHUG
+   https://www.nxp.com.cn/docs/en/user-guide/MIMXRT1024EVKHUG.pdf
 
 .. _MIMXRT1024-EVK Design Files:
-   https://www.nxp.com/webapp/Download?colCode=MIMXRT1024-EVK-Design-Files
+   https://www.nxp.com/webapp/sps/download/preDownload.jsp?render=true
 
 .. _i.MX RT1024 Website:
    https://www.nxp.com/products/processors-and-microcontrollers/arm-microcontrollers/i-mx-rt-crossover-mcus/i-mx-rt1024-crossover-processor-with-arm-cortex-m7-core:i.MX-RT1024
@@ -281,4 +267,4 @@ should see the following message in the terminal:
    https://www.nxp.com.cn/docs/en/data-sheet/IMXRT1024CEC.pdf
 
 .. _i.MX RT1024 Reference Manual:
-   https://www.nxp.com/webapp/Download?colCode=IMXRT1024RM
+   https://www.nxp.com.cn/docs/en/reference-manual/IMXRT1024RM.pdf

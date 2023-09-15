@@ -5,59 +5,53 @@ description: Microchip XEC QMSPI controller
 
 compatible: "microchip,xec-qmspi"
 
-include: [spi-controller.yaml, pinctrl-device.yaml]
+include: spi-controller.yaml
 
 properties:
-  reg:
-    required: true
+    reg:
+      required: true
 
-  port_sel:
-    type: int
-    required: true
-    description: SPI Port 0 or 1.
+    port_sel:
+      type: int
+      required: true
+      description: SPI Port 0 or 1.
 
-  pinctrl-0:
-    required: true
+    rxdma:
+      type: int
+      required: true
+      description: Receive DMA channel
 
-  pinctrl-names:
-    required: true
+    txdma:
+      type: int
+      required: true
+      description: Transmit DMA channel
 
-  rxdma:
-    type: int
-    required: true
-    description: Receive DMA channel
+    lines:
+      type: int
+      required: true
+      description: QMSPI lines 1, 2, or 4
 
-  txdma:
-    type: int
-    required: true
-    description: Transmit DMA channel
+    chip_select:
+      type: int
+      required: true
+      description: Use QMSPI CS0# or CS1#
 
-  lines:
-    type: int
-    required: true
-    description: QMSPI lines 1, 2, or 4
+    dcsckon:
+      type: int
+      required: true
+      description: Delay in system clocks from CS# assertion to first clock edge
 
-  chip_select:
-    type: int
-    required: true
-    description: Use QMSPI CS0# or CS1#
+    dckcsoff:
+      type: int
+      required: true
+      description: Delay in system clocks from last clock edge to CS# de-assertion
 
-  dcsckon:
-    type: int
-    required: true
-    description: Delay in system clocks from CS# assertion to first clock edge
+    dldh:
+      type: int
+      required: true
+      description: Delay in system clocks from CS# de-assertion to driving HOLD# and WP#
 
-  dckcsoff:
-    type: int
-    required: true
-    description: Delay in system clocks from last clock edge to CS# de-assertion
-
-  dldh:
-    type: int
-    required: true
-    description: Delay in system clocks from CS# de-assertion to driving HOLD# and WP#
-
-  dcsda:
-    type: int
-    required: true
-    description: Delay in system clocks from CS# de-assertion to CS# assertion
+    dcsda:
+      type: int
+      required: true
+      description: Delay in system clocks from CS# de-assertion to CS# assertion

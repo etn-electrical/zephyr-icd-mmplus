@@ -6,10 +6,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/toolchain.h>
-#include <zephyr/kernel_structs.h>
+#include <toolchain.h>
+#include <kernel_structs.h>
 #include <offsets_short.h>
-#include <zephyr/arch/cpu.h>
+#include <arch/cpu.h>
 
 #include <mips/regdef.h>
 #include <mips/mipsregs.h>

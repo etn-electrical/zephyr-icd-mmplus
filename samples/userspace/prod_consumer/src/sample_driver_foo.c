@@ -6,8 +6,8 @@
 
 #include "sample_driver.h"
 #include <string.h>
-#include <zephyr/kernel.h>
-#include <zephyr/logging/log.h>
+#include <kernel.h>
+#include <logging/log.h>
 
 LOG_MODULE_REGISTER(sample_driver);
 
@@ -40,7 +40,7 @@ static int sample_driver_foo_set_callback(const struct device *dev,
 					  void *context)
 {
 	struct sample_driver_foo_dev_data *data = dev->data;
-	unsigned int key = irq_lock();
+	int key = irq_lock();
 
 	data->cb_context = context;
 	data->cb = cb;

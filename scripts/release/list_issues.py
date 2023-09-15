@@ -106,11 +106,11 @@ class Issues:
             pass
 
     def issues_since(self, date, state="closed"):
-        self.list_issues("%s/issues?per_page=100&state=%s&since=%s" %
+        self.list_issues("%s/issues?state=%s&since=%s" %
                          (self.github_url, state, date))
 
     def pull_requests(self, base='v1.14-branch', state='closed'):
-        self.list_issues("%s/pulls?per_page=100&state=%s&base=%s" %
+        self.list_issues("%s/pulls?state=%s&base=%s" %
                          (self.github_url, state, base))
 
 
@@ -119,7 +119,7 @@ def parse_args():
 
     parser = argparse.ArgumentParser(
         description=__doc__,
-        formatter_class=argparse.RawDescriptionHelpFormatter, allow_abbrev=False)
+        formatter_class=argparse.RawDescriptionHelpFormatter)
 
     parser.add_argument("-o", "--org", default="zephyrproject-rtos",
                         help="Github organisation")
@@ -147,10 +147,10 @@ def parse_args():
 def main():
     parse_args()
 
-    token = os.environ.get('GITHUB_TOKEN', None)
+    token = os.environ.get('GH_TOKEN', None)
     if not token:
         sys.exit("""Github token not set in environment,
-set the env. variable GITHUB_TOKEN please and retry.""")
+set the env. variable GH_TOKEN please and retry.""")
 
     i = Issues(args.org, args.repo, token)
 
@@ -162,7 +162,7 @@ set the env. variable GITHUB_TOKEN please and retry.""")
                 if 'pull_request' not in issue:
                     # * :github:`8193` - STM32 config BUILD_OUTPUT_HEX fail
                     f.write("* :github:`{}` - {}\n".format(
-                        issue['number'], issue['title'].strip()))
+                        issue['number'], issue['title']))
                     count = count + 1
     elif args.issues_in_pulls:
         i.pull_requests(base=args.issues_in_pulls)
@@ -211,8 +211,7 @@ set the env. variable GITHUB_TOKEN please and retry.""")
                     if item:
                         # * :github:`8193` - STM32 config BUILD_OUTPUT_HEX fail
                         f.write("* :github:`{}` - {}\n".format(
-                                item['number'], item['title'].strip()))
-
+                                item['number'], item['title']))
 
 if __name__ == '__main__':
     main()

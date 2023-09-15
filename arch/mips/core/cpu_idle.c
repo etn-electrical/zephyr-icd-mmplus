@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/irq.h>
+#include <irq.h>
 
-#include <zephyr/tracing/tracing.h>
+#include <tracing/tracing.h>
 
 static ALWAYS_INLINE void mips_idle(unsigned int key)
 {

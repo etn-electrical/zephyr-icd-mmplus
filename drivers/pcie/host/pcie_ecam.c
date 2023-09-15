@@ -4,16 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(pcie_ecam, LOG_LEVEL_ERR);
 
-#include <zephyr/kernel.h>
-#include <zephyr/device.h>
-#include <zephyr/drivers/pcie/pcie.h>
-#include <zephyr/drivers/pcie/controller.h>
-#ifdef CONFIG_GIC_V3_ITS
-#include <zephyr/drivers/interrupt_controller/gicv3_its.h>
-#endif
+#include <kernel.h>
+#include <device.h>
+#include <drivers/pcie/pcie.h>
+#include <drivers/pcie/controller.h>
 
 #define DT_DRV_COMPAT pci_host_ecam_generic
 
@@ -90,27 +87,24 @@ static int pcie_ecam_init(const struct device *dev)
 			data->regions[PCIE_REGION_IO].phys_start = cfg->ranges[i].host_map_addr;
 			data->regions[PCIE_REGION_IO].size = cfg->ranges[i].map_length;
 			/* Linux & U-Boot avoids allocating PCI resources from address 0 */
-			if (data->regions[PCIE_REGION_IO].bus_start < 0x1000) {
+			if (data->regions[PCIE_REGION_IO].bus_start < 0x1000)
 				data->regions[PCIE_REGION_IO].allocation_offset = 0x1000;
-			}
 			break;
 		case 0x02:
 			data->regions[PCIE_REGION_MEM].bus_start = cfg->ranges[i].pcie_bus_addr;
 			data->regions[PCIE_REGION_MEM].phys_start = cfg->ranges[i].host_map_addr;
 			data->regions[PCIE_REGION_MEM].size = cfg->ranges[i].map_length;
 			/* Linux & U-Boot avoids allocating PCI resources from address 0 */
-			if (data->regions[PCIE_REGION_MEM].bus_start < 0x1000) {
+			if (data->regions[PCIE_REGION_MEM].bus_start < 0x1000)
 				data->regions[PCIE_REGION_MEM].allocation_offset = 0x1000;
-			}
 			break;
 		case 0x03:
 			data->regions[PCIE_REGION_MEM64].bus_start = cfg->ranges[i].pcie_bus_addr;
 			data->regions[PCIE_REGION_MEM64].phys_start = cfg->ranges[i].host_map_addr;
 			data->regions[PCIE_REGION_MEM64].size = cfg->ranges[i].map_length;
 			/* Linux & U-Boot avoids allocating PCI resources from address 0 */
-			if (data->regions[PCIE_REGION_MEM64].bus_start < 0x1000) {
+			if (data->regions[PCIE_REGION_MEM64].bus_start < 0x1000)
 				data->regions[PCIE_REGION_MEM64].allocation_offset = 0x1000;
-			}
 			break;
 		}
 	}
@@ -200,9 +194,8 @@ static bool pcie_ecam_region_allocate_type(struct pcie_ecam_data *data, pcie_bdf
 	addr = (((data->regions[type].bus_start + data->regions[type].allocation_offset) - 1) |
 		((bar_size) - 1)) + 1;
 
-	if (addr - data->regions[type].bus_start + bar_size > data->regions[type].size) {
+	if (addr - data->regions[type].bus_start + bar_size > data->regions[type].size)
 		return false;
-	}
 
 	*bar_bus_addr = addr;
 	data->regions[type].allocation_offset = addr - data->regions[type].bus_start + bar_size;
@@ -295,9 +288,8 @@ static bool pcie_ecam_region_translate(const struct device *dev, pcie_bdf_t bdf,
 	enum pcie_region_type type;
 
 	/* Means it hasn't been allocated */
-	if (!bar_bus_addr) {
+	if (!bar_bus_addr)
 		return false;
-	}
 
 	if (mem && ((mem64 && data->regions[PCIE_REGION_MEM64].size) ||
 		    (data->regions[PCIE_REGION_MEM64].size &&
@@ -314,84 +306,17 @@ static bool pcie_ecam_region_translate(const struct device *dev, pcie_bdf_t bdf,
 	return true;
 }
 
-#if CONFIG_PCIE_MSI
-static uint8_t pcie_ecam_msi_device_setup(const struct device *dev, unsigned int priority,
-					  msi_vector_t *vectors, uint8_t n_vector)
-{
-#ifdef CONFIG_GIC_V3_ITS
-	const struct pcie_ctrl_config *cfg = (const struct pcie_ctrl_config *)dev->config;
-	unsigned int device_id;
-	pcie_bdf_t bdf;
-	int ret, i;
-
-	if (!n_vector) {
-		return 0;
-	}
-
-	bdf = vectors[0].bdf;
-
-	/* We do not support allocating vectors for multiple BDFs for now,
-	 * This would need tracking vectors already allocated for a BDF and
-	 * re-allocating a proper table in ITS for each BDF since we can't be
-	 * sure more vectors for each BDF will be allocated later.
-	 * Simply bail-out if it's the case here.
-	 */
-	for (i = 1; i < n_vector; i++) {
-		if (vectors[i].bdf != bdf) {
-			LOG_ERR("Multiple BDFs in a single MSI vector allocation isn't supported");
-			return 0;
-		}
-	}
-
-	device_id = PCI_BDF_TO_DEVID(bdf);
-
-	ret = its_setup_deviceid(cfg->msi_parent, device_id, n_vector);
-	if (ret) {
-		return 0;
-	}
-
-	for (i = 0; i < n_vector; i++) {
-		vectors[i].arch.irq = its_alloc_intid(cfg->msi_parent);
-		vectors[i].arch.address = its_get_msi_addr(cfg->msi_parent);
-		vectors[i].arch.eventid = i;
-		vectors[i].arch.priority = priority;
-
-		ret = its_map_intid(cfg->msi_parent, device_id,
-				    vectors[i].arch.eventid, vectors[i].arch.irq);
-		if (ret) {
-			break;
-		}
-	}
-
-	return i;
-#else
-	return 0;
-#endif
-}
-#endif
-
 static const struct pcie_ctrl_driver_api pcie_ecam_api = {
 	.conf_read = pcie_ecam_ctrl_conf_read,
 	.conf_write = pcie_ecam_ctrl_conf_write,
 	.region_allocate = pcie_ecam_region_allocate,
 	.region_get_allocate_base = pcie_ecam_region_get_allocate_base,
 	.region_translate = pcie_ecam_region_translate,
-#if CONFIG_PCIE_MSI
-	.msi_device_setup = pcie_ecam_msi_device_setup,
-#endif
 };
-
-#if CONFIG_PCIE_MSI
-#define DEVICE_DT_GET_MSI_PARENT(n)						\
-	.msi_parent = DEVICE_DT_GET(DT_PHANDLE(DT_DRV_INST(n), msi_parent)),
-#else
-#define DEVICE_DT_GET_MSI_PARENT(n)
-#endif
 
 #define PCIE_ECAM_INIT(n)							\
 	static struct pcie_ecam_data pcie_ecam_data##n;				\
 	static const struct pcie_ctrl_config pcie_ecam_config##n = {		\
-		DEVICE_DT_GET_MSI_PARENT(n)					\
 		.cfg_addr = DT_INST_REG_ADDR(n),				\
 		.cfg_size = DT_INST_REG_SIZE(n),				\
 		.ranges_count = DT_NUM_RANGES(DT_DRV_INST(n)),		\

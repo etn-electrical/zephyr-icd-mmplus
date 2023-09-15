@@ -5,6 +5,12 @@ find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(functional_fcb)
 
 # The code is in the library common to several tests.
-target_sources(app PRIVATE settings_test_fcb.c)
+target_sources(app PRIVATE placeholder.c)
 
 add_subdirectory(../src func_test_bindir)
+
+if(TEST)
+	target_compile_definitions(app PRIVATE
+		-DTEST_${TEST}
+		)
+endif()

@@ -6,11 +6,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/kernel_structs.h>
+#include <kernel.h>
+#include <kernel_structs.h>
 #include <kernel_internal.h>
-#include <zephyr/irq.h>
-#include <zephyr/irq_offload.h>
+#include <irq.h>
+#include <irq_offload.h>
 
 volatile irq_offload_routine_t _offload_routine;
 static volatile const void *offload_param;

@@ -6,12 +6,8 @@
  */
 
 #include <zephyr/types.h>
-#include <zephyr/sys/byteorder.h>
-#include <zephyr/ztest.h>
+#include "sys/byteorder.h"
 #include "util.h"
-
-#include "pdu_df.h"
-#include "lll/pdu_vendor.h"
 #include "pdu.h"
 
 #include "util/mem.h"
@@ -21,6 +17,9 @@
 
 /**
  * @brief Population count: Count the number of bits set to 1
+ * @details
+ * TODO: Faster methods available at [1].
+ * [1] http://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetParallel
  *
  * @param octets     Data to count over
  * @param octets_len Must not be bigger than 255/8 = 31 bytes

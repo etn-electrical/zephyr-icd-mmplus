@@ -15,7 +15,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#include <zephyr/net/mqtt.h>
+#include <net/mqtt.h>
 
 #ifdef __cplusplus
 extern "C" {

@@ -1,14 +1,15 @@
 /*
  * SPDX-License-Identifier: Apache-2.0
  *
- * Copyright (C) 2021-2022, Intel Corporation
+ * Copyright (C) 2021, Intel Corporation
  *
  */
 
-#include <zephyr/drivers/clock_control.h>
-#include <zephyr/drivers/clock_control/clock_agilex_ll.h>
-#include <zephyr/dt-bindings/clock/intel_socfpga_clock.h>
-#include <zephyr/logging/log.h>
+#include <drivers/clock_control.h>
+#include <drivers/clock_control/clock_agilex_ll.h>
+#include <dt-bindings/clock/intel_socfpga_clock.h>
+#include <logging/log.h>
+#include <soc.h>
 
 LOG_MODULE_REGISTER(clock_control, CONFIG_CLOCK_CONTROL_LOG_LEVEL);
 
@@ -25,7 +26,9 @@ static int clk_get_rate(const struct device *dev,
 {
 	ARG_UNUSED(dev);
 
-	switch ((intptr_t) sub_system) {
+	struct clock_attr *attr = (struct clock_attr *)(sub_system);
+
+	switch (attr->clock_id) {
 	case INTEL_SOCFPGA_CLOCK_MPU:
 		*rate = get_mpu_clk();
 		break;

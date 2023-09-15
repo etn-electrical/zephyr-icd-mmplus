@@ -4,12 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_DECLARE(net_l2_openthread, CONFIG_OPENTHREAD_L2_LOG_LEVEL);
 
-#include <zephyr/net/net_core.h>
-#include <zephyr/net/net_pkt.h>
-#include <zephyr/net/openthread.h>
+#include <net/net_core.h>
+#include <net/net_pkt.h>
+#include <net/openthread.h>
 
 #include <openthread/ip6.h>
 #include <openthread/thread.h>
@@ -116,9 +116,9 @@ void add_ipv6_addr_to_zephyr(struct openthread_context *context)
 			char buf[NET_IPV6_ADDR_LEN];
 
 			NET_DBG("Adding %s",
-				net_addr_ntop(AF_INET6,
+				log_strdup(net_addr_ntop(AF_INET6,
 				       (struct in6_addr *)(&address->mAddress),
-				       buf, sizeof(buf)));
+				       buf, sizeof(buf))));
 		}
 
 		/* Thread and SLAAC are clearly AUTOCONF, handle
@@ -157,52 +157,42 @@ void add_ipv6_addr_to_zephyr(struct openthread_context *context)
 	}
 }
 
-void add_ipv6_addr_to_ot(struct openthread_context *context,
-			 const struct in6_addr *addr6)
+void add_ipv6_addr_to_ot(struct openthread_context *context)
 {
-	struct otNetifAddress addr = { 0 };
+	struct net_if *iface = context->iface;
+	struct otNetifAddress addr;
 	struct net_if_ipv6 *ipv6;
-	struct net_if_addr *if_addr = NULL;
 	int i;
 
-	/* IPv6 struct should've already been allocated when we get an
-	 * address added event.
-	 */
-	ipv6 = context->iface->config.ip.ipv6;
-	if (ipv6 == NULL) {
-		NET_ERR("No IPv6 container allocated");
+	(void)memset(&addr, 0, sizeof(addr));
+
+	if (net_if_config_ipv6_get(iface, &ipv6) < 0) {
+		NET_DBG("Cannot allocate IPv6 address");
 		return;
 	}
 
-	/* Find the net_if_addr structure containing the newly added address. */
+	/* save the last added IP address for this interface */
 	for (i = NET_IF_MAX_IPV6_ADDR - 1; i >= 0; i--) {
-		if (ipv6->unicast[i].is_used &&
-		    net_ipv6_addr_cmp(&ipv6->unicast[i].address.in6_addr,
-				      addr6)) {
-			if_addr = &ipv6->unicast[i];
+		if (ipv6->unicast[i].is_used) {
+			memcpy(&addr.mAddress,
+			       &ipv6->unicast[i].address.in6_addr,
+			       sizeof(addr.mAddress));
 			break;
 		}
 	}
 
-	if (if_addr == NULL) {
-		NET_ERR("No corresponding net_if_addr found");
-		return;
-	}
-
-	memcpy(&addr.mAddress, addr6, sizeof(addr.mAddress));
-
-	if_addr->is_mesh_local = is_mesh_local(
+	ipv6->unicast[i].is_mesh_local = is_mesh_local(
 			context, ipv6->unicast[i].address.in6_addr.s6_addr);
 
 	addr.mValid = true;
 	addr.mPreferred = true;
 	addr.mPrefixLength = 64;
 
-	if (if_addr->addr_type == NET_ADDR_AUTOCONF) {
+	if (ipv6->unicast[i].addr_type == NET_ADDR_AUTOCONF) {
 		addr.mAddressOrigin = OT_ADDRESS_ORIGIN_SLAAC;
-	} else if (if_addr->addr_type == NET_ADDR_DHCP) {
+	} else if (ipv6->unicast[i].addr_type == NET_ADDR_DHCP) {
 		addr.mAddressOrigin = OT_ADDRESS_ORIGIN_DHCPV6;
-	} else if (if_addr->addr_type == NET_ADDR_MANUAL) {
+	} else if (ipv6->unicast[i].addr_type == NET_ADDR_MANUAL) {
 		addr.mAddressOrigin = OT_ADDRESS_ORIGIN_MANUAL;
 	} else {
 		NET_ERR("Unknown address type");
@@ -217,16 +207,32 @@ void add_ipv6_addr_to_ot(struct openthread_context *context,
 		char buf[NET_IPV6_ADDR_LEN];
 
 		NET_DBG("Added %s",
-			net_addr_ntop(AF_INET6, &addr.mAddress, buf, sizeof(buf)));
+			log_strdup(net_addr_ntop(AF_INET6,
+						 &addr.mAddress, buf,
+						 sizeof(buf))));
 	}
 }
 
-void add_ipv6_maddr_to_ot(struct openthread_context *context,
-			  const struct in6_addr *addr6)
+void add_ipv6_maddr_to_ot(struct openthread_context *context)
 {
 	struct otIp6Address addr;
+	struct net_if_ipv6 *ipv6;
+	int i;
 
-	memcpy(&addr, addr6, sizeof(addr));
+	if (net_if_config_ipv6_get(context->iface, &ipv6) < 0) {
+		NET_DBG("Cannot allocate IPv6 address");
+		return;
+	}
+
+	/* save the last added IP address for this interface */
+	for (i = NET_IF_MAX_IPV6_MADDR - 1; i >= 0; i--) {
+		if (ipv6->mcast[i].is_used) {
+			memcpy(&addr,
+			       &ipv6->mcast[i].address.in6_addr,
+			       sizeof(addr));
+			break;
+		}
+	}
 
 	openthread_api_mutex_lock(context);
 	otIp6SubscribeMulticastAddress(context->instance, &addr);
@@ -236,7 +242,8 @@ void add_ipv6_maddr_to_ot(struct openthread_context *context,
 		char buf[NET_IPV6_ADDR_LEN];
 
 		NET_DBG("Added multicast %s",
-			net_addr_ntop(AF_INET6, &addr, buf, sizeof(buf)));
+			log_strdup(net_addr_ntop(AF_INET6, &addr,
+						 buf, sizeof(buf))));
 	}
 }
 
@@ -257,10 +264,10 @@ void add_ipv6_maddr_to_zephyr(struct openthread_context *context)
 			char buf[NET_IPV6_ADDR_LEN];
 
 			NET_DBG("Adding multicast %s",
-				net_addr_ntop(AF_INET6,
-					      (struct in6_addr *)
-					      (&maddress->mAddress),
-					      buf, sizeof(buf)));
+				log_strdup(net_addr_ntop(AF_INET6,
+							 (struct in6_addr *)
+							 (&maddress->mAddress),
+							 buf, sizeof(buf))));
 		}
 
 		zmaddr = net_if_ipv6_maddr_add(context->iface,
@@ -315,9 +322,9 @@ void rm_ipv6_addr_from_zephyr(struct openthread_context *context)
 				char buf[NET_IPV6_ADDR_LEN];
 
 				NET_DBG("Removing %s",
-					net_addr_ntop(AF_INET6,
+					log_strdup(net_addr_ntop(AF_INET6,
 					      &zephyr_addr->address.in6_addr,
-					      buf, sizeof(buf)));
+					      buf, sizeof(buf))));
 			}
 
 			net_if_ipv6_addr_rm(context->iface,
@@ -363,9 +370,9 @@ void rm_ipv6_maddr_from_zephyr(struct openthread_context *context)
 				char buf[NET_IPV6_ADDR_LEN];
 
 				NET_DBG("Removing multicast %s",
-					net_addr_ntop(AF_INET6,
+					log_strdup(net_addr_ntop(AF_INET6,
 					      &zephyr_addr->address.in6_addr,
-					      buf, sizeof(buf)));
+					      buf, sizeof(buf))));
 			}
 
 			net_if_ipv6_maddr_rm(context->iface,

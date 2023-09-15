@@ -15,7 +15,7 @@ if I2S
 
 config I2S_INIT_PRIORITY
 	int "Init priority"
-	default KERNEL_INIT_PRIORITY_DEVICE
+	default 70
 	help
 	  Device driver initialization priority.
 

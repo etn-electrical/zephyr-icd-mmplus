@@ -6,9 +6,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/drivers/gpio.h>
-#include <zephyr/drivers/spi.h>
+#include <kernel.h>
+#include <drivers/gpio.h>
+#include <drivers/spi.h>
 
 #ifndef _ENC424J600_
 #define _ENC424J600_

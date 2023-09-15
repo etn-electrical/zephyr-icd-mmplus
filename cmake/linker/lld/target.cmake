@@ -29,6 +29,7 @@ macro(configure_linker_script linker_script_gen linker_pass_define)
   endif()
 
   zephyr_get_include_directories_for_lang(C current_includes)
+  get_filename_component(base_name ${CMAKE_CURRENT_BINARY_DIR} NAME)
   get_property(current_defines GLOBAL PROPERTY PROPERTY_LINKER_SCRIPT_DEFINES)
 
   add_custom_command(
@@ -41,10 +42,9 @@ macro(configure_linker_script linker_script_gen linker_pass_define)
     COMMAND ${CMAKE_C_COMPILER}
     -x assembler-with-cpp
     ${NOSYSDEF_CFLAG}
-    -MD -MF ${linker_script_gen}.dep -MT ${linker_script_gen}
+    -MD -MF ${linker_script_gen}.dep -MT ${base_name}/${linker_script_gen}
     -D_LINKER
     -D_ASMLANGUAGE
-    -imacros ${AUTOCONF_H}
     ${current_includes}
     ${current_defines}
     ${template_script_defines}
@@ -107,7 +107,7 @@ endfunction(toolchain_ld_link_elf)
 
 
 # Load toolchain_ld-family macros
-include(${ZEPHYR_BASE}/cmake/linker/${LINKER}/target_base.cmake)
+include(${ZEPHYR_BASE}/cmake/linker/ld/target_base.cmake)
 include(${ZEPHYR_BASE}/cmake/linker/${LINKER}/target_baremetal.cmake)
 include(${ZEPHYR_BASE}/cmake/linker/ld/target_cpp.cmake)
 include(${ZEPHYR_BASE}/cmake/linker/ld/target_relocation.cmake)

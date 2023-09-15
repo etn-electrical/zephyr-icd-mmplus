@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/drivers/pinctrl.h>
+#include <drivers/pinctrl.h>
 
 /* pico-sdk includes */
 #include <hardware/gpio.h>

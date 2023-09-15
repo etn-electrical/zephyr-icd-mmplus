@@ -6,15 +6,15 @@
 
 #define DT_DRV_COMPAT nuvoton_nct38xx_gpio_alert
 
-#include <zephyr/device.h>
-#include <zephyr/drivers/gpio.h>
-#include <zephyr/drivers/gpio/gpio_nct38xx.h>
-#include <zephyr/kernel.h>
-#include <zephyr/sys/util_macro.h>
+#include <device.h>
+#include <drivers/gpio.h>
+#include <drivers/gpio/gpio_nct38xx.h>
+#include <kernel.h>
+#include <sys/util_macro.h>
 
 #include "gpio_nct38xx.h"
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_DECLARE(gpio_ntc38xx, CONFIG_GPIO_LOG_LEVEL);
 
 /* Driver config */
@@ -78,9 +78,8 @@ static void nct38xx_alert_worker(struct k_work *work)
 				}
 			}
 
-			if (alert & BIT(NCT38XX_REG_ALERT_VENDOR_DEFINDED_ALERT)) {
+			if (alert & BIT(NCT38XX_REG_ALERT_VENDOR_DEFINDED_ALERT))
 				nct38xx_gpio_alert_handler(config->nct38xx_dev[i]);
-			}
 		}
 		/* While the interrupt signal is still active; we have more work to do. */
 	} while (gpio_pin_get_dt(&config->irq_gpio));

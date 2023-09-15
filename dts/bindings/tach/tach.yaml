@@ -6,3 +6,7 @@
 include: base.yaml
 
 bus: tach
+
+properties:
+    label:
+      required: true

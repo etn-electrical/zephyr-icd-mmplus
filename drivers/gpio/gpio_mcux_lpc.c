@@ -15,12 +15,11 @@
  */
 
 #include <errno.h>
-#include <zephyr/device.h>
-#include <zephyr/drivers/gpio.h>
-#include <zephyr/irq.h>
+#include <device.h>
+#include <drivers/gpio.h>
 #include <soc.h>
 #include <fsl_common.h>
-#include <zephyr/drivers/gpio/gpio_utils.h>
+#include "gpio_utils.h"
 #include <fsl_gpio.h>
 #include <fsl_pint.h>
 #include <fsl_inputmux.h>
@@ -62,7 +61,7 @@ struct gpio_mcux_lpc_data {
 	/* pin association with PINT id */
 	pint_pin_int_t pint_id[32];
 	/* ISR allocated in device tree to this port */
-	uint32_t isr_list[INPUTMUX_PINTSEL_COUNT];
+	uint32_t isr_list[8];
 	/* index to to table above */
 	uint32_t isr_list_idx;
 };
@@ -78,53 +77,32 @@ static int gpio_mcux_lpc_configure(const struct device *dev, gpio_pin_t pin,
 		return -ENOTSUP;
 	}
 
-#ifdef IOPCTL /* RT600 and RT500 series */
+	if ((flags & GPIO_SINGLE_ENDED) != 0) {
+		return -ENOTSUP;
+	}
+
+#ifdef IOPCTL
 	IOPCTL_Type *pinmux_base = config->pinmux_base;
-	volatile uint32_t *pinconfig = (volatile uint32_t *)&(pinmux_base->PIO[port][pin]);
+	uint32_t *pinconfig = (uint32_t *)&(pinmux_base->PIO[port][pin]);
 
 	/*
 	 * Enable input buffer for both input and output pins, it costs
 	 * nothing and allows values to be read back.
 	 */
 	*pinconfig |= IOPCTL_PIO_INBUF_EN;
-
-	if ((flags & GPIO_SINGLE_ENDED) != 0) {
-		*pinconfig |= IOPCTL_PIO_PSEDRAIN_EN;
-	} else {
-		*pinconfig &= ~IOPCTL_PIO_PSEDRAIN_EN;
-	}
-	/* Select GPIO mux for this pin (func 0 is always GPIO) */
-	*pinconfig &= ~(IOPCTL_PIO_FSEL_MASK);
-
-#else /* LPC SOCs */
-	volatile uint32_t *pinconfig;
-	IOCON_Type *pinmux_base;
-
-	pinmux_base = config->pinmux_base;
-	pinconfig = (volatile uint32_t *)&(pinmux_base->PIO[port][pin]);
-
-	if ((flags & GPIO_SINGLE_ENDED) != 0) {
-		/* Set ODE bit. */
-		*pinconfig |= IOCON_PIO_OD_MASK;
-	}
-
-	if ((flags & GPIO_INPUT) != 0) {
-		/* Set DIGIMODE bit */
-		*pinconfig |= IOCON_PIO_DIGIMODE_MASK;
-	}
-	/* Select GPIO mux for this pin (func 0 is always GPIO) */
-	*pinconfig &= ~(IOCON_PIO_FUNC_MASK);
 #endif
 
 	if (flags & (GPIO_PULL_UP | GPIO_PULL_DOWN)) {
-#ifdef IOPCTL /* RT600 and RT500 series */
+#ifdef IOPCTL
 		*pinconfig |= IOPCTL_PIO_PUPD_EN;
 		if ((flags & GPIO_PULL_UP) != 0) {
 			*pinconfig |= IOPCTL_PIO_PULLUP_EN;
 		} else if ((flags & GPIO_PULL_DOWN) != 0) {
 			*pinconfig &= ~(IOPCTL_PIO_PULLUP_EN);
 		}
-#else /* LPC SOCs */
+#else
+		IOCON_Type *pinmux_base = config->pinmux_base;
+		uint32_t *pinconfig = (uint32_t *)&(pinmux_base->PIO[port][pin]);
 
 		*pinconfig &= ~(IOCON_PIO_MODE_PULLUP|IOCON_PIO_MODE_PULLDOWN);
 		if ((flags & GPIO_PULL_UP) != 0) {
@@ -225,10 +203,8 @@ static void gpio_mcux_lpc_port_isr(const struct device *dev)
 				config->pint_base, data->pint_id[pin]);
 			enabled_int = int_flags << pin;
 
-			if (int_flags) {
-				PINT_PinInterruptClrStatus(config->pint_base,
-							   data->pint_id[pin]);
-			}
+			PINT_PinInterruptClrStatus(config->pint_base,
+						   data->pint_id[pin]);
 
 			gpio_fire_callbacks(&data->callbacks, dev, enabled_int);
 		}
@@ -263,17 +239,11 @@ static uint32_t attach_pin_to_isr(uint32_t port, uint32_t pin, uint32_t isr_no)
 	/* Code asumes PIN_INT values are grouped [0..3] and [4..7].
 	 * This scenario is true in LPC54xxx/LPC55xxx.
 	 */
-#if (FSL_FEATURE_PINT_NUMBER_OF_CONNECTED_OUTPUTS > 8)
-	#error having more than 8 PINT IRQs not supported in driver
-#elif (FSL_FEATURE_PINT_NUMBER_OF_CONNECTED_OUTPUTS > 4)
 	if (isr_no < PIN_INT4_IRQn) {
 		pint_idx = isr_no - PIN_INT0_IRQn;
 	} else {
 		pint_idx = isr_no - PIN_INT4_IRQn + 4;
 	}
-#else
-	pint_idx = isr_no - PIN_INT0_IRQn;
-#endif
 
 	INPUTMUX_AttachSignal(INPUTMUX, pint_idx,
 			      PIN_TO_INPUT_MUX_CONNECTION(port, pin));
@@ -409,11 +379,10 @@ static const clock_ip_name_t gpio_clock_names[] = GPIO_CLOCKS;
 			    gpio_mcux_lpc_port_isr, DEVICE_DT_INST_GET(n), 0);		\
 		irq_enable(DT_INST_IRQ_BY_IDX(n, m, irq));				\
 		data->isr_list[data->isr_list_idx++] = DT_INST_IRQ_BY_IDX(n, m, irq);	\
-	} while (false)
+	} while (0)
 
-#define GPIO_MCUX_LPC_IRQ(idx, inst)							\
-	COND_CODE_1(DT_INST_IRQ_HAS_IDX(inst, idx),					\
-		(GPIO_MCUX_LPC_IRQ_CONNECT(inst, idx)), ())
+#define GPIO_MCUX_LPC_IRQ(n, m)								\
+	COND_CODE_1(DT_INST_IRQ_HAS_IDX(n, m), (GPIO_MCUX_LPC_IRQ_CONNECT(n, m)), ())
 
 
 #define GPIO_MCUX_LPC(n)								\
@@ -442,7 +411,10 @@ static const clock_ip_name_t gpio_clock_names[] = GPIO_CLOCKS;
 	{										\
 		gpio_mcux_lpc_init(dev);						\
 											\
-		LISTIFY(8, GPIO_MCUX_LPC_IRQ, (;), n)					\
+		GPIO_MCUX_LPC_IRQ(n, 0);						\
+		GPIO_MCUX_LPC_IRQ(n, 1);						\
+		GPIO_MCUX_LPC_IRQ(n, 2);						\
+		GPIO_MCUX_LPC_IRQ(n, 3);						\
 											\
 		return 0;								\
 	}

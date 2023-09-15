@@ -4,7 +4,7 @@
  */
 
 #include <offsets.h>
-#include <zephyr/toolchain.h>
+#include <toolchain.h>
 
 /* Exports */
 GTEXT(__soc_is_irq)

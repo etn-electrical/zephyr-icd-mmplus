@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
+#include <ztest.h>
 
 #include "tests_thread_apis.h"
 
@@ -27,7 +27,7 @@ static void thread_entry_abort(void *p1, void *p2, void *p3)
 	k_thread_abort(k_current_get());
 	/*unreachable*/
 	execute_flag = 2;
-	zassert_true(1 == 0);
+	zassert_true(1 == 0, NULL);
 }
 /**
  * @ingroup kernel_thread_tests
@@ -39,14 +39,14 @@ static void thread_entry_abort(void *p1, void *p2, void *p3)
  *
  * @see k_thread_abort()
  */
-ZTEST_USER(threads_lifecycle, test_threads_abort_self)
+void test_threads_abort_self(void)
 {
 	execute_flag = 0;
 	k_thread_create(&tdata, tstack, STACK_SIZE, thread_entry_abort,
 			NULL, NULL, NULL, 0, K_USER, K_NO_WAIT);
 	k_msleep(100);
 	/**TESTPOINT: spawned thread executed but abort itself*/
-	zassert_true(execute_flag == 1);
+	zassert_true(execute_flag == 1, NULL);
 }
 
 /**
@@ -59,7 +59,7 @@ ZTEST_USER(threads_lifecycle, test_threads_abort_self)
  *
  * @see k_thread_abort()
  */
-ZTEST_USER(threads_lifecycle, test_threads_abort_others)
+void test_threads_abort_others(void)
 {
 	execute_flag = 0;
 	k_tid_t tid = k_thread_create(&tdata, tstack, STACK_SIZE,
@@ -69,7 +69,7 @@ ZTEST_USER(threads_lifecycle, test_threads_abort_others)
 	k_thread_abort(tid);
 	k_msleep(100);
 	/**TESTPOINT: check not-started thread is aborted*/
-	zassert_true(execute_flag == 0);
+	zassert_true(execute_flag == 0, NULL);
 
 	tid = k_thread_create(&tdata, tstack, STACK_SIZE,
 			      thread_entry, NULL, NULL, NULL,
@@ -77,9 +77,9 @@ ZTEST_USER(threads_lifecycle, test_threads_abort_others)
 	k_msleep(50);
 	k_thread_abort(tid);
 	/**TESTPOINT: check running thread is aborted*/
-	zassert_true(execute_flag == 1);
+	zassert_true(execute_flag == 1, NULL);
 	k_msleep(1000);
-	zassert_true(execute_flag == 1);
+	zassert_true(execute_flag == 1, NULL);
 }
 
 /**
@@ -88,7 +88,7 @@ ZTEST_USER(threads_lifecycle, test_threads_abort_others)
  *
  * @see k_thread_abort()
  */
-ZTEST(threads_lifecycle_1cpu, test_threads_abort_repeat)
+void test_threads_abort_repeat(void)
 {
 	execute_flag = 0;
 	k_tid_t tid = k_thread_create(&tdata, tstack, STACK_SIZE,
@@ -121,7 +121,7 @@ static void delayed_thread_entry(void *p1, void *p2, void *p3)
  *
  * @see k_thread_abort()
  */
-ZTEST(threads_lifecycle_1cpu, test_delayed_thread_abort)
+void test_delayed_thread_abort(void)
 {
 	int current_prio = k_thread_priority_get(k_current_get());
 
@@ -186,7 +186,7 @@ extern struct k_sem offload_sem;
  *
  * @see k_thread_abort()
  */
-ZTEST(threads_lifecycle, test_abort_from_isr)
+void test_abort_from_isr(void)
 {
 	isr_finished = false;
 	k_thread_create(&tdata, tstack, STACK_SIZE, entry_abort_isr,
@@ -227,7 +227,7 @@ static void entry_aborted_thread(void *p1, void *p2, void *p3)
  *
  * @see k_thread_abort()
  */
-ZTEST(threads_lifecycle, test_abort_from_isr_not_self)
+void test_abort_from_isr_not_self(void)
 {
 	k_tid_t tid;
 

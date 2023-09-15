@@ -15,7 +15,7 @@ module-str = HWINFO
 source "subsys/logging/Kconfig.template.log_config"
 
 config HWINFO_SHELL
-	bool "HWINFO Shell"
+	bool "Enable HWINFO Shell"
 	default y
 	depends on SHELL
 	help
@@ -31,8 +31,7 @@ config HWINFO_STM32
 config HWINFO_NRF
 	bool "NRF device ID"
 	default y
-	depends on SOC_FAMILY_NRF
-	depends on NRF_SOC_SECURE_SUPPORTED
+	depends on SOC_FAMILY_NRF && !TRUSTED_EXECUTION_NONSECURE
 	help
 	  Enable Nordic NRF hwinfo driver.
 
@@ -57,17 +56,10 @@ config HWINFO_MCUX_SRC
 	help
 	  Enable NXP i.MX mcux SRC hwinfo driver.
 
-config HWINFO_MCUX_SRC_V2
-	bool "NXP SRC reset cause (multicore devices)"
-	default y
-	depends on HAS_MCUX_SRC_V2
-	help
-	  Enable version 2 multicore NXP i.MX mcux SRC hwinfo driver.
-
 config HWINFO_MCUX_SYSCON
 	bool "NXP LPC device ID"
 	default y
-	depends on DT_HAS_NXP_LPC_UID_ENABLED
+	depends on HAS_MCUX_SYSCON && !SOC_SERIES_LPC54XXX
 	help
 	  Enable NXP LPC mcux hwinfo driver.
 
@@ -78,28 +70,12 @@ config HWINFO_IMXRT
 	help
 	  Enable NXP i.mx RT hwinfo driver.
 
-config HWINFO_RPI_PICO
-	bool "Raspberry Pi Pico hwinfo driver"
-	default y
-	depends on SOC_SERIES_RP2XXX
-	select PICOSDK_USE_FLASH
-	help
-	  Enable Raspberry Pi Pico hwinfo driver.
-
-config HWINFO_SAM_RSTC
-	bool "Atmel SAM reset cause"
-	default y
-	depends on SOC_SERIES_SAM4S || SOC_SERIES_SAME70 || \
-		   SOC_SERIES_SAMV71
-	help
-	  Enable Atmel SAM reset cause hwinfo driver.
-
 config HWINFO_SAM
 	bool "Atmel SAM device ID"
 	default y
 	depends on SOC_FAMILY_SAM && !SOC_SERIES_SAM4L
 	help
-	  Enable Atmel SAM device ID hwinfo driver.
+	  Enable Atmel SAM hwinfo driver.
 
 config HWINFO_SAM4L
 	bool "Atmel SAM4L device ID"
@@ -118,7 +94,7 @@ config HWINFO_SAM0
 config HWINFO_ESP32
 	bool "ESP32 device ID"
 	default y
-	depends on SOC_ESP32 || SOC_ESP32C3
+	depends on SOC_ESP32
 	help
 	  Enable ESP32 hwinfo driver.
 
@@ -139,16 +115,9 @@ config HWINFO_PSOC6
 config HWINFO_GECKO
 	bool "GECKO hwinfo"
 	default y
-	depends on SOC_FAMILY_EXX32 && !SOC_SERIES_EFR32MG21  && !SOC_SERIES_EFR32BG22
+	depends on SOC_FAMILY_EXX32 && !SOC_SERIES_EFR32MG21
 	select SOC_GECKO_RMU
 	help
 	  Enable Silabs GECKO hwinfo driver.
-
-config HWINFO_ANDES
-	bool "Andes system ID"
-	default y
-	depends on SOC_SERIES_RISCV_ANDES_V5
-	help
-	  Enable Andes hwinfo driver
 
 endif

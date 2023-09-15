@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/sys/printk.h>
-#include <zephyr/device.h>
-#include <zephyr/drivers/ipm.h>
+#include <zephyr.h>
+#include <sys/printk.h>
+#include <device.h>
+#include <drivers/ipm.h>
 
 int gcounter;
 

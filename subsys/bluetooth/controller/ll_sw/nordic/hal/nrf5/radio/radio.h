@@ -9,10 +9,8 @@
 /* PDU type, 1 bit field*/
 #define RADIO_PKT_CONF_PDU_TYPE_POS (0U)
 #define RADIO_PKT_CONF_PDU_TYPE_MSK BIT(RADIO_PKT_CONF_PDU_TYPE_POS)
-#define RADIO_PKT_CONF_PDU_TYPE_AC  (0U)
-#define RADIO_PKT_CONF_PDU_TYPE_DC  (1U)
-#define RADIO_PKT_CONF_PDU_TYPE_BIS (1U)
-#define RADIO_PKT_CONF_PDU_TYPE_CIS (1U)
+#define RADIO_PKT_CONF_PDU_TYPE_AC (0U)
+#define RADIO_PKT_CONF_PDU_TYPE_DC (1U)
 /* PHY type, three bit field */
 #define RADIO_PKT_CONF_PHY_POS (1U)
 #define RADIO_PKT_CONF_PHY_MSK (BIT_MASK(3U))
@@ -28,10 +26,6 @@
 
 /* Macro to define length of the BLE packet length field in bits */
 #define RADIO_PKT_CONF_LENGTH_8BIT (8U)
-#define RADIO_PKT_CONF_LENGTH_5BIT (5U)
-
-/* Macro to define length of the BLE packet S1 field in bits */
-#define RADIO_PKT_CONF_S1_8BIT (8U)
 
 /* Helper macro to create bitfield with PDU type only*/
 #define RADIO_PKT_CONF_PDU_TYPE(phy) ((uint8_t)((phy) << RADIO_PKT_CONF_PDU_TYPE_POS))
@@ -45,7 +39,7 @@
 	((uint8_t)((((flags) >> RADIO_PKT_CONF_PHY_POS)) & RADIO_PKT_CONF_PHY_MSK))
 /* Helper macro to create bitfield with CTE type only */
 #define RADIO_PKT_CONF_CTE(phy) ((uint8_t)((phy) << RADIO_PKT_CONF_CTE_POS))
-/* Helper macro to get CTE enable field value from radio packet configuration bitfield */
+/* Helper macro to get CTE enable field value from radion packet configuration bitfield */
 #define RADIO_PKT_CONF_CTE_GET(flags)                                                              \
 	((uint8_t)((((flags) >> RADIO_PKT_CONF_CTE_POS)) & RADIO_PKT_CONF_CTE_MSK))
 /* Helper macro to create a radio packet configure bitfield */
@@ -61,7 +55,6 @@ void radio_isr_set(radio_isr_cb_t cb, void *param);
 
 void radio_setup(void);
 void radio_reset(void);
-void radio_stop(void);
 void radio_phy_set(uint8_t phy, uint8_t flags);
 void radio_tx_power_set(int8_t power);
 void radio_tx_power_max_set(void);
@@ -103,8 +96,6 @@ void radio_switch_complete_with_delay_compensation_and_tx(
 	enum radio_end_evt_delay_state end_evt_delay_en);
 void radio_switch_complete_and_b2b_tx(uint8_t phy_curr, uint8_t flags_curr,
 				      uint8_t phy_next, uint8_t flags_next);
-void radio_switch_complete_and_b2b_rx(uint8_t phy_curr, uint8_t flags_curr,
-				      uint8_t phy_next, uint8_t flags_next);
 void radio_switch_complete_and_disable(void);
 
 uint8_t radio_phy_flags_rx_get(void);
@@ -126,16 +117,10 @@ void radio_bc_status_reset(void);
 uint32_t radio_bc_has_match(void);
 
 void radio_tmr_status_reset(void);
-void radio_tmr_tx_status_reset(void);
-void radio_tmr_rx_status_reset(void);
-void radio_tmr_tx_enable(void);
-void radio_tmr_rx_enable(void);
-void radio_tmr_tx_disable(void);
-void radio_tmr_rx_disable(void);
 void radio_tmr_tifs_set(uint32_t tifs);
 uint32_t radio_tmr_start(uint8_t trx, uint32_t ticks_start, uint32_t remainder);
 uint32_t radio_tmr_start_tick(uint8_t trx, uint32_t tick);
-uint32_t radio_tmr_start_us(uint8_t trx, uint32_t us);
+void radio_tmr_start_us(uint8_t trx, uint32_t us);
 uint32_t radio_tmr_start_now(uint8_t trx);
 uint32_t radio_tmr_start_get(void);
 void radio_tmr_stop(void);
@@ -171,7 +156,7 @@ void radio_ar_configure(uint32_t nirk, void *irk, uint8_t flags);
 uint32_t radio_ar_match_get(void);
 void radio_ar_status_reset(void);
 uint32_t radio_ar_has_match(void);
-uint8_t radio_ar_resolve(const uint8_t *addr);
+void radio_ar_resolve(const uint8_t *addr);
 
 /* Enables CTE inline configuration to automatically setup sampling and
  * switching according to CTEInfo in received PDU.

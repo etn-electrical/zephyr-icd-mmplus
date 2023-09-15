@@ -6,11 +6,11 @@
 
 #define DT_DRV_COMPAT maxim_max6675
 
-#include <zephyr/drivers/sensor.h>
-#include <zephyr/drivers/spi.h>
-#include <zephyr/sys/byteorder.h>
+#include <drivers/sensor.h>
+#include <drivers/spi.h>
+#include <sys/byteorder.h>
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(max6675, CONFIG_SENSOR_LOG_LEVEL);
 
 /** Thermocouple input bit (goes high if thermocouple is disconnected). */
@@ -91,7 +91,7 @@ static int max6675_init(const struct device *dev)
 {
 	const struct max6675_config *config = dev->config;
 
-	if (!spi_is_ready_dt(&config->spi)) {
+	if (!spi_is_ready(&config->spi)) {
 		LOG_ERR("SPI bus is not ready");
 		return -ENODEV;
 	}
@@ -107,7 +107,7 @@ static int max6675_init(const struct device *dev)
 					    SPI_WORD_SET(8U),		\
 					    0U),			\
 	};								\
-	SENSOR_DEVICE_DT_INST_DEFINE(n, &max6675_init, NULL,		\
+	DEVICE_DT_INST_DEFINE(n, &max6675_init, NULL,			\
 			      &max6675_data_##n, &max6675_config_##n,	\
 			      POST_KERNEL, CONFIG_SENSOR_INIT_PRIORITY,	\
 			      &max6675_api);

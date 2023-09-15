@@ -6,8 +6,6 @@
 #ifndef ZEPHYR_SOC_INTEL_ADSP_CAVS_IDC_H_
 #define ZEPHYR_SOC_INTEL_ADSP_CAVS_IDC_H_
 
-#include <intel_adsp_ipc_devtree.h>
-
 /*
  * (I)ntra (D)SP (C)ommunication is the facility for sending
  * interrupts directly between DSP cores.  The interface
@@ -44,7 +42,7 @@
  *     IDC[src].core[dst].itc = BIT(31) | message;
  *     while (IDC[src].core[dst].itc & BIT(31)) {}
  *
- * And the other side (on cpu "dst", generally in the IDC interrupt
+ * And the other side (on cpu "dst", generally in the IDC interruupt
  * handler) will read and acknowledge those same values via:
  *
  *     uint32_t my_msg = IDC[dst].core[src].tfc & 0x7fffffff;
@@ -79,7 +77,7 @@ struct cavs_idc {
 	uint32_t unused3[11];
 };
 
-#define IDC ((volatile struct cavs_idc *)INTEL_ADSP_IDC_REG_ADDRESS)
+#define IDC ((volatile struct cavs_idc *)DT_REG_ADDR(DT_NODELABEL(idc)))
 
 extern void soc_idc_init(void);
 
@@ -145,6 +143,6 @@ struct cavs_intctrl {
 #define CAVS_L5_I2S(n)     BIT(n)	/* I2S */
 
 #define CAVS_INTCTRL \
-	((volatile struct cavs_intctrl *)DT_REG_ADDR(DT_NODELABEL(cavs_intc0)))
+	((volatile struct cavs_intctrl *)DT_REG_ADDR(DT_NODELABEL(cavs0)))
 
 #endif /* ZEPHYR_SOC_INTEL_ADSP_CAVS_IDC_H_ */

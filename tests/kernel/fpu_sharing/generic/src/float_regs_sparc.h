@@ -7,7 +7,7 @@
 #ifndef _FLOAT_REGS_SPARC_H
 #define _FLOAT_REGS_SPARC_H
 
-#include <zephyr/toolchain.h>
+#include <toolchain.h>
 #include "float_context.h"
 
 static inline void _load_all_float_registers(struct fp_register_set *regs)

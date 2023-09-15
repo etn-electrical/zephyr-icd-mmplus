@@ -4,17 +4,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/shell/shell.h>
+#include <shell/shell.h>
 #include <stdlib.h>
-#include <zephyr/drivers/adc.h>
+#include <drivers/adc.h>
 #include <ctype.h>
-#include <zephyr/sys/util.h>
-#include <zephyr/devicetree.h>
+#include <sys/util.h>
+#include <devicetree.h>
 
 #if DT_HAS_COMPAT_STATUS_OKAY(atmel_sam_afec)
 #define DT_DRV_COMPAT atmel_sam_afec
-#elif DT_HAS_COMPAT_STATUS_OKAY(espressif_esp32_adc)
-#define DT_DRV_COMPAT espressif_esp32_adc
 #elif DT_HAS_COMPAT_STATUS_OKAY(atmel_sam0_adc)
 #define DT_DRV_COMPAT atmel_sam0_adc
 #elif DT_HAS_COMPAT_STATUS_OKAY(ite_it8xxx2_adc)
@@ -39,8 +37,6 @@
 #define DT_DRV_COMPAT nuvoton_npcx_adc
 #elif DT_HAS_COMPAT_STATUS_OKAY(ti_cc32xx_adc)
 #define DT_DRV_COMPAT ti_cc32xx_adc
-#elif DT_HAS_COMPAT_STATUS_OKAY(raspberrypi_pico_adc)
-#define DT_DRV_COMPAT raspberrypi_pico_adc
 #elif DT_HAS_COMPAT_STATUS_OKAY(zephyr_adc_emul)
 #define DT_DRV_COMPAT zephyr_adc_emul
 #else
@@ -48,7 +44,7 @@
 #endif
 
 #define LOG_LEVEL CONFIG_LOG_DEFAULT_LEVEL
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(adc_shell);
 
 #define CMD_HELP_ACQ_TIME 			\
@@ -83,10 +79,10 @@ LOG_MODULE_REGISTER(adc_shell);
 #define CMD_HELP_GAIN	"Configure gain.\n"
 #define CMD_HELP_PRINT	"Print current configuration"
 
-#define DEVICES(n) DEVICE_DT_INST_GET(n),
-#define ADC_HDL_LIST_ENTRY(dev_)					\
+#define NODE_LABELS(n) DT_INST_LABEL(n),
+#define ADC_HDL_LIST_ENTRY(label)					\
 	{								\
-		.dev = dev_,						\
+		.device_label = label,					\
 		.channel_config = {					\
 			.gain = ADC_GAIN_1,				\
 			.reference = ADC_REF_INTERNAL,			\
@@ -96,7 +92,7 @@ LOG_MODULE_REGISTER(adc_shell);
 		.resolution = 0,					\
 	}
 
-#define INIT_MACRO() DT_INST_FOREACH_STATUS_OKAY(DEVICES) NULL
+#define INIT_MACRO() DT_INST_FOREACH_STATUS_OKAY(NODE_LABELS) "NA"
 
 #define CHOSEN_STR_LEN 20
 static char chosen_reference[CHOSEN_STR_LEN + 1] = "INTERNAL";
@@ -104,7 +100,7 @@ static char chosen_gain[CHOSEN_STR_LEN + 1] = "1";
 
 /* This table size is = ADC devices count + 1 (NA). */
 static struct adc_hdl {
-	const struct device *dev;
+	char *device_label;
 	struct adc_channel_cfg channel_config;
 	uint8_t resolution;
 } adc_list[] = {
@@ -114,7 +110,7 @@ static struct adc_hdl {
 static struct adc_hdl *get_adc(const char *device_label)
 {
 	for (int i = 0; i < ARRAY_SIZE(adc_list); i++) {
-		if (!strcmp(device_label, adc_list[i].dev->name)) {
+		if (!strcmp(device_label, adc_list[i].device_label)) {
 			return &adc_list[i];
 		}
 	}
@@ -128,10 +124,12 @@ static int cmd_adc_ch_id(const struct shell *shell, size_t argc, char **argv)
 {
 	/* -2: index of ADC label name */
 	struct adc_hdl *adc = get_adc(argv[-2]);
+	const struct device *adc_dev;
 	int retval = 0;
 
-	if (!device_is_ready(adc->dev)) {
-		shell_error(shell, "ADC device not ready");
+	adc_dev = device_get_binding(adc->device_label);
+	if (adc_dev == NULL) {
+		shell_error(shell, "ADC device not found");
 		return -ENODEV;
 	}
 
@@ -141,7 +139,7 @@ static int cmd_adc_ch_id(const struct shell *shell, size_t argc, char **argv)
 	}
 
 	adc->channel_config.channel_id = (uint8_t)strtol(argv[1], NULL, 10);
-	retval = adc_channel_setup(adc->dev, &adc->channel_config);
+	retval = adc_channel_setup(adc_dev, &adc->channel_config);
 	LOG_DBG("Channel setup returned %i\n", retval);
 
 	return retval;
@@ -152,10 +150,12 @@ static int cmd_adc_ch_neg(const struct shell *shell, size_t argc, char **argv)
 #if CONFIG_ADC_CONFIGURABLE_INPUTS
 	/* -2: index of ADC label name */
 	struct adc_hdl *adc = get_adc(argv[-2]);
+	const struct device *adc_dev;
 	int retval = 0;
 
-	if (!device_is_ready(adc->dev)) {
-		shell_error(shell, "ADC device not ready");
+	adc_dev = device_get_binding(adc->device_label);
+	if (adc_dev == NULL) {
+		shell_error(shell, "ADC device not found");
 		return -ENODEV;
 	}
 
@@ -165,7 +165,7 @@ static int cmd_adc_ch_neg(const struct shell *shell, size_t argc, char **argv)
 	}
 
 	adc->channel_config.input_negative = (uint8_t)strtol(argv[1], NULL, 10);
-	retval = adc_channel_setup(adc->dev, &adc->channel_config);
+	retval = adc_channel_setup(adc_dev, &adc->channel_config);
 	LOG_DBG("Channel setup returned %i\n", retval);
 
 	return retval;
@@ -179,10 +179,12 @@ static int cmd_adc_ch_pos(const struct shell *shell, size_t argc, char **argv)
 #if CONFIG_ADC_CONFIGURABLE_INPUTS
 	/* -2: index of ADC label name */
 	struct adc_hdl *adc = get_adc(argv[-2]);
+	const struct device *adc_dev;
 	int retval = 0;
 
-	if (!device_is_ready(adc->dev)) {
-		shell_error(shell, "ADC device not ready");
+	adc_dev = device_get_binding(adc->device_label);
+	if (adc_dev == NULL) {
+		shell_error(shell, "ADC device not found");
 		return -ENODEV;
 	}
 
@@ -192,7 +194,7 @@ static int cmd_adc_ch_pos(const struct shell *shell, size_t argc, char **argv)
 	}
 
 	adc->channel_config.input_positive = (uint8_t)strtol(argv[1], NULL, 10);
-	retval = adc_channel_setup(adc->dev, &adc->channel_config);
+	retval = adc_channel_setup(adc_dev, &adc->channel_config);
 	LOG_DBG("Channel setup returned %i\n", retval);
 
 	return retval;
@@ -207,10 +209,12 @@ static int cmd_adc_gain(const struct shell *shell, size_t argc, char **argv,
 	/* -2: index of ADC label name */
 	struct adc_hdl *adc = get_adc(argv[-2]);
 	enum adc_gain gain = (enum adc_gain)data;
+	const struct device *adc_dev;
 	int retval = -EINVAL;
 
-	if (!device_is_ready(adc->dev)) {
-		shell_error(shell, "ADC device not ready");
+	adc_dev = device_get_binding(adc->device_label);
+	if (adc_dev == NULL) {
+		shell_error(shell, "ADC device not found");
 		return -ENODEV;
 	}
 
@@ -219,7 +223,7 @@ static int cmd_adc_gain(const struct shell *shell, size_t argc, char **argv,
 						   : strlen(argv[0]);
 	memcpy(chosen_gain, argv[0], len);
 	chosen_gain[len] = '\0';
-	retval = adc_channel_setup(adc->dev, &adc->channel_config);
+	retval = adc_channel_setup(adc_dev, &adc->channel_config);
 	LOG_DBG("Channel setup returned %i\n", retval);
 
 	return retval;
@@ -229,11 +233,13 @@ static int cmd_adc_acq(const struct shell *shell, size_t argc, char **argv)
 {
 	/* -1 index of ADC label name */
 	struct adc_hdl *adc = get_adc(argv[-1]);
+	const struct device *adc_dev;
 	uint16_t acq_time;
 	int retval;
 
-	if (!device_is_ready(adc->dev)) {
-		shell_error(shell, "ADC device not ready");
+	adc_dev = device_get_binding(adc->device_label);
+	if (adc_dev == NULL) {
+		shell_error(shell, "ADC device not found");
 		return -ENODEV;
 	}
 
@@ -256,7 +262,7 @@ static int cmd_adc_acq(const struct shell *shell, size_t argc, char **argv)
 		adc->channel_config.acquisition_time =
 			ADC_ACQ_TIME_DEFAULT;
 	}
-	retval = adc_channel_setup(adc->dev, &adc->channel_config);
+	retval = adc_channel_setup(adc_dev, &adc->channel_config);
 	LOG_DBG("Channel setup returned %i\n", retval);
 
 	return retval;
@@ -265,10 +271,12 @@ static int cmd_adc_reso(const struct shell *shell, size_t argc, char **argv)
 {
 	/* -1 index of ADC label name */
 	struct adc_hdl *adc = get_adc(argv[-1]);
+	const struct device *adc_dev;
 	int retval;
 
-	if (!device_is_ready(adc->dev)) {
-		shell_error(shell, "ADC device not ready");
+	adc_dev = device_get_binding(adc->device_label);
+	if (adc_dev == NULL) {
+		shell_error(shell, "ADC device not found");
 		return -ENODEV;
 	}
 
@@ -278,7 +286,7 @@ static int cmd_adc_reso(const struct shell *shell, size_t argc, char **argv)
 	}
 
 	adc->resolution = (uint8_t)strtol(argv[1], NULL, 10);
-	retval = adc_channel_setup(adc->dev, &adc->channel_config);
+	retval = adc_channel_setup(adc_dev, &adc->channel_config);
 
 	return retval;
 }
@@ -289,10 +297,12 @@ static int cmd_adc_ref(const struct shell *shell, size_t argc, char **argv,
 	/* -2 index of ADC label name */
 	struct adc_hdl *adc = get_adc(argv[-2]);
 	enum adc_reference reference = (enum adc_reference)data;
+	const struct device *adc_dev;
 	int retval = -EINVAL;
 
-	if (!device_is_ready(adc->dev)) {
-		shell_error(shell, "ADC device not ready");
+	adc_dev = device_get_binding(adc->device_label);
+	if (adc_dev == NULL) {
+		shell_error(shell, "ADC device not found");
 		return -ENODEV;
 	}
 
@@ -302,7 +312,7 @@ static int cmd_adc_ref(const struct shell *shell, size_t argc, char **argv,
 	chosen_reference[len] = '\0';
 
 	adc->channel_config.reference = reference;
-	retval = adc_channel_setup(adc->dev, &adc->channel_config);
+	retval = adc_channel_setup(adc_dev, &adc->channel_config);
 	LOG_DBG("Channel setup returned %i\n", retval);
 
 	return retval;
@@ -315,10 +325,12 @@ static int cmd_adc_read(const struct shell *shell, size_t argc, char **argv)
 	/* -1 index of adc label name */
 	struct adc_hdl *adc = get_adc(argv[-1]);
 	uint16_t m_sample_buffer[BUFFER_SIZE];
+	const struct device *adc_dev;
 	int retval;
 
-	if (!device_is_ready(adc->dev)) {
-		shell_error(shell, "ADC device not ready");
+	adc_dev = device_get_binding(adc->device_label);
+	if (adc_dev == NULL) {
+		shell_error(shell, "adc device not found");
 		return -ENODEV;
 	}
 
@@ -330,7 +342,7 @@ static int cmd_adc_read(const struct shell *shell, size_t argc, char **argv)
 		.resolution	= adc->resolution,
 	};
 
-	retval = adc_read(adc->dev, &sequence);
+	retval = adc_read(adc_dev, &sequence);
 	if (retval >= 0) {
 		shell_print(shell, "read: %i", m_sample_buffer[0]);
 	}
@@ -349,7 +361,7 @@ static int cmd_adc_print(const struct shell *shell, size_t argc, char **argv)
 			   "Acquisition Time: %u\n"
 			   "Channel ID: %u\n"
 			   "Resolution: %u",
-			   adc->dev->name,
+			   adc->device_label,
 			   chosen_gain,
 			   chosen_reference,
 			   adc->channel_config.acquisition_time,
@@ -359,30 +371,30 @@ static int cmd_adc_print(const struct shell *shell, size_t argc, char **argv)
 }
 
 SHELL_SUBCMD_DICT_SET_CREATE(sub_ref_cmds, cmd_adc_ref,
-	(VDD_1, ADC_REF_VDD_1, "VDD"),
-	(VDD_1_2, ADC_REF_VDD_1_2, "VDD/2"),
-	(VDD_1_3, ADC_REF_VDD_1_3, "VDD/3"),
-	(VDD_1_4, ADC_REF_VDD_1_4, "VDD/4"),
-	(INTERNAL, ADC_REF_INTERNAL, "Internal"),
-	(EXTERNAL_0, ADC_REF_EXTERNAL0, "External, input 0"),
-	(EXTERNAL_1, ADC_REF_EXTERNAL1, "External, input 1")
+	(VDD_1, ADC_REF_VDD_1),
+	(VDD_1_2, ADC_REF_VDD_1_2),
+	(VDD_1_3, ADC_REF_VDD_1_3),
+	(VDD_1_4, ADC_REF_VDD_1_4),
+	(INTERNAL, ADC_REF_INTERNAL),
+	(EXTERNAL_0, ADC_REF_EXTERNAL0),
+	(EXTERNAL_1, ADC_REF_EXTERNAL1)
 );
 
 SHELL_SUBCMD_DICT_SET_CREATE(sub_gain_cmds, cmd_adc_gain,
-	(GAIN_1_6, ADC_GAIN_1_6, "x 1/6"),
-	(GAIN_1_5, ADC_GAIN_1_5, "x 1/5"),
-	(GAIN_1_4, ADC_GAIN_1_4, "x 1/4"),
-	(GAIN_1_3, ADC_GAIN_1_3, "x 1/3"),
-	(GAIN_1_2, ADC_GAIN_1_2, "x 1/2"),
-	(GAIN_2_3, ADC_GAIN_2_3, "x 2/3"),
-	(GAIN_1, ADC_GAIN_1, "x 1"),
-	(GAIN_2, ADC_GAIN_2, "x 2"),
-	(GAIN_3, ADC_GAIN_3, "x 3"),
-	(GAIN_4, ADC_GAIN_4, "x 4"),
-	(GAIN_8, ADC_GAIN_8, "x 8"),
-	(GAIN_16, ADC_GAIN_16, "x 16"),
-	(GAIN_32, ADC_GAIN_32, "x 32"),
-	(GAIN_64, ADC_GAIN_64, "x 64")
+	(GAIN_1_6, ADC_GAIN_1_6),
+	(GAIN_1_5, ADC_GAIN_1_5),
+	(GAIN_1_4, ADC_GAIN_1_4),
+	(GAIN_1_3, ADC_GAIN_1_3),
+	(GAIN_1_2, ADC_GAIN_1_2),
+	(GAIN_2_3, ADC_GAIN_2_3),
+	(GAIN_1, ADC_GAIN_1),
+	(GAIN_2, ADC_GAIN_2),
+	(GAIN_3, ADC_GAIN_3),
+	(GAIN_4, ADC_GAIN_4),
+	(GAIN_8, ADC_GAIN_8),
+	(GAIN_16, ADC_GAIN_16),
+	(GAIN_32, ADC_GAIN_32),
+	(GAIN_64, ADC_GAIN_64)
 );
 
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_channel_cmds,
@@ -410,7 +422,7 @@ static void cmd_adc_dev_get(size_t idx, struct shell_static_entry *entry)
 {
 	/* -1 because the last element in the list is a "list terminator" */
 	if (idx < ARRAY_SIZE(adc_list) - 1) {
-		entry->syntax  = adc_list[idx].dev->name;
+		entry->syntax  = adc_list[idx].device_label;
 		entry->handler = NULL;
 		entry->subcmd  = &sub_adc_cmds;
 		entry->help    = "Select subcommand for ADC property label.\n";

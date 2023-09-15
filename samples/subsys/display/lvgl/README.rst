@@ -1,7 +1,7 @@
 .. _lvgl-sample:
 
-LVGL Basic Sample
-#################
+LittlevGL Basic Sample
+######################
 
 Overview
 ********
@@ -44,6 +44,12 @@ or
 Building and Running
 ********************
 
+.. note::
+   When deferred logging is enabled you will likely need to increase
+   :kconfig:`CONFIG_LOG_STRDUP_BUF_COUNT` and/or
+   :kconfig:`CONFIG_LOG_STRDUP_MAX_STRING` to make sure no messages are lost or
+   truncated.
+
 Example building for :ref:`nrf52840dk_nrf52840`:
 
 .. zephyr-app-commands::
@@ -67,6 +73,6 @@ References
 
 .. target-notes::
 
-.. _LVGL Web Page: https://lvgl.io/
+.. _LittlevGL Web Page: https://littlevgl.com/
 .. _SDL2: https://www.libsdl.org
 .. _RK043FN02H-CT: https://www.nxp.com/products/processors-and-microcontrollers/arm-based-processors-and-mcus/i.mx-applications-processors/i.mx-rt-series/4.3-lcd-panel:RK043FN02H-CT

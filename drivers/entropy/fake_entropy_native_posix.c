@@ -13,13 +13,13 @@
 
 #define DT_DRV_COMPAT zephyr_native_posix_rng
 
-#include <zephyr/device.h>
-#include <zephyr/drivers/entropy.h>
-#include <zephyr/init.h>
-#include <zephyr/sys/util.h>
+#include "device.h"
+#include <drivers/entropy.h>
+#include "init.h"
+#include <sys/util.h>
 #include <stdlib.h>
 #include <string.h>
-#include <zephyr/arch/posix/posix_trace.h>
+#include <arch/posix/posix_trace.h>
 #include "soc.h"
 #include "cmdline.h" /* native_posix command line options header */
 

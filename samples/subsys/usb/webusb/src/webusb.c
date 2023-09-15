@@ -13,17 +13,17 @@
  */
 
 #define LOG_LEVEL CONFIG_USB_DEVICE_LOG_LEVEL
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(webusb);
 
-#include <zephyr/sys/byteorder.h>
-#include <zephyr/usb/usb_device.h>
+#include <sys/byteorder.h>
+#include <usb/usb_device.h>
 #include <usb_descriptor.h>
 
 #include "webusb.h"
 
 /* Max packet size for Bulk endpoints */
-#if defined(CONFIG_USB_DC_HAS_HS_SUPPORT)
+#if IS_ENABLED(CONFIG_USB_DC_HAS_HS_SUPPORT)
 #define WEBUSB_BULK_EP_MPS		512
 #else
 #define WEBUSB_BULK_EP_MPS		64

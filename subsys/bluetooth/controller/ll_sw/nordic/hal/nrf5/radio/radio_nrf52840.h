@@ -358,14 +358,9 @@
 
 static inline void hal_radio_reset(void)
 {
-	/* TODO: Add any required setup for each radio event
-	 */
-}
-
-static inline void hal_radio_stop(void)
-{
-	/* TODO: Add any required cleanup of actions taken in hal_radio_reset()
-	 */
+	/* Anomalies 102, 106 and 107 */
+	*(volatile uint32_t *)0x40001774 = ((*(volatile uint32_t *)0x40001774) &
+					 0xfffffffe) | 0x01000000;
 }
 
 static inline void hal_radio_ram_prio_setup(void)
@@ -418,10 +413,8 @@ static inline uint32_t hal_radio_phy_mode_get(uint8_t phy, uint8_t flags)
 		mode = RADIO_MODE_MODE_Ble_1Mbit;
 
 #if defined(CONFIG_BT_CTLR_PHY_CODED)
-		/* Workaround: nRF52840 Revision 3 Errata 191 */
-		if (nrf52_errata_191()) {
-			*(volatile uint32_t *)0x40001740 &= ~0x80000000;
-		}
+		/* Workaround: nRF52840 Engineering A Errata ID 164 */
+		*(volatile uint32_t *)0x4000173c &= ~0x80000000;
 #endif /* CONFIG_BT_CTLR_PHY_CODED */
 
 		break;
@@ -430,10 +423,8 @@ static inline uint32_t hal_radio_phy_mode_get(uint8_t phy, uint8_t flags)
 		mode = RADIO_MODE_MODE_Ble_2Mbit;
 
 #if defined(CONFIG_BT_CTLR_PHY_CODED)
-		/* Workaround: nRF52840 Revision 3 Errata 191 */
-		if (nrf52_errata_191()) {
-			*(volatile uint32_t *)0x40001740 &= ~0x80000000;
-		}
+		/* Workaround: nRF52840 Engineering A Errata ID 164 */
+		*(volatile uint32_t *)0x4000173c &= ~0x80000000;
 #endif /* CONFIG_BT_CTLR_PHY_CODED */
 
 		break;
@@ -446,12 +437,11 @@ static inline uint32_t hal_radio_phy_mode_get(uint8_t phy, uint8_t flags)
 			mode = RADIO_MODE_MODE_Ble_LR500Kbit;
 		}
 
-		/* Workaround: nRF52840 Revision 3 Errata 191 */
-		if (nrf52_errata_191()) {
-			*(volatile uint32_t *)0x40001740 =
-				((*(volatile uint32_t *)0x40001740) & 0x7FFF00FF) |
-				0x80000000 | ((uint32_t)(196U) << 8U);
-		}
+		/* Workaround: nRF52840 Engineering A Errata ID 164 */
+		*(volatile uint32_t *)0x4000173c |= 0x80000000;
+		*(volatile uint32_t *)0x4000173c =
+				((*(volatile uint32_t *)0x4000173c) & 0xFFFFFF00) |
+				0x5C;
 		break;
 #endif /* CONFIG_BT_CTLR_PHY_CODED */
 	}

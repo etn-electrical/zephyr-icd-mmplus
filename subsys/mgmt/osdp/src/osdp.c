@@ -4,12 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/init.h>
-#include <zephyr/device.h>
-#include <zephyr/drivers/uart.h>
-#include <zephyr/sys/ring_buffer.h>
-#include <zephyr/logging/log.h>
+#include <zephyr.h>
+#include <kernel.h>
+#include <init.h>
+#include <device.h>
+#include <drivers/uart.h>
+#include <sys/ring_buffer.h>
+#include <logging/log.h>
 
 #include "osdp_common.h"
 
@@ -32,8 +33,8 @@ struct osdp_device {
 	int rx_event_data;
 	struct k_fifo rx_event_fifo;
 #endif
-	uint8_t rx_fbuf[OSDP_PACKET_BUF_SIZE];
-	uint8_t tx_fbuf[OSDP_PACKET_BUF_SIZE];
+	uint8_t rx_fbuf[CONFIG_OSDP_UART_BUFFER_LENGTH];
+	uint8_t tx_fbuf[CONFIG_OSDP_UART_BUFFER_LENGTH];
 	struct uart_config dev_config;
 	const struct device *dev;
 	int wait_for_mark;
@@ -41,6 +42,7 @@ struct osdp_device {
 };
 
 static struct osdp osdp_ctx;
+static struct osdp_cp osdp_cp_ctx;
 static struct osdp_pd osdp_pd_ctx[CONFIG_OSDP_NUM_CONNECTED_PD];
 static struct osdp_device osdp_device;
 static struct k_thread osdp_refresh_thread;
@@ -141,20 +143,19 @@ static struct osdp *osdp_build_ctx(struct osdp_channel *channel)
 	}
 #endif
 	ctx = &osdp_ctx;
-	ctx->num_pd = CONFIG_OSDP_NUM_CONNECTED_PD;
+	ctx->cp = &osdp_cp_ctx;
+	ctx->cp->__parent = ctx;
+	ctx->cp->num_pd = CONFIG_OSDP_NUM_CONNECTED_PD;
 	ctx->pd = &osdp_pd_ctx[0];
 	SET_CURRENT_PD(ctx, 0);
 
 	for (i = 0; i < CONFIG_OSDP_NUM_CONNECTED_PD; i++) {
-		pd = osdp_to_pd(ctx, i);
-		pd->idx = i;
+		pd = TO_PD(ctx, i);
+		pd->offset = i;
 		pd->seq_number = -1;
-		pd->osdp_ctx = ctx;
+		pd->__parent = ctx;
 		pd->address = pd_adddres[i];
 		pd->baud_rate = CONFIG_OSDP_UART_BAUD_RATE;
-		if (IS_ENABLED(CONFIG_OSDP_SKIP_MARK_BYTE)) {
-			SET_FLAG(pd, PD_FLAG_PKT_SKIP_MARK);
-		}
 		memcpy(&pd->channel, channel, sizeof(struct osdp_channel));
 		k_mem_slab_init(&pd->cmd.slab,
 				pd->cmd.slab_buf, sizeof(struct osdp_cmd),
@@ -199,9 +200,9 @@ static int osdp_init(const struct device *arg)
 	ring_buf_init(&p->tx_buf, sizeof(p->tx_fbuf), p->tx_fbuf);
 
 	/* init OSDP uart device */
-	p->dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_osdp_uart));
-	if (!device_is_ready(p->dev)) {
-		LOG_ERR("UART dev is not ready");
+	p->dev = device_get_binding(CONFIG_OSDP_UART_DEV_NAME);
+	if (p->dev == NULL) {
+		LOG_ERR("Failed to get UART dev binding");
 		k_panic();
 	}
 

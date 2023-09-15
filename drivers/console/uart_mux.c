@@ -4,19 +4,19 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(uart_mux, CONFIG_UART_MUX_LOG_LEVEL);
 
-#include <zephyr/sys/__assert.h>
-#include <zephyr/kernel.h>
-#include <zephyr/init.h>
-#include <zephyr/syscall_handler.h>
-#include <zephyr/device.h>
-#include <zephyr/drivers/uart.h>
-#include <zephyr/drivers/console/uart_mux.h>
-#include <zephyr/sys/ring_buffer.h>
-#include <zephyr/sys/util.h>
-#include <zephyr/sys/atomic.h>
+#include <sys/__assert.h>
+#include <kernel.h>
+#include <init.h>
+#include <syscall_handler.h>
+#include <device.h>
+#include <drivers/uart.h>
+#include <drivers/console/uart_mux.h>
+#include <sys/ring_buffer.h>
+#include <sys/util.h>
+#include <sys/atomic.h>
 
 #include "gsm_mux.h"
 
@@ -69,9 +69,9 @@ struct uart_mux {
 	static struct uart_mux uart_mux_##x __used			\
 		__attribute__((__section__(".uart_mux.data"))) = {	\
 			.rx_ringbuf = &uart_rx_ringbuf_##x,		\
-	}
+	};
 
-LISTIFY(CONFIG_UART_MUX_REAL_DEVICE_COUNT, DEFINE_UART_MUX, (;), _);
+UTIL_LISTIFY(CONFIG_UART_MUX_REAL_DEVICE_COUNT, DEFINE_UART_MUX, _)
 
 extern struct uart_mux __uart_mux_start[];
 extern struct uart_mux __uart_mux_end[];
@@ -170,7 +170,7 @@ static int uart_mux_consume_ringbuf(struct uart_mux *uart_mux)
 
 		snprintk(tmp, sizeof(tmp), "RECV muxed %s",
 			 uart_mux->uart->name);
-		LOG_HEXDUMP_DBG(data, len, tmp);
+		LOG_HEXDUMP_DBG(data, len, log_strdup(tmp));
 	}
 
 	gsm_mux_recv_buf(uart_mux->mux, data, len);
@@ -208,7 +208,7 @@ static void uart_mux_tx_work(struct k_work *work)
 		return;
 	}
 
-	LOG_DBG("Got %ld bytes from ringbuffer send to uart %p", (unsigned long)len,
+	LOG_DBG("Got %d bytes from ringbuffer send to uart %p", len,
 		dev_data->dev);
 
 	if (IS_ENABLED(CONFIG_UART_MUX_VERBOSE_DEBUG)) {
@@ -217,7 +217,7 @@ static void uart_mux_tx_work(struct k_work *work)
 
 		snprintk(tmp, sizeof(tmp), "SEND %s",
 			 dev_data->dev->name);
-		LOG_HEXDUMP_DBG(data, len, tmp);
+		LOG_HEXDUMP_DBG(data, len, log_strdup(tmp));
 	}
 
 	(void)gsm_dlci_send(dev_data->dlci, data, len);
@@ -268,7 +268,8 @@ static void uart_mux_isr(const struct device *uart, void *user_data)
 		wrote = ring_buf_put(real_uart->rx_ringbuf,
 				     real_uart->rx_buf, rx);
 		if (wrote < rx) {
-			LOG_ERR("Ring buffer full, drop %ld bytes", (long)(rx - wrote));
+			LOG_ERR("Ring buffer full, drop %d bytes",
+				rx - wrote);
 		}
 
 		k_work_submit_to_queue(&uart_mux_workq, &real_uart->rx_work);
@@ -533,7 +534,7 @@ static int uart_mux_fifo_fill(const struct device *dev,
 
 	wrote = ring_buf_put(dev_data->tx_ringbuf, tx_data, len);
 	if (wrote < len) {
-		LOG_WRN("Ring buffer full, drop %ld bytes", (long)(len - wrote));
+		LOG_WRN("Ring buffer full, drop %d bytes", len - wrote);
 	}
 
 	k_work_submit_to_queue(&uart_mux_workq, &dev_data->tx_work);
@@ -787,7 +788,6 @@ const struct device *z_impl_uart_mux_find(int dlci_address)
 int uart_mux_send(const struct device *uart, const uint8_t *buf, size_t size)
 {
 	struct uart_mux_dev_data *dev_data = uart->data;
-	size_t remaining = size;
 
 	if (size == 0) {
 		return 0;
@@ -802,18 +802,18 @@ int uart_mux_send(const struct device *uart, const uint8_t *buf, size_t size)
 
 		snprintk(tmp, sizeof(tmp), "SEND muxed %s",
 			 dev_data->real_uart->uart->name);
-		LOG_HEXDUMP_DBG(buf, size, tmp);
+		LOG_HEXDUMP_DBG(buf, size, log_strdup(tmp));
 	}
 
 	k_mutex_lock(&dev_data->real_uart->lock, K_FOREVER);
 
 	do {
 		uart_poll_out(dev_data->real_uart->uart, *buf++);
-	} while (--remaining);
+	} while (--size);
 
 	k_mutex_unlock(&dev_data->real_uart->lock);
 
-	return size;
+	return 0;
 }
 
 int uart_mux_recv(const struct device *mux, struct gsm_dlci *dlci,
@@ -832,12 +832,12 @@ int uart_mux_recv(const struct device *mux, struct gsm_dlci *dlci,
 
 		snprintk(tmp, sizeof(tmp), "RECV %s",
 			 dev_data->dev->name);
-		LOG_HEXDUMP_DBG(data, len, tmp);
+		LOG_HEXDUMP_DBG(data, len, log_strdup(tmp));
 	}
 
 	wrote = ring_buf_put(dev_data->rx_ringbuf, data, len);
 	if (wrote < len) {
-		LOG_ERR("Ring buffer full, drop %ld bytes", (long)(len - wrote));
+		LOG_ERR("Ring buffer full, drop %d bytes", len - wrote);
 	}
 
 	dev_data->rx_ready = true;
@@ -869,7 +869,7 @@ void uart_mux_foreach(uart_mux_cb_t cb, void *user_data)
 
 #define DEFINE_UART_MUX_CFG_DATA(x, _)					  \
 	struct uart_mux_cfg_data uart_mux_config_##x = {		  \
-	}
+	};
 
 #define DEFINE_UART_MUX_DEV_DATA(x, _)					  \
 	RING_BUF_DECLARE(tx_ringbuf_##x, CONFIG_UART_MUX_RINGBUF_SIZE);	  \
@@ -877,7 +877,7 @@ void uart_mux_foreach(uart_mux_cb_t cb, void *user_data)
 	static struct uart_mux_dev_data uart_mux_dev_data_##x = {	  \
 		.tx_ringbuf = &tx_ringbuf_##x,				  \
 		.rx_ringbuf = &rx_ringbuf_##x,				  \
-	}
+	};
 
 #define DEFINE_UART_MUX_DEVICE(x, _)					  \
 	DEVICE_DEFINE(uart_mux_##x,					  \
@@ -888,11 +888,11 @@ void uart_mux_foreach(uart_mux_cb_t cb, void *user_data)
 			    &uart_mux_config_##x,			  \
 			    POST_KERNEL,				  \
 			    CONFIG_CONSOLE_INIT_PRIORITY,		  \
-			    &uart_mux_driver_api)
+			    &uart_mux_driver_api);
 
-LISTIFY(CONFIG_UART_MUX_DEVICE_COUNT, DEFINE_UART_MUX_CFG_DATA, (;),  _);
-LISTIFY(CONFIG_UART_MUX_DEVICE_COUNT, DEFINE_UART_MUX_DEV_DATA, (;), _);
-LISTIFY(CONFIG_UART_MUX_DEVICE_COUNT, DEFINE_UART_MUX_DEVICE, (;), _);
+UTIL_LISTIFY(CONFIG_UART_MUX_DEVICE_COUNT, DEFINE_UART_MUX_CFG_DATA, _)
+UTIL_LISTIFY(CONFIG_UART_MUX_DEVICE_COUNT, DEFINE_UART_MUX_DEV_DATA, _)
+UTIL_LISTIFY(CONFIG_UART_MUX_DEVICE_COUNT, DEFINE_UART_MUX_DEVICE, _)
 
 static int init_uart_mux(const struct device *dev)
 {

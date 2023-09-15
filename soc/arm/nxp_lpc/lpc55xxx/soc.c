@@ -12,13 +12,13 @@
  * hardware for the nxp_lpc55s69 platform.
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/device.h>
-#include <zephyr/init.h>
+#include <kernel.h>
+#include <device.h>
+#include <init.h>
 #include <soc.h>
-#include <zephyr/drivers/uart.h>
-#include <zephyr/linker/sections.h>
-#include <zephyr/arch/cpu.h>
+#include <drivers/uart.h>
+#include <linker/sections.h>
+#include <arch/cpu.h>
 #include <aarch32/cortex_m/exc.h>
 #include <fsl_power.h>
 #include <fsl_clock.h>
@@ -29,7 +29,7 @@
 #endif
 #if CONFIG_USB_DC_NXP_LPCIP3511
 #include "usb_phy.h"
-#include "usb.h"
+#include "usb_dc_mcux.h"
 #endif
 
 #define CTIMER_CLOCK_SOURCE(node_id) \
@@ -58,14 +58,7 @@ const pll_setup_t pll0Setup = {
 
 static ALWAYS_INLINE void clock_init(void)
 {
-
-#if defined(CONFIG_SOC_LPC55S36)
-	/* Power Management Controller initialization */
-	POWER_PowerInit();
-#endif
-
-#if defined(CONFIG_SOC_LPC55S06) || defined(CONFIG_SOC_LPC55S16) || \
-	defined(CONFIG_SOC_LPC55S28) || defined(CONFIG_SOC_LPC55S36) || \
+#if defined(CONFIG_SOC_LPC55S16) || defined(CONFIG_SOC_LPC55S28) || \
 	defined(CONFIG_SOC_LPC55S69_CPU0)
     /*!< Set up the clock sources */
     /*!< Configure FRO192M */
@@ -113,18 +106,10 @@ static ALWAYS_INLINE void clock_init(void)
     CLOCK_EnableClock(kCLOCK_Iocon);
 
 #if DT_NODE_HAS_COMPAT_STATUS(DT_NODELABEL(flexcomm2), nxp_lpc_usart, okay)
-#if defined(CONFIG_SOC_LPC55S36)
-	CLOCK_SetClkDiv(kCLOCK_DivFlexcom2Clk, 0U, true);
-	CLOCK_SetClkDiv(kCLOCK_DivFlexcom2Clk, 1U, false);
-#endif
 	CLOCK_AttachClk(kFRO12M_to_FLEXCOMM2);
 #endif
 
 #if DT_NODE_HAS_COMPAT_STATUS(DT_NODELABEL(flexcomm4), nxp_lpc_i2c, okay)
-#if defined(CONFIG_SOC_LPC55S36)
-	CLOCK_SetClkDiv(kCLOCK_DivFlexcom4Clk, 0U, true);
-	CLOCK_SetClkDiv(kCLOCK_DivFlexcom4Clk, 1U, false);
-#endif
 	/* attach 12 MHz clock to FLEXCOMM4 */
 	CLOCK_AttachClk(kFRO12M_to_FLEXCOMM4);
 
@@ -157,7 +142,7 @@ static ALWAYS_INLINE void clock_init(void)
 	/* Put PHY powerdown under software control */
 	*((uint32_t *)(USBHSH_BASE + 0x50)) = USBHSH_PORTMODE_SW_PDCOM_MASK;
 	/*
-	 * According to reference manual, device mode setting has to be set by
+	 * According to reference mannual, device mode setting has to be set by
 	 * access usb host register
 	 */
 	*((uint32_t *)(USBHSH_BASE + 0x50)) |= USBHSH_PORTMODE_DEV_ENABLE_MASK;
@@ -179,20 +164,12 @@ static ALWAYS_INLINE void clock_init(void)
 DT_FOREACH_STATUS_OKAY(nxp_lpc_ctimer, CTIMER_CLOCK_SETUP)
 
 #if (DT_NODE_HAS_COMPAT_STATUS(DT_NODELABEL(flexcomm6), nxp_lpc_i2s, okay))
-#if defined(CONFIG_SOC_LPC55S36)
-	CLOCK_SetClkDiv(kCLOCK_DivFlexcom6Clk, 0U, true);
-	CLOCK_SetClkDiv(kCLOCK_DivFlexcom6Clk, 1U, false);
-#endif
 	/* attach PLL0 clock to FLEXCOMM6 */
 	CLOCK_AttachClk(kPLL0_DIV_to_FLEXCOMM6);
 #endif
 
 #if (DT_NODE_HAS_COMPAT_STATUS(DT_NODELABEL(flexcomm7), nxp_lpc_i2s, okay))
-#if defined(CONFIG_SOC_LPC55S36)
-	CLOCK_SetClkDiv(kCLOCK_DivFlexcom7Clk, 0U, true);
-	CLOCK_SetClkDiv(kCLOCK_DivFlexcom7Clk, 1U, false);
-#endif
-	/* attach PLL0 clock to FLEXCOMM7 */
+	/* attach PLL0 clock to FLEXCOMM6 */
 	CLOCK_AttachClk(kPLL0_DIV_to_FLEXCOMM7);
 #endif
 
@@ -202,24 +179,7 @@ DT_FOREACH_STATUS_OKAY(nxp_lpc_ctimer, CTIMER_CLOCK_SETUP)
 	RESET_PeripheralReset(kMCAN_RST_SHIFT_RSTn);
 #endif
 
-#if DT_NODE_HAS_COMPAT_STATUS(DT_NODELABEL(sdif), nxp_lpc_sdif, okay) && \
-	CONFIG_MCUX_SDIF
-	/* attach main clock to SDIF */
-	CLOCK_AttachClk(kMAIN_CLK_to_SDIO_CLK);
-	CLOCK_SetClkDiv(kCLOCK_DivSdioClk, 3, true);
-#endif
-
 #endif /* CONFIG_SOC_LPC55S69_CPU0 */
-
-#if defined(CONFIG_SOC_LPC55S36) && defined(CONFIG_PWM)
-	/* Set the Submodule Clocks for FlexPWM */
-	SYSCON->PWM0SUBCTL |=
-	  (SYSCON_PWM0SUBCTL_CLK0_EN_MASK | SYSCON_PWM0SUBCTL_CLK1_EN_MASK |
-	   SYSCON_PWM0SUBCTL_CLK2_EN_MASK);
-	SYSCON->PWM1SUBCTL |=
-	  (SYSCON_PWM1SUBCTL_CLK0_EN_MASK | SYSCON_PWM1SUBCTL_CLK1_EN_MASK |
-	   SYSCON_PWM1SUBCTL_CLK2_EN_MASK);
-#endif
 }
 
 /**
@@ -264,24 +224,6 @@ static int nxp_lpc55xxx_init(const struct device *arg)
 	return 0;
 }
 
-#ifdef CONFIG_PLATFORM_SPECIFIC_INIT
-
-void z_arm_platform_init(void)
-{
-	SystemInit();
-
-
-#ifndef CONFIG_LOG_BACKEND_SWO
-	/*
-	 * SystemInit unconditionally enables the trace clock.
-	 * Disable the trace clock unless SWO is used
-	 */
-	 SYSCON->TRACECLKDIV = 0x4000000;
-#endif
-}
-
-#endif /* CONFIG_PLATFORM_SPECIFIC_INIT */
-
 SYS_INIT(nxp_lpc55xxx_init, PRE_KERNEL_1, 0);
 
 #if defined(CONFIG_SECOND_CORE_MCUX) && defined(CONFIG_SOC_LPC55S69_CPU0)
@@ -306,7 +248,7 @@ int _second_core_init(const struct device *arg)
 	 * The second core first boots from flash (address 0x00000000)
 	 * and then detects its identity (Core no. 1, second) and checks
 	 * registers CPBOOT and use them to continue the boot process.
-	 * Make sure the startup code for the first core is
+	 * Make sure the startup code for first core is
 	 * appropriate and shareable with the second core!
 	 */
 	SYSCON->CPUCFG |= SYSCON_CPUCFG_CPU1ENABLE_MASK;

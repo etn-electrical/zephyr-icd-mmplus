@@ -6,13 +6,13 @@
 
 #include "sys.h"
 #include "clock.h"
-#include <zephyr/device.h>
+#include <device.h>
 
 /* Software reset defines */
 #define reg_reset                   REG_ADDR8(0x1401ef)
 #define SOFT_RESET                  0x20u
 
-/* List of supported CCLK frequencies */
+/* List of supported CCLK fregencies */
 #define CLK_16MHZ                   16000000u
 #define CLK_24MHZ                   24000000u
 #define CLK_32MHZ                   32000000u

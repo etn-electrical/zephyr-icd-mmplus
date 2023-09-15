@@ -6,29 +6,27 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr.h>
 #include <string.h>
-#include <zephyr/sys/atomic.h>
-#include <zephyr/sys/util.h>
+#include <sys/atomic.h>
+#include <sys/util.h>
 
-#include <zephyr/bluetooth/bluetooth.h>
-#include <zephyr/bluetooth/conn.h>
-#include <zephyr/bluetooth/hci.h>
-#include <zephyr/settings/settings.h>
+#include <bluetooth/bluetooth.h>
+#include <bluetooth/conn.h>
+#include <bluetooth/hci.h>
+#include <settings/settings.h>
 
-#include "common/bt_str.h"
+#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_DEBUG_KEYS)
+#define LOG_MODULE_NAME bt_keys_br
+#include "common/log.h"
 
 #include "hci_core.h"
 #include "settings.h"
 #include "keys.h"
 
-#define LOG_LEVEL CONFIG_BT_KEYS_LOG_LEVEL
-#include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(bt_keys_br);
-
 static struct bt_keys_link_key key_pool[CONFIG_BT_MAX_PAIRED];
 
-#if defined(CONFIG_BT_KEYS_OVERWRITE_OLDEST)
+#if IS_ENABLED(CONFIG_BT_KEYS_OVERWRITE_OLDEST)
 static uint32_t aging_counter_val;
 static struct bt_keys_link_key *last_keys_updated;
 #endif /* CONFIG_BT_KEYS_OVERWRITE_OLDEST */
@@ -38,7 +36,7 @@ struct bt_keys_link_key *bt_keys_find_link_key(const bt_addr_t *addr)
 	struct bt_keys_link_key *key;
 	int i;
 
-	LOG_DBG("%s", bt_addr_str(addr));
+	BT_DBG("%s", bt_addr_str(addr));
 
 	for (i = 0; i < ARRAY_SIZE(key_pool); i++) {
 		key = &key_pool[i];
@@ -61,7 +59,7 @@ struct bt_keys_link_key *bt_keys_get_link_key(const bt_addr_t *addr)
 	}
 
 	key = bt_keys_find_link_key(BT_ADDR_ANY);
-#if defined(CONFIG_BT_KEYS_OVERWRITE_OLDEST)
+#if IS_ENABLED(CONFIG_BT_KEYS_OVERWRITE_OLDEST)
 	if (!key) {
 		int i;
 
@@ -82,15 +80,15 @@ struct bt_keys_link_key *bt_keys_get_link_key(const bt_addr_t *addr)
 
 	if (key) {
 		bt_addr_copy(&key->addr, addr);
-#if defined(CONFIG_BT_KEYS_OVERWRITE_OLDEST)
+#if IS_ENABLED(CONFIG_BT_KEYS_OVERWRITE_OLDEST)
 		key->aging_counter = ++aging_counter_val;
 		last_keys_updated = key;
 #endif
-		LOG_DBG("created %p for %s", key, bt_addr_str(addr));
+		BT_DBG("created %p for %s", key, bt_addr_str(addr));
 		return key;
 	}
 
-	LOG_DBG("unable to create keys for %s", bt_addr_str(addr));
+	BT_DBG("unable to create keys for %s", bt_addr_str(addr));
 
 	return NULL;
 }
@@ -108,7 +106,7 @@ void bt_keys_link_key_clear(struct bt_keys_link_key *link_key)
 		settings_delete(key);
 	}
 
-	LOG_DBG("%s", bt_addr_str(&link_key->addr));
+	BT_DBG("%s", bt_addr_str(&link_key->addr));
 	(void)memset(link_key, 0, sizeof(*link_key));
 }
 
@@ -146,7 +144,7 @@ void bt_keys_link_key_store(struct bt_keys_link_key *link_key)
 		err = settings_save_one(key, link_key->storage_start,
 					BT_KEYS_LINK_KEY_STORAGE_LEN);
 		if (err) {
-			LOG_ERR("Failed to save link key (err %d)", err);
+			BT_ERR("Failed to svae link key (err %d)", err);
 		}
 	}
 }
@@ -163,21 +161,22 @@ static int link_key_set(const char *name, size_t len_rd,
 	char val[BT_KEYS_LINK_KEY_STORAGE_LEN];
 
 	if (!name) {
-		LOG_ERR("Insufficient number of arguments");
+		BT_ERR("Insufficient number of arguments");
 		return -EINVAL;
 	}
 
 	len = read_cb(cb_arg, val, sizeof(val));
 	if (len < 0) {
-		LOG_ERR("Failed to read value (err %zu)", len);
+		BT_ERR("Failed to read value (err %zu)", len);
 		return -EINVAL;
 	}
 
-	LOG_DBG("name %s val %s", name, len ? bt_hex(val, sizeof(val)) : "(null)");
+	BT_DBG("name %s val %s", log_strdup(name),
+	       len ? bt_hex(val, sizeof(val)) : "(null)");
 
 	err = bt_settings_decode_key(name, &le_addr);
 	if (err) {
-		LOG_ERR("Unable to decode address %s", name);
+		BT_ERR("Unable to decode address %s", name);
 		return -EINVAL;
 	}
 
@@ -185,17 +184,19 @@ static int link_key_set(const char *name, size_t len_rd,
 	if (len != BT_KEYS_LINK_KEY_STORAGE_LEN) {
 		if (link_key) {
 			bt_keys_link_key_clear(link_key);
-			LOG_DBG("Clear keys for %s", bt_addr_le_str(&le_addr));
+			BT_DBG("Clear keys for %s", bt_addr_le_str(&le_addr));
 		} else {
-			LOG_WRN("Unable to find deleted keys for %s", bt_addr_le_str(&le_addr));
+			BT_WARN("Unable to find deleted keys for %s",
+				bt_addr_le_str(&le_addr));
 		}
 
 		return 0;
 	}
 
 	memcpy(link_key->storage_start, val, len);
-	LOG_DBG("Successfully restored link key for %s", bt_addr_le_str(&le_addr));
-#if defined(CONFIG_BT_KEYS_OVERWRITE_OLDEST)
+	BT_DBG("Successfully restored link key for %s",
+	       bt_addr_le_str(&le_addr));
+#if IS_ENABLED(CONFIG_BT_KEYS_OVERWRITE_OLDEST)
 	if (aging_counter_val < link_key->aging_counter) {
 		aging_counter_val = link_key->aging_counter;
 	}
@@ -204,10 +205,15 @@ static int link_key_set(const char *name, size_t len_rd,
 	return 0;
 }
 
-SETTINGS_STATIC_HANDLER_DEFINE(bt_link_key, "bt/link_key", NULL, link_key_set,
-			       NULL, NULL);
+static int link_key_commit(void)
+{
+	return 0;
+}
 
-#if defined(CONFIG_BT_KEYS_OVERWRITE_OLDEST)
+SETTINGS_STATIC_HANDLER_DEFINE(bt_link_key, "bt/link_key", NULL, link_key_set,
+			       link_key_commit, NULL);
+
+#if IS_ENABLED(CONFIG_BT_KEYS_OVERWRITE_OLDEST)
 void bt_keys_link_key_update_usage(const bt_addr_t *addr)
 {
 	struct bt_keys_link_key *link_key = bt_keys_find_link_key(addr);
@@ -223,7 +229,8 @@ void bt_keys_link_key_update_usage(const bt_addr_t *addr)
 	link_key->aging_counter = ++aging_counter_val;
 	last_keys_updated = link_key;
 
-	LOG_DBG("Aging counter for %s is set to %u", bt_addr_str(addr), link_key->aging_counter);
+	BT_DBG("Aging counter for %s is set to %u", bt_addr_str(addr),
+	       link_key->aging_counter);
 
 	if (IS_ENABLED(CONFIG_BT_KEYS_SAVE_AGING_COUNTER_ON_PAIRING)) {
 		bt_keys_link_key_store(link_key);

@@ -5,7 +5,7 @@
 #
 
 identifier: lpcxpresso55s69_cpu0
-name: NXP LPCXpresso55S69 (CPU0)
+name: NXP LPCXpresso55S69
 type: mcu
 arch: arm
 ram: 64
@@ -24,6 +24,5 @@ supported:
   - i2c
   - i2s
   - spi
-  - sdhc
   - usb_device
   - watchdog

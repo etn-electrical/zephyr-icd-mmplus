@@ -43,10 +43,6 @@
 	};
 };
 
-&clk_lsi {
-	status = "okay";
-};
-
 &clk_hse {
 	clock-frequency = <DT_FREQ_M(8)>;
 	status = "okay";
@@ -77,8 +73,6 @@
 };
 
 &rtc {
-	clocks = <&rcc STM32_CLOCK_BUS_APB1 0x10000000>,
-		 <&rcc STM32_SRC_LSI RTC_SEL(2)>;
 	status = "okay";
 };
 
@@ -87,10 +81,6 @@
 	pinctrl-names = "default";
 	bus-speed = <125000>;
 	status = "okay";
-
-	can-transceiver {
-		max-bitrate = <1000000>;
-	};
 };
 
 &rng {

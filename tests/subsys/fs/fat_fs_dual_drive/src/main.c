@@ -13,11 +13,14 @@
 
 #include "test_fat.h"
 
-static void *fat_fs_dual_drive_setup(void)
+void test_main(void)
 {
 	fs_file_t_init(&filep);
 
-	test_fat_mount();
-	return NULL;
+	ztest_test_suite(fat_fs_basic_test,
+			 ztest_unit_test(test_fat_mount),
+			 ztest_unit_test(test_fat_file),
+			 ztest_unit_test(test_fat_dir),
+			 ztest_unit_test(test_fat_fs));
+	ztest_run_test_suite(fat_fs_basic_test);
 }
-ZTEST_SUITE(fat_fs_dual_drive, NULL, fat_fs_dual_drive_setup, NULL, NULL, NULL);

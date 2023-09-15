@@ -16,18 +16,17 @@ import textwrap
 import traceback
 
 from west import log
-from build_helpers import find_build_dir, is_zephyr_build, load_domains, \
+from build_helpers import find_build_dir, is_zephyr_build, \
     FIND_BUILD_DIR_DESCRIPTION
 from west.commands import CommandError
 from west.configuration import config
-from runners.core import FileType
 import yaml
 
 from zephyr_ext_common import ZEPHYR_SCRIPTS
 
 # Runners depend on edtlib. Make sure the copy in the tree is
 # available to them before trying to import any.
-sys.path.insert(0, str(ZEPHYR_SCRIPTS / 'dts' / 'python-devicetree' / 'src'))
+sys.path.append(str(ZEPHYR_SCRIPTS / 'dts' / 'python-devicetree' / 'src'))
 
 from runners import get_runner_cls, ZephyrBinaryRunner, MissingProgram
 from runners.core import RunnerConfig
@@ -105,8 +104,6 @@ def add_parser_common(command, parser_adder=None, parser=None):
                        help='override default runner from --build-dir')
     group.add_argument('--skip-rebuild', action='store_true',
                        help='do not refresh cmake dependencies first')
-    group.add_argument('--domain', action='append',
-                       help='execute runner only for given domain')
 
     group = parser.add_argument_group(
         'runner configuration',
@@ -133,17 +130,22 @@ def add_parser_common(command, parser_adder=None, parser=None):
     # Options used to override RunnerConfig values in runners.yaml.
     # TODO: is this actually useful?
     group.add_argument('--board-dir', metavar='DIR', help='board directory')
+    # FIXME: we should just have a single --file argument. The variation
+    # between runners is confusing people.
+    group.add_argument('--elf-file', metavar='FILE', help='path to zephyr.elf')
+    group.add_argument('--hex-file', metavar='FILE', help='path to zephyr.hex')
+    group.add_argument('--bin-file', metavar='FILE', help='path to zephyr.bin')
     # FIXME: these are runner-specific and should be moved to where --context
     # can find them instead.
     group.add_argument('--gdb', help='path to GDB')
     group.add_argument('--openocd', help='path to openocd')
     group.add_argument(
-        '--openocd-search', metavar='DIR', action='append',
+        '--openocd-search', metavar='DIR',
         help='path to add to openocd search path, if applicable')
 
     return parser
 
-def do_run_common(command, user_args, user_runner_args, domains=None):
+def do_run_common(command, user_args, user_runner_args):
     # This is the main routine for all the "west flash", "west debug",
     # etc. commands.
 
@@ -151,34 +153,12 @@ def do_run_common(command, user_args, user_runner_args, domains=None):
         dump_context(command, user_args, user_runner_args)
         return
 
-    build_dir = get_build_dir(user_args)
-    if not user_args.skip_rebuild:
-        rebuild(command, build_dir, user_args)
-
-    if domains is None:
-        if user_args.domain is None:
-            # No domains are passed down and no domains specified by the user.
-            # So default domain will be used.
-            domains = [load_domains(build_dir).get_default_domain()]
-        else:
-            # No domains are passed down, but user has specified domains to use.
-            # Get the user specified domains.
-            domains = load_domains(build_dir).get_domains(user_args.domain)
-
-    if len(domains) > 1 and len(user_runner_args) > 0:
-        log.wrn("Specifying runner options for multiple domains is experimental.\n"
-                "If problems are experienced, please specify a single domain "
-                "using '--domain <domain>'")
-
-    for d in domains:
-        do_run_common_image(command, user_args, user_runner_args, d.build_dir)
-
-def do_run_common_image(command, user_args, user_runner_args, build_dir=None):
     command_name = command.name
-    if build_dir is None:
-        build_dir = get_build_dir(user_args)
+    build_dir = get_build_dir(user_args)
     cache = load_cmake_cache(build_dir, user_args)
     board = cache['CACHED_BOARD']
+    if not user_args.skip_rebuild:
+        rebuild(command, build_dir, user_args)
 
     # Load runners.yaml.
     yaml_path = runners_yaml_path(build_dir, board)
@@ -193,9 +173,7 @@ def do_run_common_image(command, user_args, user_runner_args, build_dir=None):
     # Set up runner logging to delegate to west.log commands.
     logger = logging.getLogger('runners')
     logger.setLevel(LOG_LEVEL)
-    if not logger.hasHandlers():
-        # Only add a runners log handler if none has been added already.
-        logger.addHandler(WestLogHandler())
+    logger.addHandler(WestLogHandler())
 
     # If the user passed -- to force the parent argument parser to stop
     # parsing, it will show up here, and needs to be filtered out.
@@ -224,7 +202,7 @@ def do_run_common_image(command, user_args, user_runner_args, build_dir=None):
     #   arguments
     # - create a RunnerConfig using 'user_args' and the result
     #   of parsing 'final_argv'
-    parser = argparse.ArgumentParser(prog=runner_name, allow_abbrev=False)
+    parser = argparse.ArgumentParser(prog=runner_name)
     add_parser_common(command, parser=parser)
     runner_cls.add_parser(parser)
     args, unknown = parser.parse_known_args(args=final_argv)
@@ -381,41 +359,11 @@ def get_runner_config(build_dir, yaml_path, runners_yaml, args=None):
     def config(attr, default=None):
         return getattr(args, attr, None) or yaml_config.get(attr, default)
 
-    def filetype(attr):
-        ftype = str(getattr(args, attr, None)).lower()
-        if ftype == "hex":
-            return FileType.HEX
-        elif ftype == "bin":
-            return FileType.BIN
-        elif ftype == "elf":
-            return FileType.ELF
-        elif getattr(args, attr, None) is not None:
-            err = 'unknown --file-type ({}). Please use hex, bin or elf'
-            raise ValueError(err.format(ftype))
-
-        # file-type not provided, try to get from filename
-        file = getattr(args, "file", None)
-        if file is not None:
-            ext = Path(file).suffix
-            if ext == ".hex":
-                return FileType.HEX
-            if ext == ".bin":
-                return FileType.BIN
-            if ext == ".elf":
-                return FileType.ELF
-
-        # we couldn't get the file-type, set to
-        # OTHER and let the runner deal with it
-        return FileType.OTHER
-
     return RunnerConfig(build_dir,
                         yaml_config['board_dir'],
                         output_file('elf'),
                         output_file('hex'),
                         output_file('bin'),
-                        output_file('uf2'),
-                        config('file'),
-                        filetype('file_type'),
                         config('gdb'),
                         config('openocd'),
                         config('openocd_search', []))
@@ -505,7 +453,7 @@ def dump_runner_option_help(cls, indent=''):
     # Print help text for class-specific command line options for the
     # given runner class.
 
-    dummy_parser = argparse.ArgumentParser(prog='', add_help=False, allow_abbrev=False)
+    dummy_parser = argparse.ArgumentParser(prog='', add_help=False)
     cls.add_parser(dummy_parser)
     formatter = dummy_parser._get_formatter()
     for group in dummy_parser._action_groups:

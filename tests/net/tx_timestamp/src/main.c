@@ -8,7 +8,7 @@
 
 #define NET_LOG_LEVEL CONFIG_NET_L2_ETHERNET_LOG_LEVEL
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(net_test, NET_LOG_LEVEL);
 
 #include <zephyr/types.h>
@@ -16,18 +16,18 @@ LOG_MODULE_REGISTER(net_test, NET_LOG_LEVEL);
 #include <stddef.h>
 #include <string.h>
 #include <errno.h>
-#include <zephyr/sys/printk.h>
-#include <zephyr/linker/sections.h>
-#include <zephyr/random/rand32.h>
+#include <sys/printk.h>
+#include <linker/sections.h>
+#include <random/rand32.h>
 
-#include <zephyr/ztest.h>
+#include <ztest.h>
 
-#include <zephyr/net/buf.h>
-#include <zephyr/net/net_ip.h>
-#include <zephyr/net/net_pkt.h>
-#include <zephyr/net/ethernet.h>
-#include <zephyr/net/dummy.h>
-#include <zephyr/net/net_l2.h>
+#include <net/buf.h>
+#include <net/net_ip.h>
+#include <net/net_pkt.h>
+#include <net/ethernet.h>
+#include <net/dummy.h>
+#include <net/net_l2.h>
 
 #include "ipv6.h"
 
@@ -182,7 +182,7 @@ static void timestamp_callback(struct net_pkt *pkt)
 	}
 }
 
-void test_timestamp_setup(void)
+static void test_timestamp_setup(void)
 {
 	struct net_if *iface;
 	struct net_pkt *pkt;
@@ -228,7 +228,7 @@ static void timestamp_callback_2(struct net_pkt *pkt)
 	}
 }
 
-void test_timestamp_setup_2nd_iface(void)
+static void test_timestamp_setup_2nd_iface(void)
 {
 	struct net_if *iface;
 	struct net_pkt *pkt;
@@ -250,7 +250,7 @@ void test_timestamp_setup_2nd_iface(void)
 	zassert_equal(atomic_get(&pkt->atomic_ref), 0, "Pkt %p not released\n");
 }
 
-void test_timestamp_setup_all(void)
+static void test_timestamp_setup_all(void)
 {
 	struct net_pkt *pkt;
 
@@ -277,7 +277,7 @@ void test_timestamp_setup_all(void)
 	net_if_unregister_timestamp_cb(&timestamp_cb_3);
 }
 
-void test_timestamp_cleanup(void)
+static void test_timestamp_cleanup(void)
 {
 	struct net_if *iface;
 	struct net_pkt *pkt;
@@ -341,7 +341,7 @@ static void iface_cb(struct net_if *iface, void *user_data)
 	ud->total_if_count++;
 }
 
-void test_address_setup(void)
+static void test_address_setup(void)
 {
 	struct net_if_addr *ifaddr;
 	struct net_if *iface1, *iface2;
@@ -364,7 +364,7 @@ void test_address_setup(void)
 		zassert_not_null(ifaddr, "addr1\n");
 	}
 
-	/* For testing purposes we need to set the addresses preferred */
+	/* For testing purposes we need to set the adddresses preferred */
 	ifaddr->addr_state = NET_ADDR_PREFERRED;
 
 	ifaddr = net_if_ipv6_addr_add(iface1, &ll_addr,
@@ -460,7 +460,7 @@ static void send_some_data(struct net_if *iface)
 	net_context_unref(udp_v6_ctx);
 }
 
-void test_check_timestamp_before_enabling(void)
+static void test_check_timestamp_before_enabling(void)
 {
 	test_started = true;
 	do_timestamp = false;
@@ -473,7 +473,7 @@ void test_check_timestamp_before_enabling(void)
 	}
 }
 
-void test_check_timestamp_after_enabling(void)
+static void test_check_timestamp_after_enabling(void)
 {
 	test_started = true;
 	do_timestamp = true;
@@ -486,14 +486,17 @@ void test_check_timestamp_after_enabling(void)
 	}
 }
 
-ZTEST(net_tx_timestamp, test_tx_timestamp)
+void test_main(void)
 {
-	test_address_setup();
-	test_check_timestamp_before_enabling();
-	test_timestamp_setup();
-	test_timestamp_setup_2nd_iface();
-	test_timestamp_setup_all();
-	test_check_timestamp_after_enabling();
-	test_timestamp_cleanup();
+	ztest_test_suite(net_tx_timestamp_test,
+			 ztest_unit_test(test_address_setup),
+			 ztest_unit_test(test_check_timestamp_before_enabling),
+			 ztest_unit_test(test_timestamp_setup),
+			 ztest_unit_test(test_timestamp_setup_2nd_iface),
+			 ztest_unit_test(test_timestamp_setup_all),
+			 ztest_unit_test(test_check_timestamp_after_enabling),
+			 ztest_unit_test(test_timestamp_cleanup)
+			 );
+
+	ztest_run_test_suite(net_tx_timestamp_test);
 }
-ZTEST_SUITE(net_tx_timestamp, NULL, NULL, NULL, NULL, NULL);

@@ -6,32 +6,32 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(net_test, CONFIG_NET_DHCPV4_LOG_LEVEL);
 
-#include <zephyr/kernel.h>
-#include <zephyr/linker/sections.h>
+#include <zephyr.h>
+#include <linker/sections.h>
 
 #include <zephyr/types.h>
 #include <stddef.h>
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
-#include <zephyr/device.h>
-#include <zephyr/init.h>
-#include <zephyr/net/net_core.h>
-#include <zephyr/net/net_pkt.h>
-#include <zephyr/net/net_ip.h>
-#include <zephyr/net/dhcpv4.h>
-#include <zephyr/net/ethernet.h>
-#include <zephyr/net/net_mgmt.h>
-#include <zephyr/net/dummy.h>
+#include <device.h>
+#include <init.h>
+#include <net/net_core.h>
+#include <net/net_pkt.h>
+#include <net/net_ip.h>
+#include <net/dhcpv4.h>
+#include <net/ethernet.h>
+#include <net/net_mgmt.h>
+#include <net/dummy.h>
 
 #include "ipv4.h"
 #include "udp_internal.h"
 
-#include <zephyr/tc_util.h>
-#include <zephyr/ztest.h>
+#include <tc_util.h>
+#include <ztest.h>
 
 #define NET_LOG_ENABLED 1
 #include "net_private.h"
@@ -408,7 +408,7 @@ static void receiver_cb(struct net_mgmt_event_callback *cb,
 	k_sem_give(&test_lock);
 }
 
-ZTEST(dhcpv4_tests, test_dhcp)
+void test_dhcp(void)
 {
 	struct net_if *iface;
 
@@ -446,4 +446,9 @@ ZTEST(dhcpv4_tests, test_dhcp)
 }
 
 /**test case main entry */
-ZTEST_SUITE(dhcpv4_tests, NULL, NULL, NULL, NULL, NULL);
+void test_main(void)
+{
+	ztest_test_suite(test_dhcpv4,
+			ztest_unit_test(test_dhcp));
+	ztest_run_test_suite(test_dhcpv4);
+}

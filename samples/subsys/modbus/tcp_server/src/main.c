@@ -5,14 +5,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/sys/util.h>
-#include <zephyr/drivers/gpio.h>
-#include <zephyr/modbus/modbus.h>
+#include <zephyr.h>
+#include <sys/util.h>
+#include <drivers/gpio.h>
+#include <modbus/modbus.h>
 
-#include <zephyr/net/socket.h>
+#include <net/socket.h>
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(tcp_modbus, LOG_LEVEL_INF);
 
 #define MODBUS_TCP_PORT 502
@@ -123,8 +123,7 @@ static struct modbus_adu tmp_adu;
 K_SEM_DEFINE(received, 0, 1);
 static int server_iface;
 
-static int server_raw_cb(const int iface, const struct modbus_adu *adu,
-			void *user_data)
+static int server_raw_cb(const int iface, const struct modbus_adu *adu)
 {
 	LOG_DBG("Server raw callback from interface %d", iface);
 
@@ -148,8 +147,7 @@ const static struct modbus_iface_param server_param = {
 		.user_cb = &mbs_cbs,
 		.unit_id = 1,
 	},
-	.rawcb.raw_tx_cb = server_raw_cb,
-	.rawcb.user_data = NULL
+	.raw_tx_cb = server_raw_cb,
 };
 
 static int init_modbus_server(void)
@@ -160,7 +158,7 @@ static int init_modbus_server(void)
 
 	if (server_iface < 0) {
 		LOG_ERR("Failed to get iface index for %s",
-			iface_name);
+			log_strdup(iface_name));
 		return -ENODEV;
 	}
 
@@ -274,7 +272,7 @@ void main(void)
 		inet_ntop(client_addr.sin_family, &client_addr.sin_addr,
 			  addr_str, sizeof(addr_str));
 		LOG_INF("Connection #%d from %s",
-			counter++, addr_str);
+			counter++, log_strdup(addr_str));
 
 		do {
 			rc = modbus_tcp_connection(client);
@@ -282,6 +280,6 @@ void main(void)
 
 		close(client);
 		LOG_INF("Connection from %s closed, errno %d",
-			addr_str, rc);
+			log_strdup(addr_str), rc);
 	}
 }

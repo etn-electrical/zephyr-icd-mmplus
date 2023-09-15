@@ -8,21 +8,21 @@
  * @brief IEEE 802.15.4 shell module
  */
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(net_ieee802154_shell, CONFIG_NET_L2_IEEE802154_LOG_LEVEL);
 
-#include <zephyr/kernel.h>
+#include <zephyr.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <zephyr/shell/shell.h>
-#include <zephyr/sys/printk.h>
+#include <shell/shell.h>
+#include <sys/printk.h>
 
-#include <zephyr/net/net_if.h>
-#include <zephyr/net/ieee802154_mgmt.h>
+#include <net/net_if.h>
+#include <net/ieee802154_mgmt.h>
 
 #include "ieee802154_frame.h"
 
-#define EXT_ADDR_STR_LEN sizeof("xx:xx:xx:xx:xx:xx:xx:xx")
+#define MAX_EXT_ADDR_STR_LEN sizeof("xx:xx:xx:xx:xx:xx:xx:xx")
 
 struct ieee802154_req_params params;
 static struct net_mgmt_event_callback scan_cb;
@@ -60,13 +60,6 @@ static int cmd_ieee802154_ack(const struct shell *shell,
 	return 0;
 }
 
-/**
- * Parse a string representing an extended address in ASCII HEX
- * format into a big endian binary representation of the address.
- *
- * @param addr Extended address as a string.
- * @param ext_addr Extended address in big endian byte ordering.
- */
 static inline void parse_extended_address(char *addr, uint8_t *ext_addr)
 {
 	net_bytes_from_str(ext_addr, IEEE802154_EXT_ADDR_LENGTH, addr);
@@ -76,7 +69,7 @@ static int cmd_ieee802154_associate(const struct shell *shell,
 				    size_t argc, char *argv[])
 {
 	struct net_if *iface = net_if_get_ieee802154();
-	char ext_addr[EXT_ADDR_STR_LEN];
+	char ext_addr[MAX_EXT_ADDR_STR_LEN];
 
 	if (argc < 3) {
 		shell_help(shell);
@@ -90,9 +83,9 @@ static int cmd_ieee802154_associate(const struct shell *shell,
 	}
 
 	params.pan_id = atoi(argv[1]);
-	strncpy(ext_addr, argv[2], EXT_ADDR_STR_LEN - 1);
+	strncpy(ext_addr, argv[2], MAX_EXT_ADDR_STR_LEN - 1);
 
-	if (strlen(ext_addr) == EXT_ADDR_STR_LEN) {
+	if (strlen(ext_addr) == MAX_EXT_ADDR_STR_LEN) {
 		parse_extended_address(ext_addr, params.addr);
 		params.len = IEEE802154_EXT_ADDR_LENGTH;
 	} else {
@@ -182,7 +175,7 @@ static inline char *print_coordinator_address(char *buf, int buf_len)
 
 		pos += snprintk(buf + pos, buf_len - pos, "(extended) ");
 
-		for (i = 0; i < IEEE802154_EXT_ADDR_LENGTH; i++) {
+		for (i = IEEE802154_EXT_ADDR_LENGTH - 1; i > -1; i--) {
 			pos += snprintk(buf + pos, buf_len - pos,
 					"%02X:", params.addr[i]);
 		}
@@ -228,7 +221,6 @@ static int cmd_ieee802154_scan(const struct shell *shell,
 
 	net_mgmt_init_event_callback(&scan_cb, scan_result_cb,
 				     NET_EVENT_IEEE802154_SCAN_RESULT);
-	net_mgmt_add_event_callback(&scan_cb);
 
 	if (!strcmp(argv[1], "active")) {
 		scan_type = NET_REQUEST_IEEE802154_ACTIVE_SCAN;
@@ -409,7 +401,7 @@ static int cmd_ieee802154_set_ext_addr(const struct shell *shell,
 				       size_t argc, char *argv[])
 {
 	struct net_if *iface = net_if_get_ieee802154();
-	uint8_t addr[IEEE802154_EXT_ADDR_LENGTH]; /* in big endian */
+	uint8_t addr[IEEE802154_EXT_ADDR_LENGTH];
 
 	if (argc < 2) {
 		shell_help(shell);
@@ -422,9 +414,9 @@ static int cmd_ieee802154_set_ext_addr(const struct shell *shell,
 		return -ENOEXEC;
 	}
 
-	if (strlen(argv[1]) != EXT_ADDR_STR_LEN) {
+	if (strlen(argv[1]) != MAX_EXT_ADDR_STR_LEN) {
 		shell_fprintf(shell, SHELL_INFO,
-			      "%zd characters needed\n", EXT_ADDR_STR_LEN);
+			      "%zd characters needed\n", MAX_EXT_ADDR_STR_LEN);
 		return -ENOEXEC;
 	}
 
@@ -448,7 +440,7 @@ static int cmd_ieee802154_get_ext_addr(const struct shell *shell,
 				       size_t argc, char *argv[])
 {
 	struct net_if *iface = net_if_get_ieee802154();
-	uint8_t addr[IEEE802154_EXT_ADDR_LENGTH]; /* in big endian */
+	uint8_t addr[IEEE802154_EXT_ADDR_LENGTH];
 
 	if (!iface) {
 		shell_fprintf(shell, SHELL_INFO,
@@ -462,16 +454,16 @@ static int cmd_ieee802154_get_ext_addr(const struct shell *shell,
 			      "Could not get extended address\n");
 		return -ENOEXEC;
 	} else {
-		static char ext_addr[EXT_ADDR_STR_LEN];
-		int i, pos = 0;
+		static char ext_addr[MAX_EXT_ADDR_STR_LEN];
+		int i, j;
 
-		for (i = 0; i < IEEE802154_EXT_ADDR_LENGTH; i++) {
-			pos += snprintk(ext_addr + pos,
-					IEEE802154_EXT_ADDR_LENGTH - pos,
-					"%02X:", addr[i]);
+		for (j = 0, i = IEEE802154_EXT_ADDR_LENGTH - 1; i > -1; i--) {
+			snprintf(&ext_addr[j], 4, "%02X:", addr[i]);
+
+			j += 3;
 		}
 
-		ext_addr[EXT_ADDR_STR_LEN - 1] = '\0';
+		ext_addr[MAX_EXT_ADDR_STR_LEN - 1] = '\0';
 
 		shell_fprintf(shell, SHELL_NORMAL,
 			      "Extended address: %s\n", ext_addr);
@@ -484,7 +476,7 @@ static int cmd_ieee802154_set_short_addr(const struct shell *shell,
 					 size_t argc, char *argv[])
 {
 	struct net_if *iface = net_if_get_ieee802154();
-	uint16_t short_addr; /* in CPU byte order */
+	uint16_t short_addr;
 
 	if (argc < 2) {
 		shell_help(shell);
@@ -517,7 +509,7 @@ static int cmd_ieee802154_get_short_addr(const struct shell *shell,
 					 size_t argc, char *argv[])
 {
 	struct net_if *iface = net_if_get_ieee802154();
-	uint16_t short_addr; /* in CPU byte order */
+	uint16_t short_addr;
 
 	if (!iface) {
 		shell_fprintf(shell, SHELL_INFO,

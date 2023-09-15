@@ -15,7 +15,8 @@ and ST morpho connectors can be mounted if required.
 The I2C EEPROMs are compatible with the ``atmel,at24`` driver and
 the SPI EEPROMs are compatible with the ``atmel,at25`` driver.
 
-.. figure:: x_nucleo_eeprma2.jpg
+.. figure:: ./x_nucleo_eeprma2.jpg
+   :width: 371px
    :align: center
    :alt: X-NUCLEO-EEPRMA2
 
@@ -53,7 +54,7 @@ Samples
 The :ref:`samples_eeprom` can be used to demonstrate the expansion boards
 functionality.
 Per default the shield sets an ``eeprom-0`` alias for the M24C02-FMC6TG EEPROM,
-which can be overwritten to use the other EEPROM devices instead.
+which can be overwritten to use the other EEPROM deivces instead.
 
 Programming
 ***********

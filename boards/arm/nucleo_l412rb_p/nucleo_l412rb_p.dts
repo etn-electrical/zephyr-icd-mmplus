@@ -42,10 +42,6 @@
 	};
 };
 
-&clk_lsi {
-	status = "okay";
-};
-
 &clk_hsi {
 	status = "okay";
 };
@@ -105,14 +101,16 @@
 };
 
 &rtc {
-	clocks = <&rcc STM32_CLOCK_BUS_APB1 0x10000000>,
-		 <&rcc STM32_SRC_LSI RTC_SEL(2)>;
 	status = "okay";
 };
 
 &adc1 {
 	pinctrl-0 = <&adc1_in5_pa0>;
 	pinctrl-names = "default";
+	status = "okay";
+};
+
+&lptim1 {
 	status = "okay";
 };
 
@@ -131,7 +129,7 @@
 		 */
 		storage_partition: partition@1c276 {
 			label = "storage";
-			reg = <0x0001c276 DT_SIZE_K(16)>;
+			reg = <0x0001c276 0x00004000>;
 		};
 	};
 };

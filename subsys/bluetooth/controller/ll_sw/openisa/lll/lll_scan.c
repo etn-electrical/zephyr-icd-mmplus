@@ -6,9 +6,9 @@
  */
 
 #include <zephyr/types.h>
-#include <zephyr/toolchain.h>
-#include <zephyr/bluetooth/hci.h>
-#include <zephyr/sys/byteorder.h>
+#include <toolchain.h>
+#include <bluetooth/hci.h>
+#include <sys/byteorder.h>
 
 #include "hal/ccm.h"
 #include "hal/radio.h"
@@ -20,7 +20,6 @@
 
 #include "ticker/ticker.h"
 
-#include "pdu_vendor.h"
 #include "pdu.h"
 
 #include "lll.h"
@@ -36,6 +35,8 @@
 #include "lll_tim_internal.h"
 #include "lll_prof_internal.h"
 
+#define LOG_MODULE_NAME bt_ctlr_llsw_openisa_lll_scan
+#include "common/log.h"
 #include <soc.h>
 #include "hal/debug.h"
 
@@ -367,21 +368,20 @@ static void isr_rx(void *param)
 		crc_ok = radio_crc_is_valid();
 		devmatch_ok = radio_filter_has_match();
 		devmatch_id = radio_filter_match_get();
-		if (IS_ENABLED(CONFIG_BT_CTLR_PRIVACY)) {
-			irkmatch_ok = radio_ar_has_match();
-			irkmatch_id = radio_ar_match_get();
-		} else {
-			irkmatch_ok = 0U;
-			irkmatch_id = FILTER_IDX_NONE;
-		}
+		irkmatch_ok = radio_ar_has_match();
+		irkmatch_id = radio_ar_match_get();
 		rssi_ready = radio_rssi_is_ready();
 	} else {
 		crc_ok = devmatch_ok = irkmatch_ok = rssi_ready = 0U;
-		devmatch_id = irkmatch_id = FILTER_IDX_NONE;
+		devmatch_id = irkmatch_id = 0xFF;
 	}
 
 	/* Clear radio status and events */
-	lll_isr_status_reset();
+	radio_status_reset();
+	radio_tmr_status_reset();
+	radio_filter_status_reset();
+	radio_ar_status_reset();
+	radio_rssi_status_reset();
 
 	if (IS_ENABLED(HAL_RADIO_GPIO_HAVE_PA_PIN) ||
 	    IS_ENABLED(HAL_RADIO_GPIO_HAVE_LNA_PIN)) {
@@ -483,7 +483,11 @@ static void isr_common_done(void *param)
 
 	/* TODO: MOVE to a common interface, isr_lll_radio_status? */
 	/* Clear radio status and events */
-	lll_isr_status_reset();
+	radio_status_reset();
+	radio_tmr_status_reset();
+	radio_filter_status_reset();
+	radio_ar_status_reset();
+	radio_rssi_status_reset();
 
 	if (IS_ENABLED(HAL_RADIO_GPIO_HAVE_PA_PIN) ||
 	    IS_ENABLED(HAL_RADIO_GPIO_HAVE_LNA_PIN)) {
@@ -565,7 +569,11 @@ static void isr_window(void *param)
 static void isr_abort(void *param)
 {
 	/* Clear radio status and events */
-	lll_isr_status_reset();
+	radio_status_reset();
+	radio_tmr_status_reset();
+	radio_filter_status_reset();
+	radio_ar_status_reset();
+	radio_rssi_status_reset();
 
 	if (IS_ENABLED(HAL_RADIO_GPIO_HAVE_PA_PIN) ||
 	    IS_ENABLED(HAL_RADIO_GPIO_HAVE_LNA_PIN)) {
@@ -616,7 +624,8 @@ static void isr_cleanup(void *param)
 		/* TODO: add other info by defining a payload struct */
 		node_rx->type = NODE_RX_TYPE_SCAN_INDICATION;
 
-		ull_rx_put_sched(node_rx->link, node_rx);
+		ull_rx_put(node_rx->link, node_rx);
+		ull_rx_sched();
 	}
 #else /* !CONFIG_BT_CTLR_SCAN_INDICATION */
 	ARG_UNUSED(node_rx);
@@ -855,7 +864,8 @@ static inline uint32_t isr_rx_pdu(struct lll_scan *lll, uint8_t devmatch_ok,
 			ftr->extra = ull_pdu_rx_alloc();
 		}
 
-		ull_rx_put_sched(rx->hdr.link, rx);
+		ull_rx_put(rx->hdr.link, rx);
+		ull_rx_sched();
 
 		return 0;
 #endif /* CONFIG_BT_CENTRAL */
@@ -1137,7 +1147,8 @@ static uint32_t isr_rx_scan_report(struct lll_scan *lll, uint8_t rssi_ready,
 	}
 #endif /* CONFIG_BT_CTLR_EXT_SCAN_FP */
 
-	ull_rx_put_sched(node_rx->hdr.link, node_rx);
+	ull_rx_put(node_rx->hdr.link, node_rx);
+	ull_rx_sched();
 
 	return 0;
 }

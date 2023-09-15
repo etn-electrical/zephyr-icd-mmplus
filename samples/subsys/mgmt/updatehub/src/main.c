@@ -1,27 +1,23 @@
 /*
- * Copyright (c) 2018-2023 O.S.Systems
+ * Copyright (c) 2018-2020 O.S.Systems
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/mgmt/updatehub.h>
-#include <zephyr/net/net_mgmt.h>
-#include <zephyr/net/net_event.h>
-#include <zephyr/net/net_conn_mgr.h>
-#include <zephyr/net/wifi_mgmt.h>
+#include <zephyr.h>
+#include <updatehub.h>
+#include <net/net_mgmt.h>
+#include <net/net_event.h>
+#include <net/net_conn_mgr.h>
+#include <net/wifi_mgmt.h>
+#include <dfu/mcuboot.h>
 
 #if defined(CONFIG_UPDATEHUB_DTLS)
-#include <zephyr/net/tls_credentials.h>
+#include <net/tls_credentials.h>
 #include "c_certificates.h"
 #endif
 
-#if defined(CONFIG_MODEM_GSM_PPP)
-#define GSM_NODE DT_COMPAT_GET_ANY_STATUS_OKAY(zephyr_gsm_ppp)
-#define UART_NODE DT_BUS(GSM_NODE)
-#endif
-
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(main);
 
 #define EVENT_MASK (NET_EVENT_L4_CONNECTED | \
@@ -44,7 +40,7 @@ void start_updatehub(void)
 		switch (updatehub_update()) {
 		case UPDATEHUB_OK:
 			ret = 0;
-			updatehub_reboot();
+			sys_reboot(SYS_REBOOT_WARM);
 			break;
 
 		default:
@@ -109,7 +105,7 @@ void main(void)
 
 	/* The image of application needed be confirmed */
 	LOG_INF("Confirming the boot image");
-	ret = updatehub_confirm();
+	ret = boot_write_img_confirmed();
 	if (ret < 0) {
 		LOG_ERR("Error to confirm the image");
 	}
@@ -142,10 +138,11 @@ void main(void)
 	}
 
 #elif defined(CONFIG_MODEM_GSM_PPP)
-	const struct device *const uart_dev = DEVICE_DT_GET(UART_NODE);
+	const struct device *uart_dev =
+		DEVICE_DT_GET(DT_BUS(DT_INST(0, zephyr_gsm_ppp)));
 
 	LOG_INF("APN '%s' UART '%s' device %p", CONFIG_MODEM_GSM_APN,
-		uart_dev->name, uart_dev);
+		DT_BUS_LABEL(DT_INST(0, zephyr_gsm_ppp)), uart_dev);
 #endif
 
 	net_mgmt_init_event_callback(&mgmt_cb, event_handler, EVENT_MASK);

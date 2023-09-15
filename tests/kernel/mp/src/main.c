@@ -4,15 +4,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/tc_util.h>
-#include <zephyr/ztest.h>
-#include <zephyr/kernel.h>
+#include <zephyr.h>
+#include <tc_util.h>
+#include <ztest.h>
+#include <kernel.h>
 
 #ifdef CONFIG_SMP
 #error Cannot test MP API if SMP is using the CPUs
 #endif
 
-BUILD_ASSERT(CONFIG_MP_MAX_NUM_CPUS > 1);
+BUILD_ASSERT(CONFIG_MP_NUM_CPUS > 1);
 
 #define CPU1_STACK_SIZE 1024
 
@@ -60,7 +61,7 @@ FUNC_NORETURN void cpu1_fn(void *arg)
  *   dynamic analysis and testing
  *
  * Prerequisite Conditions:
- * - CONFIG_MP_MAX_NUM_CPUS > 1
+ * - CONFIG_MP_NUM_CPUS > 1
  *
  * Input Specifications:
  * - CPU ID: the cpu want to start
@@ -75,7 +76,7 @@ FUNC_NORETURN void cpu1_fn(void *arg)
  * -# Enter a while loop and wait for cpu_running equals to 1.
  * -# In target function, check if the address is &cpu_arg and its content
  *  equal to 12345.
- * -# Set the global flag variable cpu_running to 1.
+ * -# Set the global flag varible cpu_running to 1.
  * -# In main thread, check if the cpu_running equals to 1.
  *
  * Expected Test Result:
@@ -91,7 +92,7 @@ FUNC_NORETURN void cpu1_fn(void *arg)
  *
  * @see arch_start_cpu()
  */
-ZTEST(multiprocessing, test_mp_start)
+void test_mp_start(void)
 {
 	cpu_arg = 12345;
 
@@ -103,4 +104,9 @@ ZTEST(multiprocessing, test_mp_start)
 	zassert_true(cpu_running, "cpu1 didn't start");
 }
 
-ZTEST_SUITE(multiprocessing, NULL, NULL, NULL, NULL, NULL);
+void test_main(void)
+{
+	ztest_test_suite(multiprocessing,
+			 ztest_unit_test(test_mp_start));
+	ztest_run_test_suite(multiprocessing);
+}

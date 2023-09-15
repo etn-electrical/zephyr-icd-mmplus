@@ -35,7 +35,8 @@ connector.  The modules from this kit are available without any transceiver
 advanced features.  For Xplained headers the `atmel_rf2xx_xplained`_ must be
 selected.  For Xplained-Pro header the `atmel_rf2xx_legacy`_ must be enabled.
 
-.. image:: ATAVRRZ600.jpg
+.. image:: ./ATAVRRZ600.jpg
+   :width: 350px
    :align: center
    :alt: AVR-RZ600
 
@@ -72,7 +73,8 @@ REB233-XPRO Module
 The REB233-XPRO development kit uses Atmel Xplained Pro header.  It is enabled
 selecting `atmel_rf2xx_xpro`_ option.
 
-.. image:: atreb233-xpro-top.jpg
+.. image:: ./atreb233-xpro-top.jpg
+   :width: 300px
    :align: center
    :alt: REB233-XPRO Top
 
@@ -129,7 +131,7 @@ Arduino Shields
 ===============
 
 Arduino Uno R3 header is available without advanced features.  It is enabled
-selecting `atmel_rf2xx_arduino`_ variant option.
+selecting `atmel_rf2xx_arduino`_ variante option.
 
 Pins Assignment of the Arduino Shield Modules
 =============================================
@@ -180,7 +182,7 @@ MikroBus Shields
 ================
 
 MikroBus header is available available without advanced features.  It is
-enabled selecting `atmel_rf2xx_mikrobus`_ variant option.
+enabled selecting `atmel_rf2xx_mikrobus`_ variante option.
 
 Pins Assignment of the MikroBus Shield Modules
 ==============================================

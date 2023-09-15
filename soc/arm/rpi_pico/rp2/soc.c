@@ -13,9 +13,9 @@
  * for the Raspberry Pi RP2040 family processor.
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/init.h>
-#include <zephyr/logging/log.h>
+#include <kernel.h>
+#include <init.h>
+#include <logging/log.h>
 
 #include <hardware/regs/resets.h>
 #include <hardware/clocks.h>
@@ -41,7 +41,7 @@ static int rp2040_init(const struct device *arg)
 			   ~(RESETS_RESET_ADC_BITS | RESETS_RESET_RTC_BITS |
 			     RESETS_RESET_SPI0_BITS | RESETS_RESET_SPI1_BITS |
 			     RESETS_RESET_UART0_BITS | RESETS_RESET_UART1_BITS |
-			     RESETS_RESET_USBCTRL_BITS | RESETS_RESET_PWM_BITS));
+			     RESETS_RESET_USBCTRL_BITS));
 
 	clocks_init();
 

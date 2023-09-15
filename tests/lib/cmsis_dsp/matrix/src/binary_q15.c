@@ -5,8 +5,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
-#include <zephyr/kernel.h>
+#include <ztest.h>
+#include <zephyr.h>
 #include <stdlib.h>
 #include <arm_math.h>
 #include "../../common/test_common.h"
@@ -115,7 +115,7 @@ static void test_op2(int op, const q15_t *input1, const q15_t *input2,
 	free(output);
 }
 
-DEFINE_TEST_VARIANT5(matrix_binary_q15,
+DEFINE_TEST_VARIANT5(
 	op2, arm_mat_mult_q15, OP2_MULT,
 	in_mult1, in_mult2, ref_mult,
 	ARRAY_SIZE(ref_mult));
@@ -210,9 +210,17 @@ static void test_op2c(int op, const q15_t *input1, const q15_t *input2,
 	free(output);
 }
 
-DEFINE_TEST_VARIANT5(matrix_binary_q15,
+DEFINE_TEST_VARIANT5(
 	op2c, arm_mat_cmplx_mult_q15, OP2C_CMPLX_MULT,
 	in_cmplx_mult1, in_cmplx_mult2, ref_cmplx_mult,
 	ARRAY_SIZE(ref_cmplx_mult) / 2);
 
-ZTEST_SUITE(matrix_binary_q15, NULL, NULL, NULL, NULL, NULL);
+void test_matrix_binary_q15(void)
+{
+	ztest_test_suite(matrix_binary_q15,
+		ztest_unit_test(test_op2c_arm_mat_cmplx_mult_q15),
+		ztest_unit_test(test_op2_arm_mat_mult_q15)
+		);
+
+	ztest_run_test_suite(matrix_binary_q15);
+}

@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/init.h>
-#include <zephyr/spinlock.h>
-#include <zephyr/sys/slist.h>
-#include <zephyr/tracing/tracking.h>
+#include <init.h>
+#include <spinlock.h>
+#include <sys/slist.h>
+#include <tracing/tracking.h>
 
 struct k_timer *_track_list_k_timer;
 struct k_spinlock _track_list_k_timer_lock;
@@ -30,18 +30,11 @@ struct k_spinlock _track_list_k_msgq_lock;
 struct k_mbox *_track_list_k_mbox;
 struct k_spinlock _track_list_k_mbox_lock;
 
-#ifdef CONFIG_PIPES
 struct k_pipe *_track_list_k_pipe;
 struct k_spinlock _track_list_k_pipe_lock;
-#endif
 
 struct k_queue *_track_list_k_queue;
 struct k_spinlock _track_list_k_queue_lock;
-
-#ifdef CONFIG_EVENTS
-struct k_event *_track_list_k_event;
-struct k_spinlock _track_list_k_event_lock;
-#endif
 
 #define SYS_TRACK_LIST_PREPEND(list, obj) \
 	do { \
@@ -102,27 +95,17 @@ void sys_track_k_mbox_init(struct k_mbox *mbox)
 			SYS_TRACK_LIST_PREPEND(_track_list_k_mbox, mbox));
 }
 
-#ifdef CONFIG_PIPES
 void sys_track_k_pipe_init(struct k_pipe *pipe)
 {
 	SYS_PORT_TRACING_TYPE_MASK(k_pipe,
 			SYS_TRACK_LIST_PREPEND(_track_list_k_pipe, pipe));
 }
-#endif
 
 void sys_track_k_queue_init(struct k_queue *queue)
 {
 	SYS_PORT_TRACING_TYPE_MASK(k_queue,
 			SYS_TRACK_LIST_PREPEND(_track_list_k_queue, queue));
 }
-
-#ifdef CONFIG_EVENTS
-void sys_track_k_event_init(struct k_event *event)
-{
-	SYS_PORT_TRACING_TYPE_MASK(k_event,
-			SYS_TRACK_LIST_PREPEND(_track_list_k_event, event));
-}
-#endif
 
 static int sys_track_static_init(const struct device *arg)
 {
@@ -149,18 +132,11 @@ static int sys_track_static_init(const struct device *arg)
 	SYS_PORT_TRACING_TYPE_MASK(k_mbox,
 			SYS_TRACK_STATIC_INIT(k_mbox));
 
-#ifdef CONFIG_PIPES
 	SYS_PORT_TRACING_TYPE_MASK(k_pipe,
 			SYS_TRACK_STATIC_INIT(k_pipe));
-#endif
 
 	SYS_PORT_TRACING_TYPE_MASK(k_queue,
 			SYS_TRACK_STATIC_INIT(k_queue));
-
-#ifdef CONFIG_EVENTS
-	SYS_PORT_TRACING_TYPE_MASK(k_event,
-			SYS_TRACK_STATIC_INIT(k_event));
-#endif
 
 	return 0;
 }

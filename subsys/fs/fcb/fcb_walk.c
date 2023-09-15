@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/fs/fcb.h>
+#include <fs/fcb.h>
 #include "fcb_priv.h"
 
 /*

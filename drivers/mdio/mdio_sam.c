@@ -7,14 +7,12 @@
 #define DT_DRV_COMPAT atmel_sam_mdio
 
 #include <errno.h>
-#include <zephyr/device.h>
-#include <zephyr/init.h>
-#include <zephyr/kernel.h>
+#include <device.h>
+#include <init.h>
 #include <soc.h>
-#include <zephyr/drivers/mdio.h>
-#include <zephyr/drivers/pinctrl.h>
+#include <drivers/mdio.h>
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(mdio_sam, CONFIG_MDIO_LOG_LEVEL);
 
 /* GMAC */
@@ -30,9 +28,10 @@ struct mdio_sam_dev_data {
 
 struct mdio_sam_dev_config {
 	Gmac * const regs;
-	const struct pinctrl_dev_config *pcfg;
 	int protocol;
 };
+
+#define DEV_NAME(dev) ((dev)->name)
 
 static int mdio_transfer(const struct device *dev, uint8_t prtad, uint8_t devad,
 			 uint8_t rw, uint16_t data_in, uint16_t *data_out)
@@ -66,7 +65,7 @@ static int mdio_transfer(const struct device *dev, uint8_t prtad, uint8_t devad,
 	/* Wait until done */
 	while (!(cfg->regs->GMAC_NSR & GMAC_NSR_IDLE)) {
 		if (timeout-- == 0U) {
-			LOG_ERR("transfer timedout %s", dev->name);
+			LOG_ERR("transfer timedout %s", DEV_NAME(dev));
 			k_sem_give(&data->sem);
 
 			return -ETIMEDOUT;
@@ -112,15 +111,11 @@ static void mdio_sam_bus_disable(const struct device *dev)
 
 static int mdio_sam_initialize(const struct device *dev)
 {
-	const struct mdio_sam_dev_config *const cfg = dev->config;
 	struct mdio_sam_dev_data *const data = dev->data;
-	int retval;
 
 	k_sem_init(&data->sem, 1, 1);
 
-	retval = pinctrl_apply_state(cfg->pcfg, PINCTRL_STATE_DEFAULT);
-
-	return retval;
+	return 0;
 }
 
 static const struct mdio_driver_api mdio_sam_driver_api = {
@@ -133,12 +128,10 @@ static const struct mdio_driver_api mdio_sam_driver_api = {
 #define MDIO_SAM_CONFIG(n)						\
 static const struct mdio_sam_dev_config mdio_sam_dev_config_##n = {	\
 	.regs = (Gmac *)DT_REG_ADDR(DT_INST_PARENT(n)),			\
-	.pcfg = PINCTRL_DT_INST_DEV_CONFIG_GET(n),			\
 	.protocol = DT_INST_ENUM_IDX(n, protocol),			\
 };
 
 #define MDIO_SAM_DEVICE(n)						\
-	PINCTRL_DT_INST_DEFINE(n);					\
 	MDIO_SAM_CONFIG(n);						\
 	static struct mdio_sam_dev_data mdio_sam_dev_data##n;		\
 	DEVICE_DT_INST_DEFINE(n,					\

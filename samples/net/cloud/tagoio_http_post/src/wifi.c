@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_DECLARE(tagoio_http_post, CONFIG_TAGOIO_HTTP_POST_LOG_LEVEL);
 
-#include <zephyr/net/wifi_mgmt.h>
+#include <net/wifi_mgmt.h>
 
 static int connected;
 static struct net_mgmt_event_callback wifi_shell_mgmt_cb;

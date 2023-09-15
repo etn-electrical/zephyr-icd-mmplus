@@ -11,14 +11,13 @@
 #include <soc.h>
 #include <string.h>
 #include <stdio.h>
-#include <zephyr/kernel.h>
-#include <zephyr/sys/byteorder.h>
-#include <zephyr/usb/usb_device.h>
-#include <zephyr/device.h>
+#include <kernel.h>
+#include <sys/byteorder.h>
+#include <usb/usb_device.h>
+#include <device.h>
 
 #define LOG_LEVEL CONFIG_USB_DRIVER_LOG_LEVEL
-#include <zephyr/logging/log.h>
-#include <zephyr/irq.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(usb_dc_kinetis);
 
 #define NUM_OF_EP_MAX		DT_INST_PROP(0, num_bidir_endpoints)
@@ -132,6 +131,7 @@ struct cb_msg {
 
 K_MSGQ_DEFINE(usb_dc_msgq, sizeof(struct cb_msg), 10, 4);
 static void usb_kinetis_isr_handler(void);
+static void usb_kinetis_thread_main(void *arg1, void *unused1, void *unused2);
 
 /*
  * This function returns the BD element index based on
@@ -174,7 +174,16 @@ static int kinetis_usb_init(void)
 
 	USB0->USBCTRL = USB_USBCTRL_PDE_MASK;
 
+	k_thread_create(&dev_data.thread, dev_data.thread_stack,
+			USBD_THREAD_STACK_SIZE,
+			usb_kinetis_thread_main, NULL, NULL, NULL,
+			K_PRIO_COOP(2), 0, K_NO_WAIT);
 
+	/* Connect and enable USB interrupt */
+	IRQ_CONNECT(DT_INST_IRQN(0), DT_INST_IRQ(0, priority),
+		    usb_kinetis_isr_handler, 0, 0);
+
+	irq_enable(DT_INST_IRQN(0));
 
 	LOG_DBG("");
 
@@ -258,7 +267,7 @@ int usb_dc_set_address(const uint8_t addr)
 	/*
 	 * The device stack tries to set the address before
 	 * sending the ACK with ZLP, which is totally stupid,
-	 * as workaround the address will be buffered and
+	 * as workaround the addresse will be buffered and
 	 * placed later inside isr handler (see KINETIS_IN_TOKEN).
 	 */
 	dev_data.address = 0x80 | (addr & 0x7f);
@@ -1037,22 +1046,3 @@ static void usb_kinetis_thread_main(void *arg1, void *unused1, void *unused2)
 		}
 	}
 }
-
-static int usb_kinetis_init(const struct device *dev)
-{
-	ARG_UNUSED(dev);
-
-	k_thread_create(&dev_data.thread, dev_data.thread_stack,
-			USBD_THREAD_STACK_SIZE,
-			usb_kinetis_thread_main, NULL, NULL, NULL,
-			K_PRIO_COOP(2), 0, K_NO_WAIT);
-	k_thread_name_set(&dev_data.thread, "usb_kinetis");
-
-	IRQ_CONNECT(DT_INST_IRQN(0), DT_INST_IRQ(0, priority),
-		    usb_kinetis_isr_handler, 0, 0);
-	irq_enable(DT_INST_IRQN(0));
-
-	return 0;
-}
-
-SYS_INIT(usb_kinetis_init, POST_KERNEL, CONFIG_KERNEL_INIT_PRIORITY_DEVICE);

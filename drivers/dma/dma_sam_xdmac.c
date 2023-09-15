@@ -11,17 +11,16 @@
  */
 
 #include <errno.h>
-#include <zephyr/sys/__assert.h>
-#include <zephyr/device.h>
-#include <zephyr/init.h>
+#include <sys/__assert.h>
+#include <device.h>
+#include <init.h>
 #include <string.h>
 #include <soc.h>
-#include <zephyr/drivers/dma.h>
+#include <drivers/dma.h>
 #include "dma_sam_xdmac.h"
 
 #define LOG_LEVEL CONFIG_DMA_LOG_LEVEL
-#include <zephyr/logging/log.h>
-#include <zephyr/irq.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(dma_sam_xdmac);
 
 #define XDMAC_INT_ERR (XDMAC_CIE_RBIE | XDMAC_CIE_WBIE | XDMAC_CIE_ROIE)
@@ -46,6 +45,8 @@ struct sam_xdmac_dev_cfg {
 struct sam_xdmac_dev_data {
 	struct sam_xdmac_channel_cfg dma_channels[DMA_CHANNELS_NO];
 };
+
+#define DEV_NAME(dev) ((dev)->name)
 
 static void sam_xdmac_isr(const struct device *dev)
 {
@@ -209,22 +210,6 @@ static int sam_xdmac_config(const struct device *dev, uint32_t channel,
 	dev_data->dma_channels[channel].data_size = data_size;
 	LOG_DBG("data_size=%d", data_size);
 
-	uint32_t xdmac_inc_cfg = 0;
-
-	if (cfg->head_block->source_addr_adj == DMA_ADDR_ADJ_INCREMENT
-		&& cfg->channel_direction == MEMORY_TO_PERIPHERAL) {
-		xdmac_inc_cfg |= XDMAC_CC_SAM_INCREMENTED_AM;
-	} else {
-		xdmac_inc_cfg |= XDMAC_CC_SAM_FIXED_AM;
-	}
-
-	if (cfg->head_block->dest_addr_adj == DMA_ADDR_ADJ_INCREMENT
-		&& cfg->channel_direction == PERIPHERAL_TO_MEMORY) {
-		xdmac_inc_cfg |= XDMAC_CC_DAM_INCREMENTED_AM;
-	} else {
-		xdmac_inc_cfg |= XDMAC_CC_DAM_FIXED_AM;
-	}
-
 	switch (cfg->channel_direction) {
 	case MEMORY_TO_MEMORY:
 		channel_cfg.cfg =
@@ -238,14 +223,16 @@ static int sam_xdmac_config(const struct device *dev, uint32_t channel,
 			  XDMAC_CC_TYPE_PER_TRAN
 			| XDMAC_CC_CSIZE(burst_size)
 			| XDMAC_CC_DSYNC_MEM2PER
-			| xdmac_inc_cfg;
+			| XDMAC_CC_SAM_INCREMENTED_AM
+			| XDMAC_CC_DAM_FIXED_AM;
 		break;
 	case PERIPHERAL_TO_MEMORY:
 		channel_cfg.cfg =
 			  XDMAC_CC_TYPE_PER_TRAN
 			| XDMAC_CC_CSIZE(burst_size)
 			| XDMAC_CC_DSYNC_PER2MEM
-			| xdmac_inc_cfg;
+			| XDMAC_CC_SAM_FIXED_AM
+			| XDMAC_CC_DAM_INCREMENTED_AM;
 		break;
 	default:
 		LOG_ERR("'channel_direction' value %d is not supported",
@@ -303,13 +290,11 @@ int sam_xdmac_transfer_start(const struct device *dev, uint32_t channel)
 	Xdmac * const xdmac = config->regs;
 
 	if (channel >= DMA_CHANNELS_NO) {
-		LOG_DBG("Channel %d out of range", channel);
 		return -EINVAL;
 	}
 
 	/* Check if the channel is enabled */
 	if (xdmac->XDMAC_GS & (XDMAC_GS_ST0 << channel)) {
-		LOG_DBG("Channel %d already enabled", channel);
 		return -EBUSY;
 	}
 
@@ -368,7 +353,7 @@ static int sam_xdmac_initialize(const struct device *dev)
 	/* Enable module's IRQ */
 	irq_enable(dev_cfg->irq_id);
 
-	LOG_INF("Device %s initialized", dev->name);
+	LOG_INF("Device %s initialized", DEV_NAME(dev));
 
 	return 0;
 }

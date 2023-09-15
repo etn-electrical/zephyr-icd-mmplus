@@ -4,20 +4,19 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/sys/device_mmio.h>
-#include <zephyr/drivers/pcie/pcie.h>
+#include <kernel.h>
+#include <sys/device_mmio.h>
+#include <drivers/pcie/pcie.h>
 
 #ifdef CONFIG_ACPI
-#include <zephyr/arch/x86/acpi.h>
+#include <arch/x86/acpi.h>
 #endif
 
 #ifdef CONFIG_PCIE_MSI
 #include <kernel_arch_func.h>
-#include <zephyr/device.h>
-#include <zephyr/drivers/pcie/msi.h>
-#include <zephyr/drivers/interrupt_controller/sysapic.h>
-#include <zephyr/arch/x86/cpuid.h>
+#include <device.h>
+#include <drivers/pcie/msi.h>
+#include <drivers/interrupt_controller/sysapic.h>
 #endif
 
 /* PCI Express Extended Configuration Mechanism (MMIO) */
@@ -161,24 +160,31 @@ void pcie_conf_write(pcie_bdf_t bdf, unsigned int reg, uint32_t data)
 
 #ifdef CONFIG_INTEL_VTD_ICTL
 
-#include <zephyr/drivers/interrupt_controller/intel_vtd.h>
-#include <zephyr/arch/x86/acpi.h>
+#include <drivers/interrupt_controller/intel_vtd.h>
+#include <arch/x86/acpi.h>
 
-static const struct device *const vtd = DEVICE_DT_GET_ONE(intel_vt_d);
+static const struct device *vtd;
+
+static bool get_vtd(void)
+{
+	if (vtd != NULL) {
+		return true;
+	}
+#define DT_DRV_COMPAT intel_vt_d
+	vtd = device_get_binding(DT_INST_LABEL(0));
+#undef DT_DRV_COMPAT
+
+	return vtd == NULL ? false : true;
+}
 
 #endif /* CONFIG_INTEL_VTD_ICTL */
 
 /* these functions are explained in include/drivers/pcie/msi.h */
 
-#define MSI_MAP_DESTINATION_ID_SHIFT 12
-#define MSI_RH BIT(3)
-
 uint32_t pcie_msi_map(unsigned int irq,
 		      msi_vector_t *vector,
 		      uint8_t n_vector)
 {
-	uint32_t dest_id;
-
 	ARG_UNUSED(irq);
 
 #if defined(CONFIG_INTEL_VTD_ICTL)
@@ -186,14 +192,7 @@ uint32_t pcie_msi_map(unsigned int irq,
 		return vtd_remap_msi(vtd, vector, n_vector);
 	}
 #endif
-
-	dest_id = z_x86_cpuid_get_current_physical_apic_id() <<
-		MSI_MAP_DESTINATION_ID_SHIFT;
-
-	/* Directing to current physical CPU (may not be BSP)
-	 * Destination ID - RH 1 - DM 0
-	 */
-	return 0xFEE00000U | dest_id | MSI_RH;
+	return 0xFEE00000U; /* standard delivery to BSP local APIC */
 }
 
 uint16_t pcie_msi_mdr(unsigned int irq,
@@ -232,7 +231,7 @@ uint8_t arch_pcie_msi_vectors_allocate(unsigned int priority,
 	{
 		int irte;
 
-		if (!device_is_ready(vtd)) {
+		if (!get_vtd()) {
 			return 0;
 		}
 
@@ -294,7 +293,7 @@ bool arch_pcie_msi_vector_connect(msi_vector_t *vector,
 	if (vector->arch.remap) {
 		union acpi_dmar_id id;
 
-		if (!device_is_ready(vtd)) {
+		if (!get_vtd()) {
 			return false;
 		}
 

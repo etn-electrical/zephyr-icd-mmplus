@@ -8,14 +8,14 @@
  */
 
 #include <zephyr/types.h>
-#include <zephyr/device.h>
+#include <device.h>
 #include <stddef.h>
-#include <zephyr/sys/printk.h>
-#include <zephyr/sys/util.h>
-#include <zephyr/pm/pm.h>
+#include <sys/printk.h>
+#include <sys/util.h>
+#include <pm/pm.h>
 
-#include <zephyr/bluetooth/bluetooth.h>
-#include <zephyr/bluetooth/hci.h>
+#include <bluetooth/bluetooth.h>
+#include <bluetooth/hci.h>
 
 #define DEVICE_NAME CONFIG_BT_DEVICE_NAME
 #define DEVICE_NAME_LEN (sizeof(DEVICE_NAME) - 1)
@@ -98,14 +98,6 @@ static void bt_ready(int err)
 	}
 
 	printk("Beacon started\n");
-
-	err = bt_le_adv_stop();
-	if (err != 0) {
-		printk("Advertising failed to stop: %d", err);
-		return;
-	}
-
-	printk("Beacon stopped\n");
 }
 
 void main(void)
@@ -113,39 +105,18 @@ void main(void)
 	int err;
 
 	printk("Starting Beacon Demo\n");
+
+	k_sleep(K_MSEC(500));
+
 	/* Initialize the Bluetooth Subsystem */
 	err = bt_enable(bt_ready);
 	if (err) {
 		printk("Bluetooth init failed (err %d)\n", err);
 	}
 
-	/* Give time to bt_ready sequence */
 	k_sleep(K_SECONDS(6));
 
-	printk("BLE disable\n");
-	err = bt_disable();
-	if (err) {
-		printk("Bluetooth disable failed (err %d)\n", err);
-	}
+	printk("Device shutdown\n");
 
-	k_sleep(K_SECONDS(2));
-
-	printk("BLE restart\n");
-	/* Initialize the Bluetooth Subsystem */
-	err = bt_enable(bt_ready);
-	if (err) {
-		printk("Bluetooth init failed (err %d)\n", err);
-	}
-
-	/* Give time to bt_ready sequence */
-	k_sleep(K_SECONDS(6));
-
-	printk("BLE disable\n");
-	err = bt_disable();
-	if (err) {
-		printk("Bluetooth disable failed (err %d)\n", err);
-	}
-
-	printk("Shutdown\n");
-	pm_state_force(0u, &(struct pm_state_info){PM_STATE_SOFT_OFF, 0, 0});
+	pm_power_state_force(0u, (struct pm_state_info){PM_STATE_SOFT_OFF, 0, 0});
 }

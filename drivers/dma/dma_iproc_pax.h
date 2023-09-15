@@ -518,7 +518,7 @@ struct dma_iproc_pax_cfg {
 	int use_rings;
 	void *bd_memory_base;
 	uint32_t scr_addr_loc;
-	const struct device *pcie_dev;
+	char *pcie_dev_name;
 };
 
 #endif

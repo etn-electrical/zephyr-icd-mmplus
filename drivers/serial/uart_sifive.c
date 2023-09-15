@@ -10,12 +10,9 @@
 
 #define DT_DRV_COMPAT sifive_uart0
 
-#include <zephyr/kernel.h>
-#include <zephyr/arch/cpu.h>
-#include <zephyr/drivers/uart.h>
-#include <zephyr/drivers/pinctrl.h>
-#include <soc.h>
-#include <zephyr/irq.h>
+#include <kernel.h>
+#include <arch/cpu.h>
+#include <drivers/uart.h>
 
 #define RXDATA_EMPTY   (1 << 31)   /* Receive FIFO Empty */
 #define RXDATA_MASK    0xFF        /* Receive Data Mask */
@@ -50,14 +47,13 @@ typedef void (*irq_cfg_func_t)(void);
 #endif
 
 struct uart_sifive_device_config {
-	uintptr_t	port;
-	uint32_t	sys_clk_freq;
-	uint32_t	baud_rate;
-	uint32_t	rxcnt_irq;
-	uint32_t	txcnt_irq;
-	const struct	pinctrl_dev_config *pcfg;
+	uintptr_t   port;
+	uint32_t       sys_clk_freq;
+	uint32_t       baud_rate;
+	uint32_t       rxcnt_irq;
+	uint32_t       txcnt_irq;
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
-	irq_cfg_func_t	cfg_func;
+	irq_cfg_func_t cfg_func;
 #endif
 };
 
@@ -322,9 +318,6 @@ static int uart_sifive_init(const struct device *dev)
 {
 	const struct uart_sifive_device_config * const cfg = dev->config;
 	volatile struct uart_sifive_regs_t *uart = DEV_UART(dev);
-#ifdef CONFIG_PINCTRL
-	int ret;
-#endif
 
 	/* Enable TX and RX channels */
 	uart->txctrl = TXCTRL_TXEN | CTRL_CNT(cfg->txcnt_irq);
@@ -339,13 +332,6 @@ static int uart_sifive_init(const struct device *dev)
 
 	/* Setup IRQ handler */
 	cfg->cfg_func();
-#endif
-
-#ifdef CONFIG_PINCTRL
-	ret = pinctrl_apply_state(cfg->pcfg, PINCTRL_STATE_DEFAULT);
-	if (ret < 0) {
-		return ret;
-	}
 #endif
 
 	return 0;
@@ -381,15 +367,12 @@ static struct uart_sifive_data uart_sifive_data_0;
 static void uart_sifive_irq_cfg_func_0(void);
 #endif
 
-PINCTRL_DT_INST_DEFINE(0);
-
 static const struct uart_sifive_device_config uart_sifive_dev_cfg_0 = {
 	.port         = DT_INST_REG_ADDR(0),
-	.sys_clk_freq = SIFIVE_PERIPHERAL_CLOCK_FREQUENCY,
+	.sys_clk_freq = DT_INST_PROP(0, clock_frequency),
 	.baud_rate    = DT_INST_PROP(0, current_speed),
 	.rxcnt_irq    = CONFIG_UART_SIFIVE_PORT_0_RXCNT_IRQ,
 	.txcnt_irq    = CONFIG_UART_SIFIVE_PORT_0_TXCNT_IRQ,
-	.pcfg	      = PINCTRL_DT_INST_DEV_CONFIG_GET(0),
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 	.cfg_func     = uart_sifive_irq_cfg_func_0,
 #endif
@@ -401,7 +384,6 @@ DEVICE_DT_INST_DEFINE(0,
 		    &uart_sifive_data_0, &uart_sifive_dev_cfg_0,
 		    PRE_KERNEL_1, CONFIG_SERIAL_INIT_PRIORITY,
 		    (void *)&uart_sifive_driver_api);
-
 
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 static void uart_sifive_irq_cfg_func_0(void)
@@ -424,15 +406,12 @@ static struct uart_sifive_data uart_sifive_data_1;
 static void uart_sifive_irq_cfg_func_1(void);
 #endif
 
-PINCTRL_DT_INST_DEFINE(1);
-
 static const struct uart_sifive_device_config uart_sifive_dev_cfg_1 = {
 	.port         = DT_INST_REG_ADDR(1),
-	.sys_clk_freq = SIFIVE_PERIPHERAL_CLOCK_FREQUENCY,
+	.sys_clk_freq = DT_INST_PROP(1, clock_frequency),
 	.baud_rate    = DT_INST_PROP(1, current_speed),
 	.rxcnt_irq    = CONFIG_UART_SIFIVE_PORT_1_RXCNT_IRQ,
 	.txcnt_irq    = CONFIG_UART_SIFIVE_PORT_1_TXCNT_IRQ,
-	.pcfg	      = PINCTRL_DT_INST_DEV_CONFIG_GET(1),
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 	.cfg_func     = uart_sifive_irq_cfg_func_1,
 #endif

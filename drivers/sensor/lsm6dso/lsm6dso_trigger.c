@@ -10,10 +10,10 @@
 
 #define DT_DRV_COMPAT st_lsm6dso
 
-#include <zephyr/kernel.h>
-#include <zephyr/drivers/sensor.h>
-#include <zephyr/drivers/gpio.h>
-#include <zephyr/logging/log.h>
+#include <kernel.h>
+#include <drivers/sensor.h>
+#include <drivers/gpio.h>
+#include <logging/log.h>
 
 #include "lsm6dso.h"
 
@@ -27,6 +27,7 @@ static int lsm6dso_enable_t_int(const struct device *dev, int enable)
 {
 	const struct lsm6dso_config *cfg = dev->config;
 	stmdev_ctx_t *ctx = (stmdev_ctx_t *)&cfg->ctx;
+	struct lsm6dso_data *lsm6dso = dev->data;
 	lsm6dso_int2_ctrl_t int2_ctrl;
 
 	if (enable) {
@@ -41,7 +42,7 @@ static int lsm6dso_enable_t_int(const struct device *dev, int enable)
 		return -EIO;
 
 	lsm6dso_read_reg(ctx, LSM6DSO_INT2_CTRL, (uint8_t *)&int2_ctrl, 1);
-	int2_ctrl.int2_drdy_temp = enable;
+	int2_route.int2_ctrl.int2_drdy_temp = enable;
 	return lsm6dso_write_reg(ctx, LSM6DSO_INT2_CTRL,
 				 (uint8_t *)&int2_ctrl, 1);
 }
@@ -268,7 +269,6 @@ int lsm6dso_init_interrupt(const struct device *dev)
 			(k_thread_entry_t)lsm6dso_thread, lsm6dso,
 			NULL, NULL, K_PRIO_COOP(CONFIG_LSM6DSO_THREAD_PRIORITY),
 			0, K_NO_WAIT);
-	k_thread_name_set(&lsm6dso->thread, "lsm6dso");
 #elif defined(CONFIG_LSM6DSO_TRIGGER_GLOBAL_THREAD)
 	lsm6dso->work.handler = lsm6dso_work_cb;
 #endif /* CONFIG_LSM6DSO_TRIGGER_OWN_THREAD */
@@ -288,16 +288,10 @@ int lsm6dso_init_interrupt(const struct device *dev)
 		return -EIO;
 	}
 
-
-	/* set data ready mode on int1/int2 */
-	LOG_DBG("drdy_pulsed is %d", (int)cfg->drdy_pulsed);
-	lsm6dso_dataready_pulsed_t mode = cfg->drdy_pulsed ? LSM6DSO_DRDY_PULSED :
-							     LSM6DSO_DRDY_LATCHED;
-
-	ret = lsm6dso_data_ready_mode_set(ctx, mode);
-	if (ret < 0) {
-		LOG_ERR("drdy_pulsed config error %d", (int)cfg->drdy_pulsed);
-		return ret;
+	/* enable interrupt on int1/int2 in pulse mode */
+	if (lsm6dso_int_notification_set(ctx, LSM6DSO_ALL_INT_PULSED) < 0) {
+		LOG_DBG("Could not set pulse mode");
+		return -EIO;
 	}
 
 	return gpio_pin_interrupt_configure_dt(&cfg->gpio_drdy,

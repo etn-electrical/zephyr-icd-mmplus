@@ -1,14 +1,11 @@
 identifier: intel_adsp_cavs25
-name: cAVS 2.5 Audio DSP (converged Audio Voice and Speech)
+name: CAVS 2.5 Audio DSP (Connected Audio Voice and Speech)
 type: mcu
 arch: xtensa
 toolchain:
   - xcc
   - zephyr
-supported:
-  - dma
-  - dai
 testing:
   ignore_tags:
-    - net
-    - bluetooth
+     - net
+     - bluetooth

@@ -6,10 +6,10 @@
  */
 
 #include <stdio.h>
-#include <zephyr/sys/libc-hooks.h>
-#include <zephyr/syscall_handler.h>
+#include <sys/libc-hooks.h>
+#include <syscall_handler.h>
 #include <string.h>
-#include <zephyr/sys/errno_private.h>
+#include <sys/errno_private.h>
 #include <unistd.h>
 #include <errno.h>
 

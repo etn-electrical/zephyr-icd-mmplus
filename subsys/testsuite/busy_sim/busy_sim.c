@@ -3,12 +3,12 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#include <zephyr/drivers/entropy.h>
-#include <zephyr/drivers/counter.h>
-#include <zephyr/drivers/gpio.h>
-#include <zephyr/busy_sim.h>
-#include <zephyr/sys/ring_buffer.h>
-#include <zephyr/random/rand32.h>
+#include <drivers/entropy.h>
+#include <drivers/counter.h>
+#include <drivers/gpio.h>
+#include "busy_sim.h"
+#include <sys/ring_buffer.h>
+#include <random/rand32.h>
 
 #define BUFFER_SIZE 32
 
@@ -46,7 +46,7 @@ static const struct busy_sim_config sim_config = {
 };
 
 static struct busy_sim_data sim_data;
-static const struct device *const busy_sim_dev = DEVICE_DT_GET_ONE(vnd_busy_sim);
+static const struct device *busy_sim_dev = DEVICE_DT_GET_ONE(vnd_busy_sim);
 
 static void rng_pool_work_handler(struct k_work *work)
 {
@@ -62,7 +62,6 @@ static void rng_pool_work_handler(struct k_work *work)
 			ring_buf_put_finish(&rnd_rbuf, len);
 			return;
 		}
-		ring_buf_put_finish(&rnd_rbuf, 0);
 	}
 
 	k_work_submit(work);

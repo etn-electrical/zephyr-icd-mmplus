@@ -18,7 +18,8 @@ the following devices:
 * RADIO (Bluetooth Low Energy)
 * Segger RTT (RTT Console)
 
-.. figure:: img/nrf52_adafruit_feather.jpg
+.. figure:: img/nrf52_adafruit_feather.png
+     :width: 442px
      :align: center
      :alt: nRF52 Adafruit Feather Board
 
@@ -148,7 +149,7 @@ Here is an example for the :ref:`hello_world` application.
       :goals: flash
       :compact:
 
-   You should see "Hello World! nrf52_adafruit_feather" in your terminal.
+   You should see "Hello World! arm" in your terminal.
 
 
 Debugging

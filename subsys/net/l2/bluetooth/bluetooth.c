@@ -4,31 +4,31 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(net_bt, CONFIG_NET_L2_BT_LOG_LEVEL);
 
-#include <zephyr/kernel.h>
-#include <zephyr/toolchain.h>
-#include <zephyr/linker/sections.h>
+#include <kernel.h>
+#include <toolchain.h>
+#include <linker/sections.h>
 #include <string.h>
 #include <errno.h>
 
-#include <zephyr/device.h>
-#include <zephyr/init.h>
+#include <device.h>
+#include <init.h>
 
-#include <zephyr/net/net_pkt.h>
-#include <zephyr/net/net_core.h>
-#include <zephyr/net/net_l2.h>
-#include <zephyr/net/net_if.h>
-#include <zephyr/net/capture.h>
-#include <zephyr/net/bt.h>
+#include <net/net_pkt.h>
+#include <net/net_core.h>
+#include <net/net_l2.h>
+#include <net/net_if.h>
+#include <net/capture.h>
+#include <net/bt.h>
 #include <6lo.h>
 
-#include <zephyr/bluetooth/bluetooth.h>
-#include <zephyr/bluetooth/hci.h>
-#include <zephyr/bluetooth/conn.h>
-#include <zephyr/bluetooth/uuid.h>
-#include <zephyr/bluetooth/l2cap.h>
+#include <bluetooth/bluetooth.h>
+#include <bluetooth/hci.h>
+#include <bluetooth/conn.h>
+#include <bluetooth/uuid.h>
+#include <bluetooth/l2cap.h>
 
 #include "net_private.h"
 #include "ipv6.h"
@@ -49,12 +49,6 @@ extern int net_bt_shell_init(void);
 #else
 #define net_bt_shell_init(...)
 #endif
-
-#if defined(CONFIG_NET_BUF_FIXED_DATA_SIZE)
-#define IPSP_FRAG_LEN CONFIG_NET_BUF_DATA_SIZE
-#else
-#define IPSP_FRAG_LEN L2CAP_IPSP_MTU
-#endif /* CONFIG_NET_BUF_FIXED_DATA_SIZE */
 
 struct bt_if_conn {
 	struct net_if *iface;
@@ -117,7 +111,7 @@ static int net_bt_send(struct net_if *iface, struct net_pkt *pkt)
 
 	net_capture_pkt(iface, pkt);
 
-	/* Detach data fragments for packet */
+	/* Dettach data fragments for packet */
 	buffer = pkt->buffer;
 	pkt->buffer = NULL;
 
@@ -136,7 +130,13 @@ static int net_bt_send(struct net_if *iface, struct net_pkt *pkt)
 
 static int net_bt_enable(struct net_if *iface, bool state)
 {
+	struct bt_if_conn *conn = net_bt_get_conn(iface);
+
 	NET_DBG("iface %p %s", iface, state ? "up" : "down");
+
+	if (state && conn->ipsp_chan.chan.state != BT_L2CAP_CONNECTED) {
+		return -ENETDOWN;
+	}
 
 	return 0;
 }
@@ -173,7 +173,7 @@ static void ipsp_connected(struct bt_l2cap_chan *chan)
 		bt_addr_le_to_str(info.le.dst, dst, sizeof(dst));
 
 		NET_DBG("Channel %p Source %s connected to Destination %s",
-			chan, src, dst);
+			chan, log_strdup(src), log_strdup(dst));
 	}
 
 	/* Swap bytes since net APIs expect big endian address */
@@ -195,8 +195,8 @@ static void ipsp_connected(struct bt_l2cap_chan *chan)
 	net_ipv6_nbr_add(conn->iface, &in6, &ll, false,
 			 NET_IPV6_NBR_STATE_STATIC);
 
-	/* Leave dormant state (iface goes up if set to admin up) */
-	net_if_dormant_off(conn->iface);
+	/* Set iface up */
+	net_if_up(conn->iface);
 }
 
 static void ipsp_disconnected(struct bt_l2cap_chan *chan)
@@ -205,8 +205,8 @@ static void ipsp_disconnected(struct bt_l2cap_chan *chan)
 
 	NET_DBG("Channel %p disconnected", chan);
 
-	/* Enter dormant state (iface goes down) */
-	net_if_dormant_on(conn->iface);
+	/* Set iface down */
+	net_if_carrier_down(conn->iface);
 
 #if defined(CONFIG_NET_L2_BT_MGMT)
 	if (chan->conn != default_conn) {
@@ -259,7 +259,7 @@ static struct net_buf *ipsp_alloc_buf(struct bt_l2cap_chan *chan)
 {
 	NET_DBG("Channel %p requires buffer", chan);
 
-	return net_pkt_get_reserve_rx_data(IPSP_FRAG_LEN, BUF_TIMEOUT);
+	return net_pkt_get_reserve_rx_data(BUF_TIMEOUT);
 }
 
 static const struct bt_l2cap_chan_ops ipsp_ops = {
@@ -301,7 +301,7 @@ static void bt_iface_init(struct net_if *iface)
 
 	conn->iface = iface;
 
-	net_if_dormant_on(iface);
+	net_if_flag_set(iface, NET_IF_NO_AUTO_START);
 
 #if defined(CONFIG_NET_L2_BT_ZEP1656)
 	/* Workaround Linux bug, see:
@@ -432,7 +432,7 @@ static bool eir_found(uint8_t type, const uint8_t *data, uint8_t data_len,
 			char dev[BT_ADDR_LE_STR_LEN];
 
 			bt_addr_le_to_str(addr, dev, sizeof(dev));
-			NET_DBG("[DEVICE]: %s", dev);
+			NET_DBG("[DEVICE]: %s", log_strdup(dev));
 		}
 
 		/* TODO: Notify device address found */
@@ -563,7 +563,7 @@ static void connected(struct bt_conn *conn, uint8_t err)
 					  sizeof(addr));
 
 			NET_ERR("Failed to connect to %s (%u)\n",
-				addr, err);
+				log_strdup(addr), err);
 		}
 
 		return;
@@ -596,7 +596,7 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
 		bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
 
 		NET_DBG("Disconnected: %s (reason 0x%02x)\n",
-			addr, reason);
+			log_strdup(addr), reason);
 	}
 
 	bt_conn_unref(default_conn);

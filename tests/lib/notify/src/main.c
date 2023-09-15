@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
-#include <zephyr/sys/notify.h>
+#include <ztest.h>
+#include <sys/notify.h>
 
 static uint32_t get_extflags(const struct sys_notify *anp)
 {
@@ -28,7 +28,7 @@ static void callback(struct sys_notify *anp,
 		      "failed callback fetch");
 }
 
-ZTEST(sys_notify_api, test_validate)
+static void test_validate(void)
 {
 	struct sys_notify notify = {
 		.flags = 0,
@@ -41,11 +41,11 @@ ZTEST(sys_notify_api, test_validate)
 }
 
 
-ZTEST(sys_notify_api, test_spinwait)
+static void test_spinwait(void)
 {
 	int rc;
 	int set_res = 423;
-	int res = 0;
+	int res;
 	sys_notify_generic_callback cb;
 	struct sys_notify notify;
 	uint32_t xflags = 0x1234;
@@ -93,7 +93,7 @@ ZTEST(sys_notify_api, test_spinwait)
 		      "result not set");
 }
 
-ZTEST(sys_notify_api, test_signal)
+static void test_signal(void)
 {
 #ifdef CONFIG_POLL
 	int rc;
@@ -167,7 +167,7 @@ ZTEST(sys_notify_api, test_signal)
 #endif /* CONFIG_POLL */
 }
 
-ZTEST(sys_notify_api, test_callback)
+static void test_callback(void)
 {
 	int rc;
 	int set_res = 423;
@@ -228,4 +228,12 @@ ZTEST(sys_notify_api, test_callback)
 		      "result not set");
 }
 
-ZTEST_SUITE(sys_notify_api, NULL, NULL, NULL, NULL, NULL);
+void test_main(void)
+{
+	ztest_test_suite(sys_notify_api,
+			 ztest_unit_test(test_validate),
+			 ztest_unit_test(test_spinwait),
+			 ztest_unit_test(test_signal),
+			 ztest_unit_test(test_callback));
+	ztest_run_test_suite(sys_notify_api);
+}

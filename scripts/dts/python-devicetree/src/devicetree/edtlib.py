@@ -67,11 +67,12 @@ bindings_from_paths() helper function.
 #   @properties are documented in the class docstring, as if they were
 #   variables. See the existing @properties for a template.
 
-from collections import defaultdict
+from collections import OrderedDict, defaultdict
 from copy import deepcopy
 import logging
 import os
 import re
+from typing import Set
 
 import yaml
 try:
@@ -83,7 +84,7 @@ except ImportError:
 
 from devicetree.dtlib import DT, DTError, to_num, to_nums, Type
 from devicetree.grutils import Graph
-from devicetree._private import _slice_helper
+
 
 #
 # Public classes
@@ -106,26 +107,20 @@ class EDT:
     compat2okay:
       Like compat2nodes, but just for nodes with status 'okay'.
 
-    compat2vendor:
-      A collections.defaultdict that maps each 'compatible' string that appears
-      on some Node to a vendor name parsed from vendor_prefixes.
-
-    compat2model:
-      A collections.defaultdict that maps each 'compatible' string that appears
-      on some Node to a model name parsed from that compatible.
-
     label2node:
-      A dict that maps a node label to the node with that label.
+      A collections.OrderedDict that maps a node label to the node with
+      that label.
 
     dep_ord2node:
-      A dict that maps an ordinal to the node with that dependency ordinal.
+      A collections.OrderedDict that maps an ordinal to the node with
+      that dependency ordinal.
 
     chosen_nodes:
-      A dict that maps the properties defined on the devicetree's /chosen
-      node to their values. 'chosen' is indexed by property name (a string),
-      and values are converted to Node objects. Note that properties of the
-      /chosen node which can't be converted to a Node are not included in
-      the value.
+      A collections.OrderedDict that maps the properties defined on the
+      devicetree's /chosen node to their values. 'chosen' is indexed by
+      property name (a string), and values are converted to Node objects.
+      Note that properties of the /chosen node which can't be converted
+      to a Node are not included in the value.
 
     dts_path:
       The .dts path passed to __init__()
@@ -231,7 +226,7 @@ class EDT:
 
     @property
     def chosen_nodes(self):
-        ret = {}
+        ret = OrderedDict()
 
         try:
             chosen = self._dt.get_node("/chosen")
@@ -452,12 +447,10 @@ class EDT:
     def _init_luts(self):
         # Initialize node lookup tables (LUTs).
 
-        self.label2node = {}
-        self.dep_ord2node = {}
+        self.label2node = OrderedDict()
+        self.dep_ord2node = OrderedDict()
         self.compat2nodes = defaultdict(list)
         self.compat2okay = defaultdict(list)
-        self.compat2vendor = defaultdict(str)
-        self.compat2model = defaultdict(str)
 
         for node in self.nodes:
             for label in node.labels:
@@ -468,35 +461,6 @@ class EDT:
 
                 if node.status == "okay":
                     self.compat2okay[compat].append(node)
-
-                if compat in self.compat2vendor:
-                    continue
-
-                # The regular expression comes from dt-schema.
-                compat_re = r'^[a-zA-Z][a-zA-Z0-9,+\-._]+$'
-                if not re.match(compat_re, compat):
-                    _err(f"node '{node.path}' compatible '{compat}' "
-                         'must match this regular expression: '
-                         f"'{compat_re}'")
-
-                if ',' in compat and self._vendor_prefixes:
-                    vendor, model = compat.split(',', 1)
-                    if vendor in self._vendor_prefixes:
-                        self.compat2vendor[compat] = self._vendor_prefixes[vendor]
-                        self.compat2model[compat] = model
-
-                    # As an exception, the root node can have whatever
-                    # compatibles it wants. Other nodes get checked.
-                    elif node.path != '/' and \
-                       vendor not in _VENDOR_PREFIX_ALLOWED:
-                        if self._werror:
-                            handler_fn = _err
-                        else:
-                            handler_fn = _LOG.warning
-                        handler_fn(
-                            f"node '{node.path}' compatible '{compat}' "
-                            f"has unknown vendor prefix '{vendor}'")
-
 
         for nodeset in self.scc_order:
             node = nodeset[0]
@@ -525,6 +489,7 @@ class EDT:
                         ', '.join(repr(x) for x in spec.enum))
 
         # Validate the contents of compatible properties.
+        self._checked_compatibles: Set[str] = set()
         for node in self.nodes:
             if 'compatible' not in node.props:
                 continue
@@ -541,6 +506,36 @@ class EDT:
                 # This is also just for future-proofing.
                 assert isinstance(compat, str)
 
+                self._check_compatible(node, compat)
+        del self._checked_compatibles  # We have no need for this anymore.
+
+    def _check_compatible(self, node, compat):
+        if compat in self._checked_compatibles:
+            return
+
+        # The regular expression comes from dt-schema.
+        compat_re = r'^[a-zA-Z][a-zA-Z0-9,+\-._]+$'
+        if not re.match(compat_re, compat):
+            _err(f"node '{node.path}' compatible '{compat}' "
+                 'must match this regular expression: '
+                 f"'{compat_re}'")
+
+        if ',' in compat and self._vendor_prefixes:
+            vendor = compat.split(',', 1)[0]
+            # As an exception, the root node can have whatever
+            # compatibles it wants. Other nodes get checked.
+            if node.path != '/' and \
+                   vendor not in self._vendor_prefixes and \
+                   vendor not in _VENDOR_PREFIX_ALLOWED:
+                if self._werror:
+                    handler_fn = _err
+                else:
+                    handler_fn = _LOG.warning
+                handler_fn(
+                    f"node '{node.path}' compatible '{compat}' "
+                    f"has unknown vendor prefix '{vendor}'")
+
+        self._checked_compatibles.add(compat)
 
 class Node:
     """
@@ -623,14 +618,14 @@ class Node:
       they're listed in the .dts file
 
     ranges:
-      A list of Range objects extracted from the node's ranges property.
+      A list if Range objects extracted from the node's ranges property.
       The list is empty if the node does not have a range property.
 
     regs:
       A list of Register objects for the node's registers
 
     props:
-      A dict that maps property names to Property objects.
+      A collections.OrderedDict that maps property names to Property objects.
       Property objects are created for all devicetree properties on the node
       that are mentioned in 'properties:' in the binding.
 
@@ -646,18 +641,16 @@ class Node:
       node, sorted by index. The list is empty if the node does not have any
       pinctrl-<index> properties.
 
-    buses:
+    bus:
       If the node is a bus node (has a 'bus:' key in its binding), then this
-      attribute holds the list of supported bus types, e.g. ["i2c"], ["spi"]
-      or ["i3c", "i2c"] if multiple protocols are supported via the same bus.
-      If the node is not a bus node, then this attribute is an empty list.
+      attribute holds the bus type, e.g. "i2c" or "spi". If the node is not a
+      bus node, then this attribute is None.
 
-    on_buses:
-      The bus the node appears on, e.g. ["i2c"], ["spi"] or ["i3c", "i2c"] if
-      multiple protocols are supported via the same bus. The bus is determined
+    on_bus:
+      The bus the node appears on, e.g. "i2c" or "spi". The bus is determined
       by searching upwards for a parent node whose binding has a 'bus:' key,
       returning the value of the first 'bus:' key found. If none of the node's
-      parents has a 'bus:' key, this attribute is an empty list.
+      parents has a 'bus:' key, this attribute is None.
 
     bus_node:
       Like on_bus, but contains the Node for the bus controller, or None if the
@@ -671,11 +664,6 @@ class Node:
       The device's SPI GPIO chip select as a ControllerAndData instance, if it
       exists, and None otherwise. See
       Documentation/devicetree/bindings/spi/spi-controller.yaml in the Linux kernel.
-
-    gpio_hogs:
-      A list of ControllerAndData objects for the GPIOs hogged by the node. The
-      list is empty if the node does not hog any GPIOs. Only relevant for GPIO hog
-      nodes.
     """
     @property
     def name(self):
@@ -733,23 +721,8 @@ class Node:
         # Could be initialized statically too to preserve identity, but not
         # sure if needed. Parent nodes being initialized before their children
         # would need to be kept in mind.
-        return {name: self.edt._node2enode[node]
-                for name, node in self._node.nodes.items()}
-
-    def child_index(self, node):
-        """Get the index of *node* in self.children.
-        Raises KeyError if the argument is not a child of this node.
-        """
-        if not hasattr(self, '_child2index'):
-            # Defer initialization of this lookup table until this
-            # method is callable to handle parents needing to be
-            # initialized before their chidlren. By the time we
-            # return from __init__, 'self.children' is callable.
-            self._child2index = {}
-            for index, child in enumerate(self.children.values()):
-                self._child2index[child] = index
-
-        return self._child2index[node]
+        return OrderedDict((name, self.edt._node2enode[node])
+                           for name, node in self._node.nodes.items())
 
     @property
     def required_by(self):
@@ -788,17 +761,17 @@ class Node:
                 if node is self._node]
 
     @property
-    def buses(self):
+    def bus(self):
         "See the class docstring"
         if self._binding:
-            return self._binding.buses
-        return []
+            return self._binding.bus
+        return None
 
     @property
-    def on_buses(self):
+    def on_bus(self):
         "See the class docstring"
         bus_node = self.bus_node
-        return bus_node.buses if bus_node else []
+        return bus_node.bus if bus_node else None
 
     @property
     def flash_controller(self):
@@ -823,8 +796,7 @@ class Node:
     def spi_cs_gpio(self):
         "See the class docstring"
 
-        if not ("spi" in self.on_buses
-                and "cs-gpios" in self.bus_node.props):
+        if not (self.on_bus == "spi" and "cs-gpios" in self.bus_node.props):
             return None
 
         if not self.regs:
@@ -841,35 +813,6 @@ class Node:
                  f"{self.bus_node!r} ({len(parent_cs_lst)})")
 
         return parent_cs_lst[cs_index]
-
-    @property
-    def gpio_hogs(self):
-        "See the class docstring"
-
-        if "gpio-hog" not in self.props:
-            return []
-
-        if not self.parent or not "gpio-controller" in self.parent.props:
-            _err(f"GPIO hog {self!r} lacks parent GPIO controller node")
-
-        if not "#gpio-cells" in self.parent._node.props:
-            _err(f"GPIO hog {self!r} parent node lacks #gpio-cells")
-
-        n_cells = self.parent._node.props["#gpio-cells"].to_num()
-        res = []
-
-        for item in _slice(self._node, "gpios", 4*n_cells,
-                           f"4*(<#gpio-cells> (= {n_cells})"):
-            entry = ControllerAndData()
-            entry.node = self
-            entry.controller = self.parent
-            entry.data = self._named_cells(entry.controller, item, "gpio")
-            entry.basename = "gpio"
-            entry.name = None
-
-            res.append(entry)
-
-        return res
 
     def __repr__(self):
         if self.binding_path:
@@ -895,7 +838,7 @@ class Node:
             return
 
         if self.compats:
-            on_buses = self.on_buses
+            on_bus = self.on_bus
 
             for compat in self.compats:
                 # When matching, respect the order of the 'compatible' entries,
@@ -903,18 +846,12 @@ class Node:
                 # specified bus (if any) and then against any bus. This is so
                 # that matching against bindings which do not specify a bus
                 # works the same way in Zephyr as it does elsewhere.
-                binding = None
-
-                for bus in on_buses:
-                    if (compat, bus) in self.edt._compat2binding:
-                        binding = self.edt._compat2binding[compat, bus]
-                        break
-
-                if not binding:
-                    if (compat, None) in self.edt._compat2binding:
-                        binding = self.edt._compat2binding[compat, None]
-                    else:
-                        continue
+                if (compat, on_bus) in self.edt._compat2binding:
+                    binding = self.edt._compat2binding[compat, on_bus]
+                elif (compat, None) in self.edt._compat2binding:
+                    binding = self.edt._compat2binding[compat, None]
+                else:
+                    continue
 
                 self.binding_path = binding.path
                 self.matching_compat = compat
@@ -948,7 +885,7 @@ class Node:
             'properties': {},
         }
         for name, prop in self._node.props.items():
-            pp = {}
+            pp = OrderedDict()
             if prop.type == Type.EMPTY:
                 pp["type"] = "boolean"
             elif prop.type == Type.BYTES:
@@ -1012,7 +949,7 @@ class Node:
         if support_fixed_partitions_on_any_bus and "fixed-partitions" in self.compats:
             return None
 
-        if self.parent.buses:
+        if self.parent.bus:
             # The parent node is a bus node
             return self.parent
 
@@ -1023,7 +960,7 @@ class Node:
         # Creates self.props. See the class docstring. Also checks that all
         # properties on the node are declared in its binding.
 
-        self.props = {}
+        self.props = OrderedDict()
 
         node = self._node
         if self._binding:
@@ -1129,7 +1066,7 @@ class Node:
                 # YAML doesn't have a native format for byte arrays. We need to
                 # convert those from an array like [0x12, 0x34, ...]. The
                 # format has already been checked in
-                # _check_prop_by_type().
+                # _check_prop_type_and_default().
                 if prop_type == "uint8-array":
                     return bytes(default)
                 return default
@@ -1180,7 +1117,7 @@ class Node:
             return self.edt._node2enode[prop.to_path()]
 
         # prop_type == "compound". Checking that the 'type:'
-        # value is valid is done in _check_prop_by_type().
+        # value is valid is done in _check_prop_type_and_default().
         #
         # 'compound' is a dummy type for properties that don't fit any of the
         # patterns above, so that we can require all entries in 'properties:'
@@ -1394,7 +1331,7 @@ class Node:
                 specifier_space = "gpio"
             else:
                 # Strip -s. We've already checked that property names end in -s
-                # if there is no specifier space in _check_prop_by_type().
+                # if there is no specifier space in _check_prop_type_and_default().
                 specifier_space = prop.name[:-1]
 
         res = []
@@ -1445,7 +1382,7 @@ class Node:
                  f"{controller._node!r} - {len(cell_names)} "
                  f"instead of {len(data_list)}")
 
-        return dict(zip(cell_names, data_list))
+        return OrderedDict(zip(cell_names, data_list))
 
 
 class Range:
@@ -1600,7 +1537,7 @@ class PinCtrl:
     @property
     def name_as_token(self):
         "See the class docstring"
-        return str_as_token(self.name) if self.name is not None else None
+        return _val_as_token(self.name) if self.name is not None else None
 
     def __repr__(self):
         fields = []
@@ -1638,8 +1575,8 @@ class Property:
       Convenience for spec.name.
 
     description:
-      Convenience for spec.description with leading and trailing whitespace
-      (including newlines) removed. May be None.
+      Convenience for spec.name with leading and trailing whitespace
+      (including newlines) removed.
 
     type:
       Convenience for spec.type.
@@ -1683,7 +1620,7 @@ class Property:
     @property
     def description(self):
         "See the class docstring"
-        return self.spec.description.strip() if self.spec.description else None
+        return self.spec.description.strip()
 
     @property
     def type(self):
@@ -1693,7 +1630,7 @@ class Property:
     @property
     def val_as_token(self):
         "See the class docstring"
-        return str_as_token(self.val)
+        return _val_as_token(self.val)
 
     @property
     def enum_index(self):
@@ -1723,7 +1660,7 @@ class Binding:
       The absolute path to the file defining the binding.
 
     description:
-      The free-form description of the binding, or None.
+      The free-form description of the binding.
 
     compatible:
       The compatible string the binding matches.
@@ -1733,11 +1670,11 @@ class Binding:
       using 'child-binding:' with no compatible.
 
     prop2specs:
-      A dict mapping property names to PropertySpec objects
+      A collections.OrderedDict mapping property names to PropertySpec objects
       describing those properties' values.
 
     specifier2cells:
-      A dict that maps specifier space names (like "gpio",
+      A collections.OrderedDict that maps specifier space names (like "gpio",
       "clock", "pwm", etc.) to lists of cell names.
 
       For example, if the binding YAML contains 'pin' and 'flags' cell names
@@ -1756,17 +1693,7 @@ class Binding:
 
     bus:
       If nodes with this binding's 'compatible' describe a bus, a string
-      describing the bus type (like "i2c") or a list describing supported
-      protocols (like ["i3c", "i2c"]). None otherwise.
-
-      Note that this is the raw value from the binding where it can be
-      a string or a list. Use "buses" instead unless you need the raw
-      value, where "buses" is always a list.
-
-    buses:
-      Deprived property from 'bus' where 'buses' is a list of bus(es),
-      for example, ["i2c"] or ["i3c", "i2c"]. Or an empty list if there is
-      no 'bus:' in this binding.
+      describing the bus type (like "i2c"). None otherwise.
 
     on_bus:
       If nodes with this binding's 'compatible' appear on a bus, a string
@@ -1839,10 +1766,10 @@ class Binding:
         self._check(require_compatible, require_description)
 
         # Initialize look up tables.
-        self.prop2specs = {}
+        self.prop2specs = OrderedDict()
         for prop_name in self.raw.get("properties", {}).keys():
             self.prop2specs[prop_name] = PropertySpec(prop_name, self)
-        self.specifier2cells = {}
+        self.specifier2cells = OrderedDict()
         for key, val in self.raw.items():
             if key.endswith("-cells"):
                 self.specifier2cells[key[:-len("-cells")]] = val
@@ -1852,13 +1779,12 @@ class Binding:
             compat = f" for compatible '{self.compatible}'"
         else:
             compat = ""
-        basename = os.path.basename(self.path or "")
-        return f"<Binding {basename}" + compat + ">"
+        return f"<Binding {os.path.basename(self.path)}" + compat + ">"
 
     @property
     def description(self):
         "See the class docstring"
-        return self.raw.get('description')
+        return self.raw['description']
 
     @property
     def compatible(self):
@@ -1869,14 +1795,6 @@ class Binding:
     def bus(self):
         "See the class docstring"
         return self.raw.get('bus')
-
-    @property
-    def buses(self):
-        "See the class docstring"
-        if self.raw.get('bus') is not None:
-            return self._buses
-        else:
-            return []
 
     @property
     def on_bus(self):
@@ -2011,24 +1929,11 @@ class Binding:
                 _err(f"unknown key '{key}' in {self.path}, "
                      "expected one of {', '.join(ok_top)}, or *-cells")
 
-        if "bus" in raw:
-            bus = raw["bus"]
-            if not isinstance(bus, str) and \
-               (not isinstance(bus, list) and \
-                not all(isinstance(elem, str) for elem in bus)):
-                _err(f"malformed 'bus:' value in {self.path}, "
-                     "expected string or list of strings")
-
-            if isinstance(bus, list):
-                self._buses = bus
-            else:
-                # Convert bus into a list
-                self._buses = [bus]
-
-        if "on-bus" in raw and \
-           not isinstance(raw["on-bus"], str):
-            _err(f"malformed 'on-bus:' value in {self.path}, "
-                 "expected string")
+        for bus_key in "bus", "on-bus":
+            if bus_key in raw and \
+               not isinstance(raw[bus_key], str):
+                _err(f"malformed '{bus_key}:' value in {self.path}, "
+                     "expected string")
 
         self._check_properties()
 
@@ -2058,7 +1963,8 @@ class Binding:
                          f"'properties: {prop_name}: ...' in {self.path}, "
                          f"expected one of {', '.join(ok_prop_keys)}")
 
-            _check_prop_by_type(prop_name, options, self.path)
+            _check_prop_type_and_default(
+                prop_name, options, self.path)
 
             for true_false_opt in ["required", "deprecated"]:
                 if true_false_opt in options:
@@ -2080,6 +1986,11 @@ class Binding:
             if "enum" in options and not isinstance(options["enum"], list):
                 _err(f"enum in {self.path} for property '{prop_name}' "
                      "is not a list")
+
+            if "const" in options and not isinstance(options["const"],
+                                                     (int, str)):
+                _err(f"const in {self.path} for property '{prop_name}' "
+                     "is not a scalar")
 
 
 def bindings_from_paths(yaml_paths, ignore_errors=False):
@@ -2465,13 +2376,12 @@ def _binding_include(loader, node):
     _binding_inc_error("unrecognised node type in !include statement")
 
 
-def _check_prop_by_type(prop_name, options, binding_path):
-    # Binding._check_properties() helper. Checks 'type:', 'default:',
-    # 'const:' and # 'specifier-space:' for the property named 'prop_name'
+def _check_prop_type_and_default(prop_name, options, binding_path):
+    # Binding._check_properties() helper. Checks 'type:', 'default:' and
+    # 'specifier-space:' for the property named 'prop_name'
 
     prop_type = options.get("type")
     default = options.get("default")
-    const = options.get("const")
 
     if prop_type is None:
         _err(f"missing 'type:' for '{prop_name}' in 'properties' in "
@@ -2495,13 +2405,6 @@ def _check_prop_by_type(prop_name, options, binding_path):
             _err(f"'{prop_name}' in 'properties:' in {binding_path} "
                  f"has type 'phandle-array' and its name does not end in 's', "
                  f"but no 'specifier-space' was provided.")
-
-    const_types = {"int", "array", "uint8-array", "string", "string-array"}
-    if const and prop_type not in const_types:
-        _err(f"const in {binding_path} for property '{prop_name}' "
-             f"has type '{prop_type}', expected one of " +
-             ", ".join(const_types))
-
     # Check default
 
     if default is None:
@@ -2629,14 +2532,12 @@ def _interrupt_parent(node):
     # the parents of 'node'. As of writing, this behavior isn't specified in
     # the DT spec., but seems to match what some .dts files except.
 
-    start_node = node
-
     while node:
         if "interrupt-parent" in node.props:
             return node.props["interrupt-parent"].to_node()
         node = node.parent
 
-    _err(f"{start_node!r} has an 'interrupts' property, but neither the node "
+    _err(f"{node!r} has an 'interrupts' property, but neither the node "
          f"nor any of its parents has an 'interrupt-parent' property")
 
 
@@ -2954,7 +2855,19 @@ def _interrupt_cells(node):
 
 
 def _slice(node, prop_name, size, size_hint):
-    return _slice_helper(node, prop_name, size, size_hint, EDTError)
+    # Splits node.props[prop_name].value into 'size'-sized chunks, returning a
+    # list of chunks. Raises EDTError if the length of the property is not
+    # evenly divisible by 'size'. 'size_hint' is a string shown on errors that
+    # gives a hint on how 'size' was calculated.
+
+    raw = node.props[prop_name].value
+    if len(raw) % size:
+        _err(f"'{prop_name}' property in {node!r} has length {len(raw)}, "
+             f"which is not evenly divisible by {size} (= {size_hint}). "
+             "Note that #*-cells properties come either from the parent node or "
+             "from the controller (in the case of 'interrupts').")
+
+    return [raw[i:i + size] for i in range(0, len(raw), size)]
 
 
 def _check_dt(dt):
@@ -2999,12 +2912,7 @@ _LOG = logging.getLogger(__name__)
 _NOT_ALPHANUM_OR_UNDERSCORE = re.compile(r'\W', re.ASCII)
 
 
-def str_as_token(val):
-    """Return a canonical representation of a string as a C token.
-
-    This converts special characters in 'val' to underscores, and
-    returns the result."""
-
+def _val_as_token(val):
     return re.sub(_NOT_ALPHANUM_OR_UNDERSCORE, '_', val)
 
 
@@ -3016,6 +2924,18 @@ class _BindingLoader(Loader):
 
 # Add legacy '!include foo.yaml' handling
 _BindingLoader.add_constructor("!include", _binding_include)
+
+# Use OrderedDict instead of plain dict for YAML mappings, to preserve
+# insertion order on Python 3.5 and earlier (plain dicts only preserve
+# insertion order on Python 3.6+). This makes testing easier and avoids
+# surprises.
+#
+# Adapted from
+# https://stackoverflow.com/questions/5121931/in-python-how-can-you-load-yaml-mappings-as-ordereddicts.
+# Hopefully this API stays stable.
+_BindingLoader.add_constructor(
+    yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
+    lambda loader, node: OrderedDict(loader.construct_pairs(node)))
 
 #
 # "Default" binding for properties which are defined by the spec.

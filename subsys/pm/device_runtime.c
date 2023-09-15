@@ -5,11 +5,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/pm/device.h>
-#include <zephyr/pm/device_runtime.h>
-#include <zephyr/sys/__assert.h>
+#include <pm/device.h>
+#include <pm/device_runtime.h>
+#include <sys/__assert.h>
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_DECLARE(pm_device, CONFIG_PM_DEVICE_LOG_LEVEL);
 
 #ifdef CONFIG_PM_DEVICE_POWER_DOMAIN
@@ -18,11 +18,6 @@ LOG_MODULE_DECLARE(pm_device, CONFIG_PM_DEVICE_LOG_LEVEL);
 #else
 #define PM_DOMAIN(_pm) NULL
 #endif
-
-#define EVENT_STATE_ACTIVE	BIT(PM_DEVICE_STATE_ACTIVE)
-#define EVENT_STATE_SUSPENDED	BIT(PM_DEVICE_STATE_SUSPENDED)
-
-#define EVENT_MASK		(EVENT_STATE_ACTIVE | EVENT_STATE_SUSPENDED)
 
 /**
  * @brief Suspend a device
@@ -39,7 +34,6 @@ LOG_MODULE_DECLARE(pm_device, CONFIG_PM_DEVICE_LOG_LEVEL);
  * @retval 0 If device has been suspended or queued for suspend.
  * @retval -EALREADY If device is already suspended (can only happen if get/put
  * calls are unbalanced).
- * @retval -EBUSY If the device is busy.
  * @retval -errno Other negative errno, result of the action callback.
  */
 static int runtime_suspend(const struct device *dev, bool async)
@@ -47,20 +41,14 @@ static int runtime_suspend(const struct device *dev, bool async)
 	int ret = 0;
 	struct pm_device *pm = dev->pm;
 
-	/*
-	 * Early return if device runtime is not enabled.
-	 */
-	if (!atomic_test_bit(&pm->flags, PM_DEVICE_FLAG_RUNTIME_ENABLED)) {
-		return 0;
-	}
-
 	if (k_is_pre_kernel()) {
 		async = false;
 	} else {
-		ret = k_sem_take(&pm->lock, k_is_in_isr() ? K_NO_WAIT : K_FOREVER);
-		if (ret < 0) {
-			return -EBUSY;
-		}
+		(void)k_mutex_lock(&pm->lock, K_FOREVER);
+	}
+
+	if ((pm->flags & BIT(PM_DEVICE_FLAG_RUNTIME_ENABLED)) == 0U) {
+		goto unlock;
 	}
 
 	if (pm->usage == 0U) {
@@ -91,7 +79,7 @@ static int runtime_suspend(const struct device *dev, bool async)
 
 unlock:
 	if (!k_is_pre_kernel()) {
-		k_sem_give(&pm->lock);
+		k_mutex_unlock(&pm->lock);
 	}
 
 	return ret;
@@ -105,15 +93,15 @@ static void runtime_suspend_work(struct k_work *work)
 
 	ret = pm->action_cb(pm->dev, PM_DEVICE_ACTION_SUSPEND);
 
-	(void)k_sem_take(&pm->lock, K_FOREVER);
+	(void)k_mutex_lock(&pm->lock, K_FOREVER);
 	if (ret < 0) {
 		pm->usage++;
 		pm->state = PM_DEVICE_STATE_ACTIVE;
 	} else {
 		pm->state = PM_DEVICE_STATE_SUSPENDED;
 	}
-	k_event_set(&pm->event, BIT(pm->state));
-	k_sem_give(&pm->lock);
+	k_condvar_broadcast(&pm->condvar);
+	k_mutex_unlock(&pm->lock);
 
 	/*
 	 * On async put, we have to suspend the domain when the device
@@ -131,21 +119,14 @@ int pm_device_runtime_get(const struct device *dev)
 	int ret = 0;
 	struct pm_device *pm = dev->pm;
 
-	if (pm == NULL) {
-		return -ENOTSUP;
-	}
-
 	SYS_PORT_TRACING_FUNC_ENTER(pm, device_runtime_get, dev);
 
-	/*
-	 * Early return if device runtime is not enabled.
-	 */
-	if (!atomic_test_bit(&pm->flags, PM_DEVICE_FLAG_RUNTIME_ENABLED)) {
-		return 0;
+	if (!k_is_pre_kernel()) {
+		(void)k_mutex_lock(&pm->lock, K_FOREVER);
 	}
 
-	if (!k_is_pre_kernel()) {
-		(void)k_sem_take(&pm->lock, K_FOREVER);
+	if ((pm->flags & BIT(PM_DEVICE_FLAG_RUNTIME_ENABLED)) == 0U) {
+		goto unlock;
 	}
 
 	/*
@@ -157,12 +138,6 @@ int pm_device_runtime_get(const struct device *dev)
 		if (ret != 0) {
 			goto unlock;
 		}
-		/* Check if powering up this device failed */
-		if (atomic_test_bit(&pm->flags, PM_DEVICE_FLAG_TURN_ON_FAILED)) {
-			(void)pm_device_runtime_put(PM_DOMAIN(pm));
-			ret = -EAGAIN;
-			goto unlock;
-		}
 	}
 
 	pm->usage++;
@@ -170,11 +145,7 @@ int pm_device_runtime_get(const struct device *dev)
 	if (!k_is_pre_kernel()) {
 		/* wait until possible async suspend is completed */
 		while (pm->state == PM_DEVICE_STATE_SUSPENDING) {
-			k_sem_give(&pm->lock);
-
-			k_event_wait(&pm->event, EVENT_MASK, true, K_FOREVER);
-
-			(void)k_sem_take(&pm->lock, K_FOREVER);
+			(void)k_condvar_wait(&pm->condvar, &pm->lock, K_FOREVER);
 		}
 	}
 
@@ -192,7 +163,7 @@ int pm_device_runtime_get(const struct device *dev)
 
 unlock:
 	if (!k_is_pre_kernel()) {
-		k_sem_give(&pm->lock);
+		k_mutex_unlock(&pm->lock);
 	}
 
 	SYS_PORT_TRACING_FUNC_EXIT(pm, device_runtime_get, dev, ret);
@@ -203,12 +174,6 @@ unlock:
 int pm_device_runtime_put(const struct device *dev)
 {
 	int ret;
-
-	__ASSERT(!k_is_in_isr(), "use pm_device_runtime_put_async() in ISR");
-
-	if (dev->pm == NULL) {
-		return -ENOTSUP;
-	}
 
 	SYS_PORT_TRACING_FUNC_ENTER(pm, device_runtime_put, dev);
 	ret = runtime_suspend(dev, false);
@@ -228,10 +193,6 @@ int pm_device_runtime_put_async(const struct device *dev)
 {
 	int ret;
 
-	if (dev->pm == NULL) {
-		return -ENOTSUP;
-	}
-
 	SYS_PORT_TRACING_FUNC_ENTER(pm, device_runtime_put_async, dev);
 	ret = runtime_suspend(dev, true);
 	SYS_PORT_TRACING_FUNC_EXIT(pm, device_runtime_put_async, dev, ret);
@@ -244,10 +205,6 @@ int pm_device_runtime_enable(const struct device *dev)
 	int ret = 0;
 	struct pm_device *pm = dev->pm;
 
-	if (pm == NULL) {
-		return -ENOTSUP;
-	}
-
 	SYS_PORT_TRACING_FUNC_ENTER(pm, device_runtime_enable, dev);
 
 	if (pm_device_state_is_locked(dev)) {
@@ -256,10 +213,10 @@ int pm_device_runtime_enable(const struct device *dev)
 	}
 
 	if (!k_is_pre_kernel()) {
-		(void)k_sem_take(&pm->lock, K_FOREVER);
+		(void)k_mutex_lock(&pm->lock, K_FOREVER);
 	}
 
-	if (atomic_test_bit(&pm->flags, PM_DEVICE_FLAG_RUNTIME_ENABLED)) {
+	if ((pm->flags & BIT(PM_DEVICE_FLAG_RUNTIME_ENABLED)) != 0U) {
 		goto unlock;
 	}
 
@@ -283,7 +240,7 @@ int pm_device_runtime_enable(const struct device *dev)
 
 unlock:
 	if (!k_is_pre_kernel()) {
-		k_sem_give(&pm->lock);
+		k_mutex_unlock(&pm->lock);
 	}
 
 end:
@@ -296,28 +253,21 @@ int pm_device_runtime_disable(const struct device *dev)
 	int ret = 0;
 	struct pm_device *pm = dev->pm;
 
-	if (pm == NULL) {
-		return -ENOTSUP;
-	}
-
 	SYS_PORT_TRACING_FUNC_ENTER(pm, device_runtime_disable, dev);
 
 	if (!k_is_pre_kernel()) {
-		(void)k_sem_take(&pm->lock, K_FOREVER);
+		(void)k_mutex_lock(&pm->lock, K_FOREVER);
 	}
 
-	if (!atomic_test_bit(&pm->flags, PM_DEVICE_FLAG_RUNTIME_ENABLED)) {
+	if ((pm->flags & BIT(PM_DEVICE_FLAG_RUNTIME_ENABLED)) == 0U) {
 		goto unlock;
 	}
 
 	/* wait until possible async suspend is completed */
 	if (!k_is_pre_kernel()) {
 		while (pm->state == PM_DEVICE_STATE_SUSPENDING) {
-			k_sem_give(&pm->lock);
-
-			k_event_wait(&pm->event, EVENT_MASK, true, K_FOREVER);
-
-			(void)k_sem_take(&pm->lock, K_FOREVER);
+			(void)k_condvar_wait(&pm->condvar, &pm->lock,
+					     K_FOREVER);
 		}
 	}
 
@@ -335,7 +285,7 @@ int pm_device_runtime_disable(const struct device *dev)
 
 unlock:
 	if (!k_is_pre_kernel()) {
-		k_sem_give(&pm->lock);
+		k_mutex_unlock(&pm->lock);
 	}
 
 	SYS_PORT_TRACING_FUNC_EXIT(pm, device_runtime_disable, dev, ret);
@@ -347,5 +297,5 @@ bool pm_device_runtime_is_enabled(const struct device *dev)
 {
 	struct pm_device *pm = dev->pm;
 
-	return pm && atomic_test_bit(&pm->flags, PM_DEVICE_FLAG_RUNTIME_ENABLED);
+	return atomic_test_bit(&pm->flags, PM_DEVICE_FLAG_RUNTIME_ENABLED);
 }

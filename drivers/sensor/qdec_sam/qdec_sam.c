@@ -11,21 +11,21 @@
  */
 
 #include <errno.h>
-#include <zephyr/sys/__assert.h>
-#include <zephyr/sys/util.h>
-#include <zephyr/device.h>
-#include <zephyr/init.h>
+#include <sys/__assert.h>
+#include <sys/util.h>
+#include <device.h>
+#include <init.h>
 #include <soc.h>
-#include <zephyr/drivers/sensor.h>
-#include <zephyr/drivers/pinctrl.h>
+#include <drivers/sensor.h>
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(qdec_sam, CONFIG_SENSOR_LOG_LEVEL);
 
 /* Device constant configuration parameters */
 struct qdec_sam_dev_cfg {
 	Tc *regs;
-	const struct pinctrl_dev_config *pcfg;
+	const struct soc_gpio_pin *pin_list;
+	uint8_t pin_list_size;
 	uint8_t periph_id[TCCHANNEL_NUMBER];
 };
 
@@ -33,6 +33,8 @@ struct qdec_sam_dev_cfg {
 struct qdec_sam_dev_data {
 	uint16_t position;
 };
+
+#define DEV_NAME(dev) ((dev)->name)
 
 static int qdec_sam_fetch(const struct device *dev, enum sensor_channel chan)
 {
@@ -95,13 +97,9 @@ static int qdec_sam_initialize(const struct device *dev)
 {
 	__ASSERT_NO_MSG(dev != NULL);
 	const struct qdec_sam_dev_cfg *const dev_cfg = dev->config;
-	int retval;
 
 	/* Connect pins to the peripheral */
-	retval = pinctrl_apply_state(dev_cfg->pcfg, PINCTRL_STATE_DEFAULT);
-	if (retval < 0) {
-		return retval;
-	}
+	soc_gpio_list_configure(dev_cfg->pin_list, dev_cfg->pin_list_size);
 
 	for (int i = 0; i < ARRAY_SIZE(dev_cfg->periph_id); i++) {
 		/* Enable module's clock */
@@ -110,7 +108,7 @@ static int qdec_sam_initialize(const struct device *dev)
 
 	qdec_sam_configure(dev);
 
-	LOG_INF("Device %s initialized", dev->name);
+	LOG_INF("Device %s initialized", DEV_NAME(dev));
 
 	return 0;
 }
@@ -121,16 +119,18 @@ static const struct sensor_driver_api qdec_sam_driver_api = {
 };
 
 #define QDEC_SAM_INIT(n)						\
-	PINCTRL_DT_INST_DEFINE(n);					\
+	static const struct soc_gpio_pin pins_tc##n[] = ATMEL_SAM_DT_INST_PINS(n); \
+									\
 	static const struct qdec_sam_dev_cfg qdec##n##_sam_config = {	\
 		.regs = (Tc *)DT_INST_REG_ADDR(n),			\
-		.pcfg = PINCTRL_DT_INST_DEV_CONFIG_GET(n),		\
+		.pin_list = pins_tc##n,					\
+		.pin_list_size = ARRAY_SIZE(pins_tc##n),		\
 		.periph_id = DT_INST_PROP(n, peripheral_id),		\
 	};								\
 									\
 	static struct qdec_sam_dev_data qdec##n##_sam_data;		\
 									\
-	SENSOR_DEVICE_DT_INST_DEFINE(n, qdec_sam_initialize, NULL,	\
+	DEVICE_DT_INST_DEFINE(n, qdec_sam_initialize, NULL,		\
 			    &qdec##n##_sam_data, &qdec##n##_sam_config, \
 			    POST_KERNEL, CONFIG_SENSOR_INIT_PRIORITY,	\
 			    &qdec_sam_driver_api);

@@ -3,18 +3,11 @@ name: ESP-32
 type: mcu
 arch: xtensa
 toolchain:
-  - zephyr
+  - espressif
 supported:
-  - adc
-  - dac
   - gpio
   - i2c
   - watchdog
   - uart
+  - pinmux
   - nvs
-  - pwm
-  - dac
-testing:
-  ignore_tags:
-    - net
-    - bluetooth

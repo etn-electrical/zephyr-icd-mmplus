@@ -29,7 +29,6 @@ enum {
 /* bt_dev flags: the flags defined here represent BT controller state */
 enum {
 	BT_DEV_ENABLE,
-	BT_DEV_DISABLE,
 	BT_DEV_READY,
 	BT_DEV_PRESET_ID,
 	BT_DEV_HAS_PUB_KEY,
@@ -44,7 +43,6 @@ enum {
 	BT_DEV_INITIATING,
 
 	BT_DEV_RPA_VALID,
-	BT_DEV_RPA_TIMEOUT_CHANGED,
 
 	BT_DEV_ID_PENDING,
 	BT_DEV_STORE_ID,
@@ -87,8 +85,6 @@ enum {
 	 * of the RPA timeout.
 	 */
 	BT_ADV_RPA_VALID,
-	/* The private random address of the advertiser is being updated. */
-	BT_ADV_RPA_UPDATE,
 	/* The advertiser set is limited by a timeout, or number of advertising
 	 * events, or both.
 	 */
@@ -119,8 +115,6 @@ enum {
 	BT_PER_ADV_ENABLED,
 	/* Periodic Advertising parameters has been set in the controller. */
 	BT_PER_ADV_PARAMS_SET,
-	/* Periodic Advertising to include AdvDataInfo (ADI) */
-	BT_PER_ADV_INCLUDE_ADI,
 	/* Constant Tone Extension parameters for Periodic Advertising
 	 * has been set in the controller.
 	 */
@@ -244,7 +238,6 @@ struct bt_dev_le {
 #endif /* CONFIG_BT_CONN */
 #if defined(CONFIG_BT_ISO)
 	uint16_t		iso_mtu;
-	uint8_t			iso_limit;
 	struct k_sem		iso_pkts;
 #endif /* CONFIG_BT_ISO */
 
@@ -289,7 +282,7 @@ struct bt_dev {
 #else
 	/* Pointer to reserved advertising set */
 	struct bt_le_ext_adv    *adv;
-#if defined(CONFIG_BT_CONN) && (CONFIG_BT_EXT_ADV_MAX_ADV_SET > 1)
+#if (CONFIG_BT_ID_MAX > 1) && (CONFIG_BT_EXT_ADV_MAX_ADV_SET > 1)
 	/* When supporting multiple concurrent connectable advertising sets
 	 * with multiple identities, we need to know the identity of
 	 * the terminating advertising set to identify the connection object.
@@ -347,9 +340,9 @@ struct bt_dev {
 	/* Last sent HCI command */
 	struct net_buf		*sent_cmd;
 
-#if !defined(CONFIG_BT_RECV_BLOCKING)
+#if !defined(CONFIG_BT_RECV_IS_RX_THREAD)
 	/* Queue for incoming HCI events & ACL data */
-	sys_slist_t rx_queue;
+	struct k_fifo		rx_queue;
 #endif
 
 	/* Queue for outgoing HCI commands */
@@ -364,25 +357,18 @@ struct bt_dev {
 
 	/* Work used for RPA rotation */
 	struct k_work_delayable rpa_update;
-
-	/* The RPA timeout value. */
-	uint16_t rpa_timeout;
 #endif
 
 	/* Local Name */
 #if defined(CONFIG_BT_DEVICE_NAME_DYNAMIC)
 	char			name[CONFIG_BT_DEVICE_NAME_MAX + 1];
 #endif
-#if defined(CONFIG_BT_DEVICE_APPEARANCE_DYNAMIC)
-	/* Appearance Value */
-	uint16_t		appearance;
-#endif
 };
 
 extern struct bt_dev bt_dev;
 #if defined(CONFIG_BT_SMP) || defined(CONFIG_BT_BREDR)
 extern const struct bt_conn_auth_cb *bt_auth;
-extern sys_slist_t bt_auth_info_cbs;
+
 enum bt_security_err bt_security_err_get(uint8_t hci_err);
 #endif /* CONFIG_BT_SMP || CONFIG_BT_BREDR */
 
@@ -426,8 +412,6 @@ struct bt_keys;
 void bt_id_add(struct bt_keys *keys);
 void bt_id_del(struct bt_keys *keys);
 
-struct bt_keys *bt_id_find_conflict(struct bt_keys *candidate);
-
 int bt_setup_random_id_addr(void);
 int bt_setup_public_id_addr(void);
 
@@ -463,7 +447,6 @@ void bt_hci_le_per_adv_report(struct net_buf *buf);
 void bt_hci_le_per_adv_sync_lost(struct net_buf *buf);
 void bt_hci_le_biginfo_adv_report(struct net_buf *buf);
 void bt_hci_le_df_connectionless_iq_report(struct net_buf *buf);
-void bt_hci_le_vs_df_connectionless_iq_report(struct net_buf *buf);
 void bt_hci_le_past_received(struct net_buf *buf);
 
 /* Adv HCI event handlers */
@@ -486,5 +469,9 @@ void bt_hci_role_change(struct net_buf *buf);
 void bt_hci_synchronous_conn_complete(struct net_buf *buf);
 
 void bt_hci_le_df_connection_iq_report(struct net_buf *buf);
-void bt_hci_le_vs_df_connection_iq_report(struct net_buf *buf);
 void bt_hci_le_df_cte_req_failed(struct net_buf *buf);
+
+/** First thread that called bt_recv. NULL if not yet called.
+ *  Updated non-atomically; may be used only to compare to current thread id.
+ */
+extern k_tid_t bt_recv_thread_id;

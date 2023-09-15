@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/sys/byteorder.h>
-#include <zephyr/drivers/sensor.h>
-#include <zephyr/logging/log.h>
+#include <sys/byteorder.h>
+#include <drivers/sensor.h>
+#include <logging/log.h>
 
 #include "icm42605.h"
 #include "icm42605_reg.h"

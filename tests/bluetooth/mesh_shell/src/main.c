@@ -4,15 +4,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/sys/printk.h>
+#include <sys/printk.h>
 #include <stdlib.h>
-#include <zephyr/kernel.h>
+#include <zephyr.h>
 
-#include <zephyr/shell/shell.h>
+#include <shell/shell.h>
 
-#include <zephyr/bluetooth/bluetooth.h>
-#include <zephyr/bluetooth/mesh.h>
-#include <zephyr/bluetooth/mesh/shell.h>
+#include <bluetooth/bluetooth.h>
+#include <bluetooth/mesh.h>
+#include <bluetooth/mesh/shell.h>
 
 static struct bt_mesh_cfg_cli cfg_cli;
 

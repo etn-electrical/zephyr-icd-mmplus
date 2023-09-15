@@ -10,15 +10,13 @@
 #define ZEPHYR_LIB_LIBC_MINIMAL_INCLUDE_STRING_H_
 
 #include <stddef.h>
-#include <zephyr/toolchain.h>
+#include <toolchain.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 extern char  *strcpy(char *ZRESTRICT d, const char *ZRESTRICT s);
-extern char  *strerror(int errnum);
-extern int   strerror_r(int errnum, char *strerrbuf, size_t buflen);
 extern char  *strncpy(char *ZRESTRICT d, const char *ZRESTRICT s,
 		      size_t n);
 extern char  *strchr(const char *s, int c);

@@ -9,7 +9,7 @@ void helper_pdu_encode_ping_req(struct pdu_data *pdu, void *param);
 void helper_pdu_encode_ping_rsp(struct pdu_data *pdu, void *param);
 
 void helper_pdu_encode_feature_req(struct pdu_data *pdu, void *param);
-void helper_pdu_encode_peripheral_feature_req(struct pdu_data *pdu, void *param);
+void helper_pdu_encode_slave_feature_req(struct pdu_data *pdu, void *param);
 void helper_pdu_encode_feature_rsp(struct pdu_data *pdu, void *param);
 
 void helper_pdu_encode_min_used_chans_ind(struct pdu_data *pdu, void *param);
@@ -52,23 +52,13 @@ void helper_pdu_encode_cte_req(struct pdu_data *pdu, void *param);
 void helper_pdu_encode_cte_rsp(struct pdu_data *pdu, void *param);
 void helper_node_encode_cte_rsp(struct node_rx_pdu *rx, void *param);
 
-void helper_pdu_encode_zero(struct pdu_data *pdu, void *param);
-
-void helper_pdu_encode_cis_req(struct pdu_data *pdu, void *param);
-void helper_pdu_encode_cis_rsp(struct pdu_data *pdu, void *param);
-void helper_pdu_encode_cis_ind(struct pdu_data *pdu, void *param);
-void helper_pdu_encode_cis_terminate_ind(struct pdu_data *pdu, void *param);
-
-void helper_pdu_encode_sca_req(struct pdu_data *pdu, void *param);
-void helper_pdu_encode_sca_rsp(struct pdu_data *pdu, void *param);
-
 void helper_pdu_verify_ping_req(const char *file, uint32_t line, struct pdu_data *pdu, void *param);
 void helper_pdu_verify_ping_rsp(const char *file, uint32_t line, struct pdu_data *pdu, void *param);
 
 void helper_pdu_verify_feature_req(const char *file, uint32_t line, struct pdu_data *pdu,
 				   void *param);
-void helper_pdu_verify_peripheral_feature_req(const char *file, uint32_t line, struct pdu_data *pdu,
-					      void *param);
+void helper_pdu_verify_slave_feature_req(const char *file, uint32_t line, struct pdu_data *pdu,
+					 void *param);
 void helper_pdu_verify_feature_rsp(const char *file, uint32_t line, struct pdu_data *pdu,
 				   void *param);
 
@@ -139,24 +129,6 @@ void helper_pdu_verify_cte_req(const char *file, uint32_t line, struct pdu_data 
 void helper_pdu_verify_cte_rsp(const char *file, uint32_t line, struct pdu_data *pdu, void *param);
 void helper_node_verify_cte_rsp(const char *file, uint32_t line, struct node_rx_pdu *rx,
 				void *param);
-void helper_pdu_ntf_verify_cte_rsp(const char *file, uint32_t line, struct pdu_data *pdu,
-				   void *param);
-
-void helper_node_verify_cis_request(const char *file, uint32_t line, struct node_rx_pdu *rx,
-				void *param);
-void helper_node_verify_cis_established(const char *file, uint32_t line, struct node_rx_pdu *rx,
-				void *param);
-void helper_pdu_verify_cis_req(const char *file, uint32_t line, struct pdu_data *pdu, void *param);
-void helper_pdu_verify_cis_rsp(const char *file, uint32_t line, struct pdu_data *pdu, void *param);
-void helper_pdu_verify_cis_ind(const char *file, uint32_t line, struct pdu_data *pdu, void *param);
-void helper_pdu_verify_cis_terminate_ind(const char *file, uint32_t line, struct pdu_data *pdu,
-				     void *param);
-
-void helper_pdu_verify_sca_req(const char *file, uint32_t line, struct pdu_data *pdu, void *param);
-void helper_pdu_verify_sca_rsp(const char *file, uint32_t line, struct pdu_data *pdu, void *param);
-
-void helper_node_verify_peer_sca_update(const char *file, uint32_t line, struct node_rx_pdu *rx,
-				   void *param);
 
 enum helper_pdu_opcode {
 	LL_VERSION_IND,
@@ -187,13 +159,6 @@ enum helper_pdu_opcode {
 	LL_LENGTH_RSP,
 	LL_CTE_REQ,
 	LL_CTE_RSP,
-	LL_CLOCK_ACCURACY_REQ,
-	LL_CLOCK_ACCURACY_RSP,
-	LL_CIS_REQ,
-	LL_CIS_RSP,
-	LL_CIS_IND,
-	LL_CIS_TERMINATE_IND,
-	LL_ZERO,
 };
 
 enum helper_node_opcode {
@@ -201,9 +166,6 @@ enum helper_node_opcode {
 	NODE_CONN_UPDATE,
 	NODE_ENC_REFRESH,
 	NODE_CTE_RSP,
-	NODE_CIS_REQUEST,
-	NODE_CIS_ESTABLISHED,
-	NODE_PEER_SCA_UPDATE,
 };
 
 typedef void(helper_pdu_encode_func_t)(struct pdu_data *data, void *param);

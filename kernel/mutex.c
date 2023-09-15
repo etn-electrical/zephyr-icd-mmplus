@@ -26,17 +26,17 @@
  * unexpected priority levels (too high, or too low).
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/kernel_structs.h>
-#include <zephyr/toolchain.h>
+#include <kernel.h>
+#include <kernel_structs.h>
+#include <toolchain.h>
 #include <ksched.h>
-#include <zephyr/wait_q.h>
+#include <wait_q.h>
 #include <errno.h>
-#include <zephyr/init.h>
-#include <zephyr/syscall_handler.h>
-#include <zephyr/tracing/tracing.h>
-#include <zephyr/sys/check.h>
-#include <zephyr/logging/log.h>
+#include <init.h>
+#include <syscall_handler.h>
+#include <tracing/tracing.h>
+#include <sys/check.h>
+#include <logging/log.h>
 LOG_MODULE_DECLARE(os, CONFIG_KERNEL_LOG_LEVEL);
 
 /* We use a global spinlock here because some of the synchronization
@@ -161,21 +161,15 @@ int z_impl_k_mutex_lock(struct k_mutex *mutex, k_timeout_t timeout)
 
 	key = k_spin_lock(&lock);
 
-	/*
-	 * Check if mutex was unlocked after this thread was unpended.
-	 * If so, skip adjusting owner's priority down.
-	 */
-	if (likely(mutex->owner != NULL)) {
-		struct k_thread *waiter = z_waitq_head(&mutex->wait_q);
+	struct k_thread *waiter = z_waitq_head(&mutex->wait_q);
 
-		new_prio = (waiter != NULL) ?
-			new_prio_for_inheritance(waiter->base.prio, mutex->owner_orig_prio) :
-			mutex->owner_orig_prio;
+	new_prio = (waiter != NULL) ?
+		new_prio_for_inheritance(waiter->base.prio, mutex->owner_orig_prio) :
+		mutex->owner_orig_prio;
 
-		LOG_DBG("adjusting prio down on mutex %p", mutex);
+	LOG_DBG("adjusting prio down on mutex %p", mutex);
 
-		resched = adjust_owner_prio(mutex, new_prio) || resched;
-	}
+	resched = adjust_owner_prio(mutex, new_prio) || resched;
 
 	if (resched) {
 		z_reschedule(&lock, key);
@@ -228,6 +222,8 @@ int z_impl_k_mutex_unlock(struct k_mutex *mutex)
 	 */
 	__ASSERT_NO_MSG(mutex->lock_count > 0U);
 
+	z_sched_lock();
+
 	LOG_DBG("mutex %p lock_count: %d", mutex, mutex->lock_count);
 
 	/*
@@ -255,7 +251,7 @@ int z_impl_k_mutex_unlock(struct k_mutex *mutex)
 		/*
 		 * new owner is already of higher or equal prio than first
 		 * waiter since the wait queue is priority-based: no need to
-		 * adjust its priority
+		 * ajust its priority
 		 */
 		mutex->owner_orig_prio = new_owner->base.prio;
 		arch_thread_return_value_set(new_owner, 0);
@@ -269,6 +265,8 @@ int z_impl_k_mutex_unlock(struct k_mutex *mutex)
 
 k_mutex_unlock_return:
 	SYS_PORT_TRACING_OBJ_FUNC_EXIT(k_mutex, unlock, mutex, 0);
+
+	k_sched_unlock();
 
 	return 0;
 }

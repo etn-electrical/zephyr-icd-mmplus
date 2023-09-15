@@ -8,12 +8,12 @@
 #define LOG_MODULE_NAME net_lwm2m_obj_firmware
 #define LOG_LEVEL CONFIG_LWM2M_LOG_LEVEL
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 
 #include <string.h>
 #include <stdio.h>
-#include <zephyr/init.h>
+#include <init.h>
 
 #include "lwm2m_object.h"
 #include "lwm2m_engine.h"
@@ -21,8 +21,8 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 #define FIRMWARE_VERSION_MAJOR 1
 #define FIRMWARE_VERSION_MINOR 0
 
-#if defined(CONFIG_LWM2M_FIRMWARE_UPDATE_OBJ_SUPPORT_MULTIPLE)
-#define MAX_INSTANCE_COUNT CONFIG_LWM2M_FIRMWARE_UPDATE_OBJ_INSTANCE_COUNT
+#if defined(LWM2M_FIRMWARE_UPDATE_OBJ_SUPPORT_MULTIPLE)
+#define MAX_INSTANCE_COUNT LWM2M_FIRMWARE_UPDATE_OBJ_INSTANCE_COUNT
 #else
 #define MAX_INSTANCE_COUNT 1
 #endif
@@ -97,24 +97,18 @@ uint8_t lwm2m_firmware_get_update_state(void)
 void lwm2m_firmware_set_update_state_inst(uint16_t obj_inst_id, uint8_t state)
 {
 	bool error = false;
-	struct lwm2m_obj_path path = LWM2M_OBJ(LWM2M_OBJECT_FIRMWARE_ID, obj_inst_id,
-					       FIRMWARE_UPDATE_RESULT_ID);
+	char path[sizeof("5/65535/3")];
 
 	/* Check LWM2M SPEC appendix E.6.1 */
 	switch (state) {
 	case STATE_DOWNLOADING:
-		if (update_state[obj_inst_id] == STATE_IDLE) {
-			lwm2m_set_u8(&path, RESULT_DEFAULT);
-		} else {
+		if (update_state[obj_inst_id] != STATE_IDLE) {
 			error = true;
 		}
 		break;
 	case STATE_DOWNLOADED:
-		if (update_state[obj_inst_id] == STATE_DOWNLOADING) {
-			lwm2m_set_u8(&path, RESULT_DEFAULT);
-		} else if (update_state[obj_inst_id] == STATE_UPDATING) {
-			lwm2m_set_u8(&path, RESULT_UPDATE_FAILED);
-		} else {
+		if (update_state[obj_inst_id] != STATE_DOWNLOADING &&
+		    update_state[obj_inst_id] != STATE_UPDATING) {
 			error = true;
 		}
 		break;
@@ -135,9 +129,9 @@ void lwm2m_firmware_set_update_state_inst(uint16_t obj_inst_id, uint8_t state)
 			update_state[obj_inst_id], state);
 	}
 
-	path.res_id = FIRMWARE_STATE_ID;
+	snprintk(path, sizeof(path), "5/%" PRIu16 "/3", obj_inst_id);
 
-	lwm2m_set_u8(&path, state);
+	lwm2m_engine_set_u8(path, state);
 
 	LOG_DBG("Update state = %d", state);
 }
@@ -161,8 +155,7 @@ void lwm2m_firmware_set_update_result_inst(uint16_t obj_inst_id, uint8_t result)
 {
 	uint8_t state;
 	bool error = false;
-	struct lwm2m_obj_path path = LWM2M_OBJ(LWM2M_OBJECT_FIRMWARE_ID, obj_inst_id,
-					       FIRMWARE_UPDATE_RESULT_ID);
+	char path[sizeof("5/65535/5")];
 
 	/* Check LWM2M SPEC appendix E.6.1 */
 	switch (result) {
@@ -218,7 +211,9 @@ void lwm2m_firmware_set_update_result_inst(uint16_t obj_inst_id, uint8_t result)
 			result, state);
 	}
 
-	lwm2m_set_u8(&path, result);
+	snprintk(path, sizeof(path), "5/%" PRIu16 "/5", obj_inst_id);
+
+	lwm2m_engine_set_u8(path, result);
 
 	LOG_DBG("Update result = %d", result);
 }
@@ -242,17 +237,14 @@ static int package_write_cb(uint16_t obj_inst_id, uint16_t res_id,
 		 * make sure it fail after timeout
 		 */
 		lwm2m_firmware_set_update_state_inst(obj_inst_id, STATE_DOWNLOADING);
-	} else if (state == STATE_DOWNLOADED) {
-		if (data_len == 0U || (data_len == 1U && data[0] == '\0')) {
+	} else if (state != STATE_DOWNLOADING) {
+		if (data_len == 0U && state == STATE_DOWNLOADED) {
 			/* reset to state idle and result default */
 			lwm2m_firmware_set_update_result_inst(obj_inst_id, RESULT_DEFAULT);
-			LOG_DBG("Update canceled by writing %d bytes", data_len);
 			return 0;
 		}
-		LOG_WRN("Download has already completed");
-		return -EPERM;
-	} else if (state != STATE_DOWNLOADING) {
-		LOG_WRN("Cannot download: state = %d", state);
+
+		LOG_DBG("Cannot download: state = %d", state);
 		return -EPERM;
 	}
 
@@ -290,14 +282,15 @@ static int package_uri_write_cb(uint16_t obj_inst_id, uint16_t res_id,
 				uint16_t res_inst_id, uint8_t *data, uint16_t data_len,
 				bool last_block, size_t total_size)
 {
-	LOG_DBG("PACKAGE_URI WRITE: %s", package_uri[obj_inst_id]);
+	LOG_DBG("PACKAGE_URI WRITE: %s", log_strdup(package_uri[obj_inst_id]));
 
 #ifdef CONFIG_LWM2M_FIRMWARE_UPDATE_PULL_SUPPORT
 	uint8_t state = lwm2m_firmware_get_update_state_inst(obj_inst_id);
 
 	if (state == STATE_IDLE) {
+		lwm2m_firmware_set_update_result_inst(obj_inst_id, RESULT_DEFAULT);
+
 		if (data_len > 0) {
-			lwm2m_firmware_set_update_state_inst(obj_inst_id, STATE_DOWNLOADING);
 			lwm2m_firmware_start_transfer(obj_inst_id, package_uri[obj_inst_id]);
 		}
 	} else if (state == STATE_DOWNLOADED && data_len == 0U) {
@@ -390,8 +383,8 @@ static struct lwm2m_engine_obj_inst *firmware_create(uint16_t obj_inst_id)
 	/* initialize instance resource data */
 	INIT_OBJ_RES_OPT(FIRMWARE_PACKAGE_ID, res[obj_inst_id], i, res_inst[obj_inst_id], j, 1,
 			 false, true, NULL, NULL, NULL, package_write_cb, NULL);
-	INIT_OBJ_RES_LEN(FIRMWARE_PACKAGE_URI_ID, res[obj_inst_id], i, res_inst[obj_inst_id], j, 1,
-		     false, true, package_uri[obj_inst_id], PACKAGE_URI_LEN, 0, NULL, NULL, NULL,
+	INIT_OBJ_RES(FIRMWARE_PACKAGE_URI_ID, res[obj_inst_id], i, res_inst[obj_inst_id], j, 1,
+		     false, true, package_uri[obj_inst_id], PACKAGE_URI_LEN, NULL, NULL, NULL,
 		     package_uri_write_cb, NULL);
 	INIT_OBJ_RES_EXECUTE(FIRMWARE_UPDATE_ID, res[obj_inst_id], i, firmware_update_cb);
 	INIT_OBJ_RES_DATA(FIRMWARE_STATE_ID, res[obj_inst_id], i, res_inst[obj_inst_id], j,

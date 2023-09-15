@@ -12,24 +12,11 @@
  * hardware for the RT5XX platforms.
  */
 
-#include <zephyr/arch/arm/aarch32/nmi.h>
-#include <zephyr/init.h>
-#include <zephyr/devicetree.h>
-#include <zephyr/irq.h>
-#include <zephyr/linker/sections.h>
+#include <init.h>
 #include <soc.h>
+#include "flash_clock_setup.h"
 #include "fsl_power.h"
 #include "fsl_clock.h"
-#include <fsl_cache.h>
-
-#ifdef CONFIG_FLASH_MCUX_FLEXSPI_XIP
-#include "flash_clock_setup.h"
-#endif
-
-#if CONFIG_USB_DC_NXP_LPCIP3511
-#include "usb_phy.h"
-#include "usb.h"
-#endif
 
 /* Board System oscillator settling time in us */
 #define BOARD_SYSOSC_SETTLING_US                        100U
@@ -37,12 +24,6 @@
 #define BOARD_XTAL_SYS_CLK_HZ                      24000000U
 /* Core clock frequency: 198000000Hz */
 #define CLOCK_INIT_CORE_CLOCK                     198000000U
-
-#define CTIMER_CLOCK_SOURCE(node_id) \
-	TO_CTIMER_CLOCK_SOURCE(DT_CLOCKS_CELL(node_id, name), DT_PROP(node_id, clk_source))
-#define TO_CTIMER_CLOCK_SOURCE(inst, val) TO_CLOCK_ATTACH_ID(inst, val)
-#define TO_CLOCK_ATTACH_ID(inst, val) CLKCTL1_TUPLE_MUXA(CT32BIT##inst##FCLKSEL_OFFSET, val)
-#define CTIMER_CLOCK_SETUP(node_id) CLOCK_AttachClk(CTIMER_CLOCK_SOURCE(node_id));
 
 const clock_sys_pll_config_t g_sysPllConfig_clock_init = {
 	/* OSC clock */
@@ -80,19 +61,11 @@ const clock_frg_clk_config_t g_frg12Config_clock_init = {
 	.mult = 167
 };
 
-#if CONFIG_USB_DC_NXP_LPCIP3511
-/* USB PHY condfiguration */
-#define BOARD_USB_PHY_D_CAL     (0x0CU)
-#define BOARD_USB_PHY_TXCAL45DP (0x06U)
-#define BOARD_USB_PHY_TXCAL45DM (0x06U)
-#endif
-
 /* System clock frequency. */
 extern uint32_t SystemCoreClock;
-/* Main stack pointer */
-extern char z_main_stack[];
 
 #ifdef CONFIG_NXP_IMX_RT5XX_BOOT_HEADER
+extern char z_main_stack[];
 extern char _flash_used[];
 
 extern void z_arm_reset(void);
@@ -137,89 +110,13 @@ __imx_boot_ivt_section void (* const image_vector_table[])(void)  = {
 };
 #endif /* CONFIG_NXP_IMX_RT5XX_BOOT_HEADER */
 
-#if CONFIG_USB_DC_NXP_LPCIP3511
-
-static void usb_device_clock_init(void)
-{
-	uint8_t usbClockDiv = 1;
-	uint32_t usbClockFreq;
-	usb_phy_config_struct_t phyConfig = {
-		BOARD_USB_PHY_D_CAL,
-		BOARD_USB_PHY_TXCAL45DP,
-		BOARD_USB_PHY_TXCAL45DM,
-	};
-
-	/* Make sure USBHS ram buffer and usb1 phy has power up */
-	POWER_DisablePD(kPDRUNCFG_APD_USBHS_SRAM);
-	POWER_DisablePD(kPDRUNCFG_PPD_USBHS_SRAM);
-	POWER_DisablePD(kPDRUNCFG_LP_HSPAD_FSPI0_VDET);
-	POWER_ApplyPD();
-
-	RESET_PeripheralReset(kUSBHS_PHY_RST_SHIFT_RSTn);
-	RESET_PeripheralReset(kUSBHS_DEVICE_RST_SHIFT_RSTn);
-	RESET_PeripheralReset(kUSBHS_HOST_RST_SHIFT_RSTn);
-	RESET_PeripheralReset(kUSBHS_SRAM_RST_SHIFT_RSTn);
-
-	/* enable usb ip clock */
-	CLOCK_EnableUsbHs0DeviceClock(kOSC_CLK_to_USB_CLK, usbClockDiv);
-	/* save usb ip clock freq*/
-	usbClockFreq = g_xtalFreq / usbClockDiv;
-	CLOCK_SetClkDiv(kCLOCK_DivPfc1Clk, 4);
-	/* enable usb ram clock */
-	CLOCK_EnableClock(kCLOCK_UsbhsSram);
-	/* enable USB PHY PLL clock, the phy bus clock (480MHz) source is same with USB IP */
-	CLOCK_EnableUsbHs0PhyPllClock(kOSC_CLK_to_USB_CLK, usbClockFreq);
-
-	/* USB PHY initialization */
-	USB_EhciPhyInit(kUSB_ControllerLpcIp3511Hs0, BOARD_XTAL_SYS_CLK_HZ, &phyConfig);
-
-#if defined(FSL_FEATURE_USBHSD_USB_RAM) && (FSL_FEATURE_USBHSD_USB_RAM)
-	for (int i = 0; i < FSL_FEATURE_USBHSD_USB_RAM; i++) {
-		((uint8_t *)FSL_FEATURE_USBHSD_USB_RAM_BASE_ADDRESS)[i] = 0x00U;
-	}
-#endif
-
-	/* The following code should run after phy initialization and should wait
-	 * some microseconds to make sure utmi clock valid
-	 */
-	/* enable usb1 host clock */
-	CLOCK_EnableClock(kCLOCK_UsbhsHost);
-	/*  Wait until host_needclk de-asserts */
-	while (SYSCTL0->USB0CLKSTAT & SYSCTL0_USB0CLKSTAT_HOST_NEED_CLKST_MASK) {
-		__ASM("nop");
-	}
-	/* According to reference mannual, device mode setting has to be set by access
-	 * usb host register
-	 */
-	USBHSH->PORTMODE |= USBHSH_PORTMODE_DEV_ENABLE_MASK;
-	/* disable usb1 host clock */
-	CLOCK_DisableClock(kCLOCK_UsbhsHost);
-}
-
-#endif
-
 void z_arm_platform_init(void)
 {
-#ifndef CONFIG_NXP_IMX_RT5XX_BOOT_HEADER
-	/*
-	 * If boot did not proceed using a boot header, we should not assume
-	 * the core is in reset state. Disable the MPU and correctly
-	 * set the stack pointer, since we are about to push to
-	 * the stack when we call SystemInit
-	 */
-	 /* Clear stack limit registers */
-	 __set_MSPLIM(0);
-	 __set_PSPLIM(0);
-	/* Disable MPU */
-	 MPU->CTRL &= ~MPU_CTRL_ENABLE_Msk;
-	 /* Set stack pointer */
-	 __set_MSP((uint32_t)(z_main_stack + CONFIG_MAIN_STACK_SIZE));
-#endif /* !CONFIG_NXP_IMX_RT5XX_BOOT_HEADER */
 	/* This is provided by the SDK */
 	SystemInit();
 }
 
-static void clock_init(void)
+void clock_init(void)
 {
 	/* Configure LPOSC 1M */
 	/* Power on LPOSC (1MHz) */
@@ -234,14 +131,12 @@ static void clock_init(void)
 	/* Enable all FRO outputs */
 	CLOCK_EnableFroClk(kCLOCK_FroAllOutEn);
 
-#ifdef CONFIG_FLASH_MCUX_FLEXSPI_XIP
 	/*
 	 * Call function flexspi_clock_safe_config() to move FlexSPI clock to a stable
 	 * clock source to avoid instruction/data fetch issue when updating PLL and Main
 	 * clock if XIP(execute code on FLEXSPI memory).
 	 */
 	flexspi_clock_safe_config();
-#endif
 
 	/* Let CPU run on FRO with divider 2 for safe switching. */
 	CLOCK_SetClkDiv(kCLOCK_DivSysCpuAhbClk, 2);
@@ -269,6 +164,9 @@ static void clock_init(void)
 	/* Enable Audio PLL clock */
 	CLOCK_InitAudioPfd(kCLOCK_Pfd0, 26);
 
+	/* Set MAINPLLCLKDIV divider to value 5 */
+	CLOCK_SetClkDiv(kCLOCK_DivMainPllClk, 5U);
+
 	/* Set SYSCPUAHBCLKDIV divider to value 2 */
 	CLOCK_SetClkDiv(kCLOCK_DivSysCpuAhbClk, 2U);
 
@@ -286,42 +184,12 @@ static void clock_init(void)
 	/* Switch FLEXCOMM0 to FRG */
 	CLOCK_AttachClk(kFRG_to_FLEXCOMM0);
 #endif
-#if CONFIG_USB_DC_NXP_LPCIP3511
-	usb_device_clock_init();
-#endif
-#if DT_NODE_HAS_COMPAT_STATUS(DT_NODELABEL(flexcomm4), nxp_lpc_i2c, okay)
-	/* Switch FLEXCOMM4 to FRO_DIV4 */
-	CLOCK_AttachClk(kFRO_DIV4_to_FLEXCOMM4);
-#endif
-#if DT_NODE_HAS_COMPAT_STATUS(DT_NODELABEL(hs_spi1), nxp_lpc_spi, okay)
-	CLOCK_AttachClk(kFRO_DIV4_to_FLEXCOMM16);
-#endif
 #if DT_NODE_HAS_COMPAT_STATUS(DT_NODELABEL(flexcomm12), nxp_lpc_usart, okay)
 	/* Switch FLEXCOMM12 to FRG */
 	CLOCK_AttachClk(kFRG_to_FLEXCOMM12);
 #endif
-#if DT_NODE_HAS_COMPAT_STATUS(DT_NODELABEL(pmic_i2c), nxp_lpc_i2c, okay)
-	CLOCK_AttachClk(kFRO_DIV4_to_FLEXCOMM15);
-#endif
 	/* Switch CLKOUT to FRO_DIV2 */
 	CLOCK_AttachClk(kFRO_DIV2_to_CLKOUT);
-
-#if DT_NODE_HAS_STATUS(DT_NODELABEL(usdhc0), okay) && CONFIG_IMX_USDHC
-	/* Make sure USDHC ram buffer has been power up*/
-	POWER_DisablePD(kPDRUNCFG_APD_USDHC0_SRAM);
-	POWER_DisablePD(kPDRUNCFG_PPD_USDHC0_SRAM);
-	POWER_DisablePD(kPDRUNCFG_PD_LPOSC);
-	POWER_ApplyPD();
-
-	/* usdhc depend on 32K clock also */
-	CLOCK_AttachClk(kLPOSC_DIV32_to_32KHZWAKE_CLK);
-	CLOCK_AttachClk(kAUX0_PLL_to_SDIO0_CLK);
-	CLOCK_SetClkDiv(kCLOCK_DivSdio0Clk, 1);
-	CLOCK_EnableClock(kCLOCK_Sdio0);
-	RESET_PeripheralReset(kSDIO0_RST_SHIFT_RSTn);
-#endif
-
-	DT_FOREACH_STATUS_OKAY(nxp_lpc_ctimer, CTIMER_CLOCK_SETUP)
 
 	/* Set up dividers. */
 	/* Set AUDIOPLLCLKDIV divider to value 15 */
@@ -337,25 +205,12 @@ static void clock_init(void)
 	/* Set CLKOUTFCLKDIV divider to value 100 */
 	CLOCK_SetClkDiv(kCLOCK_DivClockOut, 100U);
 
-#ifdef CONFIG_FLASH_MCUX_FLEXSPI_XIP
 	/*
 	 * Call function flexspi_setup_clock() to set user configured clock source/divider
 	 * for FlexSPI.
 	 */
 	flexspi_setup_clock(FLEXSPI0, 0U, 2U);
-#endif
 
-#if DT_NODE_HAS_COMPAT_STATUS(DT_NODELABEL(flexspi2), nxp_imx_flexspi, okay)
-	/* Power up FlexSPI1 SRAM */
-	POWER_DisablePD(kPDRUNCFG_APD_FLEXSPI1_SRAM);
-	POWER_DisablePD(kPDRUNCFG_PPD_FLEXSPI1_SRAM);
-	POWER_ApplyPD();
-	/* Setup clock frequency for FlexSPI1 */
-	CLOCK_AttachClk(kMAIN_CLK_to_FLEXSPI1_CLK);
-	CLOCK_SetClkDiv(kCLOCK_DivFlexspi1Clk, 1);
-	/* Reset peripheral module */
-	RESET_PeripheralReset(kFLEXSPI1_RST_SHIFT_RSTn);
-#endif
 	/* Set SystemCoreClock variable. */
 	SystemCoreClock = CLOCK_INIT_CORE_CLOCK;
 
@@ -372,6 +227,7 @@ static void clock_init(void)
  *
  * @return 0
  */
+
 static int nxp_rt500_init(const struct device *arg)
 {
 	ARG_UNUSED(arg);
@@ -390,10 +246,6 @@ static int nxp_rt500_init(const struct device *arg)
 	 * the kernel, NOP otherwise
 	 */
 	NMI_INIT();
-
-#ifndef CONFIG_IMXRT5XX_CODE_CACHE
-	CACHE64_DisableCache(CACHE64_CTRL0);
-#endif
 
 	/* restore interrupt state */
 	irq_unlock(oldLevel);

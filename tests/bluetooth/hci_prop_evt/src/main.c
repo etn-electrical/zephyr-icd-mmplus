@@ -6,17 +6,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr.h>
 
 #include <errno.h>
-#include <zephyr/tc_util.h>
-#include <zephyr/ztest.h>
+#include <tc_util.h>
+#include <ztest.h>
 
-#include <zephyr/bluetooth/hci.h>
-#include <zephyr/bluetooth/buf.h>
-#include <zephyr/bluetooth/bluetooth.h>
-#include <zephyr/drivers/bluetooth/hci_driver.h>
-#include <zephyr/sys/byteorder.h>
+#include <bluetooth/hci.h>
+#include <bluetooth/buf.h>
+#include <bluetooth/bluetooth.h>
+#include <drivers/bluetooth/hci_driver.h>
+#include <sys/byteorder.h>
 
 /* HCI Proprietary vendor event */
 const uint8_t hci_prop_evt_prefix[2] = { 0xAB, 0xBA };
@@ -342,10 +342,8 @@ static void send_prop_report(uint8_t *data, uint8_t data_len)
 	bt_recv_job_submit(buf);
 }
 
-ZTEST_SUITE(test_hci_prop_evt, NULL, NULL, NULL, NULL, NULL);
-
 /* Test. */
-ZTEST(test_hci_prop_evt, test_hci_prop_evt_entry)
+static void test_hci_prop_evt_entry(void)
 {
 	/* Register the test HCI driver */
 	bt_hci_driver_register(&drv);
@@ -378,4 +376,13 @@ ZTEST(test_hci_prop_evt, test_hci_prop_evt_entry)
 
 	/* Free the data memory */
 	k_free(prop_cb_data);
+}
+
+/*test case main entry*/
+void test_main(void)
+{
+	ztest_test_suite(test_hci_prop_evt,
+			 ztest_unit_test(test_hci_prop_evt_entry));
+
+	ztest_run_test_suite(test_hci_prop_evt);
 }

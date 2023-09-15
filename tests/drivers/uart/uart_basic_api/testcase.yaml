@@ -1,26 +1,24 @@
+common:
+  integration_platforms:
+    - mps2_an385
+
 tests:
-  drivers.uart.basic_api:
-    tags: drivers uart
+  drivers.uart:
+    tags: drivers
     filter: CONFIG_UART_CONSOLE
     harness: keyboard
-    integration_platforms:
-      - mps2_an385
-  drivers.uart.basic_api.poll:
+  drivers.uart.poll:
     extra_args: CONF_FILE=prj_poll.conf
-    tags: drivers uart
+    tags: drivers
     filter: CONFIG_UART_CONSOLE
     harness: keyboard
-    integration_platforms:
-      - mps2_an385
-  drivers.uart.basic_api.shell:
+  drivers.uart.shell:
     extra_args: CONF_FILE=prj_shell.conf
     min_flash: 64
-    tags: drivers uart
+    tags: drivers
     filter: CONFIG_UART_CONSOLE
     harness: keyboard
-    integration_platforms:
-      - mps2_an385
-  drivers.uart.basic_api.cdc_acm:
+  drivers.uart.cdc_acm:
     extra_args: OVERLAY_CONFIG="overlay-usb.conf"
                 DTC_OVERLAY_FILE="usb.overlay"
     tags: drivers usb

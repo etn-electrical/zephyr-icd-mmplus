@@ -4,25 +4,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
-#include <zephyr/fs/littlefs.h>
-#include <zephyr/storage/flash_map.h>
+#include <ztest.h>
+#include <fs/littlefs.h>
+#include <storage/flash_map.h>
 #include "testfs_lfs.h"
-
-#define SMALL_PARTITION		small_partition
-#define SMALL_PARTITION_ID	FIXED_PARTITION_ID(SMALL_PARTITION)
-
-#define MEDIUM_PARTITION	medium_partition
-#define MEDIUM_PARTITION_ID	FIXED_PARTITION_ID(MEDIUM_PARTITION)
-
-#define LARGE_PARTITION		large_partition
-#define LARGE_PARTITION_ID	FIXED_PARTITION_ID(LARGE_PARTITION)
 
 FS_LITTLEFS_DECLARE_DEFAULT_CONFIG(small);
 struct fs_mount_t testfs_small_mnt = {
 	.type = FS_LITTLEFS,
 	.fs_data = &small,
-	.storage_dev = (void *)SMALL_PARTITION_ID,
+	.storage_dev = (void *)FLASH_AREA_ID(small),
 	.mnt_point = TESTFS_MNT_POINT_SMALL,
 };
 
@@ -32,7 +23,7 @@ FS_LITTLEFS_DECLARE_CUSTOM_CONFIG(medium, MEDIUM_IO_SIZE, MEDIUM_IO_SIZE,
 struct fs_mount_t testfs_medium_mnt = {
 	.type = FS_LITTLEFS,
 	.fs_data = &medium,
-	.storage_dev = (void *)MEDIUM_PARTITION_ID,
+	.storage_dev = (void *)FLASH_AREA_ID(medium),
 	.mnt_point = TESTFS_MNT_POINT_MEDIUM,
 };
 
@@ -54,7 +45,7 @@ static struct fs_littlefs large = {
 struct fs_mount_t testfs_large_mnt = {
 	.type = FS_LITTLEFS,
 	.fs_data = &large,
-	.storage_dev = (void *)LARGE_PARTITION_ID,
+	.storage_dev = (void *)FLASH_AREA_ID(large),
 	.mnt_point = TESTFS_MNT_POINT_LARGE,
 };
 

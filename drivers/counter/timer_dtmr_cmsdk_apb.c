@@ -6,16 +6,12 @@
 
 #define DT_DRV_COMPAT arm_cmsdk_dtimer
 
-#include <limits.h>
-
-#include <zephyr/drivers/counter.h>
-#include <zephyr/device.h>
+#include <drivers/counter.h>
+#include <device.h>
 #include <errno.h>
-#include <zephyr/init.h>
-#include <zephyr/irq.h>
+#include <init.h>
 #include <soc.h>
-#include <zephyr/drivers/clock_control/arm_clock_control.h>
-#include <zephyr/irq.h>
+#include <drivers/clock_control/arm_clock_control.h>
 
 #include "dualtimer_cmsdk_apb.h"
 
@@ -148,11 +144,8 @@ static int dtmr_cmsdk_apb_init(const struct device *dev)
 
 #ifdef CONFIG_CLOCK_CONTROL
 	/* Enable clock for subsystem */
-	const struct device *const clk = DEVICE_DT_GET(DT_INST_CLOCKS_CTLR(0));
-
-	if (!device_is_ready(clk)) {
-		return -ENODEV;
-	}
+	const struct device *clk =
+		device_get_binding(CONFIG_ARM_CLOCK_CONTROL_DEV_NAME);
 
 #ifdef CONFIG_SOC_SERIES_BEETLE
 	clock_control_on(clk, (clock_control_subsys_t *) &cfg->dtimer_cc_as);

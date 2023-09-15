@@ -9,28 +9,28 @@
 #include <errno.h>
 #include <stddef.h>
 
-#include <zephyr/kernel.h>
+#include <zephyr.h>
 
-#include <zephyr/init.h>
-#include <zephyr/drivers/uart.h>
-#include <zephyr/sys/util.h>
-#include <zephyr/sys/byteorder.h>
-#include <zephyr/debug/stack.h>
-#include <zephyr/sys/printk.h>
+#include <init.h>
+#include <drivers/uart.h>
+#include <sys/util.h>
+#include <sys/byteorder.h>
+#include <debug/stack.h>
+#include <sys/printk.h>
 #include <string.h>
 
-#include <zephyr/bluetooth/bluetooth.h>
-#include <zephyr/bluetooth/hci.h>
-#include <zephyr/drivers/bluetooth/hci_driver.h>
+#include <bluetooth/bluetooth.h>
+#include <bluetooth/hci.h>
+#include <drivers/bluetooth/hci_driver.h>
+
+#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_DEBUG_HCI_DRIVER)
+#define LOG_MODULE_NAME bt_driver
+#include "common/log.h"
 
 #include "../util.h"
 
-#define LOG_LEVEL CONFIG_BT_HCI_DRIVER_LOG_LEVEL
-#include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(bt_driver);
-
-static K_KERNEL_STACK_DEFINE(tx_stack, CONFIG_BT_DRV_TX_STACK_SIZE);
-static K_KERNEL_STACK_DEFINE(rx_stack, CONFIG_BT_DRV_RX_STACK_SIZE);
+static K_KERNEL_STACK_DEFINE(tx_stack, 256);
+static K_KERNEL_STACK_DEFINE(rx_stack, 256);
 
 static struct k_thread tx_thread_data;
 static struct k_thread rx_thread_data;
@@ -127,7 +127,7 @@ static const uint8_t conf_rsp[] = { 0x04, 0x7b };
 #define SIG_BUF_SIZE (BT_BUF_RESERVE + MAX_SIG_LEN)
 NET_BUF_POOL_DEFINE(h5_pool, SIGNAL_COUNT, SIG_BUF_SIZE, 0, NULL);
 
-static const struct device *const h5_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_bt_uart));
+static const struct device *h5_dev;
 
 static void h5_reset_rx(void)
 {
@@ -159,7 +159,7 @@ static int h5_unslip_byte(uint8_t *byte)
 		*byte = SLIP_ESC;
 		break;
 	default:
-		LOG_ERR("Invalid escape byte %x\n", *byte);
+		BT_ERR("Invalid escape byte %x\n", *byte);
 		return -EIO;
 	}
 
@@ -175,8 +175,8 @@ static void process_unack(void)
 		return;
 	}
 
-	LOG_DBG("rx_ack %u tx_ack %u tx_seq %u unack_queue_len %u", h5.rx_ack, h5.tx_ack, h5.tx_seq,
-		unack_queue_len);
+	BT_DBG("rx_ack %u tx_ack %u tx_seq %u unack_queue_len %u",
+	       h5.rx_ack, h5.tx_ack, h5.tx_seq, unack_queue_len);
 
 	while (unack_queue_len > 0) {
 		if (next_seq == h5.rx_ack) {
@@ -192,22 +192,22 @@ static void process_unack(void)
 	}
 
 	if (next_seq != h5.rx_ack) {
-		LOG_ERR("Wrong sequence: rx_ack %u tx_seq %u next_seq %u", h5.rx_ack, h5.tx_seq,
-			next_seq);
+		BT_ERR("Wrong sequence: rx_ack %u tx_seq %u next_seq %u",
+		       h5.rx_ack, h5.tx_seq, next_seq);
 	}
 
-	LOG_DBG("Need to remove %u packet from the queue", number_removed);
+	BT_DBG("Need to remove %u packet from the queue", number_removed);
 
 	while (number_removed) {
 		struct net_buf *buf = net_buf_get(&h5.unack_queue, K_NO_WAIT);
 
 		if (!buf) {
-			LOG_ERR("Unack queue is empty");
+			BT_ERR("Unack queue is empty");
 			break;
 		}
 
 		/* TODO: print or do something with packet */
-		LOG_DBG("Remove buf from the unack_queue");
+		BT_DBG("Remove buf from the unack_queue");
 
 		net_buf_unref(buf);
 		unack_queue_len--;
@@ -218,15 +218,18 @@ static void process_unack(void)
 static void h5_print_header(const uint8_t *hdr, const char *str)
 {
 	if (H5_HDR_RELIABLE(hdr)) {
-		LOG_DBG("%s REL: seq %u ack %u crc %u type %u len %u", str, H5_HDR_SEQ(hdr),
-			H5_HDR_ACK(hdr), H5_HDR_CRC(hdr), H5_HDR_PKT_TYPE(hdr), H5_HDR_LEN(hdr));
+		BT_DBG("%s REL: seq %u ack %u crc %u type %u len %u",
+		       str, H5_HDR_SEQ(hdr), H5_HDR_ACK(hdr),
+		       H5_HDR_CRC(hdr), H5_HDR_PKT_TYPE(hdr),
+		       H5_HDR_LEN(hdr));
 	} else {
-		LOG_DBG("%s UNREL: ack %u crc %u type %u len %u", str, H5_HDR_ACK(hdr),
-			H5_HDR_CRC(hdr), H5_HDR_PKT_TYPE(hdr), H5_HDR_LEN(hdr));
+		BT_DBG("%s UNREL: ack %u crc %u type %u len %u",
+		       str, H5_HDR_ACK(hdr), H5_HDR_CRC(hdr),
+		       H5_HDR_PKT_TYPE(hdr), H5_HDR_LEN(hdr));
 	}
 }
 
-#if defined(CONFIG_BT_HCI_DRIVER_LOG_LEVEL_DBG)
+#if defined(CONFIG_BT_DEBUG_HCI_DRIVER)
 static void hexdump(const char *str, const uint8_t *packet, size_t length)
 {
 	int n = 0;
@@ -324,7 +327,7 @@ static void retx_timeout(struct k_work *work)
 {
 	ARG_UNUSED(work);
 
-	LOG_DBG("unack_queue_len %u", unack_queue_len);
+	BT_DBG("unack_queue_len %u", unack_queue_len);
 
 	if (unack_queue_len) {
 		struct k_fifo tmp_queue;
@@ -332,7 +335,7 @@ static void retx_timeout(struct k_work *work)
 
 		k_fifo_init(&tmp_queue);
 
-		/* Queue to temporary queue */
+		/* Queue to temperary queue */
 		while ((buf = net_buf_get(&h5.tx_queue, K_NO_WAIT))) {
 			net_buf_put(&tmp_queue, buf);
 		}
@@ -357,7 +360,7 @@ static void ack_timeout(struct k_work *work)
 {
 	ARG_UNUSED(work);
 
-	LOG_DBG("");
+	BT_DBG("");
 
 	h5_send(NULL, HCI_3WIRE_ACK_PKT, 0);
 }
@@ -366,7 +369,7 @@ static void h5_process_complete_packet(uint8_t *hdr)
 {
 	struct net_buf *buf;
 
-	LOG_DBG("");
+	BT_DBG("");
 
 	/* rx_ack should be in every packet */
 	h5.rx_ack = H5_HDR_ACK(hdr);
@@ -422,9 +425,9 @@ static void bt_uart_isr(const struct device *unused, void *user_data)
 
 		if (!uart_irq_rx_ready(h5_dev)) {
 			if (uart_irq_tx_ready(h5_dev)) {
-				LOG_DBG("transmit ready");
+				BT_DBG("transmit ready");
 			} else {
-				LOG_DBG("spurious interrupt");
+				BT_DBG("spurious interrupt");
 			}
 			/* Only the UART RX path is interrupt-enabled */
 			break;
@@ -443,7 +446,7 @@ static void bt_uart_isr(const struct device *unused, void *user_data)
 			}
 			break;
 		case HEADER:
-			/* In a case we confuse ending slip delimiter
+			/* In a case we confuse ending slip delimeter
 			 * with starting one.
 			 */
 			if (byte == SLIP_DELIMITER) {
@@ -476,7 +479,7 @@ static void bt_uart_isr(const struct device *unused, void *user_data)
 				h5.rx_buf = bt_buf_get_rx(BT_BUF_ACL_IN,
 							  K_NO_WAIT);
 				if (!h5.rx_buf) {
-					LOG_WRN("No available data buffers");
+					BT_WARN("No available data buffers");
 					h5_reset_rx();
 					continue;
 				}
@@ -487,7 +490,7 @@ static void bt_uart_isr(const struct device *unused, void *user_data)
 				h5.rx_buf = bt_buf_get_rx(BT_BUF_ISO_IN,
 							  K_NO_WAIT);
 				if (!h5.rx_buf) {
-					LOG_WRN("No available data buffers");
+					BT_WARN("No available data buffers");
 					h5_reset_rx();
 					continue;
 				}
@@ -498,7 +501,7 @@ static void bt_uart_isr(const struct device *unused, void *user_data)
 			case HCI_3WIRE_ACK_PKT:
 				h5.rx_buf = net_buf_alloc(&h5_pool, K_NO_WAIT);
 				if (!h5.rx_buf) {
-					LOG_WRN("No available signal buffers");
+					BT_WARN("No available signal buffers");
 					h5_reset_rx();
 					continue;
 				}
@@ -506,7 +509,8 @@ static void bt_uart_isr(const struct device *unused, void *user_data)
 				h5.rx_state = PAYLOAD;
 				break;
 			default:
-				LOG_ERR("Wrong packet type %u", H5_HDR_PKT_TYPE(hdr));
+				BT_ERR("Wrong packet type %u",
+				       H5_HDR_PKT_TYPE(hdr));
 				h5.rx_state = END;
 				break;
 			}
@@ -526,7 +530,7 @@ static void bt_uart_isr(const struct device *unused, void *user_data)
 			if (!h5.rx_buf) {
 				h5.rx_buf = get_evt_buf(byte);
 				if (!h5.rx_buf) {
-					LOG_WRN("No available event buffers");
+					BT_WARN("No available event buffers");
 					h5_reset_rx();
 					continue;
 				}
@@ -534,8 +538,8 @@ static void bt_uart_isr(const struct device *unused, void *user_data)
 
 			buf_tailroom = net_buf_tailroom(h5.rx_buf);
 			if (buf_tailroom < sizeof(byte)) {
-				LOG_ERR("Not enough space in buffer %zu/%zu", sizeof(byte),
-					buf_tailroom);
+				BT_ERR("Not enough space in buffer %zu/%zu",
+				       sizeof(byte), buf_tailroom);
 				h5_reset_rx();
 				break;
 			}
@@ -548,12 +552,13 @@ static void bt_uart_isr(const struct device *unused, void *user_data)
 			break;
 		case END:
 			if (byte != SLIP_DELIMITER) {
-				LOG_ERR("Missing ending SLIP_DELIMITER");
+				BT_ERR("Missing ending SLIP_DELIMITER");
 				h5_reset_rx();
 				break;
 			}
 
-			LOG_DBG("Received full packet: type %u", H5_HDR_PKT_TYPE(hdr));
+			BT_DBG("Received full packet: type %u",
+			       H5_HDR_PKT_TYPE(hdr));
 
 			/* Check when full packet is received, it can be done
 			 * when parsing packet header but we need to receive
@@ -561,8 +566,8 @@ static void bt_uart_isr(const struct device *unused, void *user_data)
 			 */
 			if (H5_HDR_RELIABLE(hdr) &&
 			    H5_HDR_SEQ(hdr) != h5.tx_ack) {
-				LOG_ERR("Seq expected %u got %u. Drop packet", h5.tx_ack,
-					H5_HDR_SEQ(hdr));
+				BT_ERR("Seq expected %u got %u. Drop packet",
+				       h5.tx_ack, H5_HDR_SEQ(hdr));
 				h5_reset_rx();
 				break;
 			}
@@ -583,7 +588,7 @@ static int h5_queue(struct net_buf *buf)
 {
 	uint8_t type;
 
-	LOG_DBG("buf %p type %u len %u", buf, bt_buf_get_type(buf), buf->len);
+	BT_DBG("buf %p type %u len %u", buf, bt_buf_get_type(buf), buf->len);
 
 	switch (bt_buf_get_type(buf)) {
 	case BT_BUF_CMD:
@@ -596,7 +601,7 @@ static int h5_queue(struct net_buf *buf)
 		type = HCI_ISODATA_PKT;
 		break;
 	default:
-		LOG_ERR("Unknown packet type %u", bt_buf_get_type(buf));
+		BT_ERR("Unknown packet type %u", bt_buf_get_type(buf));
 		return -1;
 	}
 
@@ -609,7 +614,7 @@ static int h5_queue(struct net_buf *buf)
 
 static void tx_thread(void)
 {
-	LOG_DBG("");
+	BT_DBG("");
 
 	/* FIXME: make periodic sending */
 	h5_send(sync_req, HCI_3WIRE_LINK_PKT, sizeof(sync_req));
@@ -618,7 +623,7 @@ static void tx_thread(void)
 		struct net_buf *buf;
 		uint8_t type;
 
-		LOG_DBG("link_state %u", h5.link_state);
+		BT_DBG("link_state %u", h5.link_state);
 
 		switch (h5.link_state) {
 		case UNINIT:
@@ -655,7 +660,7 @@ static void h5_set_txwin(uint8_t *conf)
 
 static void rx_thread(void)
 {
-	LOG_DBG("");
+	BT_DBG("");
 
 	while (true) {
 		struct net_buf *buf;
@@ -695,9 +700,11 @@ static void rx_thread(void)
 				h5.tx_win = (buf->data[2] & 0x07);
 			}
 
-			LOG_DBG("Finished H5 configuration, tx_win %u", h5.tx_win);
+			BT_DBG("Finished H5 configuration, tx_win %u",
+			       h5.tx_win);
 		} else {
-			LOG_ERR("Not handled yet %x %x", buf->data[0], buf->data[1]);
+			BT_ERR("Not handled yet %x %x",
+			       buf->data[0], buf->data[1]);
 		}
 
 		net_buf_unref(buf);
@@ -711,7 +718,7 @@ static void rx_thread(void)
 
 static void h5_init(void)
 {
-	LOG_DBG("");
+	BT_DBG("");
 
 	h5.link_state = UNINIT;
 	h5.rx_state = START;
@@ -744,7 +751,7 @@ static void h5_init(void)
 
 static int h5_open(void)
 {
-	LOG_DBG("");
+	BT_DBG("");
 
 	uart_irq_rx_disable(h5_dev);
 	uart_irq_tx_disable(h5_dev);
@@ -771,8 +778,9 @@ static int bt_uart_init(const struct device *unused)
 {
 	ARG_UNUSED(unused);
 
+	h5_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_bt_uart));
 	if (!device_is_ready(h5_dev)) {
-		return -ENODEV;
+		return -EINVAL;
 	}
 
 	bt_hci_driver_register(&drv);

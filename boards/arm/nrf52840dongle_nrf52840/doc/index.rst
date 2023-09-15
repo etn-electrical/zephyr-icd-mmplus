@@ -25,6 +25,7 @@ Semiconductor nRF52840 ARM Cortex-M4F CPU and the following devices:
 * :abbr:`WDT (Watchdog Timer)`
 
 .. figure:: img/nrf52840dongle_nrf52840.jpg
+     :width: 442px
      :align: center
      :alt: nRF52840 Dongle
 
@@ -263,7 +264,7 @@ name.
 .. note::
 
    This board supports building other Zephyr applications for flashing with
-   MCUboot in this way also. Just make sure :kconfig:option:`CONFIG_BOOTLOADER_MCUBOOT`
+   MCUboot in this way also. Just make sure :kconfig:`CONFIG_BOOTLOADER_MCUBOOT`
    is set when building your application. For example, to compile blinky for
    loading by MCUboot, use this:
 

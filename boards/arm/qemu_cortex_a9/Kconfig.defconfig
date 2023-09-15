@@ -20,6 +20,13 @@ config SYS_CLOCK_HW_CYCLES_PER_SEC
 config SYS_CLOCK_TICKS_PER_SEC
 	default 1000
 
+if CONSOLE
+
+	config UART_CONSOLE
+	default y
+
+endif # CONSOLE
+
 if LOG
 
 	if LOG_PROCESS_THREAD
@@ -70,11 +77,25 @@ if QEMU_ICOUNT
 
 endif # QEMU_ICOUNT
 
+if SERIAL
+
+	config UART_XLNX_PS
+	default y
+
+endif # SERIAL
+
 if SHELL
 
 	config SHELL_STACK_SIZE
 	default 8192
 
 endif # SHELL
+
+if UART_PIPE
+
+	config UART_PIPE_ON_DEV_NAME
+	default "uart1"
+
+endif # UART_PIPE
 
 endif # BOARD_QEMU_CORTEX_A9

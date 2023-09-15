@@ -4,20 +4,20 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
+#include <kernel.h>
 
-#include <zephyr/device.h>
-#include <zephyr/init.h>
+#include <device.h>
+#include <init.h>
 #include <fsl_clock.h>
-#include <zephyr/sys/util.h>
+#include <sys/util.h>
 
 #if defined(CONFIG_MULTI_LEVEL_INTERRUPTS)
 #include <errno.h>
-#include <zephyr/irq_nextlevel.h>
+#include <irq_nextlevel.h>
 #endif
 
 #define LOG_LEVEL CONFIG_SOC_LOG_LEVEL
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(soc);
 
 #define SCG_LPFLL_DISABLE 0U

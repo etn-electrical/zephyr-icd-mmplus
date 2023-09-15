@@ -4,15 +4,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
-#include <zephyr/sys/crc.h>
+#include <ztest.h>
+#include <sys/crc.h>
 #include "../../../lib/os/crc8_sw.c"
 #include "../../../lib/os/crc16_sw.c"
 #include "../../../lib/os/crc32_sw.c"
 #include "../../../lib/os/crc32c_sw.c"
 #include "../../../lib/os/crc7_sw.c"
 
-ZTEST(crc, test_crc32c)
+void test_crc32c(void)
 {
 	uint8_t test1[] = { 'A' };
 	uint8_t test2[] = { '1', '2', '3', '4', '5', '6', '7', '8', '9' };
@@ -39,18 +39,18 @@ ZTEST(crc, test_crc32c)
 			0x7D4F9D21, NULL);
 }
 
-ZTEST(crc, test_crc32_ieee)
+void test_crc32_ieee(void)
 {
 	uint8_t test1[] = { 'A' };
 	uint8_t test2[] = { '1', '2', '3', '4', '5', '6', '7', '8', '9' };
 	uint8_t test3[] = { 'Z', 'e', 'p', 'h', 'y', 'r' };
 
-	zassert_equal(crc32_ieee(test1, sizeof(test1)), 0xD3D99E8B);
-	zassert_equal(crc32_ieee(test2, sizeof(test2)), 0xCBF43926);
-	zassert_equal(crc32_ieee(test3, sizeof(test3)), 0x20089AA4);
+	zassert_equal(crc32_ieee(test1, sizeof(test1)), 0xD3D99E8B, NULL);
+	zassert_equal(crc32_ieee(test2, sizeof(test2)), 0xCBF43926, NULL);
+	zassert_equal(crc32_ieee(test3, sizeof(test3)), 0x20089AA4, NULL);
 }
 
-ZTEST(crc, test_crc16)
+void test_crc16(void)
 {
 	uint8_t test[] = { '1', '2', '3', '4', '5', '6', '7', '8', '9' };
 
@@ -59,16 +59,16 @@ ZTEST(crc, test_crc16)
 	 * check=0x2189
 	 * poly is 0x1021, reflected 0x8408
 	 */
-	zassert_equal(crc16_reflect(0x8408, 0x0, test, sizeof(test)), 0x2189);
+	zassert_equal(crc16_reflect(0x8408, 0x0, test, sizeof(test)), 0x2189, NULL);
 
 	/* CRC-16/DECT-X
 	 * https://reveng.sourceforge.io/crc-catalogue/16.htm#crc.cat.crc-16-dect-x
 	 * check=0x007f
 	 */
-	zassert_equal(crc16(0x0589, 0x0, test, sizeof(test)), 0x007f);
+	zassert_equal(crc16(0x0589, 0x0, test, sizeof(test)), 0x007f, NULL);
 }
 
-ZTEST(crc, test_crc16_ansi)
+void test_crc16_ansi(void)
 {
 	uint8_t test[] = { '1', '2', '3', '4', '5', '6', '7', '8', '9' };
 
@@ -79,11 +79,11 @@ ZTEST(crc, test_crc16_ansi)
 	 * check=0x4b37
 	 * poly is 0x1021, reflected 0xA001
 	 */
-	zassert_equal(crc16_c, 0x4b37);
-	zassert_equal(crc16_reflect(0xA001, 0xffff, test, sizeof(test)), crc16_c);
+	zassert_equal(crc16_c, 0x4b37, NULL);
+	zassert_equal(crc16_reflect(0xA001, 0xffff, test, sizeof(test)), crc16_c, NULL);
 }
 
-ZTEST(crc, test_crc16_ccitt)
+void test_crc16_ccitt(void)
 {
 	uint8_t test0[] = { };
 	uint8_t test1[] = { 'A' };
@@ -91,13 +91,13 @@ ZTEST(crc, test_crc16_ccitt)
 	uint8_t test3[] = { 'Z', 'e', 'p', 'h', 'y', 'r', 0, 0 };
 	uint16_t crc;
 
-	zassert_equal(crc16_ccitt(0, test0, sizeof(test0)), 0x0);
-	zassert_equal(crc16_ccitt(0, test1, sizeof(test1)), 0x538d);
+	zassert_equal(crc16_ccitt(0, test0, sizeof(test0)), 0x0, NULL);
+	zassert_equal(crc16_ccitt(0, test1, sizeof(test1)), 0x538d, NULL);
 	/* CRC-16/CCITT, CRC-16/CCITT-TRUE, CRC-16/KERMIT
 	 * https://reveng.sourceforge.io/crc-catalogue/16.htm#crc.cat.crc-16-kermit
 	 * check=0x2189
 	 */
-	zassert_equal(crc16_ccitt(0, test2, sizeof(test2)), 0x2189);
+	zassert_equal(crc16_ccitt(0, test2, sizeof(test2)), 0x2189, NULL);
 	/* CRC-16/X-25, CRC-16/IBM-SDLC, CRC-16/ISO-HDLC
 	 * https://reveng.sourceforge.io/crc-catalogue/16.htm#crc.cat.crc-16-ibm-sdlc
 	 * check=0x906e
@@ -112,10 +112,10 @@ ZTEST(crc, test_crc16_ccitt)
 	test3[sizeof(test3)-2] = (uint8_t)(crc >> 0);
 	test3[sizeof(test3)-1] = (uint8_t)(crc >> 8);
 
-	zassert_equal(crc16_ccitt(0, test3, sizeof(test3)), 0);
+	zassert_equal(crc16_ccitt(0, test3, sizeof(test3)), 0, NULL);
 }
 
-ZTEST(crc, test_crc16_ccitt_for_ppp)
+void test_crc16_ccitt_for_ppp(void)
 {
 	/* Example capture including FCS from
 	 * https://www.horo.ch/techno/ppp-fcs/examples_en.html
@@ -134,7 +134,7 @@ ZTEST(crc, test_crc16_ccitt_for_ppp)
 		      0x906e, NULL);
 }
 
-ZTEST(crc, test_crc16_itu_t)
+void test_crc16_itu_t(void)
 {
 	uint8_t test2[] = { '1', '2', '3', '4', '5', '6', '7', '8', '9' };
 
@@ -142,21 +142,21 @@ ZTEST(crc, test_crc16_itu_t)
 	 * https://reveng.sourceforge.io/crc-catalogue/16.htm#crc.cat.crc-16-xmodem
 	 * check=0x31c3
 	 */
-	zassert_equal(crc16_itu_t(0, test2, sizeof(test2)), 0x31c3);
+	zassert_equal(crc16_itu_t(0, test2, sizeof(test2)), 0x31c3, NULL);
 	/* CRC16/CCITT-FALSE, CRC-16/IBM-3740, CRC-16/AUTOSAR
 	 * https://reveng.sourceforge.io/crc-catalogue/16.htm#crc.cat.crc-16-ibm-3740
 	 * check=0x29b1
 	 */
-	zassert_equal(crc16_itu_t(0xffff, test2, sizeof(test2)), 0x29b1);
+	zassert_equal(crc16_itu_t(0xffff, test2, sizeof(test2)), 0x29b1, NULL);
 	/* CRC-16/GSM
 	 * https://reveng.sourceforge.io/crc-catalogue/16.htm#crc.cat.crc-16-gsm
 	 * check=0xce3c
 	 */
-	zassert_equal(crc16_itu_t(0, test2, sizeof(test2)) ^ 0xffff, 0xce3c);
+	zassert_equal(crc16_itu_t(0, test2, sizeof(test2)) ^ 0xffff, 0xce3c, NULL);
 
 }
 
-ZTEST(crc, test_crc8_ccitt)
+void test_crc8_ccitt(void)
 {
 	uint8_t test0[] = { 0 };
 	uint8_t test1[] = { 'A' };
@@ -170,18 +170,18 @@ ZTEST(crc, test_crc8_ccitt)
 			   sizeof(test2)) == 0xFB, "pass", "fail");
 }
 
-ZTEST(crc, test_crc7_be)
+void test_crc7_be(void)
 {
 	uint8_t test0[] = { 0 };
 	uint8_t test1[] = { 'A' };
 	uint8_t test2[] = { '1', '2', '3', '4', '5', '6', '7', '8', '9' };
 
-	zassert_equal(crc7_be(0, test0, sizeof(test0)), 0);
-	zassert_equal(crc7_be(0, test1, sizeof(test1)), 0xDA);
-	zassert_equal(crc7_be(0, test2, sizeof(test2)), 0xEA);
+	zassert_equal(crc7_be(0, test0, sizeof(test0)), 0, NULL);
+	zassert_equal(crc7_be(0, test1, sizeof(test1)), 0xDA, NULL);
+	zassert_equal(crc7_be(0, test2, sizeof(test2)), 0xEA, NULL);
 }
 
-ZTEST(crc, test_crc8)
+void test_crc8(void)
 {
 	uint8_t fcs, expected;
 
@@ -261,4 +261,18 @@ ZTEST(crc, test_crc8)
 	zassert_equal(fcs, expected, "0x%02x vs 0x%02x", fcs, expected);
 }
 
-ZTEST_SUITE(crc, NULL, NULL, NULL, NULL, NULL);
+void test_main(void)
+{
+	ztest_test_suite(test_crc,
+			 ztest_unit_test(test_crc32c),
+			 ztest_unit_test(test_crc32_ieee),
+			 ztest_unit_test(test_crc16),
+			 ztest_unit_test(test_crc16_ansi),
+			 ztest_unit_test(test_crc16_ccitt),
+			 ztest_unit_test(test_crc16_ccitt_for_ppp),
+			 ztest_unit_test(test_crc16_itu_t),
+			 ztest_unit_test(test_crc8_ccitt),
+			 ztest_unit_test(test_crc7_be),
+			 ztest_unit_test(test_crc8));
+	ztest_run_test_suite(test_crc);
+}

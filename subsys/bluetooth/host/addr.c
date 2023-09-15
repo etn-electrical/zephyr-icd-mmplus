@@ -9,12 +9,10 @@
 #include <string.h>
 #include <errno.h>
 
-#include <zephyr/sys/util.h>
+#include <sys/util.h>
 
-#include <zephyr/bluetooth/addr.h>
-#include <zephyr/bluetooth/crypto.h>
-
-#define ADDR_RESOLVED_BITMASK (0x02)
+#include <bluetooth/addr.h>
+#include <bluetooth/crypto.h>
 
 static inline int create_random_addr(bt_addr_le_t *addr)
 {
@@ -102,16 +100,4 @@ int bt_addr_le_from_str(const char *str, const char *type, bt_addr_le_t *addr)
 	}
 
 	return 0;
-}
-
-void bt_addr_le_copy_resolved(bt_addr_le_t *dst, const bt_addr_le_t *src)
-{
-	bt_addr_le_copy(dst, src);
-	/* translate to "regular" address type */
-	dst->type &= ~ADDR_RESOLVED_BITMASK;
-}
-
-bool bt_addr_le_is_resolved(const bt_addr_le_t *addr)
-{
-	return (addr->type & ADDR_RESOLVED_BITMASK) != 0;
 }

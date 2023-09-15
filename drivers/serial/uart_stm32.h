@@ -12,40 +12,25 @@
 #ifndef ZEPHYR_DRIVERS_SERIAL_UART_STM32_H_
 #define ZEPHYR_DRIVERS_SERIAL_UART_STM32_H_
 
-#include <zephyr/drivers/pinctrl.h>
-
-#include <stm32_ll_usart.h>
+#include <drivers/pinctrl.h>
 
 /* device config */
 struct uart_stm32_config {
-	/* USART instance */
-	USART_TypeDef *usart;
+	struct uart_device_config uconf;
 	/* clock subsystem driving this peripheral */
-	const struct stm32_pclken *pclken;
-	/* number of clock subsystems */
-	size_t pclk_len;
+	struct stm32_pclken pclken;
 	/* initial hardware flow control, 1 for RTS/CTS */
 	bool hw_flow_control;
 	/* initial parity, 0 for none, 1 for odd, 2 for even */
 	int  parity;
 	/* switch to enable single wire / half duplex feature */
 	bool single_wire;
-	/* enable tx/rx pin swap */
-	bool tx_rx_swap;
-	/* enable rx pin inversion */
-	bool rx_invert;
-	/* enable tx pin inversion */
-	bool tx_invert;
 	const struct pinctrl_dev_config *pcfg;
-#if defined(CONFIG_UART_INTERRUPT_DRIVEN) || defined(CONFIG_UART_ASYNC_API) || \
-	defined(CONFIG_PM)
+#if defined(CONFIG_PM) \
+	&& !defined(CONFIG_UART_INTERRUPT_DRIVEN) \
+	&& !defined(CONFIG_UART_ASYNC_API)
 	uart_irq_config_func_t irq_config_func;
 #endif
-#if defined(CONFIG_PM)
-	/* Device defined as wake-up source */
-	bool wakeup_source;
-	uint32_t wakeup_line;
-#endif /* CONFIG_PM */
 };
 
 #ifdef CONFIG_UART_ASYNC_API
@@ -74,8 +59,6 @@ struct uart_stm32_data {
 	uint32_t baud_rate;
 	/* clock device */
 	const struct device *clock;
-	/* Reset controller device configuration */
-	const struct reset_dt_spec reset;
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 	uart_irq_callback_user_data_t user_cb;
 	void *user_data;
@@ -93,7 +76,7 @@ struct uart_stm32_data {
 #ifdef CONFIG_PM
 	bool tx_poll_stream_on;
 	bool tx_int_stream_on;
-	bool pm_policy_state_on;
+	bool pm_constraint_on;
 #endif
 };
 

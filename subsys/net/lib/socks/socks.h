@@ -9,7 +9,7 @@
 #ifndef ZEPHYR_INCLUDE_NET_SOCKS_H_
 #define ZEPHYR_INCLUDE_NET_SOCKS_H_
 
-#include <zephyr/net/socket.h>
+#include <net/socket.h>
 
 /**@brief Connects to destination through a SOCKS5 proxy server.
  *

@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(modbus_raw, CONFIG_MODBUS_LOG_LEVEL);
 
-#include <zephyr/kernel.h>
-#include <zephyr/sys/byteorder.h>
+#include <kernel.h>
+#include <sys/byteorder.h>
 #include <modbus_internal.h>
 
 #define MODBUS_ADU_LENGTH_DEVIATION	2
@@ -43,7 +43,7 @@ int modbus_raw_tx_adu(struct modbus_context *ctx)
 		return -ENODEV;
 	}
 
-	ctx->rawcb.raw_tx_cb(iface, &ctx->tx_adu, ctx->rawcb.user_data);
+	ctx->raw_tx_cb(iface, &ctx->tx_adu);
 
 	return 0;
 }
@@ -172,8 +172,7 @@ int modbus_raw_init(struct modbus_context *ctx,
 		return -ENOTSUP;
 	}
 
-	ctx->rawcb.raw_tx_cb = param.rawcb.raw_tx_cb;
-	ctx->rawcb.user_data = param.rawcb.user_data;
+	ctx->raw_tx_cb = param.raw_tx_cb;
 
 	return 0;
 }

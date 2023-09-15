@@ -13,7 +13,9 @@ This board acts as a sensor hub platform for all 96Boards compliant
 family products. It can also be used as a standalone board.
 
 .. figure:: img/96b_argonkey.jpg
+     :width: 540px
      :align: center
+     :height: 558px
      :alt: 96Boards Argonkey
 
      96Boards Argonkey
@@ -35,7 +37,7 @@ Hardware
   - Temperature/Pressure: STMicro LPS22HB
   - ALS: Intersil ISL29034
   - Proximity: STMicro VL53L0X
-  - Accelerometer/Gyroscope: STMicro LSM6DSL
+  - Acclerometer/Gyroscope: STMicro LSM6DSL
   - Geomagnetic: STMicro LIS2MDL
   - AMR Hall sensor: MRMS501A
   - Microphone: STMicro MP34DT05

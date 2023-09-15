@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
+#include <kernel.h>
 #include <ksched.h>
 
 /* forward declaration to asm function to adjust setup the arguments

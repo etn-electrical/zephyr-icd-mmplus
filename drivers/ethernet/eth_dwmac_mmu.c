@@ -9,17 +9,16 @@
 
 #define LOG_MODULE_NAME dwmac_plat
 #define LOG_LEVEL CONFIG_ETHERNET_LOG_LEVEL
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 
 #define DT_DRV_COMPAT snps_designware_ethernet
 
 #include <sys/types.h>
-#include <zephyr/sys/mem_manage.h>
-#include <zephyr/kernel.h>
-#include <zephyr/cache.h>
-#include <zephyr/net/ethernet.h>
-#include <zephyr/irq.h>
+#include <sys/mem_manage.h>
+#include <zephyr.h>
+#include <cache.h>
+#include <net/ethernet.h>
 
 #include "eth_dwmac_priv.h"
 
@@ -44,8 +43,9 @@ void dwmac_platform_init(struct dwmac_priv *p)
 	uintptr_t desc_phys_addr;
 
 	/* make sure no valid cache lines map to the descriptor area */
-	sys_cache_data_invd_range(dwmac_tx_rx_descriptors,
-				  sizeof(dwmac_tx_rx_descriptors));
+	sys_cache_data_range(dwmac_tx_rx_descriptors,
+			     sizeof(dwmac_tx_rx_descriptors),
+			     K_CACHE_INVD);
 
 	desc_phys_addr = z_mem_phys_addr(dwmac_tx_rx_descriptors);
 

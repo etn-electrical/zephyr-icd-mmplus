@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
-#include <zephyr/smf.h>
+#include <ztest.h>
+#include <smf.h>
 
 /*
- * Flat Test Transition:
+ * Flat Test Transtion:
  *
  *	A_ENTRY --> A_RUN --> A_EXIT --> B_ENTRY --> B_RUN --|
  *	                                                     |
@@ -219,9 +219,9 @@ static const struct smf_state test_states[] = {
 	[STATE_D] = SMF_CREATE_STATE(state_d_entry, state_d_run, state_d_exit),
 };
 
-ZTEST(smf_tests, test_smf_flat)
+void test_smf_flat(void)
 {
-	/* A) Test transitions */
+	/* A) Test transtions */
 
 	test_obj.transition_bits = 0;
 	test_obj.terminate = NONE;

@@ -7,15 +7,13 @@
 #define DT_DRV_COMPAT atmel_sam_gpio
 
 #include <errno.h>
-#include <zephyr/kernel.h>
-#include <zephyr/device.h>
-#include <zephyr/init.h>
+#include <kernel.h>
+#include <device.h>
+#include <init.h>
 #include <soc.h>
-#include <zephyr/drivers/gpio.h>
-#include <zephyr/dt-bindings/gpio/atmel-sam-gpio.h>
-#include <zephyr/irq.h>
+#include <drivers/gpio.h>
 
-#include <zephyr/drivers/gpio/gpio_utils.h>
+#include "gpio_utils.h"
 
 typedef void (*config_func_t)(const struct device *dev);
 
@@ -41,17 +39,9 @@ static int gpio_sam_port_configure(const struct device *dev, uint32_t mask,
 	const struct gpio_sam_config * const cfg = dev->config;
 	Pio * const pio = cfg->regs;
 
-	if ((flags & GPIO_SINGLE_ENDED) != 0) {
-		if ((flags & GPIO_LINE_OPEN_DRAIN) != 0) {
-			/* Enable open-drain drive mode */
-			pio->PIO_MDER = mask;
-		} else {
-			/* Open-drain is the only supported single-ended mode */
-			return -ENOTSUP;
-		}
-	} else {
-		/* Disable open-drain drive mode */
-		pio->PIO_MDDR = mask;
+	if (flags & GPIO_SINGLE_ENDED) {
+		/* TODO: Add support for Open Source, Open Drain mode */
+		return -ENOTSUP;
 	}
 
 	if (!(flags & (GPIO_OUTPUT | GPIO_INPUT))) {
@@ -76,7 +66,7 @@ static int gpio_sam_port_configure(const struct device *dev, uint32_t mask,
 		return 0;
 	}
 
-	/* Setup the pin direction. */
+	/* Setup the pin direcion. */
 	if (flags & GPIO_OUTPUT) {
 		if (flags & GPIO_OUTPUT_INIT_HIGH) {
 			/* Set the pin. */
@@ -126,7 +116,7 @@ static int gpio_sam_port_configure(const struct device *dev, uint32_t mask,
 
 #if defined(CONFIG_SOC_SERIES_SAM3X)
 	/* Setup debounce. */
-	if (flags & SAM_GPIO_DEBOUNCE) {
+	if (flags & GPIO_INT_DEBOUNCE) {
 		pio->PIO_DIFSR = mask;
 	} else {
 		pio->PIO_SCIFSR = mask;
@@ -137,7 +127,7 @@ static int gpio_sam_port_configure(const struct device *dev, uint32_t mask,
 	defined(CONFIG_SOC_SERIES_SAMV71)
 
 	/* Setup debounce. */
-	if (flags & SAM_GPIO_DEBOUNCE) {
+	if (flags & GPIO_INT_DEBOUNCE) {
 		pio->PIO_IFSCER = mask;
 	} else {
 		pio->PIO_IFSCDR = mask;

@@ -12,14 +12,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/device.h>
+#include <zephyr.h>
+#include <device.h>
 
 #include "eth_xlnx_gem_priv.h"
 
 #define LOG_MODULE_NAME phy_xlnx_gem
 #define LOG_LEVEL CONFIG_ETHERNET_LOG_LEVEL
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 
 /* Basic MDIO read / write functions for PHY access */
@@ -50,9 +50,8 @@ static uint16_t phy_xlnx_gem_mdio_read(
 	 * current command.
 	 */
 	do {
-		if (poll_cnt++ > 0) {
+		if (poll_cnt++ > 0)
 			k_busy_wait(100);
-		}
 		reg_val = sys_read32(base_addr + ETH_XLNX_GEM_NWSR_OFFSET);
 	} while ((reg_val & ETH_XLNX_GEM_MDIO_IDLE_BIT) == 0 && poll_cnt < 10);
 	if (poll_cnt == 10) {
@@ -83,9 +82,8 @@ static uint16_t phy_xlnx_gem_mdio_read(
 	 */
 	poll_cnt = 0;
 	do {
-		if (poll_cnt++ > 0) {
+		if (poll_cnt++ > 0)
 			k_busy_wait(100);
-		}
 		reg_val = sys_read32(base_addr + ETH_XLNX_GEM_NWSR_OFFSET);
 	} while ((reg_val & ETH_XLNX_GEM_MDIO_IDLE_BIT) == 0 && poll_cnt < 10);
 	if (poll_cnt == 10) {
@@ -129,9 +127,8 @@ static void phy_xlnx_gem_mdio_write(
 	 * current command.
 	 */
 	do {
-		if (poll_cnt++ > 0) {
+		if (poll_cnt++ > 0)
 			k_busy_wait(100);
-		}
 		reg_val = sys_read32(base_addr + ETH_XLNX_GEM_NWSR_OFFSET);
 	} while ((reg_val & ETH_XLNX_GEM_MDIO_IDLE_BIT) == 0 && poll_cnt < 10);
 	if (poll_cnt == 10) {
@@ -164,9 +161,8 @@ static void phy_xlnx_gem_mdio_write(
 	 */
 	poll_cnt = 0;
 	do {
-		if (poll_cnt++ > 0) {
+		if (poll_cnt++ > 0)
 			k_busy_wait(100);
-		}
 		reg_val = sys_read32(base_addr + ETH_XLNX_GEM_NWSR_OFFSET);
 	} while ((reg_val & ETH_XLNX_GEM_MDIO_IDLE_BIT) == 0 && poll_cnt < 10);
 	if (poll_cnt == 10) {
@@ -254,7 +250,7 @@ static void phy_xlnx_gem_marvell_alaska_cfg(const struct device *dev)
 	if ((dev_data->phy_id & PHY_MRVL_PHY_ID_MODEL_MASK) ==
 			PHY_MRVL_PHY_ID_MODEL_88E151X) {
 		/*
-		 * 88E151x only: configure the system interface and media type
+		 * 88E151x only: onfigure the system interface and media type
 		 * (i.e. "RGMII to Copper", 0x0). On the 88E1111, this setting
 		 * is configured using I/O pins on the device.
 		 * TODO: Make this value configurable via KConfig or DT?
@@ -978,3 +974,5 @@ int phy_xlnx_gem_detect(const struct device *dev)
 	LOG_ERR("%s PHY detection failed", dev->name);
 	return -EIO;
 }
+
+/* EOF */

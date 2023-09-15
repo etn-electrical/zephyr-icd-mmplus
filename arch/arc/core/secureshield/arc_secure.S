@@ -3,9 +3,9 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#include <zephyr/toolchain.h>
-#include <zephyr/linker/sections.h>
-#include <zephyr/arch/cpu.h>
+#include <toolchain.h>
+#include <linker/sections.h>
+#include <arch/cpu.h>
 
 .macro clear_scratch_regs
 	mov r1, 0

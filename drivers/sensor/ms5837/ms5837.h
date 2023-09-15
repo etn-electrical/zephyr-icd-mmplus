@@ -8,8 +8,8 @@
 #define __SENSOR_MS5837_H__
 
 #include <zephyr/types.h>
-#include <zephyr/device.h>
-#include <zephyr/drivers/i2c.h>
+#include <device.h>
+#include <drivers/i2c.h>
 
 #define MS5837_CMD_RESET 0x1E
 
@@ -45,6 +45,9 @@
 #define MS5837_ADC_READ_DELAY_8129 20
 
 struct ms5837_data {
+
+	const struct device *i2c_master;
+
 	/* Calibration values */
 	uint16_t sens_t1;
 	uint16_t off_t1;
@@ -68,7 +71,8 @@ struct ms5837_data {
 };
 
 struct ms5837_config {
-	struct i2c_dt_spec i2c;
+	const char *i2c_name;
+	uint8_t i2c_address;
 };
 
 #endif /* __SENSOR_MS5837_H__ */

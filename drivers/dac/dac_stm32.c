@@ -8,19 +8,19 @@
 
 #include <errno.h>
 
-#include <zephyr/drivers/dac.h>
-#include <zephyr/drivers/pinctrl.h>
-#include <zephyr/device.h>
-#include <zephyr/kernel.h>
-#include <zephyr/init.h>
+#include <drivers/dac.h>
+#include <drivers/pinctrl.h>
+#include <device.h>
+#include <kernel.h>
+#include <init.h>
 #include <soc.h>
 #include <stm32_ll_dac.h>
 
 #define LOG_LEVEL CONFIG_DAC_LOG_LEVEL
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(dac_stm32);
 
-#include <zephyr/drivers/clock_control/stm32_clock_control.h>
+#include <drivers/clock_control/stm32_clock_control.h>
 
 /* some low-end MCUs have DAC with only one channel */
 #ifdef LL_DAC_CHANNEL_2
@@ -119,12 +119,7 @@ static int dac_stm32_init(const struct device *dev)
 	int err;
 
 	/* enable clock for subsystem */
-	const struct device *const clk = DEVICE_DT_GET(STM32_CLOCK_CONTROL_NODE);
-
-	if (!device_is_ready(clk)) {
-		LOG_ERR("clock control device not ready");
-		return -ENODEV;
-	}
+	const struct device *clk = DEVICE_DT_GET(STM32_CLOCK_CONTROL_NODE);
 
 	if (clock_control_on(clk,
 			     (clock_control_subsys_t *) &cfg->pclken) != 0) {

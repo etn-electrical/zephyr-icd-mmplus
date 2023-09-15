@@ -4,20 +4,19 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/arch/xtensa/irq.h>
-#include <zephyr/device.h>
+#include <device.h>
 #include <xtensa/xtruntime.h>
-#include <zephyr/irq_nextlevel.h>
+#include <irq_nextlevel.h>
 #include <xtensa/hal.h>
-#include <zephyr/init.h>
+#include <init.h>
 
 #include "soc.h"
 
 #ifdef CONFIG_DYNAMIC_INTERRUPTS
-#include <zephyr/sw_isr_table.h>
+#include <sw_isr_table.h>
 #endif
 #define LOG_LEVEL CONFIG_SOC_LOG_LEVEL
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(soc);
 
 void z_soc_irq_enable(uint32_t irq)

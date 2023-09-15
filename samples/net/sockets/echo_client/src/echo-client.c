@@ -17,22 +17,22 @@
  * This might not be what you want to do in your app so caveat emptor.
  */
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(net_echo_client_sample, LOG_LEVEL_DBG);
 
-#include <zephyr/kernel.h>
+#include <zephyr.h>
 #include <errno.h>
 #include <stdio.h>
 
-#include <zephyr/net/socket.h>
-#include <zephyr/net/tls_credentials.h>
+#include <net/socket.h>
+#include <net/tls_credentials.h>
 
-#include <zephyr/net/net_mgmt.h>
-#include <zephyr/net/net_event.h>
-#include <zephyr/net/net_conn_mgr.h>
+#include <net/net_mgmt.h>
+#include <net/net_event.h>
+#include <net/net_conn_mgr.h>
 
 #if defined(CONFIG_USERSPACE)
-#include <zephyr/app_memory/app_memdomain.h>
+#include <app_memory/app_memdomain.h>
 K_APPMEM_PARTITION_DEFINE(app_partition);
 struct k_mem_domain app_domain;
 #endif

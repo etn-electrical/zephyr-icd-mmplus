@@ -9,13 +9,13 @@
 
 #define LOG_MODULE_NAME dwmac_core
 #define LOG_LEVEL CONFIG_ETHERNET_LOG_LEVEL
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 
 #include <sys/types.h>
-#include <zephyr/kernel.h>
-#include <zephyr/cache.h>
-#include <zephyr/net/ethernet.h>
+#include <zephyr.h>
+#include <cache.h>
+#include <net/ethernet.h>
 #include <ethernet/eth_stats.h>
 
 #include "eth_dwmac_priv.h"
@@ -45,7 +45,7 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
  */
 #define TX_AVAIL_WAIT K_MSEC(1)
 
-/* descriptor index iterators */
+/* descriptor index itterators */
 #define INC_WRAP(idx, size) ({ idx = (idx + 1) % size; })
 #define DEC_WRAP(idx, size) ({ idx = (idx + size - 1) % size; })
 
@@ -161,7 +161,7 @@ static int dwmac_send(const struct device *dev, struct net_pkt *pkt)
 			k_sem_give(&p->free_tx_descs);
 			goto abort;
 		}
-		sys_cache_data_flush_range(pinned->data, pinned->len);
+		sys_cache_data_range(pinned->data, pinned->len, K_CACHE_WB);
 		p->tx_frags[d_idx] = pinned;
 		LOG_DBG("d[%d]: frag %p pinned %p len %d", d_idx,
 			frag->data, pinned->data, pinned->len);
@@ -359,7 +359,7 @@ static void dwmac_rx_refill_thread(void *arg1, void *unused1, void *unused2)
 
 		/* get a new fragment if the previous one was consumed */
 		if (!frag) {
-			frag = net_pkt_get_reserve_rx_data(RX_FRAG_SIZE, K_FOREVER);
+			frag = net_pkt_get_reserve_rx_data(K_FOREVER);
 			if (!frag) {
 				LOG_ERR("net_pkt_get_reserve_rx_data() returned NULL");
 				k_sem_give(&p->free_rx_descs);
@@ -367,7 +367,7 @@ static void dwmac_rx_refill_thread(void *arg1, void *unused1, void *unused2)
 			}
 			LOG_DBG("new frag[%d] at %p", d_idx, frag->data);
 			__ASSERT(frag->size == RX_FRAG_SIZE, "");
-			sys_cache_data_invd_range(frag->data, frag->size);
+			sys_cache_data_range(frag->data, frag->size, K_CACHE_INVD);
 			p->rx_frags[d_idx] = frag;
 		} else {
 			LOG_DBG("reusing frag[%d] at %p", d_idx, frag->data);

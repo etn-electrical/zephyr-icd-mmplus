@@ -4,12 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 
-#include <zephyr/kernel.h>
-#include <zephyr/ztest.h>
-#include <zephyr/net/net_if.h>
-#include <zephyr/net/ieee802154_radio.h>
+#include <zephyr.h>
+#include <ztest.h>
+#include <net/net_if.h>
+#include <net/ieee802154_radio.h>
 
 #define TEST_FLAG_SET (NET_L2_MULTICAST | NET_L2_PROMISC_MODE)
 #define TEST_PAYLOAD "TEST PAYLOAD"
@@ -74,7 +74,7 @@ NET_DEVICE_INIT(dummy, "dummy_ieee802154",
 		NET_L2_GET_CTX_TYPE(CUSTOM_IEEE802154_L2),
 		CONFIG_NET_L2_CUSTOM_IEEE802154_MTU);
 
-ZTEST(ieee802154_custom_l2, test_send)
+static void test_send(void)
 {
 	int ret;
 	struct net_pkt *tx_pkt;
@@ -98,7 +98,7 @@ ZTEST(ieee802154_custom_l2, test_send)
 	net_pkt_unref(tx_pkt);
 }
 
-ZTEST(ieee802154_custom_l2, test_recv)
+static void test_recv(void)
 {
 	int ret;
 	struct net_pkt *rx_pkt;
@@ -122,7 +122,7 @@ ZTEST(ieee802154_custom_l2, test_recv)
 	net_pkt_unref(rx_pkt);
 }
 
-ZTEST(ieee802154_custom_l2, test_enable)
+static void test_enable(void)
 {
 	int ret;
 	struct net_if *iface = net_if_get_first_by_type(
@@ -140,7 +140,7 @@ ZTEST(ieee802154_custom_l2, test_enable)
 	zassert_true(test_data.state, "L2 down");
 }
 
-ZTEST(ieee802154_custom_l2, test_flags)
+static void test_flags(void)
 {
 	enum net_l2_flags flags;
 	struct net_if *iface = net_if_get_first_by_type(
@@ -152,4 +152,14 @@ ZTEST(ieee802154_custom_l2, test_flags)
 	zassert_equal(TEST_FLAG_SET, flags, "Invalid flags");
 }
 
-ZTEST_SUITE(ieee802154_custom_l2, NULL, NULL, NULL, NULL, NULL);
+void test_main(void)
+{
+	ztest_test_suite(ieee802154_custom_l2,
+			 ztest_unit_test(test_send),
+			 ztest_unit_test(test_recv),
+			 ztest_unit_test(test_enable),
+			 ztest_unit_test(test_flags)
+		);
+
+	ztest_run_test_suite(ieee802154_custom_l2);
+}

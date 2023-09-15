@@ -6,27 +6,27 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(net_test, CONFIG_NET_ICMPV4_LOG_LEVEL);
 
 #include <errno.h>
 #include <zephyr/types.h>
 #include <stddef.h>
 #include <string.h>
-#include <zephyr/sys/printk.h>
-#include <zephyr/linker/sections.h>
+#include <sys/printk.h>
+#include <linker/sections.h>
 
-#include <zephyr/tc_util.h>
+#include <tc_util.h>
 
-#include <zephyr/net/buf.h>
-#include <zephyr/net/ethernet.h>
-#include <zephyr/net/dummy.h>
+#include <net/buf.h>
+#include <net/ethernet.h>
+#include <net/dummy.h>
 
 #include "net_private.h"
 #include "icmpv4.h"
 #include "ipv4.h"
 
-#include <zephyr/ztest.h>
+#include <ztest.h>
 
 static const unsigned char icmpv4_echo_req[] = {
 	/* IPv4 Header */
@@ -263,7 +263,7 @@ static int verify_echo_reply_with_opts(struct net_pkt *pkt)
 	payload_len = sizeof(icmpv4_echo_req_opt) -
 		      NET_IPV4H_LEN - NET_ICMPH_LEN - opts_len;
 	if (payload_len != net_pkt_remaining_data(pkt)) {
-		zassert_true(false, "echo_reply_opts invalid payload len");
+		zassert_true(false, "echo_reply_opts invalid paylaod len");
 	}
 
 	ret = net_pkt_read(pkt, buf, payload_len);
@@ -414,7 +414,7 @@ fail:
 	return NULL;
 }
 
-static void *icmpv4_setup(void)
+static void test_icmpv4(void)
 {
 	struct net_if_addr *ifaddr;
 
@@ -427,19 +427,9 @@ static void *icmpv4_setup(void)
 	if (!ifaddr) {
 		zassert_true(false, "Failed to add address");
 	}
-	return NULL;
 }
 
-static void icmpv4_teardown(void *dummy)
-{
-	ARG_UNUSED(dummy);
-
-	iface = net_if_get_first_by_type(&NET_L2_GET_NAME(DUMMY));
-
-	net_if_ipv4_addr_rm(iface, &my_addr);
-}
-
-static void icmpv4_send_echo_req(void)
+static void test_icmpv4_send_echo_req(void)
 {
 	struct net_pkt *pkt;
 
@@ -456,7 +446,7 @@ static void icmpv4_send_echo_req(void)
 	}
 }
 
-static void icmpv4_send_echo_rep(void)
+static void test_icmpv4_send_echo_rep(void)
 {
 	struct net_pkt *pkt;
 
@@ -471,10 +461,11 @@ static void icmpv4_send_echo_rep(void)
 		net_pkt_unref(pkt);
 		zassert_true(false, "Failed to send");
 	}
+
 	net_icmpv4_unregister_handler(&echo_rep_handler);
 }
 
-ZTEST(net_icmpv4, test_icmpv4_send_echo_req_opt)
+static void test_icmpv4_send_echo_req_opt(void)
 {
 	struct net_pkt *pkt;
 
@@ -491,7 +482,7 @@ ZTEST(net_icmpv4, test_icmpv4_send_echo_req_opt)
 	}
 }
 
-ZTEST(net_icmpv4, test_send_echo_req_bad_opt)
+static void test_icmpv4_send_echo_req_bad_opt(void)
 {
 	struct net_pkt *pkt;
 
@@ -501,15 +492,20 @@ ZTEST(net_icmpv4, test_send_echo_req_bad_opt)
 			     "EchoRequest with bad opts packet prep failed");
 	}
 
-	if (net_ipv4_input(pkt)) {
+	if (!net_ipv4_input(pkt)) {
 		net_pkt_unref(pkt);
+		zassert_true(false, "Failed to send");
 	}
 }
 
-ZTEST(net_icmpv4, test_icmpv4_send_echo)
+/**test case main entry */
+void test_main(void)
 {
-	icmpv4_send_echo_req();
-	icmpv4_send_echo_rep();
+	ztest_test_suite(test_icmpv4_fn,
+			 ztest_unit_test(test_icmpv4),
+			 ztest_unit_test(test_icmpv4_send_echo_req),
+			 ztest_unit_test(test_icmpv4_send_echo_rep),
+			 ztest_unit_test(test_icmpv4_send_echo_req_opt),
+			 ztest_unit_test(test_icmpv4_send_echo_req_bad_opt));
+	ztest_run_test_suite(test_icmpv4_fn);
 }
-
-ZTEST_SUITE(net_icmpv4, NULL, icmpv4_setup, NULL, NULL, icmpv4_teardown);

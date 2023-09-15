@@ -1,7 +1,7 @@
 .. _external-contributions:
 
-Contributing External Components
-********************************
+Contributing source code from external projects
+***********************************************
 
 In some cases it is desirable to leverage existing, external source code in
 order to avoid re-implementing basic functionality or features that are readily

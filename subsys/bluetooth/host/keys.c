@@ -6,21 +6,23 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr.h>
 #include <string.h>
 #include <stdlib.h>
-#include <zephyr/sys/atomic.h>
-#include <zephyr/sys/util.h>
-#include <zephyr/sys/byteorder.h>
+#include <sys/atomic.h>
+#include <sys/util.h>
+#include <sys/byteorder.h>
 
-#include <zephyr/settings/settings.h>
+#include <settings/settings.h>
 
-#include <zephyr/bluetooth/bluetooth.h>
-#include <zephyr/bluetooth/buf.h>
-#include <zephyr/bluetooth/conn.h>
-#include <zephyr/bluetooth/hci.h>
+#include <bluetooth/bluetooth.h>
+#include <bluetooth/buf.h>
+#include <bluetooth/conn.h>
+#include <bluetooth/hci.h>
 
-#include "common/bt_str.h"
+#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_DEBUG_KEYS)
+#define LOG_MODULE_NAME bt_keys
+#include "common/log.h"
 
 #include "common/rpa.h"
 #include "conn_internal.h"
@@ -30,15 +32,11 @@
 #include "settings.h"
 #include "keys.h"
 
-#define LOG_LEVEL CONFIG_BT_KEYS_LOG_LEVEL
-#include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(bt_keys);
-
 static struct bt_keys key_pool[CONFIG_BT_MAX_PAIRED];
 
 #define BT_KEYS_STORAGE_LEN_COMPAT (BT_KEYS_STORAGE_LEN - sizeof(uint32_t))
 
-#if defined(CONFIG_BT_KEYS_OVERWRITE_OLDEST)
+#if IS_ENABLED(CONFIG_BT_KEYS_OVERWRITE_OLDEST)
 static uint32_t aging_counter_val;
 static struct bt_keys *last_keys_updated;
 
@@ -52,20 +50,15 @@ static void find_key_in_use(struct bt_conn *conn, void *data)
 	struct key_data *kdata = data;
 	struct bt_keys *key;
 
-	__ASSERT_NO_MSG(conn != NULL);
-	__ASSERT_NO_MSG(data != NULL);
-
 	if (conn->state == BT_CONN_CONNECTED) {
 		key = bt_keys_find_addr(conn->id, bt_conn_get_dst(conn));
 		if (key == NULL) {
 			return;
 		}
-
-		/* Ensure that the reference returned matches the current pool item */
-		if (key == &key_pool[kdata->id]) {
+		if (bt_addr_cmp(&key->addr.a, &key_pool[kdata->id].addr.a) == 0) {
 			kdata->in_use = true;
-			LOG_DBG("Connected device %s is using key_pool[%d]",
-				bt_addr_le_str(bt_conn_get_dst(conn)), kdata->id);
+			BT_DBG("Connected device %s is using key_pool[%d]",
+			       bt_addr_le_str(bt_conn_get_dst(conn)), kdata->id);
 		}
 	}
 }
@@ -86,30 +79,28 @@ struct bt_keys *bt_keys_get_addr(uint8_t id, const bt_addr_le_t *addr)
 	int i;
 	size_t first_free_slot = ARRAY_SIZE(key_pool);
 
-	__ASSERT_NO_MSG(addr != NULL);
-
-	LOG_DBG("%s", bt_addr_le_str(addr));
+	BT_DBG("%s", bt_addr_le_str(addr));
 
 	for (i = 0; i < ARRAY_SIZE(key_pool); i++) {
 		keys = &key_pool[i];
 
-		if (keys->id == id && bt_addr_le_eq(&keys->addr, addr)) {
+		if (keys->id == id && !bt_addr_le_cmp(&keys->addr, addr)) {
 			return keys;
 		}
 		if (first_free_slot == ARRAY_SIZE(key_pool) &&
-		    bt_addr_le_eq(&keys->addr, BT_ADDR_LE_ANY)) {
+		    !bt_addr_le_cmp(&keys->addr, BT_ADDR_LE_ANY)) {
 			first_free_slot = i;
 		}
 	}
 
-#if defined(CONFIG_BT_KEYS_OVERWRITE_OLDEST)
+#if IS_ENABLED(CONFIG_BT_KEYS_OVERWRITE_OLDEST)
 	if (first_free_slot == ARRAY_SIZE(key_pool)) {
 		struct bt_keys *oldest = NULL;
 		bt_addr_le_t oldest_addr;
 
 		for (i = 0; i < ARRAY_SIZE(key_pool); i++) {
 			struct bt_keys *current = &key_pool[i];
-			bool key_in_use = key_is_in_use(i);
+			bool key_in_use = (CONFIG_BT_MAX_CONN > 1) && key_is_in_use(i);
 
 			if (key_in_use) {
 				continue;
@@ -121,14 +112,14 @@ struct bt_keys *bt_keys_get_addr(uint8_t id, const bt_addr_le_t *addr)
 		}
 
 		if (oldest == NULL) {
-			LOG_DBG("unable to create keys for %s", bt_addr_le_str(addr));
+			BT_DBG("unable to create keys for %s", bt_addr_le_str(addr));
 			return NULL;
 		}
 
 		/* Use a copy as bt_unpair will clear the oldest key. */
 		bt_addr_le_copy(&oldest_addr, &oldest->addr);
 		bt_unpair(oldest->id, &oldest_addr);
-		if (bt_addr_le_eq(&oldest->addr, BT_ADDR_LE_ANY)) {
+		if (!bt_addr_le_cmp(&oldest->addr, BT_ADDR_LE_ANY)) {
 			first_free_slot = oldest - &key_pool[0];
 		}
 	}
@@ -138,15 +129,15 @@ struct bt_keys *bt_keys_get_addr(uint8_t id, const bt_addr_le_t *addr)
 		keys = &key_pool[first_free_slot];
 		keys->id = id;
 		bt_addr_le_copy(&keys->addr, addr);
-#if defined(CONFIG_BT_KEYS_OVERWRITE_OLDEST)
+#if IS_ENABLED(CONFIG_BT_KEYS_OVERWRITE_OLDEST)
 		keys->aging_counter = ++aging_counter_val;
 		last_keys_updated = keys;
 #endif  /* CONFIG_BT_KEYS_OVERWRITE_OLDEST */
-		LOG_DBG("created %p for %s", keys, bt_addr_le_str(addr));
+		BT_DBG("created %p for %s", keys, bt_addr_le_str(addr));
 		return keys;
 	}
 
-	LOG_DBG("unable to create keys for %s", bt_addr_le_str(addr));
+	BT_DBG("unable to create keys for %s", bt_addr_le_str(addr));
 
 	return NULL;
 }
@@ -156,8 +147,6 @@ void bt_foreach_bond(uint8_t id, void (*func)(const struct bt_bond_info *info,
 		     void *user_data)
 {
 	int i;
-
-	__ASSERT_NO_MSG(func != NULL);
 
 	for (i = 0; i < ARRAY_SIZE(key_pool); i++) {
 		struct bt_keys *keys = &key_pool[i];
@@ -171,12 +160,10 @@ void bt_foreach_bond(uint8_t id, void (*func)(const struct bt_bond_info *info,
 	}
 }
 
-void bt_keys_foreach_type(enum bt_keys_type type, void (*func)(struct bt_keys *keys, void *data),
-			  void *data)
+void bt_keys_foreach(int type, void (*func)(struct bt_keys *keys, void *data),
+		     void *data)
 {
 	int i;
-
-	__ASSERT_NO_MSG(func != NULL);
 
 	for (i = 0; i < ARRAY_SIZE(key_pool); i++) {
 		if ((key_pool[i].keys & type)) {
@@ -185,17 +172,15 @@ void bt_keys_foreach_type(enum bt_keys_type type, void (*func)(struct bt_keys *k
 	}
 }
 
-struct bt_keys *bt_keys_find(enum bt_keys_type type, uint8_t id, const bt_addr_le_t *addr)
+struct bt_keys *bt_keys_find(int type, uint8_t id, const bt_addr_le_t *addr)
 {
 	int i;
 
-	__ASSERT_NO_MSG(addr != NULL);
-
-	LOG_DBG("type %d %s", type, bt_addr_le_str(addr));
+	BT_DBG("type %d %s", type, bt_addr_le_str(addr));
 
 	for (i = 0; i < ARRAY_SIZE(key_pool); i++) {
 		if ((key_pool[i].keys & type) && key_pool[i].id == id &&
-		    bt_addr_le_eq(&key_pool[i].addr, addr)) {
+		    !bt_addr_le_cmp(&key_pool[i].addr, addr)) {
 			return &key_pool[i];
 		}
 	}
@@ -203,13 +188,11 @@ struct bt_keys *bt_keys_find(enum bt_keys_type type, uint8_t id, const bt_addr_l
 	return NULL;
 }
 
-struct bt_keys *bt_keys_get_type(enum bt_keys_type type, uint8_t id, const bt_addr_le_t *addr)
+struct bt_keys *bt_keys_get_type(int type, uint8_t id, const bt_addr_le_t *addr)
 {
 	struct bt_keys *keys;
 
-	__ASSERT_NO_MSG(addr != NULL);
-
-	LOG_DBG("type %d %s", type, bt_addr_le_str(addr));
+	BT_DBG("type %d %s", type, bt_addr_le_str(addr));
 
 	keys = bt_keys_find(type, id, addr);
 	if (keys) {
@@ -230,9 +213,7 @@ struct bt_keys *bt_keys_find_irk(uint8_t id, const bt_addr_le_t *addr)
 {
 	int i;
 
-	__ASSERT_NO_MSG(addr != NULL);
-
-	LOG_DBG("%s", bt_addr_le_str(addr));
+	BT_DBG("%s", bt_addr_le_str(addr));
 
 	if (!bt_addr_le_is_rpa(addr)) {
 		return NULL;
@@ -245,8 +226,9 @@ struct bt_keys *bt_keys_find_irk(uint8_t id, const bt_addr_le_t *addr)
 
 		if (key_pool[i].id == id &&
 		    !bt_addr_cmp(&addr->a, &key_pool[i].irk.rpa)) {
-			LOG_DBG("cached RPA %s for %s", bt_addr_str(&key_pool[i].irk.rpa),
-				bt_addr_le_str(&key_pool[i].addr));
+			BT_DBG("cached RPA %s for %s",
+			       bt_addr_str(&key_pool[i].irk.rpa),
+			       bt_addr_le_str(&key_pool[i].addr));
 			return &key_pool[i];
 		}
 	}
@@ -261,8 +243,9 @@ struct bt_keys *bt_keys_find_irk(uint8_t id, const bt_addr_le_t *addr)
 		}
 
 		if (bt_rpa_irk_matches(key_pool[i].irk.val, &addr->a)) {
-			LOG_DBG("RPA %s matches %s", bt_addr_str(&key_pool[i].irk.rpa),
-				bt_addr_le_str(&key_pool[i].addr));
+			BT_DBG("RPA %s matches %s",
+			       bt_addr_str(&key_pool[i].irk.rpa),
+			       bt_addr_le_str(&key_pool[i].addr));
 
 			bt_addr_copy(&key_pool[i].irk.rpa, &addr->a);
 
@@ -270,7 +253,7 @@ struct bt_keys *bt_keys_find_irk(uint8_t id, const bt_addr_le_t *addr)
 		}
 	}
 
-	LOG_DBG("No IRK for %s", bt_addr_le_str(addr));
+	BT_DBG("No IRK for %s", bt_addr_le_str(addr));
 
 	return NULL;
 }
@@ -279,13 +262,11 @@ struct bt_keys *bt_keys_find_addr(uint8_t id, const bt_addr_le_t *addr)
 {
 	int i;
 
-	__ASSERT_NO_MSG(addr != NULL);
-
-	LOG_DBG("%s", bt_addr_le_str(addr));
+	BT_DBG("%s", bt_addr_le_str(addr));
 
 	for (i = 0; i < ARRAY_SIZE(key_pool); i++) {
 		if (key_pool[i].id == id &&
-		    bt_addr_le_eq(&key_pool[i].addr, addr)) {
+		    !bt_addr_le_cmp(&key_pool[i].addr, addr)) {
 			return &key_pool[i];
 		}
 	}
@@ -293,18 +274,14 @@ struct bt_keys *bt_keys_find_addr(uint8_t id, const bt_addr_le_t *addr)
 	return NULL;
 }
 
-void bt_keys_add_type(struct bt_keys *keys, enum bt_keys_type type)
+void bt_keys_add_type(struct bt_keys *keys, int type)
 {
-	__ASSERT_NO_MSG(keys != NULL);
-
 	keys->keys |= type;
 }
 
 void bt_keys_clear(struct bt_keys *keys)
 {
-	__ASSERT_NO_MSG(keys != NULL);
-
-	LOG_DBG("%s (keys 0x%04x)", bt_addr_le_str(&keys->addr), keys->keys);
+	BT_DBG("%s (keys 0x%04x)", bt_addr_le_str(&keys->addr), keys->keys);
 
 	if (keys->state & BT_KEYS_ID_ADDED) {
 		bt_id_del(keys);
@@ -325,7 +302,7 @@ void bt_keys_clear(struct bt_keys *keys)
 					       &keys->addr, NULL);
 		}
 
-		LOG_DBG("Deleting key %s", key);
+		BT_DBG("Deleting key %s", log_strdup(key));
 		settings_delete(key);
 	}
 
@@ -337,8 +314,6 @@ int bt_keys_store(struct bt_keys *keys)
 {
 	char key[BT_SETTINGS_KEY_MAX];
 	int err;
-
-	__ASSERT_NO_MSG(keys != NULL);
 
 	if (keys->id) {
 		char id[4];
@@ -353,11 +328,12 @@ int bt_keys_store(struct bt_keys *keys)
 
 	err = settings_save_one(key, keys->storage_start, BT_KEYS_STORAGE_LEN);
 	if (err) {
-		LOG_ERR("Failed to save keys (err %d)", err);
+		BT_ERR("Failed to save keys (err %d)", err);
 		return err;
 	}
 
-	LOG_DBG("Stored keys for %s (%s)", bt_addr_le_str(&keys->addr), key);
+	BT_DBG("Stored keys for %s (%s)", bt_addr_le_str(&keys->addr),
+	       log_strdup(key));
 
 	return 0;
 }
@@ -374,21 +350,22 @@ static int keys_set(const char *name, size_t len_rd, settings_read_cb read_cb,
 	const char *next;
 
 	if (!name) {
-		LOG_ERR("Insufficient number of arguments");
+		BT_ERR("Insufficient number of arguments");
 		return -EINVAL;
 	}
 
 	len = read_cb(cb_arg, val, sizeof(val));
 	if (len < 0) {
-		LOG_ERR("Failed to read value (err %zd)", len);
+		BT_ERR("Failed to read value (err %zd)", len);
 		return -EINVAL;
 	}
 
-	LOG_DBG("name %s val %s", name, (len) ? bt_hex(val, sizeof(val)) : "(null)");
+	BT_DBG("name %s val %s", log_strdup(name),
+	       (len) ? bt_hex(val, sizeof(val)) : "(null)");
 
 	err = bt_settings_decode_key(name, &addr);
 	if (err) {
-		LOG_ERR("Unable to decode address %s", name);
+		BT_ERR("Unable to decode address %s", name);
 		return -EINVAL;
 	}
 
@@ -400,7 +377,7 @@ static int keys_set(const char *name, size_t len_rd, settings_read_cb read_cb,
 		unsigned long next_id = strtoul(next, NULL, 10);
 
 		if (next_id >= CONFIG_BT_ID_MAX) {
-			LOG_ERR("Invalid local identity %lu", next_id);
+			BT_ERR("Invalid local identity %lu", next_id);
 			return -EINVAL;
 		}
 
@@ -411,9 +388,10 @@ static int keys_set(const char *name, size_t len_rd, settings_read_cb read_cb,
 		keys = bt_keys_find(BT_KEYS_ALL, id, &addr);
 		if (keys) {
 			(void)memset(keys, 0, sizeof(*keys));
-			LOG_DBG("Cleared keys for %s", bt_addr_le_str(&addr));
+			BT_DBG("Cleared keys for %s", bt_addr_le_str(&addr));
 		} else {
-			LOG_WRN("Unable to find deleted keys for %s", bt_addr_le_str(&addr));
+			BT_WARN("Unable to find deleted keys for %s",
+				bt_addr_le_str(&addr));
 		}
 
 		return 0;
@@ -421,7 +399,7 @@ static int keys_set(const char *name, size_t len_rd, settings_read_cb read_cb,
 
 	keys = bt_keys_get_addr(id, &addr);
 	if (!keys) {
-		LOG_ERR("Failed to allocate keys for %s", bt_addr_le_str(&addr));
+		BT_ERR("Failed to allocate keys for %s", bt_addr_le_str(&addr));
 		return -ENOMEM;
 	}
 	if (len != BT_KEYS_STORAGE_LEN) {
@@ -430,10 +408,12 @@ static int keys_set(const char *name, size_t len_rd, settings_read_cb read_cb,
 			/* Load shorter structure for compatibility with old
 			 * records format with no counter.
 			 */
-			LOG_WRN("Keys for %s have no aging counter", bt_addr_le_str(&addr));
+			BT_WARN("Keys for %s have no aging counter",
+				bt_addr_le_str(&addr));
 			memcpy(keys->storage_start, val, len);
 		} else {
-			LOG_ERR("Invalid key length %zd != %zu", len, BT_KEYS_STORAGE_LEN);
+			BT_ERR("Invalid key length %zd != %zu", len,
+			       BT_KEYS_STORAGE_LEN);
 			bt_keys_clear(keys);
 
 			return -EINVAL;
@@ -442,8 +422,8 @@ static int keys_set(const char *name, size_t len_rd, settings_read_cb read_cb,
 		memcpy(keys->storage_start, val, len);
 	}
 
-	LOG_DBG("Successfully restored keys for %s", bt_addr_le_str(&addr));
-#if defined(CONFIG_BT_KEYS_OVERWRITE_OLDEST)
+	BT_DBG("Successfully restored keys for %s", bt_addr_le_str(&addr));
+#if IS_ENABLED(CONFIG_BT_KEYS_OVERWRITE_OLDEST)
 	if (aging_counter_val < keys->aging_counter) {
 		aging_counter_val = keys->aging_counter;
 	}
@@ -453,21 +433,21 @@ static int keys_set(const char *name, size_t len_rd, settings_read_cb read_cb,
 
 static void id_add(struct bt_keys *keys, void *user_data)
 {
-	__ASSERT_NO_MSG(keys != NULL);
-
 	bt_id_add(keys);
 }
 
 static int keys_commit(void)
 {
+	BT_DBG("");
+
 	/* We do this in commit() rather than add() since add() may get
 	 * called multiple times for the same address, especially if
 	 * the keys were already removed.
 	 */
 	if (IS_ENABLED(CONFIG_BT_CENTRAL) && IS_ENABLED(CONFIG_BT_PRIVACY)) {
-		bt_keys_foreach_type(BT_KEYS_ALL, id_add, NULL);
+		bt_keys_foreach(BT_KEYS_ALL, id_add, NULL);
 	} else {
-		bt_keys_foreach_type(BT_KEYS_IRK, id_add, NULL);
+		bt_keys_foreach(BT_KEYS_IRK, id_add, NULL);
 	}
 
 	return 0;
@@ -478,11 +458,9 @@ SETTINGS_STATIC_HANDLER_DEFINE(bt_keys, "bt/keys", NULL, keys_set, keys_commit,
 
 #endif /* CONFIG_BT_SETTINGS */
 
-#if defined(CONFIG_BT_KEYS_OVERWRITE_OLDEST)
+#if IS_ENABLED(CONFIG_BT_KEYS_OVERWRITE_OLDEST)
 void bt_keys_update_usage(uint8_t id, const bt_addr_le_t *addr)
 {
-	__ASSERT_NO_MSG(addr != NULL);
-
 	struct bt_keys *keys = bt_keys_find_addr(id, addr);
 
 	if (!keys) {
@@ -496,7 +474,8 @@ void bt_keys_update_usage(uint8_t id, const bt_addr_le_t *addr)
 	keys->aging_counter = ++aging_counter_val;
 	last_keys_updated = keys;
 
-	LOG_DBG("Aging counter for %s is set to %u", bt_addr_le_str(addr), keys->aging_counter);
+	BT_DBG("Aging counter for %s is set to %u", bt_addr_le_str(addr),
+	       keys->aging_counter);
 
 	if (IS_ENABLED(CONFIG_BT_KEYS_SAVE_AGING_COUNTER_ON_PAIRING)) {
 		bt_keys_store(keys);
@@ -510,42 +489,23 @@ void bt_keys_show_sniffer_info(struct bt_keys *keys, void *data)
 {
 	uint8_t ltk[16];
 
-	__ASSERT_NO_MSG(keys != NULL);
-
 	if (keys->keys & BT_KEYS_LTK_P256) {
 		sys_memcpy_swap(ltk, keys->ltk.val, keys->enc_size);
-		LOG_INF("SC LTK: 0x%s", bt_hex(ltk, keys->enc_size));
+		BT_INFO("SC LTK: 0x%s", bt_hex(ltk, keys->enc_size));
 	}
 
 #if !defined(CONFIG_BT_SMP_SC_PAIR_ONLY)
 	if (keys->keys & BT_KEYS_PERIPH_LTK) {
 		sys_memcpy_swap(ltk, keys->periph_ltk.val, keys->enc_size);
-		LOG_INF("Legacy LTK: 0x%s (peripheral)", bt_hex(ltk, keys->enc_size));
+		BT_INFO("Legacy LTK: 0x%s (peripheral)",
+			bt_hex(ltk, keys->enc_size));
 	}
 #endif /* !CONFIG_BT_SMP_SC_PAIR_ONLY */
 
 	if (keys->keys & BT_KEYS_LTK) {
 		sys_memcpy_swap(ltk, keys->ltk.val, keys->enc_size);
-		LOG_INF("Legacy LTK: 0x%s (central)", bt_hex(ltk, keys->enc_size));
+		BT_INFO("Legacy LTK: 0x%s (central)",
+			bt_hex(ltk, keys->enc_size));
 	}
 }
 #endif /* defined(CONFIG_BT_LOG_SNIFFER_INFO) */
-
-#ifdef ZTEST_UNITTEST
-struct bt_keys *bt_keys_get_key_pool(void)
-{
-	return key_pool;
-}
-
-#if defined(CONFIG_BT_KEYS_OVERWRITE_OLDEST)
-uint32_t bt_keys_get_aging_counter_val(void)
-{
-	return aging_counter_val;
-}
-
-struct bt_keys *bt_keys_get_last_keys_updated(void)
-{
-	return last_keys_updated;
-}
-#endif /* CONFIG_BT_KEYS_OVERWRITE_OLDEST */
-#endif /* ZTEST_UNITTEST */

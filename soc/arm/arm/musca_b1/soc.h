@@ -9,7 +9,7 @@
 
 #ifndef _ASMLANGUAGE
 #include "system_cmsdk_musca_b1.h"
-#include <zephyr/sys/util.h>
+#include <sys/util.h>
 #endif
 
 extern void wakeup_cpu1(void);

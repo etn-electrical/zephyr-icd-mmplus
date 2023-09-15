@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/device.h>
-#include <zephyr/display/cfb.h>
+#include <zephyr.h>
+#include <device.h>
+#include <display/cfb.h>
 #include <stdio.h>
 
 void main(void)

@@ -14,8 +14,6 @@ rsource "Kconfig.hrs"
 
 rsource "Kconfig.tps"
 
-rsource "ias/Kconfig.ias"
-
 rsource "ots/Kconfig"
 
 endmenu

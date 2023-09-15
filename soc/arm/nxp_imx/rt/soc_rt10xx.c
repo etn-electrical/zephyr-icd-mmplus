@@ -4,31 +4,21 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/device.h>
-#include <zephyr/init.h>
+#include <kernel.h>
+#include <device.h>
+#include <init.h>
 #include <soc.h>
-#include <zephyr/linker/sections.h>
-#include <zephyr/linker/linker-defs.h>
+#include <linker/sections.h>
+#include <linker/linker-defs.h>
 #include <fsl_clock.h>
-#include <zephyr/arch/cpu.h>
-#include <zephyr/arch/arm/aarch32/cortex_m/cmsis.h>
-#ifdef CONFIG_NXP_IMX_RT_BOOT_HEADER
+#include <arch/cpu.h>
+#include <arch/arm/aarch32/cortex_m/cmsis.h>
 #include <fsl_flexspi_nor_boot.h>
-#endif
-#include <zephyr/dt-bindings/clock/imx_ccm.h>
-#include <fsl_iomuxc.h>
+#include <dt-bindings/clock/imx_ccm.h>
 #if CONFIG_USB_DC_NXP_EHCI
 #include "usb_phy.h"
-#include "usb.h"
+#include "usb_dc_mcux.h"
 #endif
-
-#define CCM_NODE	DT_INST(0, nxp_imx_ccm)
-
-#define BUILD_ASSERT_PODF_IN_RANGE(podf, a, b)				\
-	BUILD_ASSERT(DT_PROP(DT_CHILD(CCM_NODE, podf), clock_div) >= (a) && \
-		     DT_PROP(DT_CHILD(CCM_NODE, podf), clock_div) <= (b), \
-		     #podf " is out of supported range (" #a ", " #b ")")
 
 #ifdef CONFIG_INIT_ARM_PLL
 /* ARM PLL configuration for RUN mode */
@@ -112,10 +102,8 @@ static ALWAYS_INLINE void clock_init(void)
 	/* Boot ROM did initialize the XTAL, here we only sets external XTAL
 	 * OSC freq
 	 */
-	CLOCK_SetXtalFreq(DT_PROP(DT_CLOCKS_CTLR_BY_NAME(CCM_NODE, xtal),
-				  clock_frequency));
-	CLOCK_SetRtcXtalFreq(DT_PROP(DT_CLOCKS_CTLR_BY_NAME(CCM_NODE, rtc_xtal),
-				     clock_frequency));
+	CLOCK_SetXtalFreq(24000000U);
+	CLOCK_SetRtcXtalFreq(32768U);
 
 	/* Set PERIPH_CLK2 MUX to OSC */
 	CLOCK_SetMux(kCLOCK_PeriphClk2Mux, 0x1);
@@ -142,17 +130,11 @@ static ALWAYS_INLINE void clock_init(void)
 	CLOCK_InitVideoPll(&videoPllConfig);
 #endif
 
-#if DT_NODE_EXISTS(DT_CHILD(CCM_NODE, arm_podf))
-	/* Set ARM PODF */
-	BUILD_ASSERT_PODF_IN_RANGE(arm_podf, 1, 8);
-	CLOCK_SetDiv(kCLOCK_ArmDiv, DT_PROP(DT_CHILD(CCM_NODE, arm_podf), clock_div) - 1);
+#ifdef CONFIG_HAS_ARM_DIV
+	CLOCK_SetDiv(kCLOCK_ArmDiv, CONFIG_ARM_DIV); /* Set ARM PODF */
 #endif
-	/* Set AHB PODF */
-	BUILD_ASSERT_PODF_IN_RANGE(ahb_podf, 1, 8);
-	CLOCK_SetDiv(kCLOCK_AhbDiv, DT_PROP(DT_CHILD(CCM_NODE, ahb_podf), clock_div) - 1);
-	/* Set IPG PODF */
-	BUILD_ASSERT_PODF_IN_RANGE(ipg_podf, 1, 4);
-	CLOCK_SetDiv(kCLOCK_IpgDiv, DT_PROP(DT_CHILD(CCM_NODE, ipg_podf), clock_div) - 1);
+	CLOCK_SetDiv(kCLOCK_AhbDiv, CONFIG_AHB_DIV); /* Set AHB PODF */
+	CLOCK_SetDiv(kCLOCK_IpgDiv, CONFIG_IPG_DIV); /* Set IPG PODF */
 
 	/* Set PRE_PERIPH_CLK to PLL1, 1200M */
 	CLOCK_SetMux(kCLOCK_PrePeriphMux, 0x3);
@@ -182,36 +164,22 @@ static ALWAYS_INLINE void clock_init(void)
 	CLOCK_SetDiv(kCLOCK_LcdifDiv, 1);
 #endif
 
-
-#if DT_NODE_HAS_STATUS(DT_NODELABEL(enet), okay) && CONFIG_NET_L2_ETHERNET
-	/* Enable clock output for ENET1 */
-	IOMUXC_EnableMode(IOMUXC_GPR, kIOMUXC_GPR_ENET1TxClkOutputDir, true);
-#endif
-
-#if DT_NODE_HAS_STATUS(DT_NODELABEL(usb1), okay) && CONFIG_USB_DC_NXP_EHCI
+#if CONFIG_USB_DC_NXP_EHCI
 	CLOCK_EnableUsbhs0PhyPllClock(kCLOCK_Usb480M,
-		DT_PROP_BY_PHANDLE(DT_NODELABEL(usb1), clocks, clock_frequency));
+		DT_PROP_BY_PHANDLE(DT_INST(0, nxp_mcux_usbd), clocks, clock_frequency));
 	CLOCK_EnableUsbhs0Clock(kCLOCK_Usb480M,
-		DT_PROP_BY_PHANDLE(DT_NODELABEL(usb1), clocks, clock_frequency));
+		DT_PROP_BY_PHANDLE(DT_INST(0, nxp_mcux_usbd), clocks, clock_frequency));
 	USB_EhciPhyInit(kUSB_ControllerEhci0, CPU_XTAL_CLK_HZ, &usbPhyConfig);
 #endif
 
-#if DT_NODE_HAS_STATUS(DT_NODELABEL(usb2), okay) && CONFIG_USB_DC_NXP_EHCI
-	CLOCK_EnableUsbhs1PhyPllClock(kCLOCK_Usb480M,
-		DT_PROP_BY_PHANDLE(DT_NODELABEL(usb2), clocks, clock_frequency));
-	CLOCK_EnableUsbhs1Clock(kCLOCK_Usb480M,
-		DT_PROP_BY_PHANDLE(DT_NODELABEL(usb2), clocks, clock_frequency));
-	USB_EhciPhyInit(kUSB_ControllerEhci1, CPU_XTAL_CLK_HZ, &usbPhyConfig);
-#endif
-
-#if DT_NODE_HAS_STATUS(DT_NODELABEL(usdhc1), okay) && CONFIG_IMX_USDHC
+#if DT_NODE_HAS_STATUS(DT_NODELABEL(usdhc1), okay) && CONFIG_DISK_DRIVER_SDMMC
 	/* Configure USDHC clock source and divider */
 	CLOCK_InitSysPfd(kCLOCK_Pfd0, 24U);
 	CLOCK_SetDiv(kCLOCK_Usdhc1Div, 1U);
 	CLOCK_SetMux(kCLOCK_Usdhc1Mux, 1U);
 	CLOCK_EnableClock(kCLOCK_Usdhc1);
 #endif
-#if DT_NODE_HAS_STATUS(DT_NODELABEL(usdhc2), okay) && CONFIG_IMX_USDHC
+#if DT_NODE_HAS_STATUS(DT_NODELABEL(usdhc2), okay) && CONFIG_DISK_DRIVER_SDMMC
 	/* Configure USDHC clock source and divider */
 	CLOCK_InitSysPfd(kCLOCK_Pfd0, 24U);
 	CLOCK_SetDiv(kCLOCK_Usdhc2Div, 1U);
@@ -229,21 +197,58 @@ static ALWAYS_INLINE void clock_init(void)
 	CLOCK_SetMux(kCLOCK_CanMux, 2); /* Set Can clock source. */
 #endif
 
-#ifdef CONFIG_LOG_BACKEND_SWO
-	/* Enable ARM trace clock to enable SWO output */
-	CLOCK_EnableClock(kCLOCK_Trace);
-	/* Divide root clock output by 3 */
-	CLOCK_SetDiv(kCLOCK_TraceDiv, 3);
-	/* Source clock from 528MHz system PLL */
-	CLOCK_SetMux(kCLOCK_TraceMux, 0);
-#endif
-
 	/* Keep the system clock running so SYSTICK can wake up the system from
 	 * wfi.
 	 */
 	CLOCK_SetMode(kCLOCK_ModeRun);
 
 }
+
+#if (DT_NODE_HAS_STATUS(DT_NODELABEL(usdhc1), okay) && CONFIG_DISK_DRIVER_SDMMC)
+
+/* Usdhc driver needs to re-configure pinmux
+ * Pinmux depends on board design.
+ * From the perspective of Usdhc driver,
+ * it can't access board specific function.
+ * So SoC provides this for board to register
+ * its usdhc pinmux and for usdhc to access
+ * pinmux.
+ */
+
+static usdhc_pin_cfg_cb g_usdhc_pin_cfg_cb;
+
+void imxrt_usdhc_pinmux_cb_register(usdhc_pin_cfg_cb cb)
+{
+	g_usdhc_pin_cfg_cb = cb;
+}
+
+void imxrt_usdhc_pinmux(uint16_t nusdhc, bool init,
+	uint32_t speed, uint32_t strength)
+{
+	if (g_usdhc_pin_cfg_cb)
+		g_usdhc_pin_cfg_cb(nusdhc, init,
+			speed, strength);
+}
+
+/* Usdhc driver needs to reconfigure the dat3 line to a pullup in order to
+ * detect an SD card on the bus. Expose a callback to do that here. The board
+ * must register this callback in its init function.
+ */
+static usdhc_dat3_cfg_cb g_usdhc_dat3_cfg_cb;
+
+void imxrt_usdhc_dat3_cb_register(usdhc_dat3_cfg_cb cb)
+{
+	g_usdhc_dat3_cfg_cb = cb;
+}
+
+void imxrt_usdhc_dat3_pull(bool pullup)
+{
+	if (g_usdhc_dat3_cfg_cb) {
+		g_usdhc_dat3_cfg_cb(pullup);
+	}
+}
+
+#endif
 
 #if CONFIG_I2S_MCUX_SAI
 void imxrt_audio_codec_pll_init(uint32_t clock_name, uint32_t clk_src,
@@ -290,17 +295,28 @@ static int imxrt_init(const struct device *arg)
 	/* disable interrupts */
 	oldLevel = irq_lock();
 
-#ifndef CONFIG_IMXRT1XXX_CODE_CACHE
-	/* SystemInit enables code cache, disable it here */
-	SCB_DisableICache();
-#endif
+	/* Watchdog disable */
+	if ((WDOG1->WCR & WDOG_WCR_WDE_MASK) != 0) {
+		WDOG1->WCR &= ~WDOG_WCR_WDE_MASK;
+	}
 
-	if (IS_ENABLED(CONFIG_IMXRT1XXX_DATA_CACHE)) {
-		if ((SCB->CCR & SCB_CCR_DC_Msk) == 0) {
-			SCB_EnableDCache();
-		}
-	} else {
-		SCB_DisableDCache();
+	if ((WDOG2->WCR & WDOG_WCR_WDE_MASK) != 0) {
+		WDOG2->WCR &= ~WDOG_WCR_WDE_MASK;
+	}
+
+	RTWDOG->CNT = 0xD928C520U; /* 0xD928C520U is the update key */
+	RTWDOG->TOVAL = 0xFFFF;
+	RTWDOG->CS = (uint32_t) ((RTWDOG->CS) & ~RTWDOG_CS_EN_MASK)
+		| RTWDOG_CS_UPDATE_MASK;
+
+	/* Disable Systick which might be enabled by bootrom */
+	if ((SysTick->CTRL & SysTick_CTRL_ENABLE_Msk) != 0) {
+		SysTick->CTRL &= ~SysTick_CTRL_ENABLE_Msk;
+	}
+
+	SCB_EnableICache();
+	if ((SCB->CCR & SCB_CCR_DC_Msk) == 0) {
+		SCB_EnableDCache();
 	}
 
 	/* Initialize system clock */
@@ -316,21 +332,5 @@ static int imxrt_init(const struct device *arg)
 	irq_unlock(oldLevel);
 	return 0;
 }
-
-#ifdef CONFIG_PLATFORM_SPECIFIC_INIT
-void z_arm_platform_init(void)
-{
-#if (DT_DEP_ORD(DT_NODELABEL(ocram)) != DT_DEP_ORD(DT_CHOSEN(zephyr_sram))) && \
-	CONFIG_OCRAM_NOCACHE
-	/* Copy data from flash to OCRAM */
-	memcpy(&__ocram_data_start, &__ocram_data_load_start,
-		(&__ocram_data_end - &__ocram_data_start));
-	/* Zero BSS region */
-	memset(&__ocram_bss_start, 0, (&__ocram_bss_end - &__ocram_bss_start));
-#endif
-	/* Call CMSIS SystemInit */
-	SystemInit();
-}
-#endif
 
 SYS_INIT(imxrt_init, PRE_KERNEL_1, 0);

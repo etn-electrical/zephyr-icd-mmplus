@@ -1,71 +1,37 @@
-.. _qdec_sensor:
+.. _qdec:
 
-Quadrature Decoder Sensor
-#########################
+QDEC: Quadrature Decoder
+###########################
 
 Overview
 ********
-
-This sample reads the value of the counter which has been configured in
-quadrature decoder mode.
-
-It requires:
-* an external mechanical encoder
-* pin to be properly configured in the device tree
+A simple quadrature decoder example
 
 Building and Running
 ********************
 
-In order to run this sample you need to:
+This project writes the quadrature decoder position to the console once every
+2 seconds.
 
-* enable the quadrature decoder device in your board's DT file or board overlay
-* add a new alias property named ``qdec0`` and make it point to the decoder
-  device you just enabled
+Building on SAM E70 Xplained board
+==================================
 
-For example, here's how the overlay file of an STM32F401 board looks like when
-using decoder from TIM3 through pins PA6 and PA7:
-
-.. code-block:: dts
-
-    / {
-        aliases {
-            qdec0 = &qdec;
-        };
-    };
-
-    &timers3 {
-        status = "okay";
-
-        qdec: qdec {
-            status = "okay";
-            pinctrl-0 = <&tim3_ch1_pa6 &tim3_ch2_pa7>;
-            pinctrl-names = "default";
-            st,input-polarity-inverted;
-            st,input-filter-level = <FDIV32_N8>;
-            st,counts-per-revolution = <16>;
-        };
-    };
+.. zephyr-app-commands::
+   :zephyr-app: samples/sensor/qdec
+   :host-os: unix
+   :board: sam_e70_xplained
+   :goals: build
+   :compact:
 
 Sample Output
 =============
 
-Once the MCU is started it prints the counter value every second on the
-console
-
 .. code-block:: console
 
-    Quadrature decoder sensor test
-    Position = 0 degrees
-    Position = 15 degrees
-    Position = 30 degrees
-    ...
+    Quadrature Decoder sample application
 
+    Position is 6
+    Position is 12
+    Position is -45
 
-Of course the read value changes once the user manually rotates the mechanical
-encoder.
-
-.. note::
-
-    The reported increment/decrement can be larger/smaller than the one shown
-    in the above example. This depends on the mechanical encoder being used and
-    ``st,counts-per-revolution`` value.
+    <repeats endlessly every 2 seconds>

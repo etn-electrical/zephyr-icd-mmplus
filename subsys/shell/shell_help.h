@@ -7,7 +7,7 @@
 #ifndef SHELL_HELP_H__
 #define SHELL_HELP_H__
 
-#include <zephyr/shell/shell.h>
+#include <shell/shell.h>
 
 #ifdef __cplusplus
 extern "C" {

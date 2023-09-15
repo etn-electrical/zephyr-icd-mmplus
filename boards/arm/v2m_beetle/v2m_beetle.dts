@@ -3,6 +3,7 @@
 /dts-v1/;
 
 #include <arm/armv7-m.dtsi>
+
 / {
 	compatible = "arm,beetle";
 	#address-cells = <1>;
@@ -51,43 +52,46 @@
 			compatible = "arm,cmsdk-timer";
 			reg = <0x40000000 0x1000>;
 			interrupts = <8 3>;
-			clocks = <&syscon>;
+			label = "TIMER_0";
 		};
 
 		timer1: timer@40001000 {
 			compatible = "arm,cmsdk-timer";
 			reg = <0x40001000 0x1000>;
 			interrupts = <9 3>;
-			clocks = <&syscon>;
+			label = "TIMER_1";
 		};
 
 		dtimer0: dtimer@40002000 {
 			compatible = "arm,cmsdk-dtimer";
 			reg = <0x40002000 0x1000>;
 			interrupts = <10 3>;
-			clocks = <&syscon>;
+			label = "DTIMER_0";
 		};
 
 		uart0: uart@40004000 {
 			compatible = "arm,cmsdk-uart";
 			reg = <0x40004000 0x1000>;
 			interrupts = <0 3>;
-			clocks = <&sysclk &syscon>;
+			clocks = <&sysclk>;
 			current-speed = <115200>;
+			label = "UART_0";
 		};
 
 		uart1: uart@40005000 {
 			compatible = "arm,cmsdk-uart";
 			reg = <0x40005000 0x1000>;
 			interrupts = <2 3>;
-			clocks = <&sysclk &syscon>;
+			clocks = <&sysclk>;
 			current-speed = <115200>;
+			label = "UART_1";
 		};
 
 		wdog0: wdog@40008000 {
 			compatible = "arm,cmsdk-watchdog";
 			clocks = <&sysclk>;
 			reg = <0x40008000 0x1000>;
+			label = "WATCHDOG";
 		};
 
 		gpio0: gpio@40010000 {
@@ -96,7 +100,7 @@
 			interrupts = <6 3>;
 			gpio-controller;
 			#gpio-cells = <2>;
-			clocks = <&syscon>;
+			label = "GPIO_0";
 		};
 
 		gpio1: gpio@40011000 {
@@ -105,7 +109,7 @@
 			interrupts = <7 3>;
 			gpio-controller;
 			#gpio-cells = <2>;
-			clocks = <&syscon>;
+			label = "GPIO_1";
 		};
 
 		gpio2: gpio@40012000 {
@@ -114,7 +118,7 @@
 			interrupts = <42 3>;
 			gpio-controller;
 			#gpio-cells = <2>;
-			clocks = <&syscon>;
+			label = "GPIO_2";
 		};
 
 		gpio3: gpio@40013000 {
@@ -123,13 +127,7 @@
 			interrupts = <43 3>;
 			gpio-controller;
 			#gpio-cells = <2>;
-			clocks = <&syscon>;
-		};
-
-		syscon: syscon@4001f000 {
-			compatible = "arm,beetle-syscon";
-			reg = <0x4001f000 0x1000>;
-			#clock-cells = <0>;
+			label = "GPIO_3";
 		};
 	};
 };

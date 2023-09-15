@@ -7,14 +7,13 @@
 /**
  * @brief Common part of DMA drivers for some NXP SoC.
  */
-#include <zephyr/kernel.h>
-#include <zephyr/device.h>
+#include <kernel.h>
+#include <device.h>
 #include <soc.h>
-#include <zephyr/drivers/dma.h>
+#include <drivers/dma.h>
 #include <fsl_dma.h>
 #include <fsl_inputmux.h>
-#include <zephyr/logging/log.h>
-#include <zephyr/irq.h>
+#include <logging/log.h>
 
 #define DT_DRV_COMPAT nxp_lpc_dma
 

@@ -7,23 +7,23 @@
 #ifndef ZEPHYR_DRIVERS_SENSOR_HTS221_HTS221_H_
 #define ZEPHYR_DRIVERS_SENSOR_HTS221_HTS221_H_
 
-#include <zephyr/device.h>
-#include <zephyr/sys/util.h>
+#include <device.h>
+#include <sys/util.h>
 #include <zephyr/types.h>
 #include <stmemsc.h>
-#include <zephyr/drivers/gpio.h>
-#include <zephyr/drivers/sensor.h>
+#include <drivers/gpio.h>
+#include <drivers/sensor.h>
 
 #include "hts221_reg.h"
 
 #define HTS221_AUTOINCREMENT_ADDR      BIT(7)
 
 #if DT_ANY_INST_ON_BUS_STATUS_OKAY(spi)
-#include <zephyr/drivers/spi.h>
+#include <drivers/spi.h>
 #endif /* DT_ANY_INST_ON_BUS_STATUS_OKAY(spi) */
 
 #if DT_ANY_INST_ON_BUS_STATUS_OKAY(i2c)
-#include <zephyr/drivers/i2c.h>
+#include <drivers/i2c.h>
 #endif /* DT_ANY_INST_ON_BUS_STATUS_OKAY(i2c) */
 
 struct hts221_data {

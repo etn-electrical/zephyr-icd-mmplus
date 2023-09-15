@@ -6,15 +6,15 @@
 
 #define DT_DRV_COMPAT ti_tmp116
 
-#include <zephyr/device.h>
-#include <zephyr/drivers/i2c.h>
-#include <zephyr/drivers/sensor.h>
-#include <zephyr/drivers/sensor/tmp116.h>
-#include <zephyr/sys/util.h>
-#include <zephyr/sys/byteorder.h>
-#include <zephyr/sys/__assert.h>
-#include <zephyr/logging/log.h>
-#include <zephyr/kernel.h>
+#include <device.h>
+#include <drivers/i2c.h>
+#include <drivers/sensor.h>
+#include <drivers/sensor/tmp116.h>
+#include <sys/util.h>
+#include <sys/byteorder.h>
+#include <sys/__assert.h>
+#include <logging/log.h>
+#include <kernel.h>
 
 #include "tmp116.h"
 
@@ -291,7 +291,7 @@ static int tmp116_init(const struct device *dev)
 	static const struct tmp116_dev_config tmp116_config_##_num = { \
 		.bus = I2C_DT_SPEC_INST_GET(_num) \
 	}; \
-	SENSOR_DEVICE_DT_INST_DEFINE(_num, tmp116_init, NULL, \
+	DEVICE_DT_INST_DEFINE(_num, tmp116_init, NULL,			\
 		&tmp116_data_##_num, &tmp116_config_##_num, POST_KERNEL, \
 		CONFIG_SENSOR_INIT_PRIORITY, &tmp116_driver_api);
 

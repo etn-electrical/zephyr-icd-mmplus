@@ -9,11 +9,11 @@ LOG_MODULE_DECLARE(LOG_MODULE_NAME);
 
 #include <stdlib.h>
 #include <limits.h>
-#include <zephyr/posix/fcntl.h>
+#include <fcntl.h>
 
-#include <zephyr/kernel.h>
+#include <zephyr.h>
 /* Define sockaddr, etc, before simplelink.h */
-#include <zephyr/net/socket_offload.h>
+#include <net/socket_offload.h>
 
 #include <errno.h>
 #include <ti/drivers/net/wifi/simplelink.h>
@@ -186,94 +186,64 @@ static int getErrno(_i32 error)
 	return error;
 }
 
-static int simplelink_socket_family_from_posix(int family, int *family_sl)
-{
-	switch (family) {
-	case AF_INET:
-		*family_sl = SL_AF_INET;
-		break;
-	case AF_INET6:
-		*family_sl = SL_AF_INET6;
-		break;
-	default:
-		return -EAFNOSUPPORT;
-	}
-
-	return 0;
-}
-
-static int simplelink_socket_type_from_posix(int type, int *type_sl)
-{
-	switch (type) {
-	case SOCK_STREAM:
-		*type_sl = SL_SOCK_STREAM;
-		break;
-	case SOCK_DGRAM:
-		*type_sl = SL_SOCK_DGRAM;
-		break;
-	case SOCK_RAW:
-		*type_sl = SL_SOCK_RAW;
-		break;
-	default:
-		return -ESOCKTNOSUPPORT;
-	}
-
-	return 0;
-}
-
-static int simplelink_socket_proto_from_zephyr(int proto, int *proto_sl)
-{
-	if (proto >= IPPROTO_TLS_1_0 && proto <= IPPROTO_TLS_1_2) {
-		*proto_sl = SL_SEC_SOCKET;
-	} else if (proto >= IPPROTO_DTLS_1_0 && proto <= IPPROTO_DTLS_1_2) {
-		/* SimpleLink doesn't handle DTLS yet! */
-		return -EPROTONOSUPPORT;
-	} else {
-		switch (proto) {
-		case IPPROTO_TCP:
-			*proto_sl = SL_IPPROTO_TCP;
-			break;
-		case IPPROTO_UDP:
-			*proto_sl = SL_IPPROTO_UDP;
-			break;
-		default:
-			return -EPROTONOSUPPORT;
-		}
-	}
-
-	return 0;
-}
-
 static int simplelink_socket(int family, int type, int proto)
 {
 	uint8_t sec_method = SL_SO_SEC_METHOD_SSLv3_TLSV1_2;
 	int sd;
 	int retval = 0;
 	int sl_proto = proto;
-	int err;
 
 	/* Map Zephyr socket.h family to SimpleLink's: */
-	err = simplelink_socket_family_from_posix(family, &family);
-	if (err) {
+	switch (family) {
+	case AF_INET:
+		family = SL_AF_INET;
+		break;
+	case AF_INET6:
+		family = SL_AF_INET6;
+		break;
+	default:
 		LOG_ERR("unsupported family: %d", family);
-		retval = slcb_SetErrno(-err);
+		retval = slcb_SetErrno(EAFNOSUPPORT);
 		goto exit;
 	}
 
 	/* Map Zephyr socket.h type to SimpleLink's: */
-	err = simplelink_socket_type_from_posix(type, &type);
-	if (err) {
-		LOG_ERR("unsupported type: %d", type);
-		retval = slcb_SetErrno(-err);
+	switch (type) {
+	case SOCK_STREAM:
+		type = SL_SOCK_STREAM;
+		break;
+	case SOCK_DGRAM:
+		type = SL_SOCK_DGRAM;
+		break;
+	case SOCK_RAW:
+		type = SL_SOCK_RAW;
+		break;
+	default:
+		LOG_ERR("unrecognized type: %d", type);
+		retval = slcb_SetErrno(ESOCKTNOSUPPORT);
 		goto exit;
 	}
 
 	/* Map Zephyr protocols to TI's values: */
-	err = simplelink_socket_proto_from_zephyr(proto, &sl_proto);
-	if (err) {
-		LOG_ERR("unsupported proto: %d", proto);
-		retval = slcb_SetErrno(-err);
+	if (proto >= IPPROTO_TLS_1_0 && proto <= IPPROTO_TLS_1_2) {
+		sl_proto = SL_SEC_SOCKET;
+	} else if (proto >= IPPROTO_DTLS_1_0 && proto <= IPPROTO_DTLS_1_2) {
+		/* SimpleLink doesn't handle DTLS yet! */
+		retval = slcb_SetErrno(EPROTONOSUPPORT);
 		goto exit;
+	} else {
+		switch (proto) {
+		case IPPROTO_TCP:
+			sl_proto = SL_IPPROTO_TCP;
+			break;
+		case IPPROTO_UDP:
+			sl_proto = SL_IPPROTO_UDP;
+			break;
+		default:
+			LOG_ERR("unrecognized proto: %d", sl_proto);
+			retval = slcb_SetErrno(EPROTONOSUPPORT);
+			goto exit;
+		}
 	}
 
 	sd = sl_Socket(family, type, sl_proto);
@@ -1237,28 +1207,11 @@ static const struct socket_op_vtable simplelink_socket_fd_op_vtable = {
 
 static bool simplelink_is_supported(int family, int type, int proto)
 {
-	int dummy;
-	int err;
-
-	err = simplelink_socket_family_from_posix(family, &dummy);
-	if (err) {
-		return false;
-	}
-
-	err = simplelink_socket_type_from_posix(type, &dummy);
-	if (err) {
-		return false;
-	}
-
-	err = simplelink_socket_proto_from_zephyr(proto, &dummy);
-	if (err) {
-		return false;
-	}
-
+	/* TODO offloading always enabled for now. */
 	return true;
 }
 
-int simplelink_socket_create(int family, int type, int proto)
+static int simplelink_socket_create(int family, int type, int proto)
 {
 	int fd = z_reserve_fd();
 	int sock;
@@ -1304,8 +1257,8 @@ static int simplelink_socket_accept(void *obj, struct sockaddr *addr,
 }
 
 #ifdef CONFIG_NET_SOCKETS_OFFLOAD
-NET_SOCKET_OFFLOAD_REGISTER(simplelink, CONFIG_NET_SOCKETS_OFFLOAD_PRIORITY, AF_UNSPEC,
-			    simplelink_is_supported, simplelink_socket_create);
+NET_SOCKET_REGISTER(simplelink, NET_SOCKET_DEFAULT_PRIO, AF_UNSPEC,
+		    simplelink_is_supported, simplelink_socket_create);
 #endif
 
 void simplelink_sockets_init(void)

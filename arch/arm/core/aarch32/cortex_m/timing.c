@@ -11,12 +11,10 @@
  *
  */
 
-#include <zephyr/init.h>
-#include <zephyr/kernel.h>
-#include <zephyr/timing/timing.h>
+#include <init.h>
+#include <timing/timing.h>
 #include <aarch32/cortex_m/dwt.h>
-#include <zephyr/arch/arm/aarch32/cortex_m/cmsis.h>
-#include <zephyr/sys_clock.h>
+#include <arch/arm/aarch32/cortex_m/cmsis.h>
 
 /**
  * @brief Return the current frequency of the cycle counter
@@ -65,7 +63,7 @@ static inline uint64_t z_arm_dwt_freq_get(void)
 
 			/*
 			 * cycles are in 32-bit, and delta must be
-			 * calculated in 32-bit precision. Or it would be
+			 * calculated in 32-bit percision. Or it would
 			 * wrapping around in 64-bit.
 			 */
 			dcyc = (uint32_t)cyc_end - (uint32_t)cyc_start;

@@ -10,10 +10,11 @@
  * Linker script for the esp32c3 platform.
  */
 
-#include <zephyr/devicetree.h>
-#include <zephyr/linker/sections.h>
-#include <zephyr/linker/linker-defs.h>
-#include <zephyr/linker/linker-tool.h>
+#include <devicetree.h>
+#include <autoconf.h>
+#include <linker/sections.h>
+#include <linker/linker-defs.h>
+#include <linker/linker-tool.h>
 
 #define RAMABLE_REGION dram0_0_seg
 #define RODATA_REGION drom0_0_seg
@@ -67,13 +68,6 @@ MEMORY
 #endif
 }
 
-
-/* The line below defines location alias for .rtc.data section
- * As C3 only has RTC fast memory, this is not configurable like
- * on other targets.
- */
-REGION_ALIAS("rtc_slow_seg", rtc_iram_seg);
-
 /*  Default entry point:  */
 ENTRY(CONFIG_KERNEL_ENTRY)
 
@@ -116,9 +110,9 @@ SECTIONS
     LONG(LOADADDR(.dummy.dram.data) + SIZEOF(.dummy.dram.data) - LOADADDR(.dram0.data))
   } > metadata
 
-#include <zephyr/linker/rel-sections.ld>
+#include <linker/rel-sections.ld>
   _image_drom_start = LOADADDR(_RODATA_SECTION_NAME);
-  _image_drom_size = LOADADDR(_RODATA_SECTION_END) + SIZEOF(_RODATA_SECTION_END)  - _image_drom_start;
+  _image_drom_size = LOADADDR(_RODATA_SECTION_NAME) + SIZEOF(_RODATA_SECTION_NAME) - _image_drom_start;
   _image_drom_vaddr = ADDR(_RODATA_SECTION_NAME);
 
   SECTION_PROLOGUE(_RODATA_SECTION_NAME,,)
@@ -128,14 +122,70 @@ SECTIONS
     *(.rodata_desc .rodata_desc.*)
     *(.rodata_custom_desc .rodata_custom_desc.*)
 
+#ifdef CONFIG_USERSPACE
+    Z_LINK_ITERABLE_ALIGNED(z_object_assignment, 4);
+#endif
+
+#if defined(CONFIG_NET_SOCKETS)
+    Z_LINK_ITERABLE_ALIGNED(net_socket_register, 4);
+#endif
+
+#if defined(CONFIG_NET_L2_PPP)
+    Z_LINK_ITERABLE_ALIGNED(ppp_protocol_handler, 4);
+#endif
+
+    Z_LINK_ITERABLE_ALIGNED(bt_l2cap_fixed_chan, 4);
+
+#if defined(CONFIG_BT_BREDR)
+    Z_LINK_ITERABLE_ALIGNED(bt_l2cap_br_fixed_chan, 4);
+#endif
+
+#if defined(CONFIG_BT_CONN)
+    Z_LINK_ITERABLE_ALIGNED(bt_conn_cb, 4)
+#endif
+
+    Z_LINK_ITERABLE_ALIGNED(bt_gatt_service_static, 4);
+
+#if defined(CONFIG_BT_MESH)
+    Z_LINK_ITERABLE_ALIGNED(bt_mesh_subnet_cb, 4);
+    Z_LINK_ITERABLE_ALIGNED(bt_mesh_app_key_cb, 4);
+    Z_LINK_ITERABLE_ALIGNED(bt_mesh_hb_cb, 4);
+#endif
+
+#if defined(CONFIG_BT_MESH_FRIEND)
+    Z_LINK_ITERABLE_ALIGNED(bt_mesh_friend_cb, 4);
+#endif
+
+#if defined(CONFIG_BT_MESH_LOW_POWER)
+    Z_LINK_ITERABLE_ALIGNED(bt_mesh_lpn_cb, 4);
+#endif
+
+#if defined(CONFIG_BT_MESH_PROXY)
+    Z_LINK_ITERABLE_ALIGNED(bt_mesh_proxy_cb, 4);
+#endif
+
+#if defined(CONFIG_EC_HOST_CMD)
+    Z_LINK_ITERABLE_ALIGNED(ec_host_cmd_handler, 4);
+#endif
+
+#if defined(CONFIG_SETTINGS)
+    Z_LINK_ITERABLE_ALIGNED(settings_handler_static, 4);
+#endif
+
+    Z_LINK_ITERABLE_ALIGNED(k_p4wq_initparam, 4);
+
+    Z_LINK_ITERABLE_ALIGNED(shell, 4);
+
+    Z_LINK_ITERABLE_ALIGNED(tracing_backend, 4)
+
     __rodata_region_start = .;
+    __esp_shell_root_cmds_start = .;
+    KEEP(*(SORT(.shell_root_cmd_*)));
+    __esp_shell_root_cmds_end = .;
 
     . = ALIGN(4);
-    #include <snippets-rodata.ld>
-
-    . = ALIGN(4);
-    *(EXCLUDE_FILE (*libarch__xtensa__core.a:* *libkernel.a:fatal.* *libkernel.a:init.* *libzephyr.a:cbprintf_complete* *libzephyr.a:log_core.* *libzephyr.a:log_backend_uart.* *libdrivers__flash.a:esp32_mp.* *libzephyr.a:log_output.* *libzephyr.a:loader.* *libdrivers__flash.a:flash_esp32.* *libdrivers__serial.a:uart_esp32.* *libzephyr.a:spi_flash_rom_patch.*) .rodata)
-    *(EXCLUDE_FILE (*libarch__xtensa__core.a:* *libkernel.a:fatal.* *libkernel.a:init.* *libzephyr.a:cbprintf_complete* *libzephyr.a:log_core.* *libzephyr.a:log_backend_uart.* *libdrivers__flash.a:esp32_mp.* *libzephyr.a:log_output.* *libzephyr.a:loader.* *libdrivers__flash.a:flash_esp32.* *libdrivers__serial.a:uart_esp32.* *libzephyr.a:spi_flash_rom_patch.*) .rodata.*)
+    *(EXCLUDE_FILE (*libkernel.a:fatal.* *libkernel.a:init.* *libzephyr.a:cbprintf_complete* *libzephyr.a:log_core.* *libzephyr.a:log_backend_uart.* *libzephyr.a:log_output.* *libzephyr.a:loader.* *libdrivers__flash.a:flash_esp32.* *libdrivers__serial.a:uart_esp32.*) .rodata)
+    *(EXCLUDE_FILE (*libkernel.a:fatal.* *libkernel.a:init.* *libzephyr.a:cbprintf_complete* *libzephyr.a:log_core.* *libzephyr.a:log_backend_uart.* *libzephyr.a:log_output.* *libzephyr.a:loader.* *libdrivers__flash.a:flash_esp32.* *libdrivers__serial.a:uart_esp32.*) .rodata.*)
 
     *(.irom1.text) /* catch stray ICACHE_RODATA_ATTR */
     *(.gnu.linkonce.r.*)
@@ -149,7 +199,26 @@ SECTIONS
     __eh_frame = ABSOLUTE(.);
     KEEP(*(.eh_frame))
     . = (. + 7) & ~ 3;
-
+    /*
+     * C++ constructor and destructor tables
+     * Don't include anything from crtbegin.o or crtend.o, as IDF doesn't use toolchain crt.
+     *
+     * RISC-V gcc is configured with --enable-initfini-array so it emits an .init_array section instead.
+     * But the init_priority sections will be sorted for iteration in ascending order during startup.
+     * The rest of the init_array sections is sorted for iteration in descending order during startup, however.
+     * Hence a different section is generated for the init_priority functions which is iterated in
+     * ascending order during startup. The corresponding code can be found in startup.c.
+     */
+    __init_priority_array_start = ABSOLUTE(.);
+    KEEP (*(EXCLUDE_FILE (*crtend.* *crtbegin.*) .init_array.*))
+    __init_priority_array_end = ABSOLUTE(.);
+    __init_array_start = ABSOLUTE(.);
+    KEEP (*(EXCLUDE_FILE (*crtend.* *crtbegin.*) .init_array))
+    __init_array_end = ABSOLUTE(.);
+    KEEP (*crtbegin.*(.dtors))
+    KEEP (*(EXCLUDE_FILE (*crtend.*) .dtors))
+    KEEP (*(SORT(.dtors.*)))
+    KEEP (*(.dtors))
     /* C++ exception handlers table: */
     __XT_EXCEPTION_DESCS_ = ABSOLUTE(.);
     *(.xt_except_desc)
@@ -173,7 +242,7 @@ SECTIONS
     *(.tbss)
     *(.tbss.*)
     *(.srodata)
-    *(.srodata.*)
+    *(".srodata.*")
     *(.rodata)
     *(.rodata.*)
     *(.rodata_wlog)
@@ -181,28 +250,6 @@ SECTIONS
     _thread_local_end = ABSOLUTE(.);
     _rodata_reserved_end = ABSOLUTE(.);
     . = ALIGN(4);
-  } GROUP_DATA_LINK_IN(RODATA_REGION, ROMABLE_REGION)
-
-  /* Flash segments (rodata and text) should be mapped in virtual address space by providing VMA.
-   * Executing directly from LMA is not possible. */
-  #pragma push_macro("GROUP_ROM_LINK_IN")
-  #undef GROUP_ROM_LINK_IN
-  #define GROUP_ROM_LINK_IN(vregion, lregion) > RODATA_REGION AT > lregion
-  #include <zephyr/linker/common-rom/common-rom-cpp.ld>
-  #include <zephyr/linker/common-rom/common-rom-kernel-devices.ld>
-  #include <zephyr/linker/common-rom/common-rom-ztest.ld>
-  #include <zephyr/linker/common-rom/common-rom-net.ld>
-  #include <zephyr/linker/common-rom/common-rom-bt.ld>
-  #include <zephyr/linker/common-rom/common-rom-debug.ld>
-  #include <zephyr/linker/common-rom/common-rom-misc.ld>
-  #pragma pop_macro("GROUP_ROM_LINK_IN")
-
-  /* Create an explicit section at the end of all the data that shall be mapped into drom.
-   * This is used to calculate the size of the _image_drom_size variable */
-  SECTION_PROLOGUE(_RODATA_SECTION_END,,)
-  {
-    . = ALIGN(4);
-    _image_rodata_end = ABSOLUTE(.);
   } GROUP_DATA_LINK_IN(RODATA_REGION, ROMABLE_REGION)
 
   .iram0.text : ALIGN(4)
@@ -218,7 +265,7 @@ SECTIONS
 
     _iram_text_start = ABSOLUTE(.);
 
-    KEEP(*(.exception.entry*)); /* contains _isr_wrapper */
+    KEEP(*(.exception.entry*)); /* contains __irq_wrapper */
     *(.exception.other*)
     . = ALIGN(4);
 
@@ -237,7 +284,6 @@ SECTIONS
     *libkernel.a:(.literal .text .literal.* .text.*)
     *libgcc.a:lib2funcs.*(.literal .text .literal.* .text.*)
     *libdrivers__flash.a:flash_esp32.*(.literal .text .literal.* .text.*)
-    *libzephyr.a:spi_flash_rom_patch.*(.literal .text .literal.* .text.*)
     *libzephyr.a:log_noos.*(.literal .text .literal.* .text.*)
     *libdrivers__timer.a:esp32c3_sys_timer.*(.literal .text .literal.* .text.*)
     *libzephyr.a:log_core.*(.literal .text .literal.* .text.*)
@@ -251,9 +297,7 @@ SECTIONS
     *libzephyr.a:loader.*(.literal .text .literal.* .text.*)
     *libsoc.a:rtc_*.*(.literal .text .literal.* .text.*)
     *libsoc.a:cpu_util.*(.literal .text .literal.* .text.*)
-    *liblib__libc__newlib.a:string.*(.literal .text .literal.* .text.*)
     *liblib__libc__minimal.a:string.*(.literal .text .literal.* .text.*)
-    *libc.a:*(.literal .text .literal.* .text.*)
     *libphy.a:( .phyiram .phyiram.*)
     *libgcov.a:(.literal .text .literal.* .text.*)
 
@@ -310,8 +354,6 @@ SECTIONS
     . = ALIGN(4);
   } GROUP_LINK_IN(RAMABLE_REGION)
 
-  #include <snippets-sections.ld>
-
   .dram0.data :
   {
     . = ALIGN(4);
@@ -341,33 +383,29 @@ SECTIONS
     *libzephyr.a:loader.*(.rodata .rodata.*)
     *libdrivers__flash.a:flash_esp32.*(.rodata  .rodata.*)
     *libdrivers__serial.a:uart_esp32.*(.rodata .rodata.*)
-    *libzephyr.a:spi_flash_rom_patch.*(.rodata  .rodata.*)
-
 
     KEEP(*(.jcr))
     *(.dram1 .dram1.*)
     . = ALIGN(4);
   } GROUP_DATA_LINK_IN(RAMABLE_REGION, ROMABLE_REGION)
 
-  #include <zephyr/linker/cplusplus-rom.ld>
-  #include <zephyr/linker/thread-local-storage.ld>
-  #include <snippets-data-sections.ld>
-  #include <zephyr/linker/common-ram.ld>
-  #include <snippets-ram-sections.ld>
-  #include <zephyr/linker/cplusplus-ram.ld>
-
-  /* logging sections should be placed in RAM area to avoid flash cache disabled issues */
   #pragma push_macro("GROUP_ROM_LINK_IN")
+  #pragma push_macro("ITERABLE_SECTION_ROM")
   #undef GROUP_ROM_LINK_IN
+  #undef ITERABLE_SECTION_ROM
   #define GROUP_ROM_LINK_IN GROUP_DATA_LINK_IN
-  #include <zephyr/linker/common-rom/common-rom-logging.ld>
+  #define ITERABLE_SECTION_ROM(x,y)
+  #include <linker/common-rom.ld>
   #pragma pop_macro("GROUP_ROM_LINK_IN")
+  #pragma pop_macro("ITERABLE_SECTION_ROM")
+  #include <linker/common-ram.ld>
+
+  __shell_root_cmds_start = __esp_shell_root_cmds_start;
+  __shell_root_cmds_end = __esp_shell_root_cmds_end;
 
   .dummy.dram.data :
   {
     . = ALIGN(4);
-    #include <snippets-rwdata.ld>
-    _end = ABSOLUTE(.);
     _data_end = ABSOLUTE(.);
   } GROUP_DATA_LINK_IN(RAMABLE_REGION, ROMABLE_REGION)
 
@@ -477,28 +515,11 @@ SECTIONS
     _rtc_bss_end = ABSOLUTE(.);
   } GROUP_LINK_IN(rtc_iram_seg)
 
-  /**
-   * This section located in RTC SLOW Memory area.
-   * It holds data marked with RTC_SLOW_ATTR attribute.
-   * See the file "esp_attr.h" for more information.
-   */
-  .rtc.force_slow :
-  {
-    . = ALIGN(4);
-    _rtc_force_slow_start = ABSOLUTE(.);
-    *(.rtc.force_slow .rtc.force_slow.*)
-    . = ALIGN(4) ;
-    _rtc_force_slow_end = ABSOLUTE(.);
-  } > rtc_slow_seg
-
-  /* Get size of rtc slow data */
-  _rtc_slow_length = (_rtc_force_slow_end - _rtc_data_start);
-
 #ifdef CONFIG_GEN_ISR_TABLES
-#include <zephyr/linker/intlist.ld>
+#include <linker/intlist.ld>
 #endif
 
-#include <zephyr/linker/debug-sections.ld>
+#include <linker/debug-sections.ld>
   /DISCARD/ : { *(.note.GNU-stack) }
 
   SECTION_PROLOGUE(.riscv.attributes, 0,)

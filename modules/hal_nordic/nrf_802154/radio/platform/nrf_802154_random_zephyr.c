@@ -6,23 +6,25 @@
 
 
 #include <platform/nrf_802154_temperature.h>
-#include <zephyr/drivers/entropy.h>
+#include <drivers/entropy.h>
 
 static uint32_t state;
 
 static uint32_t next(void)
 {
-	state ^= (state<<13);
-	state ^= (state>>17);
-	return state ^= (state<<5);
+	uint32_t num = state;
+
+	state = 1664525 * num + 1013904223;
+	return num;
 }
 
 void nrf_802154_random_init(void)
 {
-	const struct device *const dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_entropy));
+	const struct device *dev;
 	int err;
 
-	__ASSERT_NO_MSG(device_is_ready(dev));
+	dev = device_get_binding(DT_CHOSEN_ZEPHYR_ENTROPY_LABEL);
+	__ASSERT_NO_MSG(dev != NULL);
 
 	do {
 		err = entropy_get_entropy(dev, (uint8_t *)&state, sizeof(state));

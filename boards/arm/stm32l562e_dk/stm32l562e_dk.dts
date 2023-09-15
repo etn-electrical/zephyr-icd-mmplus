@@ -24,9 +24,15 @@
 	aliases {
 		led0 = &green_led_10;
 		sw0 = &user_button;
-		watchdog0 = &iwdg;
-		accel0 = &lsm6dso;
 	};
+};
+
+&cpu0 {
+	cpu-power-states = <&stop0 &stop1 &stop2>;
+};
+
+&lptim1 {
+	status = "okay";
 };
 
 &timers2 {
@@ -49,7 +55,8 @@
 
 		/* 2KB at the end of 512KB flash is set for storage */
 		storage_partition: partition@7f800 {
-			   reg = <0x0007f800 DT_SIZE_K(2)>;
+			   label = "storage";
+			   reg = <0x0007f800 0x00000800>;
 		   };
 	};
 };

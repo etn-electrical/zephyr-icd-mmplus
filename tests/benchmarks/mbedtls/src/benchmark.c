@@ -69,12 +69,12 @@
 #include "mbedtls/error.h"
 
 #include <zephyr/types.h>
-#include <zephyr/sys/byteorder.h>
-#include <zephyr/random/rand32.h>
+#include <sys/byteorder.h>
+#include <random/rand32.h>
 
-#include <zephyr/kernel.h>
+#include "kernel.h"
 
-#include <zephyr/sys/printk.h>
+#include <sys/printk.h>
 #define  MBEDTLS_PRINT ((int(*)(const char *, ...)) printk)
 
 static void my_debug(void *ctx, int level,
@@ -309,6 +309,7 @@ void main(void)
 
 	printk("\tMBEDTLS Benchmark sample\n");
 
+	mbedtls_debug_set_threshold(CONFIG_MBEDTLS_DEBUG_LEVEL);
 #if defined(MBEDTLS_PLATFORM_PRINTF_ALT)
 	mbedtls_platform_set_printf(MBEDTLS_PRINT);
 #endif

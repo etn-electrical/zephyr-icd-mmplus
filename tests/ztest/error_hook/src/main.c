@@ -4,13 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/irq_offload.h>
-#include <zephyr/syscall_handler.h>
+#include <ztest.h>
+#include <irq_offload.h>
+#include <syscall_handler.h>
+#include <ztest_error_hook.h>
 
-#include <zephyr/ztest.h>
-#include <zephyr/ztest_error_hook.h>
-
-#define STACK_SIZE (1024 + CONFIG_TEST_EXTRA_STACK_SIZE)
+#define STACK_SIZE (1024 + CONFIG_TEST_EXTRA_STACKSIZE)
 #define THREAD_TEST_PRIORITY 5
 
 static K_THREAD_STACK_DEFINE(tstack, STACK_SIZE);
@@ -50,7 +49,7 @@ __no_optimization static void trigger_fault_illegal_instruction(void)
 {
 	void *a = NULL;
 
-	/* execute an illegal instruction */
+	/* execute an illeagal instruction */
 	((void(*)(void))&a)();
 }
 
@@ -67,7 +66,7 @@ __no_optimization static void trigger_fault_access(void)
 	 * address instead to trigger exception. See issue #31419.
 	 */
 	void *a = (void *)0xFFFFFFFF;
-#elif defined(CONFIG_CPU_CORTEX_M) || defined(CONFIG_CPU_AARCH32_CORTEX_R) || \
+#elif defined(CONFIG_CPU_CORTEX_M) || defined(CONFIG_CPU_CORTEX_R) || \
 	defined(CONFIG_CPU_AARCH64_CORTEX_R)
 	/* As this test case only runs when User Mode is enabled,
 	 * accessing _current always triggers a memory access fault,
@@ -121,8 +120,7 @@ __no_optimization static void trigger_fault_divide_zero(void)
 	defined(CONFIG_BOARD_QEMU_CORTEX_A53) || defined(CONFIG_SOC_QEMU_ARC) || \
 	defined(CONFIG_ARMV6_M_ARMV8_M_BASELINE) || \
 	defined(CONFIG_BOARD_QEMU_CORTEX_R5) || \
-	defined(CONFIG_BOARD_FVP_BASER_AEMV8R) || defined(CONFIG_BOARD_FVP_BASE_REVC_2XAEMV8A) || \
-	defined(CONFIG_BOARD_FVP_BASER_AEMV8R_AARCH32)
+	defined(CONFIG_BOARD_FVP_BASER_AEMV8R)
 	ztest_test_skip();
 #endif
 }
@@ -160,18 +158,18 @@ void ztest_post_fatal_error_hook(unsigned int reason,
 	case ZTEST_CATCH_FATAL_K_PANIC:
 	case ZTEST_CATCH_FATAL_K_OOPS:
 	case ZTEST_CATCH_USER_FATAL_Z_OOPS:
-		zassert_true(true);
+		zassert_true(true, NULL);
 		break;
 
 	/* Unfortunately, the case of trigger a fatal error
-	 * inside ISR context still cannot be dealt with,
+	 * inside ISR context still cannot be dealed with,
 	 * So please don't use it this way.
 	 */
 	case ZTEST_CATCH_FATAL_IN_ISR:
-		zassert_true(false);
+		zassert_true(false, NULL);
 		break;
 	default:
-		zassert_true(false);
+		zassert_true(false, NULL);
 		break;
 	}
 }
@@ -258,13 +256,13 @@ static int run_trigger_thread(int i)
 }
 
 /**
- * @brief Test if a fatal error can be caught
+ * @brief Test if a fatal error can be catched
  *
  * @details Valid a fatal error we triggered in thread context works.
  * If the fatal error happened and the program enter assert_post_handler,
  * that means fatal error triggered as expected.
  */
-ZTEST_USER(error_hook_tests, test_catch_fatal_error)
+void test_catch_fatal_error(void)
 {
 #if defined(CONFIG_USERSPACE)
 	run_trigger_thread(ZTEST_CATCH_FATAL_ACCESS);
@@ -289,20 +287,15 @@ ZTEST_USER(error_hook_tests, test_catch_fatal_error)
  * fail happened and the program enter assert_post_handler, that means
  * assert works as expected.
  */
-ZTEST_USER(error_hook_tests, test_catch_assert_fail)
+void test_catch_assert_fail(void)
 {
 	case_type = ZTEST_CATCH_ASSERT_FAIL;
 
-	printk("1\n");
 	ztest_set_assert_valid(false);
 
-	printk("2\n");
 	ztest_set_assert_valid(true);
-
-	printk("3\n");
 	trigger_assert_fail(NULL);
 
-	printk("4\n");
 	ztest_test_fail();
 }
 
@@ -320,7 +313,7 @@ static void tIsr_assert(const void *p)
  * fail happened and the program enter assert_post_handler, that means
  * assert works as expected.
  */
-ZTEST(error_hook_tests, test_catch_assert_in_isr)
+void test_catch_assert_in_isr(void)
 {
 	case_type = ZTEST_CATCH_ASSERT_IN_ISR;
 	irq_offload(tIsr_assert, NULL);
@@ -344,7 +337,7 @@ static void trigger_z_oops(void)
  * that means z_oops triggered as expected. This test only for
  * userspace.
  */
-ZTEST(error_hook_tests, test_catch_z_oops)
+void test_catch_z_oops(void)
 {
 	case_type = ZTEST_CATCH_USER_FATAL_Z_OOPS;
 
@@ -354,73 +347,25 @@ ZTEST(error_hook_tests, test_catch_z_oops)
 #endif
 
 
-static void *error_hook_tests_setup(void)
-{
-#if defined(CONFIG_USERSPACE)
-	k_thread_access_grant(k_current_get(), &tdata, &tstack);
-#endif
-	return NULL;
-}
-ZTEST_SUITE(error_hook_tests, NULL, error_hook_tests_setup, NULL, NULL, NULL);
-
-static void *fail_assume_in_setup_setup(void)
-{
-	/* Fail the assume, will skip all the tests */
-	zassume_true(false);
-	return NULL;
-}
-
-ZTEST_SUITE(fail_assume_in_setup, NULL, fail_assume_in_setup_setup, NULL, NULL, NULL);
-
-ZTEST_EXPECT_SKIP(fail_assume_in_setup, test_to_skip0);
-ZTEST(fail_assume_in_setup, test_to_skip0)
-{
-	/* This test should never be run */
-	ztest_test_fail();
-}
-
-ZTEST_EXPECT_SKIP(fail_assume_in_setup, test_to_skip1);
-ZTEST(fail_assume_in_setup, test_to_skip1)
-{
-	/* This test should never be run */
-	ztest_test_fail();
-}
-
-static void fail_assume_in_before_before(void *unused)
-{
-	ARG_UNUSED(unused);
-	zassume_true(false);
-}
-
-ZTEST_SUITE(fail_assume_in_before, NULL, NULL, fail_assume_in_before_before, NULL, NULL);
-
-ZTEST_EXPECT_SKIP(fail_assume_in_before, test_to_skip0);
-ZTEST(fail_assume_in_before, test_to_skip0)
-{
-	/* This test should never be run */
-	ztest_test_fail();
-}
-
-ZTEST_EXPECT_SKIP(fail_assume_in_before, test_to_skip1);
-ZTEST(fail_assume_in_before, test_to_skip1)
-{
-	/* This test should never be run */
-	ztest_test_fail();
-}
-
-ZTEST_SUITE(fail_assume_in_test, NULL, NULL, NULL, NULL, NULL);
-
-ZTEST_EXPECT_SKIP(fail_assume_in_test, test_to_skip);
-ZTEST(fail_assume_in_test, test_to_skip)
-{
-	zassume_true(false);
-	ztest_test_fail();
-}
-
 void test_main(void)
 {
-	ztest_run_test_suites(NULL);
-	/* Can't run ztest_verify_all_test_suites_ran() since some tests are
-	 * skipped by design.
-	 */
+
+#if defined(CONFIG_USERSPACE)
+	k_thread_access_grant(k_current_get(), &tdata, &tstack);
+
+	ztest_test_suite(error_hook_tests,
+			 ztest_user_unit_test(test_catch_assert_fail),
+			 ztest_user_unit_test(test_catch_fatal_error),
+			 ztest_unit_test(test_catch_z_oops),
+			 ztest_unit_test(test_catch_assert_in_isr)
+			 );
+	ztest_run_test_suite(error_hook_tests);
+#else
+	ztest_test_suite(error_hook_tests,
+			 ztest_unit_test(test_catch_fatal_error),
+			 ztest_unit_test(test_catch_assert_fail),
+			 ztest_unit_test(test_catch_assert_in_isr)
+			 );
+	ztest_run_test_suite(error_hook_tests);
+#endif
 }

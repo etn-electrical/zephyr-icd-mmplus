@@ -7,10 +7,10 @@
  * @brief System module to support early Atmel SAM E70 MCU configuration
  */
 
-#include <zephyr/device.h>
-#include <zephyr/init.h>
+#include <device.h>
+#include <init.h>
 #include <soc.h>
-#include <zephyr/arch/cpu.h>
+#include <arch/cpu.h>
 
 /**
  * @brief Perform SoC configuration at boot.

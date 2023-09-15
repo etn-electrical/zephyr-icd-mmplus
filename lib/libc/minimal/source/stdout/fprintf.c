@@ -8,7 +8,7 @@
 
 #include <stdarg.h>
 #include <stdio.h>
-#include <zephyr/sys/cbprintf.h>
+#include <sys/cbprintf.h>
 
 #define DESC(d) ((void *)d)
 

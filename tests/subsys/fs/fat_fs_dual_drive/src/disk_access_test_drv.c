@@ -6,11 +6,11 @@
 
 #include <string.h>
 #include <zephyr/types.h>
-#include <zephyr/sys/__assert.h>
-#include <zephyr/storage/disk_access.h>
+#include <sys/__assert.h>
+#include <storage/disk_access.h>
 #include <errno.h>
-#include <zephyr/init.h>
-#include <zephyr/device.h>
+#include <init.h>
+#include <device.h>
 
 #define RAMDISK_SECTOR_SIZE 512
 

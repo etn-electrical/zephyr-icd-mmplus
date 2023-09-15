@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/sys/printk.h>
-#include <zephyr/drivers/display.h>
+#include <zephyr.h>
+#include <sys/printk.h>
+#include <drivers/display.h>
 #include <string.h>
 
 #define PIXEL_BIT(idx, val)  (val ? BIT(idx) : 0)
@@ -185,7 +185,7 @@ void main(void)
 	printk("nRF LED matrix sample on %s\n", CONFIG_BOARD);
 
 	int ret;
-	const struct device *const dev = DEVICE_DT_GET_ONE(nordic_nrf_led_matrix);
+	const struct device *dev = DEVICE_DT_GET_ONE(nordic_nrf_led_matrix);
 
 	if (!dev) {
 		printk("Display device not ready\n");

@@ -10,17 +10,17 @@
  * a suitable LED matrix controller driver.
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/init.h>
+#include <zephyr.h>
+#include <init.h>
 #include <string.h>
-#include <zephyr/sys/printk.h>
+#include <sys/printk.h>
 
-#include <zephyr/display/mb_display.h>
-#include <zephyr/drivers/display.h>
+#include <display/mb_display.h>
+#include <drivers/display.h>
 
 #include "mb_font.h"
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(mb_disp, CONFIG_DISPLAY_LOG_LEVEL);
 
 #define MODE_MASK    BIT_MASK(16)

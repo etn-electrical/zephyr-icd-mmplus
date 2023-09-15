@@ -3,8 +3,8 @@
 
 config WDT_ITE_IT8XXX2
 	bool "ITE it8xxx2 Watchdog Timer (WDT) driver"
+	depends on SOC_IT8XXX2
 	default y
-	depends on DT_HAS_ITE_IT8XXX2_WATCHDOG_ENABLED
 	help
 	  This option enables the Watchdog Timer driver for ITE it8xxx2.
 	  This driver supports only one channel that id is 0 and 16-bits
@@ -12,7 +12,6 @@ config WDT_ITE_IT8XXX2
 
 config WDT_ITE_WARNING_LEADING_TIME_MS
 	int "Number of ms before generating watchdog event/signal"
-	depends on WDT_ITE_IT8XXX2
 	default 500
 	help
 	  This option defines the window in which a watchdog event must be
@@ -21,7 +20,8 @@ config WDT_ITE_WARNING_LEADING_TIME_MS
 
 config WDT_ITE_REDUCE_WARNING_LEADING_TIME
 	bool "Reduce warning leading time"
-	depends on WDT_ITE_IT8XXX2
+	depends on SOC_IT8XXX2
+	default n
 	help
 	  Once warning timer triggered, if watchdog timer isn't reloaded,
 	  then we will reduce interval of warning timer to 30ms to print

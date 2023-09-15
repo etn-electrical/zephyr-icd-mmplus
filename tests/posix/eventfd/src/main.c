@@ -4,17 +4,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
+#include <ztest.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <errno.h>
-#include <zephyr/net/socket.h>
+#include <net/socket.h>
 #include <poll.h>
 #include <sys/eventfd.h>
 
 #define TESTVAL 10
-
-ZTEST_SUITE(test_eventfd, NULL, NULL, NULL, NULL, NULL);
 
 static int is_blocked(int fd, short *event)
 {
@@ -32,7 +30,7 @@ static int is_blocked(int fd, short *event)
 	return ret == 0;
 }
 
-ZTEST(test_eventfd, test_eventfd)
+static void test_eventfd(void)
 {
 	int fd = eventfd(0, 0);
 
@@ -41,7 +39,7 @@ ZTEST(test_eventfd, test_eventfd)
 	close(fd);
 }
 
-ZTEST(test_eventfd, test_eventfd_read_nonblock)
+static void test_eventfd_read_nonblock(void)
 {
 	eventfd_t val = 0;
 	int fd, ret;
@@ -67,7 +65,7 @@ ZTEST(test_eventfd, test_eventfd_read_nonblock)
 	close(fd);
 }
 
-ZTEST(test_eventfd, test_eventfd_write_then_read)
+static void test_eventfd_write_then_read(void)
 {
 	eventfd_t val;
 	int fd, ret;
@@ -105,7 +103,7 @@ ZTEST(test_eventfd, test_eventfd_write_then_read)
 	close(fd);
 }
 
-ZTEST(test_eventfd, test_eventfd_poll_timeout)
+static void test_eventfd_poll_timeout(void)
 {
 	struct pollfd pfd;
 	int fd, ret;
@@ -154,7 +152,7 @@ static void eventfd_poll_unset_common(int fd)
 	zassert_equal(ret, 1, "eventfd not blocked after read");
 }
 
-ZTEST(test_eventfd, test_eventfd_unset_poll_event_block)
+static void test_eventfd_unset_poll_event_block(void)
 {
 	int fd;
 
@@ -166,7 +164,7 @@ ZTEST(test_eventfd, test_eventfd_unset_poll_event_block)
 	close(fd);
 }
 
-ZTEST(test_eventfd, test_eventfd_unset_poll_event_nonblock)
+static void test_eventfd_unset_poll_event_nonblock(void)
 {
 	int fd;
 
@@ -197,7 +195,7 @@ static void eventfd_poll_set_common(int fd)
 	zassert_equal(ret, 1, "eventfd is not blocked after read");
 }
 
-ZTEST(test_eventfd, test_eventfd_set_poll_event_block)
+static void test_eventfd_set_poll_event_block(void)
 {
 	int fd;
 
@@ -209,7 +207,7 @@ ZTEST(test_eventfd, test_eventfd_set_poll_event_block)
 	close(fd);
 }
 
-ZTEST(test_eventfd, test_eventfd_set_poll_event_nonblock)
+static void test_eventfd_set_poll_event_nonblock(void)
 {
 	int fd;
 
@@ -221,7 +219,7 @@ ZTEST(test_eventfd, test_eventfd_set_poll_event_nonblock)
 	close(fd);
 }
 
-ZTEST(test_eventfd, test_eventfd_overflow)
+static void test_eventfd_overflow(void)
 {
 	short event;
 	int fd, ret;
@@ -251,7 +249,7 @@ ZTEST(test_eventfd, test_eventfd_overflow)
 	close(fd);
 }
 
-ZTEST(test_eventfd, test_eventfd_zero_shall_not_unblock)
+static void test_eventfd_zero_shall_not_unblock(void)
 {
 	short event;
 	int fd, ret;
@@ -267,4 +265,21 @@ ZTEST(test_eventfd, test_eventfd_zero_shall_not_unblock)
 	zassert_equal(ret, 1, "eventfd unblocked by zero");
 
 	close(fd);
+}
+
+void test_main(void)
+{
+	ztest_test_suite(test_eventfd,
+				ztest_unit_test(test_eventfd),
+				ztest_unit_test(test_eventfd_read_nonblock),
+				ztest_unit_test(test_eventfd_write_then_read),
+				ztest_unit_test(test_eventfd_poll_timeout),
+				ztest_unit_test(test_eventfd_unset_poll_event_block),
+				ztest_unit_test(test_eventfd_unset_poll_event_nonblock),
+				ztest_unit_test(test_eventfd_set_poll_event_block),
+				ztest_unit_test(test_eventfd_set_poll_event_nonblock),
+				ztest_unit_test(test_eventfd_overflow),
+				ztest_unit_test(test_eventfd_zero_shall_not_unblock)
+				);
+	ztest_run_test_suite(test_eventfd);
 }

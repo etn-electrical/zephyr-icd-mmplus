@@ -6,11 +6,11 @@
  */
 
 
-#include <zephyr/kernel.h>
-#include <zephyr/ztest.h>
+#include <zephyr.h>
+#include <ztest.h>
 
 
-#define STACKSIZE       (2048 + CONFIG_TEST_EXTRA_STACK_SIZE)
+#define STACKSIZE       (2048 + CONFIG_TEST_EXTRA_STACKSIZE)
 
 ZTEST_BMEM static int count;
 ZTEST_BMEM static int ret = TC_PASS;
@@ -19,7 +19,6 @@ void k_sys_fatal_error_handler(unsigned int reason, const z_arch_esf_t *esf)
 {
 	if (reason != K_ERR_STACK_CHK_FAIL) {
 		printk("wrong error type\n");
-		printk("PROJECT EXECUTION FAILED\n");
 		k_fatal_halt(reason);
 	}
 }
@@ -61,7 +60,7 @@ void print_loop(const char *name)
  *
  */
 
-void __attribute__((noinline)) check_input(const char *name, const char *input)
+void check_input(const char *name, const char *input)
 {
 	/* Stack will overflow when input is more than 16 characters */
 	char buf[16];
@@ -111,9 +110,10 @@ static struct k_thread alt_thread_data;
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST_USER(stackprot, test_stackprot)
+
+void test_stackprot(void)
 {
-	zassert_true(ret == TC_PASS);
+	zassert_true(ret == TC_PASS, NULL);
 	print_loop(__func__);
 }
 
@@ -125,7 +125,7 @@ ZTEST_USER(stackprot, test_stackprot)
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST(stackprot, test_create_alt_thread)
+void test_create_alt_thread(void)
 {
 	/* Start thread */
 	k_thread_create(&alt_thread_data, alt_thread_stack_area, STACKSIZE,
@@ -138,4 +138,10 @@ ZTEST(stackprot, test_create_alt_thread)
 	k_sleep(K_MSEC(100));
 }
 
-ZTEST_SUITE(stackprot, NULL, NULL, NULL, NULL, NULL);
+void test_main(void)
+{
+	ztest_test_suite(stackprot,
+			 ztest_unit_test(test_create_alt_thread),
+			 ztest_user_unit_test(test_stackprot));
+	ztest_run_test_suite(stackprot);
+}

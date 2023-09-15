@@ -6,13 +6,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <zephyr/kernel.h>
-#include <zephyr/devicetree.h>
-#include <zephyr/sys/printk.h>
-#include <zephyr/logging/log.h>
-#include <zephyr/shell/shell.h>
-#include <zephyr/drivers/flash.h>
-#include <zephyr/device.h>
+#include <zephyr.h>
+#include <sys/printk.h>
+#include <logging/log.h>
+#include <shell/shell.h>
+#include <drivers/flash.h>
+#include <device.h>
+#include <soc.h>
+#include <stdlib.h>
 
 LOG_MODULE_REGISTER(app);
 
@@ -24,6 +25,13 @@ LOG_MODULE_REGISTER(app);
 	shell_fprintf(shell, SHELL_INFO, fmt, ##__VA_ARGS__)
 #define PR_WARNING(shell, fmt, ...)				\
 	shell_fprintf(shell, SHELL_WARNING, fmt, ##__VA_ARGS__)
+/*
+ * When DT_CHOSEN_ZEPHYR_FLASH_CONTROLLER_LABEL is available, we use it here.
+ * Otherwise the device can be set at runtime with the set_device command.
+ */
+#ifndef DT_CHOSEN_ZEPHYR_FLASH_CONTROLLER_LABEL
+#define DT_CHOSEN_ZEPHYR_FLASH_CONTROLLER_LABEL ""
+#endif
 
 /* Command usage info. */
 #define WRITE_BLOCK_SIZE_HELP \
@@ -84,8 +92,7 @@ LOG_MODULE_REGISTER(app);
 #error Please increase CONFIG_SHELL_ARGC_MAX parameter.
 #endif
 
-static const struct device *flash_device =
-	DEVICE_DT_GET_OR_NULL(DT_CHOSEN(zephyr_flash_controller));
+static const struct device *flash_device;
 
 static int check_flash_device(const struct shell *shell)
 {
@@ -103,7 +110,7 @@ static void dump_buffer(const struct shell *shell, uint8_t *buf, size_t size)
 	uint8_t *p = buf;
 
 	while (size >= 16) {
-		PR_SHELL(shell, "%02x %02x %02x %02x | %02x %02x %02x %02x | "
+		PR_SHELL(shell, "%02x %02x %02x %02x | %02x %02x %02x %02x |" \
 		       "%02x %02x %02x %02x | %02x %02x %02x %02x\n",
 		       p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7],
 			   p[8], p[9], p[10], p[11], p[12], p[13], p[14], p[15]);
@@ -111,13 +118,13 @@ static void dump_buffer(const struct shell *shell, uint8_t *buf, size_t size)
 		size -= 16;
 	}
 	if (size >= 8) {
-		PR_SHELL(shell, "%02x %02x %02x %02x | %02x %02x %02x %02x | ",
+		PR_SHELL(shell, "%02x %02x %02x %02x | %02x %02x %02x %02x\n",
 		       p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7]);
 		p += 8;
 		size -= 8;
 		newline = true;
 	}
-	if (size >= 4) {
+	if (size > 4) {
 		PR_SHELL(shell, "%02x %02x %02x %02x | ",
 		       p[0], p[1], p[2], p[3]);
 		p += 4;
@@ -727,12 +734,14 @@ static int cmd_set_dev(const struct shell *shell, size_t argc, char **argv)
 
 void main(void)
 {
-	if (device_is_ready(flash_device)) {
-		printk("Found flash controller %s.\n", flash_device->name);
+	flash_device =
+		device_get_binding(DT_CHOSEN_ZEPHYR_FLASH_CONTROLLER_LABEL);
+	if (flash_device) {
+		printk("Found flash controller %s.\n",
+			DT_CHOSEN_ZEPHYR_FLASH_CONTROLLER_LABEL);
 		printk("Flash I/O commands can be run.\n");
 	} else {
-		flash_device = NULL;
-		printk("**Flash controller not ready or not found!**\n");
+		printk("**No flash controller found!**\n");
 		printk("Run set_device <name> to specify one "
 		       "before using other commands.\n");
 	}
@@ -763,4 +772,4 @@ SHELL_STATIC_SUBCMD_SET_CREATE(sub_flash,
 	SHELL_SUBCMD_SET_END /* Array terminated. */
 );
 
-SHELL_CMD_REGISTER(flash_sample, &sub_flash, "Flash related commands.", NULL);
+SHELL_CMD_REGISTER(flash, &sub_flash, "Flash related commands.", NULL);

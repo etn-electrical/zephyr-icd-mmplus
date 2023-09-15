@@ -44,12 +44,7 @@
 		led0 = &green_led_3;
 		led1 = &blue_led_4;
 		sw0 = &user_button;
-		watchdog0 = &iwdg;
 	};
-};
-
-&clk_lsi {
-	status = "okay";
 };
 
 &clk_hse {
@@ -97,7 +92,7 @@
 
 		boot_partition: partition@0 {
 			label = "mcuboot";
-			reg = <0x00000000 DT_SIZE_K(8)>;
+			reg = <0x00000000 0x00002000>;
 			read-only;
 		};
 
@@ -108,29 +103,19 @@
 
 		slot0_partition: partition@4000 {
 			label = "image-0";
-			reg = <0x00004000 DT_SIZE_K(16)>;
+			reg = <0x00004000 0x00004000>;
 		};
 		slot1_partition: partition@8000 {
 			label = "image-1";
-			reg = <0x00008000 DT_SIZE_K(16)>;
+			reg = <0x00008000 0x00004000>;
 		};
 		scratch_partition: partition@c000 {
 			label = "image-scratch";
-			reg = <0x0000C000 DT_SIZE_K(16)>;
+			reg = <0x0000C000 0x00004000>;
 		};
 	};
 };
 
 &iwdg {
 	status = "okay";
-};
-
-&rtc {
-	clocks = <&rcc STM32_CLOCK_BUS_APB1 0x10000000>,
-		 <&rcc STM32_SRC_LSI RTC_SEL(2)>;
-	status = "okay";
-
-	backup_regs {
-		status = "okay";
-	};
 };

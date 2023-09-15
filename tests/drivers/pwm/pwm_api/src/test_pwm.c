@@ -6,13 +6,14 @@
 
 /**
  * @file
- * @brief Verify PWM can work well when configure through nsec,
- * or cycle.
+ * @brief Verify PWM can work well when configure through usec,
+ * nsec, or cycle.
  *
  * @details
  * - Test Steps
  *   -# Bind PWM_0 port 0.
- *   -# Set PWM period and pulse using pwm_set_cycles() or pwm_set().
+ *   -# Set PWM period and pulse using pwm_pin_set_cycles(),
+ *	pwm_pin_set_usec(), or pwm_pin_set_nsec().
  *   -# Use multimeter or other instruments to measure the output
  *	from PWM_OUT_0.
  * - Expected Results
@@ -23,11 +24,11 @@
  *	Always off  ->  Period : Pulse (1 : 0)  ->  0V
  */
 
-#include <zephyr/device.h>
+#include <device.h>
 #include <inttypes.h>
-#include <zephyr/drivers/pwm.h>
-#include <zephyr/kernel.h>
-#include <zephyr/ztest.h>
+#include <drivers/pwm.h>
+#include <zephyr.h>
+#include <ztest.h>
 
 #if DT_NODE_HAS_STATUS(DT_ALIAS(pwm_0), okay)
 #define PWM_DEV_NODE DT_ALIAS(pwm_0)
@@ -55,11 +56,15 @@
 	defined(CONFIG_SOC_MKW41Z4)
 #define DEFAULT_PERIOD_CYCLE 1024
 #define DEFAULT_PULSE_CYCLE 512
+#define DEFAULT_PERIOD_USEC 2000
+#define DEFAULT_PULSE_USEC 500
 #define DEFAULT_PERIOD_NSEC 2000000
 #define DEFAULT_PULSE_NSEC 500000
 #else
 #define DEFAULT_PERIOD_CYCLE 64000
 #define DEFAULT_PULSE_CYCLE 32000
+#define DEFAULT_PERIOD_USEC 2000
+#define DEFAULT_PULSE_USEC 1000
 #define DEFAULT_PERIOD_NSEC 2000000
 #define DEFAULT_PULSE_NSEC 1000000
 #endif
@@ -90,7 +95,8 @@
 #endif
 
 #define UNIT_CYCLES	0
-#define UNIT_NSECS	1
+#define UNIT_USECS	1
+#define UNIT_NSECS	2
 
 const struct device *get_pwm_device(void)
 {
@@ -110,14 +116,20 @@ static int test_task(uint32_t port, uint32_t period, uint32_t pulse, uint8_t uni
 	}
 
 	if (unit == UNIT_CYCLES) {
-		/* Verify pwm_set_cycles() */
-		if (pwm_set_cycles(pwm_dev, port, period, pulse, 0)) {
+		/* Verify pwm_pin_set_cycles() */
+		if (pwm_pin_set_cycles(pwm_dev, port, period, pulse, 0)) {
+			TC_PRINT("Fail to set the period and pulse width\n");
+			return TC_FAIL;
+		}
+	} else if (unit == UNIT_USECS) {
+		/* Verify pwm_pin_set_usec() */
+		if (pwm_pin_set_usec(pwm_dev, port, period, pulse, 0)) {
 			TC_PRINT("Fail to set the period and pulse width\n");
 			return TC_FAIL;
 		}
 	} else { /* unit == UNIT_NSECS */
-		/* Verify pwm_set() */
-		if (pwm_set(pwm_dev, port, period, pulse, 0)) {
+		/* Verify pwm_pin_set_nsec() */
+		if (pwm_pin_set_nsec(pwm_dev, port, period, pulse, 0)) {
 			TC_PRINT("Fail to set the period and pulse width\n");
 			return TC_FAIL;
 		}
@@ -126,7 +138,25 @@ static int test_task(uint32_t port, uint32_t period, uint32_t pulse, uint8_t uni
 	return TC_PASS;
 }
 
-ZTEST_USER(pwm_basic, test_pwm_nsec)
+void test_pwm_usec(void)
+{
+	/* Period : Pulse (2000 : 1000), unit (usec). Voltage : 1.65V */
+	zassert_true(test_task(DEFAULT_PWM_PORT, DEFAULT_PERIOD_USEC,
+				DEFAULT_PULSE_USEC, UNIT_USECS) == TC_PASS, NULL);
+	k_sleep(K_MSEC(1000));
+
+	/* Period : Pulse (2000 : 2000), unit (usec). Voltage : 3.3V */
+	zassert_true(test_task(DEFAULT_PWM_PORT, DEFAULT_PERIOD_USEC,
+				DEFAULT_PERIOD_USEC, UNIT_USECS) == TC_PASS, NULL);
+	k_sleep(K_MSEC(1000));
+
+	/* Period : Pulse (2000 : 0), unit (usec). Voltage : 0V */
+	zassert_true(test_task(DEFAULT_PWM_PORT, DEFAULT_PERIOD_USEC,
+				0, UNIT_USECS) == TC_PASS, NULL);
+	k_sleep(K_MSEC(1000));
+}
+
+void test_pwm_nsec(void)
 {
 	/* Period : Pulse (2000000 : 1000000), unit (nsec). Voltage : 1.65V */
 	zassert_true(test_task(DEFAULT_PWM_PORT, DEFAULT_PERIOD_NSEC,
@@ -144,7 +174,7 @@ ZTEST_USER(pwm_basic, test_pwm_nsec)
 	k_sleep(K_MSEC(1000));
 }
 
-ZTEST_USER(pwm_basic, test_pwm_cycle)
+void test_pwm_cycle(void)
 {
 	/* Period : Pulse (64000 : 32000), unit (cycle). Voltage : 1.65V */
 	zassert_true(test_task(DEFAULT_PWM_PORT, DEFAULT_PERIOD_CYCLE,

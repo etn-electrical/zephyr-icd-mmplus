@@ -4,11 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/device.h>
-#include <zephyr/init.h>
-#include <zephyr/kernel.h>
+#include <device.h>
+#include <init.h>
+#include <kernel.h>
+#include <drivers/pinmux.h>
 #include <soc.h>
-#include <zephyr/sys/sys_io.h>
+#include <sys/sys_io.h>
 
 #define IOMUX_MAIN_INSEL	(0x68 >> 2)
 #define IOMUX_MAIN_OUTSEL	(0x70 >> 2)
@@ -40,7 +41,7 @@ static void arm_musca_b1_pinmux_defaults(void)
 	scc[IOMUX_ALTF1_OUTSEL] = 0xffff;
 	scc[IOMUX_ALTF1_OENSEL] = 0xffff;
 
-#if DT_NODE_HAS_STATUS(DT_NODELABEL(uart0), okay)
+#if defined(CONFIG_UART_PL011_PORT0)
 	/* clear bit 0/1 for GPIO0/1 to steer from ALTF1 */
 	scc[IOMUX_MAIN_INSEL] &= ~(BIT(0) | BIT(1));
 	scc[IOMUX_MAIN_OUTSEL] &= ~(BIT(0) | BIT(1));

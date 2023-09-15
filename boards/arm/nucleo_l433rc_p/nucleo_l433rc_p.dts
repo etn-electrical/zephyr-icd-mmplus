@@ -43,10 +43,6 @@
 	};
 };
 
-&clk_lsi {
-	status = "okay";
-};
-
 &clk_hsi {
 	status = "okay";
 };
@@ -121,8 +117,10 @@
 };
 
 &rtc {
-	clocks = <&rcc STM32_CLOCK_BUS_APB1 0x10000000>,
-		 <&rcc STM32_SRC_LSI RTC_SEL(2)>;
+	status = "okay";
+};
+
+&lptim1 {
 	status = "okay";
 };
 
@@ -137,7 +135,7 @@
 		 */
 		storage_partition: partition@3c000 {
 			label = "storage";
-			reg = <0x0003c000 DT_SIZE_K(16)>;
+			reg = <0x0003c000 0x00004000>;
 		};
 	};
 };

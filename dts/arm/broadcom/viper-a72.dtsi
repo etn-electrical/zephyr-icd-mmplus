@@ -5,7 +5,7 @@
  */
 
 #include <arm/armv8-a.dtsi>
-#include <zephyr/dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
 
 #include "viper-common.dtsi"
 
@@ -32,6 +32,7 @@
 			      IRQ_DEFAULT_PRIORITY>,
 			     <GIC_PPI 10 IRQ_TYPE_LEVEL
 			      IRQ_DEFAULT_PRIORITY>;
+		label = "arch_timer";
 	};
 
 	soc {
@@ -41,6 +42,7 @@
 			      <0x42780000 0x600000>;
 			interrupt-controller;
 			#interrupt-cells = <4>;
+			label = "GIC";
 			status = "okay";
 		};
 	};

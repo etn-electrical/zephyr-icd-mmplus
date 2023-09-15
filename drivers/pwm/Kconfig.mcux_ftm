@@ -5,9 +5,7 @@
 
 config PWM_MCUX_FTM
 	bool "MCUX FTM PWM driver"
-	default y
-	depends on DT_HAS_NXP_KINETIS_FTM_PWM_ENABLED
-	select PINCTRL
+	depends on HAS_MCUX_FTM
 	help
 	  Enable support for mcux ftm pwm driver.
 

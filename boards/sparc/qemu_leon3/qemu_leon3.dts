@@ -6,7 +6,7 @@
 
 /dts-v1/;
 
-#include <gaisler/leon3soc.dtsi>
+#include <leon3soc.dtsi>
 
 / {
 	chosen {

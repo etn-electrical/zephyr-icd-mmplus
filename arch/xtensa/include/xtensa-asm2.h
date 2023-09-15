@@ -6,7 +6,7 @@
 #ifndef ZEPHYR_ARCH_XTENSA_INCLUDE_XTENSA_ASM2_H_
 #define ZEPHYR_ARCH_XTENSA_INCLUDE_XTENSA_ASM2_H_
 
-#include <zephyr/kernel_structs.h>
+#include <kernel_structs.h>
 #include "xtensa-asm2-context.h"
 
 /**

@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
-#include <zephyr/interrupt_util.h>
+#include <ztest.h>
+#include <interrupt_util.h>
 
 #define DURATION	5
 #define HANDLER_TOKEN	0xDEADBEEF
@@ -33,7 +33,7 @@ static void timer_handler(struct k_timer *timer)
  * serviced while interrupts are locked; in addition, this test also verifies
  * that the system timer interrupt is serviced after interrupts are unlocked.
  */
-ZTEST(interrupt_feature, test_prevent_interruption)
+void test_prevent_interruption(void)
 {
 	unsigned int key;
 
@@ -63,5 +63,3 @@ ZTEST(interrupt_feature, test_prevent_interruption)
 
 	k_timer_stop(&irqlock_timer);
 }
-
-ZTEST_SUITE(interrupt_feature, NULL, NULL, NULL, NULL, NULL);

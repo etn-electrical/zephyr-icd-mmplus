@@ -14,12 +14,11 @@ Zephyr Project Documentation
    :caption: Contents
 
    introduction/index.rst
-   develop/index.rst
-   kernel/index.rst
-   services/index.rst
-   build/index.rst
-   connectivity/index.rst
-   hardware/index.rst
+   getting_started/index.rst
    contribute/index.rst
-   project/index.rst
+   development_process/index.rst
+   guides/build/index.rst
+   application/index.rst
+   reference/index.rst
+   guides/index.rst
    security/index.rst

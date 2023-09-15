@@ -18,5 +18,3 @@ supported:
   - watchdog
   - adc
   - dma
-  - nvs
-  - counter

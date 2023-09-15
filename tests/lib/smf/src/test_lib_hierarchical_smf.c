@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
-#include <zephyr/smf.h>
+#include <ztest.h>
+#include <smf.h>
 
 /*
  * Hierarchical Test Transition:
@@ -26,7 +26,7 @@
  */
 
 /*
- * Hierarchical 10 Ancestor State Test Transition:
+ * Hierarchical 10 Ancestor State Test Transistion:
  *
  *	P10_ENTRY --> P09_ENTRY --> ... -- P02_ENTRY --> P01_ENTRY --|
  *                                                                   |
@@ -351,7 +351,7 @@ static const struct smf_state test_states[] = {
 				     NULL),
 };
 
-ZTEST(smf_tests, test_smf_hierarchical)
+void test_smf_hierarchical(void)
 {
 	/* A) Test state transitions */
 

@@ -6,20 +6,18 @@
 
 #define DT_DRV_COMPAT nxp_imx_iuart
 
-#include <zephyr/device.h>
-#include <zephyr/drivers/uart.h>
-#include <zephyr/drivers/clock_control.h>
-#include <zephyr/irq.h>
+#include <device.h>
+#include <drivers/uart.h>
+#include <drivers/clock_control.h>
 #include <errno.h>
 #include <fsl_uart.h>
-#include <zephyr/drivers/pinctrl.h>
+#include <soc.h>
 
 struct mcux_iuart_config {
 	UART_Type *base;
 	const struct device *clock_dev;
 	clock_control_subsys_t clock_subsys;
 	uint32_t baud_rate;
-	const struct pinctrl_dev_config *pincfg;
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 	void (*irq_config_func)(const struct device *dev);
 #endif
@@ -225,11 +223,6 @@ static int mcux_iuart_init(const struct device *dev)
 	const struct mcux_iuart_config *config = dev->config;
 	uart_config_t uart_config;
 	uint32_t clock_freq;
-	int err;
-
-	if (!device_is_ready(config->clock_dev)) {
-		return -ENODEV;
-	}
 
 	if (clock_control_get_rate(config->clock_dev, config->clock_subsys,
 				   &clock_freq)) {
@@ -242,11 +235,6 @@ static int mcux_iuart_init(const struct device *dev)
 	uart_config.baudRate_Bps = config->baud_rate;
 
 	UART_Init(config->base, &uart_config, clock_freq);
-
-	err = pinctrl_apply_state(config->pincfg, PINCTRL_STATE_DEFAULT);
-	if (err) {
-		return err;
-	}
 
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 	config->irq_config_func(dev);
@@ -285,7 +273,7 @@ static const struct uart_driver_api mcux_iuart_driver_api = {
 			    mcux_iuart_isr, DEVICE_DT_INST_GET(n), 0);	\
 									\
 		irq_enable(DT_INST_IRQ_BY_IDX(n, i, irq));		\
-	} while (false)
+	} while (0)
 #define IUART_MCUX_CONFIG_FUNC(n)					\
 	static void mcux_iuart_config_func_##n(const struct device *dev) \
 	{								\
@@ -311,7 +299,6 @@ static const struct mcux_iuart_config mcux_iuart_##n##_config = {	\
 	.clock_dev = DEVICE_DT_GET(DT_INST_CLOCKS_CTLR(n)),		\
 	.clock_subsys = (clock_control_subsys_t)DT_INST_CLOCKS_CELL(n, name),\
 	.baud_rate = DT_INST_PROP(n, current_speed),			\
-	.pincfg = PINCTRL_DT_INST_DEV_CONFIG_GET(n),			\
 	IRQ_FUNC_INIT							\
 }
 
@@ -329,8 +316,6 @@ static const struct mcux_iuart_config mcux_iuart_##n##_config = {	\
 			    PRE_KERNEL_1,				\
 			    CONFIG_SERIAL_INIT_PRIORITY,		\
 			    &mcux_iuart_driver_api);			\
-									\
-	PINCTRL_DT_INST_DEFINE(n);					\
 									\
 	IUART_MCUX_CONFIG_FUNC(n)					\
 									\

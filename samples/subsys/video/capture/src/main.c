@@ -4,16 +4,20 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/device.h>
+#include <zephyr.h>
+#include <device.h>
 
-#include <zephyr/drivers/video.h>
+#include <drivers/video.h>
 
 #define LOG_LEVEL CONFIG_LOG_DEFAULT_LEVEL
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(main);
 
 #define VIDEO_DEV_SW "VIDEO_SW_GENERATOR"
+
+#if defined(CONFIG_VIDEO_MCUX_CSI)
+#define VIDEO_DEV DT_LABEL(DT_INST(0, nxp_imx_csi))
+#endif
 
 void main(void)
 {
@@ -33,18 +37,20 @@ void main(void)
 	}
 
 	/* But would be better to use a real video device if any */
-#if defined(CONFIG_VIDEO_MCUX_CSI)
-	const struct device *const dev = DEVICE_DT_GET_ONE(nxp_imx_csi);
+#ifdef VIDEO_DEV
+	{
+		const struct device *dev = device_get_binding(VIDEO_DEV);
 
-	if (!device_is_ready(dev)) {
-		LOG_ERR("%s: device not ready.\n", dev->name);
-		return;
+		if (dev == NULL) {
+			LOG_ERR("Video device %s not found, "
+				"fallback to software generator.", VIDEO_DEV);
+		} else {
+			video = dev;
+		}
 	}
-
-	video = dev;
 #endif
 
-	printk("- Device name: %s\n", video->name);
+	printk("- Device name: %s\n", VIDEO_DEV);
 
 	/* Get capabilities */
 	if (video_get_caps(video, VIDEO_EP_OUT, &caps)) {

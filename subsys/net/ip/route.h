@@ -13,11 +13,11 @@
 #ifndef __ROUTE_H
 #define __ROUTE_H
 
-#include <zephyr/kernel.h>
-#include <zephyr/sys/slist.h>
+#include <kernel.h>
+#include <sys/slist.h>
 
-#include <zephyr/net/net_ip.h>
-#include <zephyr/net/net_timeout.h>
+#include <net/net_ip.h>
+#include <net/net_timeout.h>
 
 #include "nbr.h"
 

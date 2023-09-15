@@ -7,17 +7,13 @@
  */
 
 int bt_unicast_client_config(struct bt_audio_stream *stream,
-			     const struct bt_codec *codec);
+		  struct bt_codec *codec);
 
-int bt_unicast_client_qos(struct bt_conn *conn, struct bt_audio_unicast_group *group);
-
-int bt_unicast_client_enable(struct bt_audio_stream *stream,
-			     struct bt_codec_data *meta,
-			     size_t meta_count);
+int bt_unicast_client_enable(struct bt_audio_stream *stream, uint8_t meta_count,
+		  struct bt_codec_data *meta);
 
 int bt_unicast_client_metadata(struct bt_audio_stream *stream,
-			       struct bt_codec_data *meta,
-			       size_t meta_count);
+		    uint8_t meta_count, struct bt_codec_data *meta);
 
 int bt_unicast_client_disable(struct bt_audio_stream *stream);
 
@@ -27,6 +23,10 @@ int bt_unicast_client_stop(struct bt_audio_stream *stream);
 
 int bt_unicast_client_release(struct bt_audio_stream *stream);
 
+bool bt_unicast_client_ep_is_src(const struct bt_audio_ep *ep);
+
+void bt_unicast_client_ep_set_state(struct bt_audio_ep *ep, uint8_t state);
+
 struct net_buf_simple *bt_unicast_client_ep_create_pdu(uint8_t op);
 
 int bt_unicast_client_ep_qos(struct bt_audio_ep *ep, struct net_buf_simple *buf,
@@ -35,4 +35,6 @@ int bt_unicast_client_ep_qos(struct bt_audio_ep *ep, struct net_buf_simple *buf,
 int bt_unicast_client_ep_send(struct bt_conn *conn, struct bt_audio_ep *ep,
 		   struct net_buf_simple *buf);
 
-struct bt_audio_iso *bt_unicast_client_new_audio_iso(void);
+void bt_unicast_client_ep_attach(struct bt_audio_ep *ep, struct bt_audio_stream *stream);
+
+void bt_unicast_client_ep_detach(struct bt_audio_ep *ep, struct bt_audio_stream *stream);

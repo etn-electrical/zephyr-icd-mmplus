@@ -8,7 +8,8 @@
  * @brief Linker script for the HS Development Kit
  */
 
-#include <zephyr/devicetree.h>
+#include <devicetree.h>
+#include <autoconf.h>
 
 /*
  * SRAM base address and size
@@ -19,4 +20,4 @@
 #define SRAM_SIZE		DT_REG_SIZE(DT_CHOSEN(zephyr_sram))
 #endif
 
-#include <zephyr/arch/arc/v2/linker.ld>
+#include <arch/arc/v2/linker.ld>

@@ -4,18 +4,20 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/device.h>
-#include <zephyr/drivers/dma.h>
+#include <device.h>
+#include <drivers/dma.h>
 #include <errno.h>
-#include <zephyr/init.h>
+#include <init.h>
 #include <string.h>
 #include <soc.h>
-#include <zephyr/sys/__assert.h>
+#include <sys/__assert.h>
 #include "dma_pl330.h"
 
 #define LOG_LEVEL CONFIG_DMA_LOG_LEVEL
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(dma_pl330);
+
+#define DEV_NAME(dev) ((dev)->name)
 
 #define BYTE_WIDTH(burst_size) (1 << (burst_size))
 
@@ -561,7 +563,7 @@ static int dma_pl330_initialize(const struct device *dev)
 		k_mutex_init(&channel_cfg->ch_mutex);
 	}
 
-	LOG_INF("Device %s initialized", dev->name);
+	LOG_INF("Device %s initialized", DEV_NAME(dev));
 	return 0;
 }
 

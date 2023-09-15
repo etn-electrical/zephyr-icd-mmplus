@@ -14,6 +14,9 @@
 
 #include "ll_sw/lll.h"
 
+#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_DEBUG_HCI_DRIVER)
+#define LOG_MODULE_NAME bt_ctlr_hal_mayfly
+#include "common/log.h"
 #include "hal/debug.h"
 
 #define MAYFLY_CALL_ID_LLL    TICKER_USER_ID_LLL
@@ -24,26 +27,12 @@ void mayfly_enable_cb(uint8_t caller_id, uint8_t callee_id, uint8_t enable)
 {
 	(void)caller_id;
 
-	switch (callee_id) {
-	case MAYFLY_CALL_ID_WORKER:
-		if (enable) {
-			irq_enable(HAL_SWI_WORKER_IRQ);
-		} else {
-			irq_disable(HAL_SWI_WORKER_IRQ);
-		}
-		break;
+	LL_ASSERT(callee_id == MAYFLY_CALL_ID_JOB);
 
-	case MAYFLY_CALL_ID_JOB:
-		if (enable) {
-			irq_enable(HAL_SWI_JOB_IRQ);
-		} else {
-			irq_disable(HAL_SWI_JOB_IRQ);
-		}
-		break;
-
-	default:
-		LL_ASSERT(0);
-		break;
+	if (enable) {
+		irq_enable(HAL_SWI_JOB_IRQ);
+	} else {
+		irq_disable(HAL_SWI_JOB_IRQ);
 	}
 }
 
@@ -71,15 +60,7 @@ uint32_t mayfly_is_enabled(uint8_t caller_id, uint8_t callee_id)
 
 uint32_t mayfly_prio_is_equal(uint8_t caller_id, uint8_t callee_id)
 {
-	return 0 ||
-#if defined(CONFIG_BT_CTLR_ZLI)
-		((caller_id != MAYFLY_CALL_ID_LLL) &&
-		 (callee_id != MAYFLY_CALL_ID_LLL) &&
-		 (caller_id == callee_id)) ||
-		((caller_id == MAYFLY_CALL_ID_LLL) &&
-		 (caller_id == callee_id)) ||
-#else /* !CONFIG_BT_CTLR_ZLI */
-		(caller_id == callee_id) ||
+	return (caller_id == callee_id) ||
 #if (CONFIG_BT_CTLR_LLL_PRIO == CONFIG_BT_CTLR_ULL_HIGH_PRIO)
 	       ((caller_id == MAYFLY_CALL_ID_LLL) &&
 		(callee_id == MAYFLY_CALL_ID_WORKER)) ||
@@ -92,7 +73,6 @@ uint32_t mayfly_prio_is_equal(uint8_t caller_id, uint8_t callee_id)
 	       ((caller_id == MAYFLY_CALL_ID_JOB) &&
 		(callee_id == MAYFLY_CALL_ID_LLL)) ||
 #endif
-#endif /* !CONFIG_BT_CTLR_ZLI */
 #if (CONFIG_BT_CTLR_ULL_HIGH_PRIO == CONFIG_BT_CTLR_ULL_LOW_PRIO)
 	       ((caller_id == MAYFLY_CALL_ID_WORKER) &&
 		(callee_id == MAYFLY_CALL_ID_JOB)) ||
@@ -123,9 +103,4 @@ void mayfly_pend(uint8_t caller_id, uint8_t callee_id)
 		LL_ASSERT(0);
 		break;
 	}
-}
-
-uint32_t mayfly_is_running(void)
-{
-	return k_is_in_isr();
 }

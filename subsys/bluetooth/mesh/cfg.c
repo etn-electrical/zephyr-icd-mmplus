@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/bluetooth/mesh.h>
-#include <zephyr/bluetooth/bluetooth.h>
+#include <bluetooth/mesh.h>
+#include <bluetooth/bluetooth.h>
 
 #include "mesh.h"
 #include "net.h"
@@ -17,9 +17,9 @@
 #include "cfg.h"
 #include "adv.h"
 
-#define LOG_LEVEL CONFIG_BT_MESH_CFG_LOG_LEVEL
-#include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(bt_mesh_cfg);
+#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_MESH_DEBUG_CFG)
+#define LOG_MODULE_NAME bt_mesh_cfg
+#include "common/log.h"
 
 /* Miscellaneous configuration server model states */
 struct cfg_val {
@@ -301,13 +301,13 @@ static int cfg_set(const char *name, size_t len_rd,
 	int err;
 
 	if (len_rd == 0) {
-		LOG_DBG("Cleared configuration state");
+		BT_DBG("Cleared configuration state");
 		return 0;
 	}
 
 	err = bt_mesh_settings_set(read_cb, cb_arg, &cfg, sizeof(cfg));
 	if (err) {
-		LOG_ERR("Failed to set \'cfg\'");
+		BT_ERR("Failed to set \'cfg\'");
 		return err;
 	}
 
@@ -318,7 +318,7 @@ static int cfg_set(const char *name, size_t len_rd,
 	bt_mesh_friend_set(cfg.frnd);
 	bt_mesh_default_ttl_set(cfg.default_ttl);
 
-	LOG_DBG("Restored configuration state");
+	BT_DBG("Restored configuration state");
 
 	return 0;
 }
@@ -331,9 +331,9 @@ static void clear_cfg(void)
 
 	err = settings_delete("bt/mesh/Cfg");
 	if (err) {
-		LOG_ERR("Failed to clear configuration");
+		BT_ERR("Failed to clear configuration");
 	} else {
-		LOG_DBG("Cleared configuration");
+		BT_DBG("Cleared configuration");
 	}
 }
 
@@ -352,10 +352,10 @@ static void store_pending_cfg(void)
 
 	err = settings_save_one("bt/mesh/Cfg", &val, sizeof(val));
 	if (err) {
-		LOG_ERR("Failed to store configuration value");
+		BT_ERR("Failed to store configuration value");
 	} else {
-		LOG_DBG("Stored configuration value");
-		LOG_HEXDUMP_DBG(&val, sizeof(val), "raw value");
+		BT_DBG("Stored configuration value");
+		BT_HEXDUMP_DBG(&val, sizeof(val), "raw value");
 	}
 }
 

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/net/ppp.h>
+#include <net/ppp.h>
 
 void ppp_mgmt_raise_carrier_on_event(struct net_if *iface)
 {

@@ -6,27 +6,22 @@
 
 #define DT_DRV_COMPAT litex_dna0
 
-#include <zephyr/drivers/hwinfo.h>
+#include <drivers/hwinfo.h>
 #include <soc.h>
 #include <string.h>
-#include <zephyr/device.h>
-#include <zephyr/sys/util.h>
+#include <device.h>
+#include <sys/util.h>
 
 ssize_t z_impl_hwinfo_get_device_id(uint8_t *buffer, size_t length)
 {
-	uint32_t addr = DT_INST_REG_ADDR(0);
-	ssize_t end = MIN(length, DT_INST_REG_ADDR(0) / 4 *
-			CONFIG_LITEX_CSR_DATA_WIDTH / 8);
+	uint32_t volatile *ptr = (uint32_t volatile *)(DT_INST_REG_ADDR(0));
+	ssize_t end = MIN(length, (DT_INST_REG_SIZE(0) / sizeof(uint32_t)));
+
 	for (int i = 0; i < end; i++) {
-#if CONFIG_LITEX_CSR_DATA_WIDTH == 8
-		buffer[i] = litex_read8(addr);
-		addr += 4;
-#elif CONFIG_LITEX_CSR_DATA_WIDTH == 32
-		buffer[i] = (uint8_t)(litex_read32(addr) >> (addr % 4 * 8));
-		addr += 1;
-#else
-#error Unsupported CSR data width
-#endif
+		/* In LiteX even though registers are 32-bit wide, each one
+		   contains meaningful data only in the lowest 8 bits */
+		buffer[i] = (uint8_t)(ptr[i] & 0xff);
 	}
+
 	return end;
 }

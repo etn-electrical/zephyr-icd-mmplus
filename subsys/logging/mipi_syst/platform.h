@@ -7,13 +7,11 @@
 #ifndef MIPI_SYST_PLATFORM_INCLUDED
 #define MIPI_SYST_PLATFORM_INCLUDED
 
-#include <zephyr/logging/log_output.h>
+#include <logging/log_output.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#define MIPI_SYST_PCFG_PRINTF_ARGBUF_SIZE CONFIG_LOG_MIPI_SYST_ARGS_BUFFER_SIZE
 
 #if defined(CONFIG_MIPI_SYST_STP)
 /*

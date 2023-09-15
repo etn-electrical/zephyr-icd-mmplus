@@ -6,8 +6,7 @@
 
 /dts-v1/;
 
-#include "nsim-smp.dtsi"
-#include "nsim-flat-mem.dtsi"
+#include "nsim.dtsi"
 
 / {
 	model = "snps,nsim_hs";

@@ -1,20 +1,21 @@
 common:
-  tags: kernel workqueue
+  tags: kernel
 
 tests:
-  kernel.workqueue.critical:
+  kernel.workqueue:
     platform_exclude: nsim_sem_mpu_stack_guard
     filter: not CONFIG_WDT_SAM
-  kernel.workqueue.critical.sam:
+  kernel.workqueue.sam:
     filter: CONFIG_WDT_SAM
     extra_configs:
-      - CONFIG_WDT_DISABLE_AT_BOOT=y
-  kernel.workqueue.critical.nsim:
+     - CONFIG_WDT_DISABLE_AT_BOOT=y
+  kernel.workqueue.nsim:
     platform_allow: nsim_sem_mpu_stack_guard
     extra_configs:
       - CONFIG_TEST_HW_STACK_PROTECTION=n
-  kernel.workqueue.critical.linker_generator:
+  kernel.workqueue.linker_generator:
     platform_allow: qemu_cortex_m3
-    tags: linker_generator
+    filter: not CONFIG_WDT_SAM
+    tags:  linker_generator
     extra_configs:
       - CONFIG_CMAKE_LINKER_GENERATOR=y

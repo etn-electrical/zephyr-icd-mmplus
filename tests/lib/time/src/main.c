@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
+#include <ztest.h>
 #include <time.h>
 
-ZTEST(libc_time, test_time_passing)
+static void test_time_passing(void)
 {
 	time_t time_initial_unaligned;
 	time_t time_initial;
@@ -41,7 +41,7 @@ ZTEST(libc_time, test_time_passing)
 	}
 }
 
-ZTEST(libc_time, test_time_param)
+static void test_time_param(void)
 {
 	time_t time_result;
 	time_t time_param;
@@ -60,4 +60,11 @@ ZTEST(libc_time, test_time_param)
 	}
 }
 
-ZTEST_SUITE(libc_time, NULL, NULL, NULL, NULL, NULL);
+void test_main(void)
+{
+	ztest_test_suite(libc_time,
+			ztest_unit_test(test_time_passing),
+			ztest_unit_test(test_time_param)
+			);
+	ztest_run_test_suite(libc_time);
+}

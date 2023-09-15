@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/shell/shell.h>
+#include <kernel.h>
+#include <shell/shell.h>
 
 #include "eswifi.h"
 

@@ -9,11 +9,11 @@
 #include <zephyr/types.h>
 #include <stddef.h>
 #include <string.h>
-#include <zephyr/sys/printk.h>
+#include <sys/printk.h>
 
-#include <zephyr/net/buf.h>
+#include <net/buf.h>
 
-#include <zephyr/ztest.h>
+#include <ztest.h>
 
 #define TEST_TIMEOUT K_SECONDS(1)
 
@@ -102,7 +102,7 @@ static const char example_data[] = "0123456789"
 				   "abcdefghijklmnopqrstuvxyz"
 				   "!#¤%&/()=?";
 
-ZTEST(net_buf_tests, test_net_buf_1)
+static void test_net_buf_1(void)
 {
 	struct net_buf *bufs[bufs_pool.buf_count];
 	struct net_buf *buf;
@@ -122,7 +122,7 @@ ZTEST(net_buf_tests, test_net_buf_1)
 		      "Incorrect destroy callback count");
 }
 
-ZTEST(net_buf_tests, test_net_buf_2)
+static void test_net_buf_2(void)
 {
 	struct net_buf *frag, *head;
 	static struct k_fifo fifo;
@@ -169,7 +169,7 @@ static void test_3_thread(void *arg1, void *arg2, void *arg3)
 
 static K_THREAD_STACK_DEFINE(test_3_thread_stack, 1024);
 
-ZTEST(net_buf_tests, test_net_buf_3)
+static void test_net_buf_3(void)
 {
 	static struct k_thread test_3_thread_data;
 	struct net_buf *frag, *head;
@@ -204,7 +204,7 @@ ZTEST(net_buf_tests, test_net_buf_3)
 		     "Timeout while waiting for semaphore");
 }
 
-ZTEST(net_buf_tests, test_net_buf_4)
+static void test_net_buf_4(void)
 {
 	struct net_buf *frags[bufs_pool.buf_count - 1];
 	struct net_buf *buf, *frag;
@@ -314,7 +314,7 @@ ZTEST(net_buf_tests, test_net_buf_4)
 		      "Incorrect frag destroy callback count");
 }
 
-ZTEST(net_buf_tests, test_net_buf_big_buf)
+static void test_net_buf_big_buf(void)
 {
 	struct net_buf *big_frags[bufs_pool.buf_count];
 	struct net_buf *buf, *frag;
@@ -352,7 +352,7 @@ ZTEST(net_buf_tests, test_net_buf_big_buf)
 	zassert_equal(destroy_called, 2, "Incorrect destroy callback count");
 }
 
-ZTEST(net_buf_tests, test_net_buf_multi_frags)
+static void test_net_buf_multi_frags(void)
 {
 	struct net_buf *frags[bufs_pool.buf_count];
 	struct net_buf *buf;
@@ -405,7 +405,7 @@ ZTEST(net_buf_tests, test_net_buf_multi_frags)
 		      "Incorrect frag destroy callback count");
 }
 
-ZTEST(net_buf_tests, test_net_buf_clone)
+static void test_net_buf_clone(void)
 {
 	struct net_buf *buf, *clone;
 
@@ -424,7 +424,7 @@ ZTEST(net_buf_tests, test_net_buf_clone)
 	zassert_equal(destroy_called, 2, "Incorrect destroy callback count");
 }
 
-ZTEST(net_buf_tests, test_net_buf_fixed_pool)
+static void test_net_buf_fixed_pool(void)
 {
 	struct net_buf *buf;
 
@@ -438,7 +438,7 @@ ZTEST(net_buf_tests, test_net_buf_fixed_pool)
 	zassert_equal(destroy_called, 1, "Incorrect destroy callback count");
 }
 
-ZTEST(net_buf_tests, test_net_buf_var_pool)
+static void test_net_buf_var_pool(void)
 {
 	struct net_buf *buf1, *buf2, *buf3;
 
@@ -461,7 +461,7 @@ ZTEST(net_buf_tests, test_net_buf_var_pool)
 	zassert_equal(destroy_called, 3, "Incorrect destroy callback count");
 }
 
-ZTEST(net_buf_tests, test_net_buf_byte_order)
+static void test_net_buf_byte_order(void)
 {
 	struct net_buf *buf;
 	uint8_t le16[2] = { 0x02, 0x01 };
@@ -684,7 +684,7 @@ ZTEST(net_buf_tests, test_net_buf_byte_order)
 	net_buf_unref(buf);
 }
 
-ZTEST(net_buf_tests, test_net_buf_user_data)
+static void test_net_buf_user_data(void)
 {
 	struct net_buf *buf;
 
@@ -722,4 +722,21 @@ ZTEST(net_buf_tests, test_net_buf_user_data)
 	net_buf_unref(buf);
 }
 
-ZTEST_SUITE(net_buf_tests, NULL, NULL, NULL, NULL, NULL);
+void test_main(void)
+{
+	ztest_test_suite(test_net_buf,
+			 ztest_unit_test(test_net_buf_1),
+			 ztest_unit_test(test_net_buf_2),
+			 ztest_unit_test(test_net_buf_3),
+			 ztest_unit_test(test_net_buf_4),
+			 ztest_unit_test(test_net_buf_big_buf),
+			 ztest_unit_test(test_net_buf_multi_frags),
+			 ztest_unit_test(test_net_buf_clone),
+			 ztest_unit_test(test_net_buf_fixed_pool),
+			 ztest_unit_test(test_net_buf_var_pool),
+			 ztest_unit_test(test_net_buf_byte_order),
+			 ztest_unit_test(test_net_buf_user_data)
+			 );
+
+	ztest_run_test_suite(test_net_buf);
+}

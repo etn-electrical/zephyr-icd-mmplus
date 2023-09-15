@@ -53,10 +53,6 @@
 	};
 };
 
-&clk_lsi {
-	status = "okay";
-};
-
 &clk_hse {
 	clock-frequency = <DT_FREQ_M(16)>;
 	status = "okay";
@@ -128,6 +124,7 @@
 		reset-gpios = <&gpiob 4 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
 		irq-gpios = <&gpiob 1 GPIO_ACTIVE_HIGH>;
 		spi-max-frequency = <2000000>;
+		label = "BT_HCI";
 	};
 };
 
@@ -153,7 +150,7 @@ zephyr_udc0: &usbotg_fs {
 
 		boot_partition: partition@0 {
 			label = "mcuboot";
-			reg = <0x00000000 DT_SIZE_K(32)>;
+			reg = <0x00000000 0x00008000>;
 			read-only;
 		};
 
@@ -165,21 +162,19 @@ zephyr_udc0: &usbotg_fs {
 
 		slot0_partition: partition@20000 {
 			label = "image-0";
-			reg = <0x00020000 DT_SIZE_K(128)>;
+			reg = <0x00020000 0x00020000>;
 		};
 		slot1_partition: partition@40000 {
 			label = "image-1";
-			reg = <0x00040000 DT_SIZE_K(128)>;
+			reg = <0x00040000 0x00020000>;
 		};
 		scratch_partition: partition@60000 {
 			label = "image-scratch";
-			reg = <0x00060000 DT_SIZE_K(128)>;
+			reg = <0x00060000 0x00020000>;
 		};
 	};
 };
 
 &rtc {
-	clocks = <&rcc STM32_CLOCK_BUS_APB1 0x10000000>,
-		 <&rcc STM32_SRC_LSI RTC_SEL(2)>;
 	status = "okay";
 };

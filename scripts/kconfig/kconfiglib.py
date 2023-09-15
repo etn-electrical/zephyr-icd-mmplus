@@ -6202,14 +6202,14 @@ def standard_kconfig(description=None):
     Exits with sys.exit() (which raises SystemExit) on errors.
 
     description (default: None):
-      The 'description' passed to argparse.ArgumentParser(allow_abbrev=False).
+      The 'description' passed to argparse.ArgumentParser().
       argparse.RawDescriptionHelpFormatter is used, so formatting is preserved.
     """
     import argparse
 
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        description=description, allow_abbrev=False)
+        description=description)
 
     parser.add_argument(
         "kconfig",

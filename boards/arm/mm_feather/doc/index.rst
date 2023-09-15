@@ -16,7 +16,8 @@ at:
 - `MadMachine Homepage`_
 - `SwiftIO API Reference`_
 
-.. image:: mm_feather.jpg
+.. image:: ./mm_feather.jpg
+   :width: 720px
    :align: center
    :alt: SwiftIO Feather Board
 
@@ -197,7 +198,7 @@ Flashing
 
 Here is an example for the :ref:`hello_world` application.
 
-Connect a DAPLink debugger from your PC to corresponding SWD pins of SwiftIO Feather.
+Connect a DAPLink debuger from your PC to corresponding SWD pins of SwiftIO Feather.
 
 .. zephyr-app-commands::
    :zephyr-app: samples/hello_world

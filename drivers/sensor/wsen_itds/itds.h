@@ -8,9 +8,9 @@
 #ifndef ZEPHYR_DRIVERS_SENSOR_ITDS_H_
 #define ZEPHYR_DRIVERS_SENSOR_ITDS_H_
 
-#include <zephyr/drivers/gpio.h>
-#include <zephyr/drivers/i2c.h>
-#include <zephyr/sys/util.h>
+#include <drivers/gpio.h>
+#include <drivers/i2c.h>
+#include <sys/util.h>
 
 /* registers */
 #define ITDS_REG_TEMP_L			0x0d
@@ -91,17 +91,20 @@ struct itds_accel_range {
 };
 
 struct itds_device_config {
-	struct i2c_dt_spec i2c;
-#ifdef	CONFIG_ITDS_TRIGGER
-	struct gpio_dt_spec int_gpio;
-#endif
+	const char *bus_name;
+	uint16_t i2c_addr;
+	const char *gpio_port;
+	gpio_pin_t int_pin;
+	gpio_dt_flags_t int_flags;
 	int def_odr;
 	int def_op_mode;
 };
 
 #define ITDS_SAMPLE_SIZE	3
 struct itds_device_data {
+	const struct device *i2c;
 #ifdef	CONFIG_ITDS_TRIGGER
+	const struct device *gpio;
 	struct gpio_callback gpio_cb;
 	struct k_work work;
 #endif

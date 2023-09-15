@@ -37,7 +37,6 @@
 	};
 
 	aliases {
-		pwm-0 = &pwm0;
 		led0 = &user_led;
 		sw0 = &user_button;
 	};
@@ -52,20 +51,10 @@
 	status = "okay";
 };
 
-&pwm0 {
-	pinctrl-0 = <&pwm0_default>;
-	pinctrl-names = "default";
-};
-
 &can0 {
 	pinctrl-0 = <&can0_data_a_tx_default &can0_data_a_rx_default>;
 	pinctrl-names = "default";
 	status = "okay";
-	bus-speed = <125000>;
-
-	can-transceiver {
-		max-bitrate = <5000000>;
-	};
 };
 
 &scif1 {

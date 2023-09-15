@@ -4,13 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr.h>
 #include <stddef.h>
-#include <zephyr/ztest.h>
+#include <ztest.h>
 
-#include <zephyr/bluetooth/bluetooth.h>
-#include <zephyr/bluetooth/hci.h>
-#include <zephyr/bluetooth/direction.h>
+#include <bluetooth/bluetooth.h>
+#include <bluetooth/hci.h>
+#include <bluetooth/direction.h>
 #include <host/hci_core.h>
 
 #include "common.h"
@@ -40,6 +40,7 @@ void common_create_adv_set(void)
 
 	err = bt_le_ext_adv_create(&g_param, NULL, &g_adv);
 	zassert_equal(err, 0, "Failed to create advertiser set");
+	test_state.is_adv_set_created = true;
 }
 
 void common_delete_adv_set(void)
@@ -48,6 +49,7 @@ void common_delete_adv_set(void)
 
 	err = bt_le_ext_adv_delete(g_adv);
 	zassert_equal(err, 0, "Failed to delete advertiser set");
+	test_state.is_adv_set_created = false;
 }
 
 void common_set_cl_cte_tx_params(void)

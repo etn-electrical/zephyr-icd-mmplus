@@ -3,11 +3,11 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#include <zephyr/drivers/counter.h>
-#include <zephyr/drivers/clock_control.h>
-#include <zephyr/drivers/clock_control/nrf_clock_control.h>
+#include <drivers/counter.h>
+#include <drivers/clock_control.h>
+#include <drivers/clock_control/nrf_clock_control.h>
 #include <hal/nrf_rtc.h>
-#include <zephyr/sys/atomic.h>
+#include <sys/atomic.h>
 #ifdef DPPI_PRESENT
 #include <nrfx_dppi.h>
 #else
@@ -15,8 +15,7 @@
 #endif
 
 #define LOG_MODULE_NAME counter_rtc
-#include <zephyr/logging/log.h>
-#include <zephyr/irq.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(LOG_MODULE_NAME, CONFIG_COUNTER_LOG_LEVEL);
 
 #define ERR(...) LOG_INST_ERR( \
@@ -102,6 +101,12 @@ static int get_value(const struct device *dev, uint32_t *ticks)
 	return 0;
 }
 
+/* Return true if value equals 2^n - 1 */
+static inline bool is_bit_mask(uint32_t val)
+{
+	return !(val & (val + 1));
+}
+
 /* Function calculates distance between to values assuming that one first
  * argument is in front and that values wrap.
  */
@@ -110,7 +115,7 @@ static uint32_t ticks_sub(const struct device *dev, uint32_t val,
 {
 	if (IS_FIXED_TOP(dev)) {
 		return (val - old) & COUNTER_MAX_TOP_VALUE;
-	} else if (likely(IS_BIT_MASK(top))) {
+	} else if (likely(is_bit_mask(top))) {
 		return (val - old) & top;
 	}
 
@@ -140,7 +145,7 @@ static uint32_t ticks_add(const struct device *dev, uint32_t val1,
 		ARG_UNUSED(top);
 		return sum & COUNTER_MAX_TOP_VALUE;
 	}
-	if (likely(IS_BIT_MASK(top))) {
+	if (likely(is_bit_mask(top))) {
 		sum = sum & top;
 	} else {
 		sum = sum > top ? sum - (top + 1) : sum;
@@ -242,7 +247,7 @@ static int set_cc(const struct device *dev, uint8_t chan, uint32_t val,
 	now = nrf_rtc_counter_get(rtc);
 
 	/* First take care of a risk of an event coming from CC being set to
-	 * next tick. Reconfigure CC to future (now tick is the furthest
+	 * next tick. Reconfigure CC to future (now tick is the furtherest
 	 * future). If CC was set to next tick we need to wait for up to 15us
 	 * (half of 32k tick) and clean potential event. After that time there
 	 * is no risk of unwanted event.

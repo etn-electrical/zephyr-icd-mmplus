@@ -12,7 +12,7 @@
 /*
  * WARNING: The pin PA7 will conflict on selection of SPI_1 and ETH_STM32_HAL.
  *          If you require both peripherals, and you do not need Arduino Uno v3
- *          compatibility, the pin PB5 (also on ST Zio connector) can be used
+ *          comaptability, the pin PB5 (also on ST Zio connector) can be used
  *          for the SPI_1 MOSI signal.
  */
 
@@ -59,12 +59,7 @@
 		led1 = &blue_led;
 		led2 = &red_led;
 		sw0 = &user_button;
-		watchdog0 = &iwdg;
 	};
-};
-
-&clk_lsi {
-	status = "okay";
 };
 
 &clk_hse {
@@ -75,19 +70,19 @@
 
 &pll {
 	div-m = <4>;
-	mul-n = <216>;
+	mul-n = <72>;
 	div-p = <2>;
-	div-q = <9>;
+	div-q = <3>;
 	clocks = <&clk_hse>;
 	status = "okay";
 };
 
 &rcc {
 	clocks = <&pll>;
-	clock-frequency = <DT_FREQ_M(216)>;
+	clock-frequency = <DT_FREQ_M(72)>;
 	ahb-prescaler = <1>;
-	apb1-prescaler = <4>;
-	apb2-prescaler = <2>;
+	apb1-prescaler = <2>;
+	apb2-prescaler = <1>;
 };
 
 &usart2 {
@@ -153,8 +148,6 @@ zephyr_udc0: &usbotg_fs {
 };
 
 &rtc {
-	clocks = <&rcc STM32_CLOCK_BUS_APB1 0x10000000>,
-		 <&rcc STM32_SRC_LSI RTC_SEL(2)>;
 	status = "okay";
 };
 
@@ -162,6 +155,10 @@ zephyr_udc0: &usbotg_fs {
 	pinctrl-0 = <&can1_rx_pd0 &can1_tx_pd1>;
 	pinctrl-names = "default";
 	bus-speed = <125000>;
+	sjw = <1>;
+	prop-seg = <0>;
+	phase-seg1 = <6>;
+	phase-seg2 = <5>;
 	status = "okay";
 };
 
@@ -207,7 +204,7 @@ zephyr_udc0: &usbotg_fs {
 		 */
 		boot_partition: partition@0 {
 			label = "mcuboot";
-			reg = <0x0 DT_SIZE_K(64)>;
+			reg = <0x0 0x00010000>;
 			read-only;
 		};
 
@@ -218,7 +215,7 @@ zephyr_udc0: &usbotg_fs {
 		 */
 		storage_partition: partition@10000 {
 			label = "storage";
-			reg = <0x00010000 DT_SIZE_K(64)>;
+			reg = <0x00010000 0x00010000>;
 		};
 
 		/*
@@ -230,7 +227,7 @@ zephyr_udc0: &usbotg_fs {
 		 */
 		slot0_partition: partition@40000 {
 			label = "image-0";
-			reg = <0x00040000 DT_SIZE_K(768)>;
+			reg = <0x00040000 0x000C0000>;
 		};
 
 		/*
@@ -238,7 +235,7 @@ zephyr_udc0: &usbotg_fs {
 		 */
 		slot1_partition: partition@100000 {
 			label = "image-1";
-			reg = <0x00100000 DT_SIZE_K(768)>;
+			reg = <0x00100000 0x000C0000>;
 		};
 
 		/*
@@ -246,7 +243,7 @@ zephyr_udc0: &usbotg_fs {
 		 */
 		scratch_partition: partition@1C0000 {
 			label = "image-scratch";
-			reg = <0x001C0000 DT_SIZE_K(256)>;
+			reg = <0x001C0000 0x00040000>;
 		};
 	};
 };

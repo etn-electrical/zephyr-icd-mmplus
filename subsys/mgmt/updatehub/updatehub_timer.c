@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_DECLARE(updatehub, CONFIG_UPDATEHUB_LOG_LEVEL);
 
-#include <zephyr/kernel.h>
+#include <zephyr.h>
 #include "updatehub_timer.h"
 
 static int blk_vars[UPDATEHUB_BLK_MAX_VARS];

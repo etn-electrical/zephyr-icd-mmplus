@@ -6,14 +6,13 @@
 
 #define DT_DRV_COMPAT silabs_gecko_trng
 
- #include <zephyr/drivers/entropy.h>
+ #include <drivers/entropy.h>
  #include <string.h>
  #include "soc.h"
  #include "em_cmu.h"
 
 static void entropy_gecko_trng_read(uint8_t *output, size_t len)
 {
-#ifndef CONFIG_CRYPTO_ACC_GECKO_TRNG
 	uint32_t tmp;
 	uint32_t *data = (uint32_t *) output;
 
@@ -29,9 +28,6 @@ static void entropy_gecko_trng_read(uint8_t *output, size_t len)
 		tmp = TRNG0->FIFO;
 		memcpy(data, (const uint8_t *) &tmp, len);
 	}
-#else
-	memcpy(output, ((const uint8_t *) CRYPTOACC_RNGOUT_FIFO_S_MEM_BASE), len);
-#endif
 }
 
 static int entropy_gecko_trng_get_entropy(const struct device *dev,
@@ -44,11 +40,7 @@ static int entropy_gecko_trng_get_entropy(const struct device *dev,
 	ARG_UNUSED(dev);
 
 	while (length) {
-#ifndef CONFIG_CRYPTO_ACC_GECKO_TRNG
 		available = TRNG0->FIFOLEVEL * 4;
-#else
-		available = CRYPTOACC_RNGCTRL->FIFOLEVEL * 4;
-#endif
 		if (available == 0) {
 			return -EINVAL;
 		}
@@ -71,11 +63,7 @@ static int entropy_gecko_trng_get_entropy_isr(const struct device *dev,
 
 		/* No busy wait; return whatever data is available. */
 		size_t count;
-#ifndef CONFIG_CRYPTO_ACC_GECKO_TRNG
 		size_t available = TRNG0->FIFOLEVEL * 4;
-#else
-		size_t available = CRYPTOACC_RNGCTRL->FIFOLEVEL * 4;
-#endif
 
 		if (available == 0) {
 			return -ENODATA;
@@ -99,19 +87,10 @@ static int entropy_gecko_trng_get_entropy_isr(const struct device *dev,
 static int entropy_gecko_trng_init(const struct device *dev)
 {
 	/* Enable the TRNG0 clock. */
-#ifndef CONFIG_CRYPTO_ACC_GECKO_TRNG
 	CMU_ClockEnable(cmuClock_TRNG0, true);
 
 	/* Enable TRNG0. */
 	TRNG0->CONTROL = TRNG_CONTROL_ENABLE;
-#else
-	/* Enable the CRYPTO ACC clock. */
-	CMU_ClockEnable(cmuClock_CRYPTOACC, true);
-
-	/* Enable TRNG */
-	CRYPTOACC_RNGCTRL->RNGCTRL |= CRYPTOACC_RNGCTRL_ENABLE;
-#endif
-
 	return 0;
 }
 

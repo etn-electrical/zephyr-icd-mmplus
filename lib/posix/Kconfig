@@ -21,7 +21,6 @@ config POSIX_API
 config PTHREAD_IPC
 	bool "POSIX pthread IPC API"
 	default y if POSIX_API
-	depends on POSIX_CLOCK
 	help
 	  This enables a mostly-standards-compliant implementation of
 	  the pthread mutex, condition variable and barrier IPC
@@ -34,27 +33,6 @@ config MAX_PTHREAD_COUNT
 	range 0 255
 	help
 	  Maximum number of simultaneously active threads in a POSIX application.
-
-config MAX_PTHREAD_MUTEX_COUNT
-	int "Maximum simultaneously active mutex count in POSIX application"
-	default 5
-	range 0 255
-	help
-	  Maximum number of simultaneously active mutexes in a POSIX application.
-
-config MAX_PTHREAD_COND_COUNT
-	int "Maximum simultaneously active condition variables in a POSIX application"
-	default 5
-	range 0 255
-	help
-	  Maximum number of simultaneously active condition variables in a POSIX application.
-
-config MAX_PTHREAD_KEY_COUNT
-	int "Maximum simultaneously active keys in a POSIX application"
-	default 5
-	range 0 255
-	help
-	  Maximum number of simultaneously active keys in a POSIX application.
 
 config SEM_VALUE_MAX
 	int "Maximum semaphore limit"
@@ -79,16 +57,8 @@ config MAX_TIMER_COUNT
 	help
 	  Mention maximum number of timers in POSIX compliant application.
 
-config TIMER_CREATE_WAIT
-	int "Time to wait for timer availability (in msec) in POSIX application"
-	default 100
-	range 0 1000
-	help
-	  This controls how long to wait for resources to come available to create
-	  a new timer in POSIX compliant application
-
 config POSIX_MQUEUE
-	bool "POSIX message queue"
+	bool "Enable POSIX message queue"
 	default y if POSIX_API
 	help
 	  This enabled POSIX message queue related APIs.
@@ -117,7 +87,7 @@ config MQUEUE_NAMELEN_MAX
 endif
 
 config POSIX_FS
-	bool "POSIX file system API support"
+	bool "Enable POSIX file system API support"
 	default y if POSIX_API
 	depends on FILE_SYSTEM
 	help
@@ -141,9 +111,8 @@ config APP_LINK_WITH_POSIX_SUBSYS
 	  Add POSIX subsystem header files to the 'app' include path.
 
 config EVENTFD
-	bool "Support for eventfd"
+	bool "Enable support for eventfd"
 	depends on !ARCH_POSIX
-	default y if POSIX_API
 	help
 	  Enable support for event file descriptors, eventfd. An eventfd can
 	  be used as an event wait/notify mechanism together with POSIX calls
@@ -156,10 +125,3 @@ config EVENTFD_MAX
 	range 1 4096
 	help
 	  The maximum number of supported event file descriptors.
-
-config FNMATCH
-	bool "Support for fnmatch"
-	default y if POSIX_API
-	help
-	  Match filenames using the the fnmatch function. For example, the pattern
-	  "*.c" matches the filename "hello.c".

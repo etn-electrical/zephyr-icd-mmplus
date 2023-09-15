@@ -12,7 +12,7 @@
 #ifndef _ARM_BEETLE_SOC_H_
 #define _ARM_BEETLE_SOC_H_
 
-#include <zephyr/sys/util.h>
+#include <sys/util.h>
 
 #ifndef _ASMLANGUAGE
 #include "CMSDK_BEETLE.h"

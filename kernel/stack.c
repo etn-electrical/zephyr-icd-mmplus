@@ -8,15 +8,15 @@
  * @brief fixed-size stack object
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/kernel_structs.h>
+#include <kernel.h>
+#include <kernel_structs.h>
 
-#include <zephyr/toolchain.h>
+#include <toolchain.h>
 #include <ksched.h>
-#include <zephyr/wait_q.h>
-#include <zephyr/sys/check.h>
-#include <zephyr/init.h>
-#include <zephyr/syscall_handler.h>
+#include <wait_q.h>
+#include <sys/check.h>
+#include <init.h>
+#include <syscall_handler.h>
 #include <kernel_internal.h>
 
 void k_stack_init(struct k_stack *stack, stack_data_t *buffer,

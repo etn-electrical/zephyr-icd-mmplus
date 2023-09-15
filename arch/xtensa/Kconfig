@@ -6,6 +6,18 @@
 menu "XTENSA Options"
 	depends on XTENSA
 
+menu "Specific core configuration"
+
+config IRQ_OFFLOAD_INTNUM
+	int "IRQ offload SW interrupt index"
+	help
+	  The index of the software interrupt to be used for IRQ offload.
+
+	  Please note that in order for IRQ offload to work correctly the selected
+	  interrupt shall have its priority shall not exceed XCHAL_EXCM_LEVEL.
+
+endmenu
+
 config ARCH
 	default "xtensa"
 
@@ -44,9 +56,9 @@ config XTENSA_USE_CORE_CRT1
 	  to false.
 
 config XTENSA_ENABLE_BACKTRACE
-	bool "Backtrace on panic exception"
+	bool "Enable backtrace on panic exception"
 	default y
-	depends on SOC_ESP32 || SOC_FAMILY_INTEL_ADSP
+	depends on SOC_ESP32
 	help
 	  Enable this config option to print backtrace on panic exception
 
@@ -56,36 +68,29 @@ config XTENSA_CPU_IDLE_SPIN
 	  Use a spin loop instead of WAITI for the CPU idle state.
 
 config XTENSA_WAITI_BUG
-	bool "Workaround sequence for WAITI bug on LX6"
+	bool "Enable workaround sequence for WAITI bug on LX6"
 	help
 	  SOF traditionally contains this workaround on its ADSP
 	  platforms which prefixes a WAITI entry with 128 NOP
 	  instructions followed by an ISYNC and EXTW.
 
 config XTENSA_SMALL_VECTOR_TABLE_ENTRY
-	bool "Workaround for small vector table entries"
+	bool "Enable workaround for small vector table entries"
 	help
 	  This option enables a small indirection to bypass the size
 	  constraint of the vector table entry and moved the default
 	  handlers to the end of vector table, renaming them to
 	  _Level\LVL\()VectorHelper.
 
-config XTENSA_RPO_CACHE
-	bool "Cached/uncached RPO mapping"
-	help
-	  Support Cached/uncached RPO mapping.
-
-	  A design trick on multi-core hardware is to map memory twice
-	  so that it can be seen in both (incoherent) cached mappings
-	  and a coherent "shared" area.
-
-if XTENSA_RPO_CACHE
 config XTENSA_CACHED_REGION
 	int "Cached RPO mapping"
 	range 0 7
 	help
-	  This specifies which 512M region (0-7, as defined by the Xtensa
-	  Region Protection Option) contains the "cached" mapping.
+	  A design trick on multi-core hardware is to map memory twice
+	  so that it can be seen in both (incoherent) cached mappings
+	  and a coherent "shared" area.  This specifies which 512M
+	  region (0-7, as defined by the Xtensa Region Protection
+	  Option) contains the "cached" mapping.
 
 config XTENSA_UNCACHED_REGION
 	int "Uncached RPO mapping"
@@ -93,14 +98,5 @@ config XTENSA_UNCACHED_REGION
 	help
 	  As for XTENSA_CACHED_REGION, this specifies which 512M
 	  region (0-7) contains the "uncached" mapping.
-
-endif
-
-config XTENSA_CCOUNT_HZ
-	int "CCOUNT cycle rate"
-	default 1000000
-	help
-	  Rate in HZ of the Xtensa core as measured by the value of
-	  the CCOUNT register.
 
 endmenu

@@ -118,7 +118,6 @@ include(${ZEPHYR_BASE}/cmake/linker_script/${ARCH}/linker.cmake OPTIONAL)
 foreach(optional_include_dir
   ${SOC_DIR}/${ARCH}/${SOC_PATH}
   ${SOC_DIR}/${ARCH}/${SOC_PATH}/include
-  ${SOC_DIR}/${ARCH}/${SOC_PATH}/include/${SOC_NAME}
   ${SOC_DIR}/${ARCH}/${SOC_FAMILY}/include
   ${SOC_DIR}/${ARCH}/${SOC_FAMILY}/common/include
   )
@@ -127,51 +126,19 @@ foreach(optional_include_dir
   endif()
 endforeach()
 
-# Don't inherit compiler flags from the environment
-foreach(var AFLAGS CFLAGS CXXFLAGS CPPFLAGS LDFLAGS)
-  if(DEFINED ENV{${var}})
-    message(WARNING "The environment variable '${var}' was set to $ENV{${var}}, "
-                    "but Zephyr ignores flags from the environment. Use 'cmake "
-                    "-DEXTRA_${var}=$ENV{${var}}' instead."
-    )
-    unset(ENV{${var}})
-  endif()
-endforeach()
-
 zephyr_compile_definitions(
   KERNEL
   __ZEPHYR__=1
 )
 
-# Ensure that include/zephyr/toolchain.h includes toolchain/other.h for all off-tree toolchains
+# Ensure that include/toolchain.h includes toolchain/other.h for all off-tree toolchains
 if(TOOLCHAIN_USE_CUSTOM)
   zephyr_compile_definitions(__TOOLCHAIN_CUSTOM__)
 endif()
 
-# @Intent: Set compiler specific flag for disabling strict aliasing rule
-zephyr_compile_options($<$<COMPILE_LANGUAGE:C>:$<TARGET_PROPERTY:compiler,no_strict_aliasing>>)
-zephyr_compile_options($<$<COMPILE_LANGUAGE:CXX>:$<TARGET_PROPERTY:compiler-cpp,no_strict_aliasing>>)
-
-# Extra warnings options for twister run
-if (CONFIG_COMPILER_WARNINGS_AS_ERRORS)
-  zephyr_compile_options($<$<COMPILE_LANGUAGE:C>:$<TARGET_PROPERTY:compiler,warnings_as_errors>>)
-  zephyr_compile_options($<$<COMPILE_LANGUAGE:ASM>:$<TARGET_PROPERTY:asm,warnings_as_errors>>)
-  zephyr_link_libraries($<TARGET_PROPERTY:linker,warnings_as_errors>)
-endif()
-
 # @Intent: Set compiler flags to enable buffer overflow checks in libc functions
-# @details:
-#  Kconfig.zephyr "Detect buffer overflows in libc calls" is a kconfig choice,
-#  ensuring at most *one* of CONFIG_FORTIFY_SOURCE_{COMPILE_TIME,RUN_TIME} is
-#  set. Refer to Kconfig.zephyr for selection logic and description of these
-#  choices. Toolchains set both of the security_fortify_{compile_time,run_time}
-#  properties and the Kconfig settings are used here to select between those.
-#
-if(CONFIG_FORTIFY_SOURCE_RUN_TIME)
-  zephyr_compile_definitions($<TARGET_PROPERTY:compiler,security_fortify_run_time> )
-elseif(CONFIG_FORTIFY_SOURCE_COMPILE_TIME)
-  zephyr_compile_definitions($<TARGET_PROPERTY:compiler,security_fortify_compile_time> )
-endif()
+# @config in CONFIG_NO_OPTIMIZATIONS optional : Optimizations may affect security
+zephyr_compile_definitions($<TARGET_PROPERTY:compiler,security_fortify> )
 
 # @Intent: Set compiler flags to detect general stack overflows across all functions
 if(CONFIG_STACK_CANARIES)
@@ -224,7 +191,7 @@ zephyr_compile_options(${OPTIMIZATION_FLAG})
 zephyr_compile_options($<$<COMPILE_LANGUAGE:CXX>:$<TARGET_PROPERTY:compiler-cpp,required>>)
 
 # @Intent: Obtain compiler specific flags for compiling under different ISO standards of C++
-if(CONFIG_CPP)
+if(CONFIG_CPLUSPLUS)
   # From kconfig choice, pick a single dialect.
   # Kconfig choice ensures only one of these CONFIG_STD_CPP* is set.
   if(CONFIG_STD_CPP98)
@@ -256,12 +223,12 @@ if(CONFIG_CPP)
   zephyr_compile_options($<$<COMPILE_LANGUAGE:CXX>:${STD_CPP_DIALECT_FLAGS}>)
 endif()
 
-if(NOT CONFIG_CPP_EXCEPTIONS)
+if(NOT CONFIG_EXCEPTIONS)
   # @Intent: Obtain compiler specific flags related to C++ Exceptions
   zephyr_compile_options($<$<COMPILE_LANGUAGE:CXX>:$<TARGET_PROPERTY:compiler-cpp,no_exceptions>>)
 endif()
 
-if(NOT CONFIG_CPP_RTTI)
+if(NOT CONFIG_RTTI)
   # @Intent: Obtain compiler specific flags related to C++ Run Time Type Information
   zephyr_compile_options($<$<COMPILE_LANGUAGE:CXX>:$<TARGET_PROPERTY:compiler-cpp,no_rtti>>)
 endif()
@@ -282,16 +249,8 @@ endif()
 # @Intent: Set compiler specific macro inclusion of AUTOCONF_H
 zephyr_compile_options("SHELL: $<TARGET_PROPERTY:compiler,imacros> ${AUTOCONF_H}")
 
-if(NOT CONFIG_PICOLIBC)
-  # @Intent: Set compiler specific flag for bare metal freestanding option
-  zephyr_compile_options($<$<COMPILE_LANGUAGE:C>:$<TARGET_PROPERTY:compiler,freestanding>>)
-  zephyr_compile_options($<$<COMPILE_LANGUAGE:ASM>:$<TARGET_PROPERTY:compiler,freestanding>>)
-endif()
-
-if (CONFIG_PICOLIBC AND NOT CONFIG_PICOLIBC_IO_FLOAT)
-  # @Intent: Set compiler specific flag to disable printf-related optimizations
-  zephyr_compile_options($<$<COMPILE_LANGUAGE:C>:$<TARGET_PROPERTY:compiler,no_printf_return_value>>)
-endif()
+# @Intent: Set compiler specific flag for bare metal freestanding option
+zephyr_compile_options($<TARGET_PROPERTY:compiler,freestanding>)
 
 # @Intent: Set compiler specific flag for tentative definitions, no-common
 zephyr_compile_options($<TARGET_PROPERTY:compiler,no_common>)
@@ -312,10 +271,13 @@ zephyr_compile_options(
 # ToDo: Remember to get feedback from Oticon on this, as they might use the `ASM_BASE_FLAG` since this is done this way.
 zephyr_compile_options($<$<COMPILE_LANGUAGE:ASM>:$<TARGET_PROPERTY:asm,required>>)
 
-# @Intent: Enforce standard integer type correspondence to match Zephyr usage.
+# @Intent: Enforce standard integer type correspondance to match Zephyr usage.
 # (must be after compiler specific flags)
-if(CONFIG_ENFORCE_ZEPHYR_STDINT)
-  zephyr_compile_options("SHELL: $<TARGET_PROPERTY:compiler,imacros> ${ZEPHYR_BASE}/include/zephyr/toolchain/zephyr_stdint.h")
+if(NOT CONFIG_ARCH_POSIX)
+  # `zephyr_stdint.h` is not included for the POSIX (native) arch because it
+  # compiles with the host toolchain/headers and there can be conflicts if we
+  # arbitrarily redefine our own type system (see #37718).
+  zephyr_compile_options("SHELL: $<TARGET_PROPERTY:compiler,imacros> ${ZEPHYR_BASE}/include/toolchain/zephyr_stdint.h")
 endif()
 
 # Common toolchain-agnostic assembly flags
@@ -336,7 +298,7 @@ if(NOT CONFIG_NATIVE_APPLICATION)
   toolchain_ld_baremetal()
 endif()
 
-if(CONFIG_CPP AND NOT CONFIG_MINIMAL_LIBCPP)
+if(CONFIG_LIB_CPLUSPLUS)
   # @Intent: Set linker specific flags for C++
   toolchain_ld_cpp()
 endif()
@@ -376,18 +338,13 @@ zephyr_compile_options($<TARGET_PROPERTY:compiler,warning_extended>)
 zephyr_compile_options($<$<COMPILE_LANGUAGE:C>:$<TARGET_PROPERTY:compiler,warning_error_implicit_int>>)
 zephyr_compile_options($<$<COMPILE_LANGUAGE:CXX>:$<TARGET_PROPERTY:compiler-cpp,warning_error_implicit_int>>)
 
-# @Intent: Do not make position independent code / executable
-zephyr_compile_options($<$<COMPILE_LANGUAGE:C>:$<TARGET_PROPERTY:compiler,no_position_independent>>)
-
 # Allow the user to inject options when calling cmake, e.g.
 # 'cmake -DEXTRA_CFLAGS="-Werror -Wno-deprecated-declarations" ..'
 include(cmake/extra_flags.cmake)
 
 zephyr_cc_option(-fno-asynchronous-unwind-tables)
-
-if(CONFIG_USERSPACE)
-  zephyr_compile_options($<TARGET_PROPERTY:compiler,no_global_merge>)
-endif()
+zephyr_cc_option(-fno-pie)
+zephyr_cc_option(-fno-pic)
 
 if(CONFIG_THREAD_LOCAL_STORAGE)
 # Only support local exec TLS model at this point.
@@ -407,24 +364,13 @@ zephyr_compile_options(${COMPILER_OPT_AS_LIST})
 
 # TODO: Include arch compiler options at this point.
 
-if(NOT CMAKE_C_COMPILER_ID STREQUAL "Clang" AND
-   NOT CMAKE_C_COMPILER_ID STREQUAL "IntelLLVM")
+if(NOT CMAKE_C_COMPILER_ID STREQUAL "Clang")
   # GCC assumed
   zephyr_cc_option(-fno-reorder-functions)
-
-  # GCC 11 and above may generate a warning when dereferencing a constant
-  # address pointer whose address is below the value specified by the
-  # `min-pagesize` parameter (defaults to 0x1000). The `min-pagesize` parameter
-  # is set to 0 such that GCC never generates any warnings for the constant
-  # address pointers. For more details, refer to the GCC PR99578.
-  zephyr_cc_option(--param=min-pagesize=0)
 
   if(NOT ${ZEPHYR_TOOLCHAIN_VARIANT} STREQUAL "xcc")
     zephyr_cc_option(-fno-defer-pop)
   endif()
-else()
-  # Clang produces false positive vla warnings
-  zephyr_cc_option(-Wno-vla)
 endif()
 
 zephyr_cc_option_ifdef(CONFIG_STACK_USAGE            -fstack-usage)
@@ -485,47 +431,12 @@ endif()
 
 if(DEFINED BUILD_VERSION)
   set(build_version_argument "-DBUILD_VERSION=${BUILD_VERSION}")
-elseif(NOT ZEPHYR_GIT_INDEX)
-  set(ZEPHYR_GIT_INDEX ZEPHYR_GIT_INDEX-NOTFOUND CACHE PATH
-    "Path to Zephyr git repository index file")
-  if(EXISTS ${ZEPHYR_BASE}/.git/index)
-    set(ZEPHYR_GIT_DIR ${ZEPHYR_BASE}/.git/index CACHE PATH
-      "Path to Zephyr git repository index file" FORCE)
-  elseif(EXISTS ${ZEPHYR_BASE}/.git)
-    # Likely a git-submodule. Let's ask git where the real database is located.
-    find_package(Git QUIET)
-    if(GIT_FOUND)
-      execute_process(
-        COMMAND ${GIT_EXECUTABLE} rev-parse --absolute-git-dir
-        WORKING_DIRECTORY ${ZEPHYR_BASE}
-        OUTPUT_VARIABLE zephyr_git_dir
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-        ERROR_STRIP_TRAILING_WHITESPACE
-        ERROR_VARIABLE stderr
-        RESULT_VARIABLE return_code)
-      if(return_code)
-        message(WARNING "BUILD_VERSION: git rev-parse failed: ${stderr}")
-      else()
-        if(NOT "${stderr}" STREQUAL "")
-          message(WARNING "BUILD_VERSION: git rev-parse warned: ${stderr}")
-        endif()
-        set(ZEPHYR_GIT_INDEX ${zephyr_git_dir}/index CACHE PATH
-          "Path to Zephyr git repository index file" FORCE)
-      endif()
-    else()
-      message(WARNING "Could not find git installation, "
-        "please specify '-DBUILD_VERSION=<version>'")
-    endif()
-  else()
-    message(WARNING "ZEPHYR_BASE=${ZEPHYR_BASE} doesn't appear to be a git "
-      "repository, please specify '-DBUILD_VERSION=<version>'")
-  endif()
+elseif(EXISTS ${ZEPHYR_BASE}/.git/index)
+  set(git_dependency ${ZEPHYR_BASE}/.git/index)
+else()
+  message(WARNING "ZEPHYR_BASE=${ZEPHYR_BASE} doesn't appear to be a git "
+    "repository, please specify '-DBUILD_VERSION=<version>'")
 endif()
-
-if(ZEPHYR_GIT_INDEX)
-  set(git_dependency ${ZEPHYR_GIT_INDEX})
-endif()
-
 add_custom_command(
   OUTPUT ${PROJECT_BINARY_DIR}/include/generated/version.h
   COMMAND ${CMAKE_COMMAND} -DZEPHYR_BASE=${ZEPHYR_BASE}
@@ -535,6 +446,51 @@ add_custom_command(
   DEPENDS ${ZEPHYR_BASE}/VERSION ${git_dependency}
 )
 add_custom_target(version_h DEPENDS ${PROJECT_BINARY_DIR}/include/generated/version.h)
+
+# Error-out when the deprecated naming convention is found (until
+# after 1.14.0 has been released)
+foreach(path
+    ${BOARD_DIR}/dts.fixup
+    ${PROJECT_SOURCE_DIR}/soc/${ARCH}/${SOC_PATH}/dts.fixup
+    ${APPLICATION_SOURCE_DIR}/dts.fixup
+    )
+  if(EXISTS ${path})
+    message(FATAL_ERROR
+      "A deprecated filename has been detected. Porting is required."
+      "The file '${path}' exists, but it should be named dts_fixup.h instead."
+      "See https://github.com/zephyrproject-rtos/zephyr/pull/10352 for more details"
+      )
+  endif()
+endforeach()
+
+set_ifndef(  DTS_BOARD_FIXUP_FILE                                   ${BOARD_DIR}/dts_fixup.h)
+set_ifndef(    DTS_SOC_FIXUP_FILE                 ${SOC_DIR}/${ARCH}/${SOC_PATH}/dts_fixup.h)
+set(           DTS_APP_FIXUP_FILE                      ${APPLICATION_SOURCE_DIR}/dts_fixup.h)
+
+set_ifndef(DTS_CAT_OF_FIXUP_FILES ${ZEPHYR_BINARY_DIR}/include/generated/devicetree_fixups.h)
+
+# Concatenate the fixups into a single header file for easy
+# #include'ing
+file(WRITE ${DTS_CAT_OF_FIXUP_FILES}.new "/* May only be included by devicetree.h */\n\n")
+set(DISCOVERED_FIXUP_FILES)
+foreach(fixup_file
+    ${DTS_BOARD_FIXUP_FILE}
+    ${DTS_SOC_FIXUP_FILE}
+    ${DTS_APP_FIXUP_FILE}
+    ${shield_dts_fixups}
+    )
+  if(EXISTS ${fixup_file})
+    file(READ ${fixup_file} contents)
+    file(APPEND ${DTS_CAT_OF_FIXUP_FILES}.new "${contents}")
+    string(APPEND DISCOVERED_FIXUP_FILES "- ${fixup_file}\n")
+  endif()
+endforeach()
+zephyr_file_copy(${DTS_CAT_OF_FIXUP_FILES}.new ${DTS_CAT_OF_FIXUP_FILES} ONLY_IF_DIFFERENT)
+file(REMOVE ${DTS_CAT_OF_FIXUP_FILES}.new)
+
+if (DISCOVERED_FIXUP_FILES)
+  message(WARNING "One or more dts_fixup.h files detected:\n${DISCOVERED_FIXUP_FILES}Use of these files is deprecated; use the devicetree.h API instead.")
+endif()
 
 # Unfortunately, the order in which CMakeLists.txt code is processed
 # matters so we need to be careful about how we order the processing
@@ -610,10 +566,10 @@ endif()
 execute_process(
   COMMAND
   ${PYTHON_EXECUTABLE}
-  ${ZEPHYR_BASE}/scripts/build/subfolder_list.py
+  ${ZEPHYR_BASE}/scripts/subfolder_list.py
   --directory        ${ZEPHYR_BASE}/include      # Walk this directory
   --out-file         ${syscalls_subdirs_txt}     # Write file with discovered folder
-  --trigger-file     ${syscalls_subdirs_trigger} # Trigger file that is used for json generation
+  --trigger          ${syscalls_subdirs_trigger} # Trigger file that is used for json generation
   ${syscalls_links}                              # If defined, create symlinks for dependencies
 )
 file(STRINGS ${syscalls_subdirs_txt} PARSE_SYSCALLS_PATHS_DEPENDS ENCODING UTF-8)
@@ -643,10 +599,10 @@ else()
     ${syscalls_subdirs_trigger}
     COMMAND
     ${PYTHON_EXECUTABLE}
-    ${ZEPHYR_BASE}/scripts/build/subfolder_list.py
+    ${ZEPHYR_BASE}/scripts/subfolder_list.py
     --directory        ${ZEPHYR_BASE}/include      # Walk this directory
     --out-file         ${syscalls_subdirs_txt}     # Write file with discovered folder
-    --trigger-file     ${syscalls_subdirs_trigger} # Trigger file that is used for json generation
+    --trigger          ${syscalls_subdirs_trigger} # Trigger file that is used for json generation
     ${syscalls_links}                              # If defined, create symlinks for dependencies
     DEPENDS ${PARSE_SYSCALLS_PATHS_DEPENDS}
   )
@@ -684,7 +640,7 @@ add_custom_command(
   ${struct_tags_json}
   COMMAND
   ${PYTHON_EXECUTABLE}
-  ${ZEPHYR_BASE}/scripts/build/parse_syscalls.py
+  ${ZEPHYR_BASE}/scripts/parse_syscalls.py
    --include          ${ZEPHYR_BASE}/include        # Read files from this dir
    --include          ${ZEPHYR_BASE}/drivers        # For net sockets
    --include          ${ZEPHYR_BASE}/subsys/net     # More net sockets
@@ -694,14 +650,7 @@ add_custom_command(
   DEPENDS ${syscalls_subdirs_trigger} ${PARSE_SYSCALLS_HEADER_DEPENDS}
   )
 
-# Make sure Picolibc is built before the rest of the system; there's no explicit
-# reference to any of the files as they're all picked up by various compiler
-# settings
-if(CONFIG_PICOLIBC_USE_MODULE)
-  set(picolibc_dependency PicolibcBuild)
-endif()
-
-add_custom_target(${SYSCALL_LIST_H_TARGET} DEPENDS ${syscall_list_h} ${picolibc_dependency})
+add_custom_target(${SYSCALL_LIST_H_TARGET} DEPENDS ${syscall_list_h})
 
 set_property(TARGET ${SYSCALL_LIST_H_TARGET}
              APPEND PROPERTY
@@ -723,14 +672,14 @@ if(CONFIG_64BIT)
 endif()
 
 if(CONFIG_TIMEOUT_64BIT)
-  set(SYSCALL_SPLIT_TIMEOUT_ARG --split-type k_timeout_t --split-type k_ticks_t)
+  set(SYSCALL_SPLIT_TIMEOUT_ARG --split-type k_timeout_t)
 endif()
 
 add_custom_command(OUTPUT include/generated/syscall_dispatch.c ${syscall_list_h}
   # Also, some files are written to include/generated/syscalls/
   COMMAND
   ${PYTHON_EXECUTABLE}
-  ${ZEPHYR_BASE}/scripts/build/gen_syscalls.py
+  ${ZEPHYR_BASE}/scripts/gen_syscalls.py
   --json-file        ${syscalls_json}                     # Read this file
   --base-output      include/generated/syscalls           # Write to this dir
   --syscall-dispatch include/generated/syscall_dispatch.c # Write this file
@@ -742,19 +691,19 @@ add_custom_command(OUTPUT include/generated/syscall_dispatch.c ${syscall_list_h}
   )
 
 # This is passed into all calls to the gen_kobject_list.py script.
-set(gen_kobject_list_include_args --include-subsystem-list ${struct_tags_json})
+set(gen_kobject_list_include_args --include ${struct_tags_json})
 
 set(DRV_VALIDATION ${PROJECT_BINARY_DIR}/include/generated/driver-validation.h)
 add_custom_command(
   OUTPUT ${DRV_VALIDATION}
   COMMAND
   ${PYTHON_EXECUTABLE}
-  ${ZEPHYR_BASE}/scripts/build/gen_kobject_list.py
+  ${ZEPHYR_BASE}/scripts/gen_kobject_list.py
   --validation-output ${DRV_VALIDATION}
   ${gen_kobject_list_include_args}
   $<$<BOOL:${CMAKE_VERBOSE_MAKEFILE}>:--verbose>
   DEPENDS
-  ${ZEPHYR_BASE}/scripts/build/gen_kobject_list.py
+  ${ZEPHYR_BASE}/scripts/gen_kobject_list.py
   ${PARSE_SYSCALLS_TARGET}
   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   )
@@ -793,7 +742,7 @@ add_dependencies(zephyr_interface
 
 add_custom_command(
   OUTPUT ${OFFSETS_H_PATH}
-  COMMAND ${PYTHON_EXECUTABLE} ${ZEPHYR_BASE}/scripts/build/gen_offset_header.py
+  COMMAND ${PYTHON_EXECUTABLE} ${ZEPHYR_BASE}/scripts/gen_offset_header.py
   -i $<TARGET_OBJECTS:${OFFSETS_LIB}>
   -o ${OFFSETS_H_PATH}
   DEPENDS
@@ -852,12 +801,6 @@ zephyr_get_include_directories_for_lang(C
   STRIP_PREFIX # Don't use a -I prefix
   )
 
-if(CONFIG_PM_DEVICE_POWER_DOMAIN_DYNAMIC)
-  set(number_of_dynamic_devices ${CONFIG_PM_DEVICE_POWER_DOMAIN_DYNAMIC_NUM})
-else()
-  set(number_of_dynamic_devices 0)
-endif()
-
 if(CONFIG_HAS_DTS)
   # dev_handles.c is generated from ${ZEPHYR_LINK_STAGE_EXECUTABLE} by
   # gen_handles.py
@@ -865,10 +808,8 @@ if(CONFIG_HAS_DTS)
     OUTPUT dev_handles.c
     COMMAND
     ${PYTHON_EXECUTABLE}
-    ${ZEPHYR_BASE}/scripts/build/gen_handles.py
+    ${ZEPHYR_BASE}/scripts/gen_handles.py
     --output-source dev_handles.c
-    --output-graphviz dev_graph.dot
-    --num-dynamic-devices ${number_of_dynamic_devices}
     --kernel $<TARGET_FILE:${ZEPHYR_LINK_STAGE_EXECUTABLE}>
     --zephyr-base ${ZEPHYR_BASE}
     --start-symbol "$<TARGET_PROPERTY:linker,devices_start_symbol>"
@@ -892,8 +833,8 @@ if(CONFIG_USERSPACE)
          NO_COVERAGE_FLAGS "${compiler_flags_priv}"
   )
 
-  set(GEN_KOBJ_LIST ${ZEPHYR_BASE}/scripts/build/gen_kobject_list.py)
-  set(PROCESS_GPERF ${ZEPHYR_BASE}/scripts/build/process_gperf.py)
+  set(GEN_KOBJ_LIST ${ZEPHYR_BASE}/scripts/gen_kobject_list.py)
+  set(PROCESS_GPERF ${ZEPHYR_BASE}/scripts/process_gperf.py)
 endif()
 
 get_property(CSTD GLOBAL PROPERTY CSTD)
@@ -936,29 +877,25 @@ if(CONFIG_USERSPACE)
   set(OBJ_FILE_DIR "${PROJECT_BINARY_DIR}/../")
 
   if(CONFIG_NEWLIB_LIBC)
-    set(LIBC_PART -l libc.a z_libc_partition -l libm.a z_libc_partition)
+    set(NEWLIB_PART -l libc.a z_libc_partition)
   endif()
   if(CONFIG_NEWLIB_LIBC_NANO)
-    set(LIBC_PART -l libc_nano.a z_libc_partition -l libm_nano.a z_libc_partition)
-  endif()
-  if(CONFIG_PICOLIBC)
-    set(LIBC_PART -l libc.a z_libc_partition)
+    set(NEWLIB_PART -l libc_nano.a z_libc_partition)
   endif()
 
   add_custom_command(
     OUTPUT ${APP_SMEM_UNALIGNED_LD} ${APP_SMEM_PINNED_UNALIGNED_LD}
     COMMAND ${PYTHON_EXECUTABLE}
-    ${ZEPHYR_BASE}/scripts/build/gen_app_partitions.py
+    ${ZEPHYR_BASE}/scripts/gen_app_partitions.py
     -f ${CMAKE_BINARY_DIR}/compile_commands.json
     -o ${APP_SMEM_UNALIGNED_LD}
     $<$<BOOL:${APP_SMEM_PINNED_UNALIGNED_LD}>:--pinoutput=${APP_SMEM_PINNED_UNALIGNED_LD}>
     ${APP_SMEM_PINNED_PARTITION_LIST_ARG}
-    ${LIBC_PART}
+    ${NEWLIB_PART}
     $<TARGET_PROPERTY:zephyr_property_target,COMPILE_OPTIONS>
     $<$<BOOL:${CMAKE_VERBOSE_MAKEFILE}>:--verbose>
     DEPENDS
     kernel
-    ${CMAKE_BINARY_DIR}/compile_commands.json
     ${ZEPHYR_LIBS_PROPERTY}
     WORKING_DIRECTORY ${PROJECT_BINARY_DIR}/
     COMMAND_EXPAND_LISTS
@@ -987,12 +924,12 @@ if (CONFIG_USERSPACE)
   add_custom_command(
     OUTPUT ${APP_SMEM_ALIGNED_LD} ${APP_SMEM_PINNED_ALIGNED_LD}
     COMMAND ${PYTHON_EXECUTABLE}
-    ${ZEPHYR_BASE}/scripts/build/gen_app_partitions.py
+    ${ZEPHYR_BASE}/scripts/gen_app_partitions.py
     -e $<TARGET_FILE:${ZEPHYR_LINK_STAGE_EXECUTABLE}>
     -o ${APP_SMEM_ALIGNED_LD}
     $<$<BOOL:${APP_SMEM_PINNED_ALIGNED_LD}>:--pinoutput=${APP_SMEM_PINNED_ALIGNED_LD}>
     ${APP_SMEM_PINNED_PARTITION_LIST_ARG}
-    ${LIBC_PART}
+    ${NEWLIB_PART}
     $<TARGET_PROPERTY:zephyr_property_target,COMPILE_OPTIONS>
     $<$<BOOL:${CMAKE_VERBOSE_MAKEFILE}>:--verbose>
     DEPENDS
@@ -1094,7 +1031,7 @@ if(CONFIG_USERSPACE)
     OUTPUT ${KOBJECT_LINKER_HEADER_DATA}
     COMMAND
     ${PYTHON_EXECUTABLE}
-    ${ZEPHYR_BASE}/scripts/build/gen_kobject_placeholders.py
+    ${ZEPHYR_BASE}/scripts/gen_kobject_placeholders.py
     --object $<TARGET_OBJECTS:kobj_prebuilt_hash_output_lib>
     --outdir ${PROJECT_BINARY_DIR}/include/generated
     --datapct ${CONFIG_KOBJECT_DATA_AREA_RESERVE_EXTRA_PERCENT}
@@ -1179,7 +1116,7 @@ if(CONFIG_GEN_ISR_TABLES)
             $<TARGET_PROPERTY:bintools,elfconvert_flag_outfile>isrList.bin
             $<TARGET_PROPERTY:bintools,elfconvert_flag_final>
     COMMAND ${PYTHON_EXECUTABLE}
-    ${ZEPHYR_BASE}/scripts/build/gen_isr_tables.py
+    ${ZEPHYR_BASE}/arch/common/gen_isr_tables.py
     --output-source isr_tables.c
     --kernel $<TARGET_FILE:${ZEPHYR_LINK_STAGE_EXECUTABLE}>
     --intlist isrList.bin
@@ -1292,7 +1229,6 @@ if(CONFIG_USERSPACE)
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${KOBJECT_HASH_OUTPUT_OBJ_RENAMED}
     COMMAND $<TARGET_PROPERTY:bintools,elfconvert_command>
             $<TARGET_PROPERTY:bintools,elfconvert_flag>
-            $<TARGET_PROPERTY:bintools,elfconvert_flag_section_rename>.literal=.kobject_data.literal
             $<TARGET_PROPERTY:bintools,elfconvert_flag_section_rename>.data=.kobject_data.data
             $<TARGET_PROPERTY:bintools,elfconvert_flag_section_rename>.sdata=.kobject_data.sdata
             $<TARGET_PROPERTY:bintools,elfconvert_flag_section_rename>.text=.kobject_data.text
@@ -1434,7 +1370,7 @@ set(post_build_byproducts "")
 list(APPEND
   post_build_commands
   COMMAND
-  ${CMAKE_COMMAND} -E copy ${logical_target_for_zephyr_elf}.map ${KERNEL_MAP_NAME}
+  ${CMAKE_COMMAND} -E rename ${logical_target_for_zephyr_elf}.map ${KERNEL_MAP_NAME}
 )
 list(APPEND post_build_byproducts ${KERNEL_MAP_NAME})
 
@@ -1481,17 +1417,6 @@ if(CONFIG_BUILD_OUTPUT_ADJUST_LMA)
     )
 endif()
 
-if(NOT CONFIG_CPP_EXCEPTIONS)
-  set(eh_frame_section ".eh_frame")
-else()
-  set(eh_frame_section "")
-endif()
-set(remove_sections_argument_list "")
-foreach(section .comment COMMON ${eh_frame_section})
-  list(APPEND remove_sections_argument_list
-    $<TARGET_PROPERTY:bintools,elfconvert_flag_section_remove>${section})
-endforeach()
-
 if(CONFIG_BUILD_OUTPUT_HEX OR BOARD_FLASH_RUNNER STREQUAL openocd)
   get_property(elfconvert_formats TARGET bintools PROPERTY elfconvert_formats)
   if(ihex IN_LIST elfconvert_formats)
@@ -1501,7 +1426,9 @@ if(CONFIG_BUILD_OUTPUT_HEX OR BOARD_FLASH_RUNNER STREQUAL openocd)
               $<TARGET_PROPERTY:bintools,elfconvert_flag>
               ${GAP_FILL}
               $<TARGET_PROPERTY:bintools,elfconvert_flag_outtarget>ihex
-              ${remove_sections_argument_list}
+              $<TARGET_PROPERTY:bintools,elfconvert_flag_section_remove>.comment
+              $<TARGET_PROPERTY:bintools,elfconvert_flag_section_remove>COMMON
+              $<TARGET_PROPERTY:bintools,elfconvert_flag_section_remove>.eh_frame
               $<TARGET_PROPERTY:bintools,elfconvert_flag_infile>${KERNEL_ELF_NAME}
               $<TARGET_PROPERTY:bintools,elfconvert_flag_outfile>${KERNEL_HEX_NAME}
               $<TARGET_PROPERTY:bintools,elfconvert_flag_final>
@@ -1523,7 +1450,9 @@ if(CONFIG_BUILD_OUTPUT_BIN)
               $<TARGET_PROPERTY:bintools,elfconvert_flag>
               ${GAP_FILL}
               $<TARGET_PROPERTY:bintools,elfconvert_flag_outtarget>binary
-              ${remove_sections_argument_list}
+              $<TARGET_PROPERTY:bintools,elfconvert_flag_section_remove>.comment
+              $<TARGET_PROPERTY:bintools,elfconvert_flag_section_remove>COMMON
+              $<TARGET_PROPERTY:bintools,elfconvert_flag_section_remove>.eh_frame
               $<TARGET_PROPERTY:bintools,elfconvert_flag_infile>${KERNEL_ELF_NAME}
               $<TARGET_PROPERTY:bintools,elfconvert_flag_outfile>${KERNEL_BIN_NAME}
               $<TARGET_PROPERTY:bintools,elfconvert_flag_final>
@@ -1554,7 +1483,7 @@ if(CONFIG_BUILD_OUTPUT_BIN AND CONFIG_BUILD_OUTPUT_UF2)
 
   list(APPEND
     post_build_commands
-    COMMAND ${PYTHON_EXECUTABLE} ${ZEPHYR_BASE}/scripts/build/uf2conv.py
+    COMMAND ${PYTHON_EXECUTABLE} ${ZEPHYR_BASE}/scripts/uf2conv.py
             -c
             -f ${CONFIG_BUILD_OUTPUT_UF2_FAMILY_ID}
             -b ${flash_addr}
@@ -1641,21 +1570,6 @@ if(CONFIG_OUTPUT_DISASSEMBLE_ALL)
     )
 endif()
 
-if(CONFIG_OUTPUT_SYMBOLS)
-  list(APPEND
-    post_build_commands
-    COMMAND $<TARGET_PROPERTY:bintools,symbols_command>
-            $<TARGET_PROPERTY:bintools,symbols_flag>
-            $<TARGET_PROPERTY:bintools,symbols_infile>${KERNEL_ELF_NAME}
-            $<TARGET_PROPERTY:bintools,symbols_outfile>${KERNEL_SYMBOLS_NAME}
-            $<TARGET_PROPERTY:bintools,symbols_final>
-    )
-  list(APPEND
-    post_build_byproducts
-    ${KERNEL_SYMBOLS_NAME}
-    )
-endif()
-
 if(CONFIG_OUTPUT_STAT)
 #  zephyr_post_build(TOOLS bintools COMMAND readelf FLAGS headers INFILE file OUTFILE outfile)
   list(APPEND
@@ -1704,7 +1618,7 @@ endif()
 if(CONFIG_BUILD_OUTPUT_INFO_HEADER)
   list(APPEND
     post_build_commands
-    COMMAND ${PYTHON_EXECUTABLE} ${ZEPHYR_BASE}/scripts/build/gen_image_info.py
+    COMMAND ${PYTHON_EXECUTABLE} ${ZEPHYR_BASE}/scripts/gen_image_info.py
     --elf-file=${KERNEL_ELF_NAME}
     --header-file=${PROJECT_BINARY_DIR}/include/public/zephyr_image_info.h
     $<$<BOOL:${adjustment}>:--adjusted-lma=${adjustment}>
@@ -1718,11 +1632,6 @@ endif()
 # Generate and use MCUboot related artifacts as needed.
 if(CONFIG_BOOTLOADER_MCUBOOT)
   include(${CMAKE_CURRENT_LIST_DIR}/cmake/mcuboot.cmake)
-endif()
-
-# Generate USB-C VIF policies in XML format
-if (CONFIG_BUILD_OUTPUT_VIF)
-  include(${CMAKE_CURRENT_LIST_DIR}/cmake/vif.cmake)
 endif()
 
 get_property(extra_post_build_commands
@@ -1745,28 +1654,22 @@ list(APPEND
   ${extra_post_build_byproducts}
   )
 
-if(CONFIG_LOG_DICTIONARY_DB)
-  set(log_dict_db_output --json=${PROJECT_BINARY_DIR}/log_dictionary.json)
-elseif(CONFIG_LOG_MIPI_SYST_USE_CATALOG)
-  set(log_dict_db_output --syst=${PROJECT_BINARY_DIR}/mipi_syst_collateral.xml)
-endif()
+if(CONFIG_LOG_DICTIONARY_SUPPORT)
+  set(LOG_DICT_DB_NAME ${PROJECT_BINARY_DIR}/log_dictionary.json)
 
-if(log_dict_db_output)
   list(APPEND
     post_build_commands
     COMMAND
     ${PYTHON_EXECUTABLE}
     ${ZEPHYR_BASE}/scripts/logging/dictionary/database_gen.py
     ${KERNEL_ELF_NAME}
-    ${log_dict_db_output}
+    ${LOG_DICT_DB_NAME}
     --build-header ${PROJECT_BINARY_DIR}/include/generated/version.h
     )
   list(APPEND
     post_build_byproducts
     ${LOG_DICT_DB_NAME}
     )
-
-  unset(log_dict_db_output)
 endif()
 
 # Add post_build_commands to post-process the final .elf file produced by
@@ -1795,7 +1698,7 @@ if(HEX_FILES_TO_MERGE)
     OUTPUT ${MERGED_HEX_NAME}
     COMMAND
     ${PYTHON_EXECUTABLE}
-    ${ZEPHYR_BASE}/scripts/build/mergehex.py
+    ${ZEPHYR_BASE}/scripts/mergehex.py
     -o ${MERGED_HEX_NAME}
     ${HEX_FILES_TO_MERGE}
     DEPENDS ${HEX_FILES_TO_MERGE} ${logical_target_for_zephyr_elf}
@@ -1809,14 +1712,10 @@ endif()
 
 if(SUPPORTED_EMU_PLATFORMS)
   list(GET SUPPORTED_EMU_PLATFORMS 0 default_emu)
-  if(EXISTS ${ZEPHYR_BASE}/cmake/emu/${default_emu}.cmake)
-    add_custom_target(run DEPENDS run_${default_emu})
-  endif()
+  add_custom_target(run DEPENDS run_${default_emu})
 
   foreach(EMU_PLATFORM ${SUPPORTED_EMU_PLATFORMS})
-    if(EXISTS ${ZEPHYR_BASE}/cmake/emu/${EMU_PLATFORM}.cmake)
-      include(${ZEPHYR_BASE}/cmake/emu/${EMU_PLATFORM}.cmake)
-    endif()
+    include(${ZEPHYR_BASE}/cmake/emu/${EMU_PLATFORM}.cmake)
   endforeach()
 
   if(TARGET debugserver_${default_emu})
@@ -1883,7 +1782,7 @@ endif()
 zephyr_compile_options($<TARGET_PROPERTY:compiler,nostdinc>)
 target_include_directories(zephyr_interface SYSTEM INTERFACE $<TARGET_PROPERTY:compiler,nostdinc_include>)
 
-if(CONFIG_MINIMAL_LIBCPP)
+if(NOT CONFIG_LIB_CPLUSPLUS)
   zephyr_compile_options($<$<COMPILE_LANGUAGE:CXX>:$<TARGET_PROPERTY:compiler-cpp,nostdincxx>>)
 endif()
 

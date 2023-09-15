@@ -4,21 +4,20 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
-#include <zephyr/kernel.h>
+#include <ztest.h>
+#include <kernel.h>
 #include <pthread.h>
-#include <zephyr/sys/util.h>
+#include <sys/util.h>
 
 #define N_THR 2
 #define N_KEY 2
-#define STACKSZ (1024 + CONFIG_TEST_EXTRA_STACK_SIZE)
+#define STACKSZ (1024 + CONFIG_TEST_EXTRA_STACKSIZE)
 #define BUFFSZ 48
 
 K_THREAD_STACK_ARRAY_DEFINE(stackp, N_THR, STACKSZ);
 
 pthread_key_t key, keys[N_KEY];
-static pthread_once_t key_once = PTHREAD_ONCE_INIT;
-static pthread_once_t keys_once = PTHREAD_ONCE_INIT;
+static pthread_once_t key_once, keys_once;
 
 void *thread_top(void *p1)
 {
@@ -122,7 +121,7 @@ static void make_keys(void)
  * multiple keys.
  */
 
-ZTEST(posix_apis, test_posix_multiple_threads_single_key)
+void test_posix_multiple_threads_single_key(void)
 {
 	int i, ret = -1;
 
@@ -171,7 +170,7 @@ ZTEST(posix_apis, test_posix_multiple_threads_single_key)
 	printk("\n");
 }
 
-ZTEST(posix_apis, test_posix_single_thread_multiple_keys)
+void test_posix_single_thread_multiple_keys(void)
 {
 	int i, ret = -1;
 

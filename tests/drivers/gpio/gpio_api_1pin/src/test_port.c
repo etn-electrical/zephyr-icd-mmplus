@@ -6,7 +6,7 @@
 
 
 #include <limits.h>
-#include <zephyr/sys/util.h>
+#include <sys/util.h>
 #include "test_gpio_api.h"
 
 #define TEST_GPIO_PORT_VALUE_MAX         ((1LLU << GPIO_MAX_PINS_PER_PORT) - 1)
@@ -108,16 +108,16 @@ static void port_set_clr_bits(const struct device *port,
  * - Verify that gpio_port_toggle_bits function changes pin state from active to
  *   inactive and vice versa.
  */
-ZTEST(gpio_api_1pin_port, test_gpio_port_toggle)
+void test_gpio_port_toggle(void)
 {
 	const struct device *port;
 	gpio_port_value_t val_expected;
 	int ret;
 
-	port = DEVICE_DT_GET(TEST_NODE);
-	zassert_true(device_is_ready(port), "GPIO dev is not ready");
+	port = device_get_binding(TEST_DEV);
+	zassert_not_null(port, "device " TEST_DEV " not found");
 
-	TC_PRINT("Running test on port=%s, pin=%d\n", port->name, TEST_PIN);
+	TC_PRINT("Running test on port=%s, pin=%d\n", TEST_DEV, TEST_PIN);
 
 	ret = gpio_pin_configure(port, TEST_PIN, GPIO_OUTPUT | GPIO_INPUT);
 	if (ret == -ENOTSUP) {
@@ -142,7 +142,7 @@ ZTEST(gpio_api_1pin_port, test_gpio_port_toggle)
 	}
 }
 
-ZTEST(gpio_api_1pin_port, test_gpio_port_set_masked_get_raw)
+void test_gpio_port_set_masked_get_raw(void)
 {
 	const struct device *port;
 	int ret;
@@ -163,10 +163,10 @@ ZTEST(gpio_api_1pin_port, test_gpio_port_set_masked_get_raw)
 		0x00000000,
 	};
 
-	port = DEVICE_DT_GET(TEST_NODE);
-	zassert_true(device_is_ready(port), "GPIO dev is not ready");
+	port = device_get_binding(TEST_DEV);
+	zassert_not_null(port, "device " TEST_DEV " not found");
 
-	TC_PRINT("Running test on port=%s, pin=%d\n", port->name, TEST_PIN);
+	TC_PRINT("Running test on port=%s, pin=%d\n", TEST_DEV, TEST_PIN);
 
 	ret = gpio_pin_configure(port, TEST_PIN, GPIO_OUTPUT | GPIO_INPUT);
 	if (ret == -ENOTSUP) {
@@ -182,7 +182,7 @@ ZTEST(gpio_api_1pin_port, test_gpio_port_set_masked_get_raw)
 	}
 }
 
-ZTEST(gpio_api_1pin_port, test_gpio_port_set_masked_get)
+void test_gpio_port_set_masked_get(void)
 {
 	const struct device *port;
 	int ret;
@@ -203,10 +203,10 @@ ZTEST(gpio_api_1pin_port, test_gpio_port_set_masked_get)
 		0x00000000,
 	};
 
-	port = DEVICE_DT_GET(TEST_NODE);
-	zassert_true(device_is_ready(port), "GPIO dev is not ready");
+	port = device_get_binding(TEST_DEV);
+	zassert_not_null(port, "device " TEST_DEV " not found");
 
-	TC_PRINT("Running test on port=%s, pin=%d\n", port->name, TEST_PIN);
+	TC_PRINT("Running test on port=%s, pin=%d\n", TEST_DEV, TEST_PIN);
 
 	ret = gpio_pin_configure(port, TEST_PIN, GPIO_OUTPUT | GPIO_INPUT);
 	if (ret == -ENOTSUP) {
@@ -222,7 +222,7 @@ ZTEST(gpio_api_1pin_port, test_gpio_port_set_masked_get)
 	}
 }
 
-ZTEST(gpio_api_1pin_port, test_gpio_port_set_masked_get_active_high)
+void test_gpio_port_set_masked_get_active_high(void)
 {
 	const struct device *port;
 	int ret;
@@ -244,10 +244,10 @@ ZTEST(gpio_api_1pin_port, test_gpio_port_set_masked_get_active_high)
 		0x00000000,
 	};
 
-	port = DEVICE_DT_GET(TEST_NODE);
-	zassert_true(device_is_ready(port), "GPIO dev is not ready");
+	port = device_get_binding(TEST_DEV);
+	zassert_not_null(port, "device " TEST_DEV " not found");
 
-	TC_PRINT("Running test on port=%s, pin=%d\n", port->name, TEST_PIN);
+	TC_PRINT("Running test on port=%s, pin=%d\n", TEST_DEV, TEST_PIN);
 
 	ret = gpio_pin_configure(port, TEST_PIN, GPIO_OUTPUT | GPIO_INPUT |
 				 GPIO_ACTIVE_HIGH);
@@ -273,7 +273,7 @@ ZTEST(gpio_api_1pin_port, test_gpio_port_set_masked_get_active_high)
 	}
 }
 
-ZTEST(gpio_api_1pin_port, test_gpio_port_set_masked_get_active_low)
+void test_gpio_port_set_masked_get_active_low(void)
 {
 	const struct device *port;
 	int ret;
@@ -295,10 +295,10 @@ ZTEST(gpio_api_1pin_port, test_gpio_port_set_masked_get_active_low)
 		0x00000000,
 	};
 
-	port = DEVICE_DT_GET(TEST_NODE);
-	zassert_true(device_is_ready(port), "GPIO dev is not ready");
+	port = device_get_binding(TEST_DEV);
+	zassert_not_null(port, "device " TEST_DEV " not found");
 
-	TC_PRINT("Running test on port=%s, pin=%d\n", port->name, TEST_PIN);
+	TC_PRINT("Running test on port=%s, pin=%d\n", TEST_DEV, TEST_PIN);
 
 	ret = gpio_pin_configure(port, TEST_PIN, GPIO_OUTPUT | GPIO_INPUT |
 				 GPIO_ACTIVE_LOW);
@@ -324,7 +324,7 @@ ZTEST(gpio_api_1pin_port, test_gpio_port_set_masked_get_active_low)
 	}
 }
 
-ZTEST(gpio_api_1pin_port, test_gpio_port_set_bits_clear_bits_raw)
+void test_gpio_port_set_bits_clear_bits_raw(void)
 {
 	const struct device *port;
 	gpio_port_value_t val_expected = 0;
@@ -339,10 +339,10 @@ ZTEST(gpio_api_1pin_port, test_gpio_port_set_bits_clear_bits_raw)
 		{TEST_GPIO_PORT_VALUE_MAX, TEST_GPIO_PORT_VALUE_MAX},
 	};
 
-	port = DEVICE_DT_GET(TEST_NODE);
-	zassert_true(device_is_ready(port), "GPIO dev is not ready");
+	port = device_get_binding(TEST_DEV);
+	zassert_not_null(port, "device " TEST_DEV " not found");
 
-	TC_PRINT("Running test on port=%s, pin=%d\n", port->name, TEST_PIN);
+	TC_PRINT("Running test on port=%s, pin=%d\n", TEST_DEV, TEST_PIN);
 
 	ret = gpio_pin_configure(port, TEST_PIN, GPIO_OUTPUT | GPIO_INPUT);
 	if (ret == -ENOTSUP) {
@@ -351,8 +351,6 @@ ZTEST(gpio_api_1pin_port, test_gpio_port_set_bits_clear_bits_raw)
 		return;
 	}
 	zassert_equal(ret, 0, "Failed to configure the pin");
-
-	port_clear_bits_raw_and_verify(port, 0xFFFFFFFF, 0);
 
 	for (int i = 0; i < ARRAY_SIZE(test_vector); i++) {
 		port_set_bits_raw_and_verify(port, test_vector[i][0], i);
@@ -365,7 +363,7 @@ ZTEST(gpio_api_1pin_port, test_gpio_port_set_bits_clear_bits_raw)
 	}
 }
 
-ZTEST(gpio_api_1pin_port, test_gpio_port_set_bits_clear_bits)
+void test_gpio_port_set_bits_clear_bits(void)
 {
 	const struct device *port;
 	gpio_port_value_t val_expected = 0;
@@ -380,10 +378,10 @@ ZTEST(gpio_api_1pin_port, test_gpio_port_set_bits_clear_bits)
 		{0x00000000, 0x55555555},
 	};
 
-	port = DEVICE_DT_GET(TEST_NODE);
-	zassert_true(device_is_ready(port), "GPIO dev is not ready");
+	port = device_get_binding(TEST_DEV);
+	zassert_not_null(port, "device " TEST_DEV " not found");
 
-	TC_PRINT("Running test on port=%s, pin=%d\n", port->name, TEST_PIN);
+	TC_PRINT("Running test on port=%s, pin=%d\n", TEST_DEV, TEST_PIN);
 
 	ret = gpio_pin_configure(port, TEST_PIN, GPIO_OUTPUT | GPIO_INPUT);
 	if (ret == -ENOTSUP) {
@@ -404,7 +402,7 @@ ZTEST(gpio_api_1pin_port, test_gpio_port_set_bits_clear_bits)
 	}
 }
 
-ZTEST(gpio_api_1pin_port, test_gpio_port_set_clr_bits_raw)
+void test_gpio_port_set_clr_bits_raw(void)
 {
 	const struct device *port;
 	gpio_port_value_t val_expected = 0;
@@ -421,10 +419,10 @@ ZTEST(gpio_api_1pin_port, test_gpio_port_set_clr_bits_raw)
 		{0x00000000, TEST_GPIO_PORT_VALUE_MAX},
 	};
 
-	port = DEVICE_DT_GET(TEST_NODE);
-	zassert_true(device_is_ready(port), "GPIO dev is not ready");
+	port = device_get_binding(TEST_DEV);
+	zassert_not_null(port, "device " TEST_DEV " not found");
 
-	TC_PRINT("Running test on port=%s, pin=%d\n", port->name, TEST_PIN);
+	TC_PRINT("Running test on port=%s, pin=%d\n", TEST_DEV, TEST_PIN);
 
 	ret = gpio_pin_configure(port, TEST_PIN, GPIO_OUTPUT | GPIO_INPUT);
 	if (ret == -ENOTSUP) {
@@ -442,7 +440,7 @@ ZTEST(gpio_api_1pin_port, test_gpio_port_set_clr_bits_raw)
 	}
 }
 
-ZTEST(gpio_api_1pin_port, test_gpio_port_set_clr_bits)
+void test_gpio_port_set_clr_bits(void)
 {
 	const struct device *port;
 	gpio_port_value_t val_expected = 0;
@@ -458,10 +456,10 @@ ZTEST(gpio_api_1pin_port, test_gpio_port_set_clr_bits)
 		{0x00000000, TEST_GPIO_PORT_VALUE_MAX},
 	};
 
-	port = DEVICE_DT_GET(TEST_NODE);
-	zassert_true(device_is_ready(port), "GPIO dev is not ready");
+	port = device_get_binding(TEST_DEV);
+	zassert_not_null(port, "device " TEST_DEV " not found");
 
-	TC_PRINT("Running test on port=%s, pin=%d\n", port->name, TEST_PIN);
+	TC_PRINT("Running test on port=%s, pin=%d\n", TEST_DEV, TEST_PIN);
 
 	ret = gpio_pin_configure(port, TEST_PIN, GPIO_OUTPUT | GPIO_INPUT);
 	if (ret == -ENOTSUP) {
@@ -478,5 +476,3 @@ ZTEST(gpio_api_1pin_port, test_gpio_port_set_clr_bits)
 		port_get_and_verify(port, BIT(TEST_PIN), val_expected, i);
 	}
 }
-
-ZTEST_SUITE(gpio_api_1pin_port, NULL, NULL, NULL, NULL, NULL);

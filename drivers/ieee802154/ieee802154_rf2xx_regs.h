@@ -1,4 +1,4 @@
-/* ieee802154_rf2xx_regs.h - ATMEL RF2XX transceiver registers */
+/* ieee802154_rf2xx_regs.h - ATMEL RF2XX transceicer registers */
 
 /*
  * Copyright (c) 2019 Gerson Fernando Budke
@@ -23,12 +23,6 @@
 #define RX2XX_FRAME_TRAC_INDEX              4
 #define RF2XX_MAX_PSDU_LENGTH               127
 #define RX2XX_MAX_FRAME_SIZE                132
-
-#define RF2XX_RSSI_BPSK_20                  -100
-#define RF2XX_RSSI_BPSK_40                  -99
-#define RF2XX_RSSI_OQPSK_SIN_RC_100         -98
-#define RF2XX_RSSI_OQPSK_SIN_250            -97
-#define RF2XX_RSSI_OQPSK_RC_250             -97
 
 /*- Types ------------------------------------------------------------------*/
 #define RF2XX_TRX_STATUS_REG                0x01
@@ -100,7 +94,6 @@
 /* TRX_STATE */
 #define RF2XX_TRAC_STATUS                   5
 #define RF2XX_TRX_CMD                       0
-#define RF2XX_TRAC_BIT_MASK                 7
 
 /* TRX_CTRL_0 */
 #define RF2XX_TOM_EN                        7
@@ -155,12 +148,6 @@
 #define RF2XX_BPSK_OQPSK                    3
 #define RF2XX_SUB_MODE                      2
 #define RF2XX_OQPSK_DATA_RATE               0
-#define RF2XX_SUB_CHANNEL_MASK              0x3F
-#define RF2XX_CC_BPSK_20                    0x00
-#define RF2XX_CC_BPSK_40                    0x04
-#define RF2XX_CC_OQPSK_SIN_RC_100           0x08
-#define RF2XX_CC_OQPSK_SIN_250              0x0C
-#define RF2XX_CC_OQPSK_RC_250               0x1C
 
 /* ANT_DIV */
 #define RF2XX_ANT_SEL                       7
@@ -214,7 +201,6 @@
 #define RF2XX_PA_CHIP_LT                    6
 #define RF2XX_F_SHIFT_MODE                  2
 #define RF2XX_GC_TX_OFFS                    0
-#define RF2XX_GC_TX_OFFS_MASK               3
 
 /* XAH_CTRL_1 */
 #define RF2XX_ARET_TX_TS_EN                 7
@@ -296,6 +282,6 @@
 
 /* RX_STATUS */
 #define RF2XX_RX_TRAC_STATUS                4
-#define RF2XX_RX_TRAC_BIT_MASK              RF2XX_TRAC_BIT_MASK
+#define RF2XX_RX_TRAC_BIT_MASK              0x03
 
 #endif /* ZEPHYR_DRIVERS_IEEE802154_IEEE802154_RF2XX_REGS_H_ */

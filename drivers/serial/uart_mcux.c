@@ -8,16 +8,11 @@
 #define DT_DRV_COMPAT nxp_kinetis_uart
 
 #include <errno.h>
-#include <zephyr/device.h>
-#include <zephyr/drivers/uart.h>
-#include <zephyr/drivers/clock_control.h>
-#include <zephyr/irq.h>
+#include <device.h>
+#include <drivers/uart.h>
+#include <drivers/clock_control.h>
 #include <fsl_uart.h>
 #include <soc.h>
-#include <zephyr/pm/device.h>
-#ifdef CONFIG_PINCTRL
-#include <zephyr/drivers/pinctrl.h>
-#endif
 
 struct uart_mcux_config {
 	UART_Type *base;
@@ -25,9 +20,6 @@ struct uart_mcux_config {
 	clock_control_subsys_t clock_subsys;
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 	void (*irq_config_func)(const struct device *dev);
-#endif
-#ifdef CONFIG_PINCTRL
-	const struct pinctrl_dev_config *pincfg;
 #endif
 };
 
@@ -47,10 +39,6 @@ static int uart_mcux_configure(const struct device *dev,
 	uart_config_t uart_config;
 	uint32_t clock_freq;
 	status_t retval;
-
-	if (!device_is_ready(config->clock_dev)) {
-		return -ENODEV;
-	}
 
 	if (clock_control_get_rate(config->clock_dev, config->clock_subsys,
 				   &clock_freq)) {
@@ -211,8 +199,7 @@ static void uart_mcux_irq_tx_enable(const struct device *dev)
 {
 	const struct uart_mcux_config *config = dev->config;
 	uint32_t mask = kUART_TxDataRegEmptyInterruptEnable;
-	config->base->C2 |= UART_C2_TE_MASK;
-	pm_device_busy_set(dev);
+
 	UART_EnableInterrupts(config->base, mask);
 }
 
@@ -220,8 +207,7 @@ static void uart_mcux_irq_tx_disable(const struct device *dev)
 {
 	const struct uart_mcux_config *config = dev->config;
 	uint32_t mask = kUART_TxDataRegEmptyInterruptEnable;
-	config->base->C2 &= ~UART_C2_TE_MASK;
-	pm_device_busy_clear(dev);
+
 	UART_DisableInterrupts(config->base, mask);
 }
 
@@ -319,6 +305,7 @@ static void uart_mcux_irq_callback_set(const struct device *dev,
 static void uart_mcux_isr(const struct device *dev)
 {
 	struct uart_mcux_data *data = dev->data;
+
 	if (data->callback) {
 		data->callback(dev, data->cb_data);
 	}
@@ -327,7 +314,7 @@ static void uart_mcux_isr(const struct device *dev)
 
 static int uart_mcux_init(const struct device *dev)
 {
-#if defined(CONFIG_PINCTRL) || defined(CONFIG_UART_INTERRUPT_DRIVEN)
+#ifdef CONFIG_UART_INTERRUPT_DRIVEN
 	const struct uart_mcux_config *config = dev->config;
 #endif
 	struct uart_mcux_data *data = dev->data;
@@ -338,42 +325,12 @@ static int uart_mcux_init(const struct device *dev)
 		return err;
 	}
 
-#ifdef CONFIG_PINCTRL
-	err = pinctrl_apply_state(config->pincfg, PINCTRL_STATE_DEFAULT);
-	if (err != 0) {
-		return err;
-	}
-#endif
-
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 	config->irq_config_func(dev);
 #endif
 
 	return 0;
 }
-
-#ifdef CONFIG_PM_DEVICE
-static int uart_mcux_pm_action(const struct device *dev, enum pm_device_action action)
-{
-	const struct uart_mcux_config *config = dev->config;
-
-	switch (action) {
-	case PM_DEVICE_ACTION_RESUME:
-		clock_control_on(config->clock_dev, config->clock_subsys);
-		break;
-	case PM_DEVICE_ACTION_SUSPEND:
-		clock_control_off(config->clock_dev, config->clock_subsys);
-		break;
-	case PM_DEVICE_ACTION_TURN_OFF:
-		return 0;
-	case PM_DEVICE_ACTION_TURN_ON:
-		return 0;
-	default:
-		return -ENOTSUP;
-	}
-	return 0;
-}
-#endif /*CONFIG_PM_DEVICE*/
 
 static const struct uart_driver_api uart_mcux_driver_api = {
 	.poll_in = uart_mcux_poll_in,
@@ -401,20 +358,11 @@ static const struct uart_driver_api uart_mcux_driver_api = {
 #endif
 };
 
-#ifdef CONFIG_PINCTRL
-#define PINCTRL_INIT(n) .pincfg = PINCTRL_DT_INST_DEV_CONFIG_GET(n),
-#define PINCTRL_DEFINE(n) PINCTRL_DT_INST_DEFINE(n);
-#else
-#define PINCTRL_DEFINE(n)
-#define PINCTRL_INIT(n)
-#endif
-
 #define UART_MCUX_DECLARE_CFG(n, IRQ_FUNC_INIT)				\
 static const struct uart_mcux_config uart_mcux_##n##_config = {		\
 	.base = (UART_Type *)DT_INST_REG_ADDR(n),			\
 	.clock_dev = DEVICE_DT_GET(DT_INST_CLOCKS_CTLR(n)),		\
 	.clock_subsys = (clock_control_subsys_t)DT_INST_CLOCKS_CELL(n, name),\
-	PINCTRL_INIT(n)							\
 	IRQ_FUNC_INIT							\
 }
 
@@ -446,7 +394,6 @@ static const struct uart_mcux_config uart_mcux_##n##_config = {		\
 #endif
 
 #define UART_MCUX_INIT(n)						\
-	PINCTRL_DEFINE(n)						\
 									\
 	static struct uart_mcux_data uart_mcux_##n##_data = {		\
 		.uart_cfg = {						\
@@ -460,11 +407,10 @@ static const struct uart_mcux_config uart_mcux_##n##_config = {		\
 	};								\
 									\
 	static const struct uart_mcux_config uart_mcux_##n##_config;	\
-	PM_DEVICE_DT_INST_DEFINE(n, uart_mcux_pm_action);\
 									\
 	DEVICE_DT_INST_DEFINE(n,					\
 			    &uart_mcux_init,				\
-			    PM_DEVICE_DT_INST_GET(n),			\
+			    NULL,					\
 			    &uart_mcux_##n##_data,			\
 			    &uart_mcux_##n##_config,			\
 			    PRE_KERNEL_1,				\

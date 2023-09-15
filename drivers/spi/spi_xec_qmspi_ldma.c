@@ -6,31 +6,27 @@
 
 #define DT_DRV_COMPAT microchip_xec_qmspi_ldma
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(spi_xec, CONFIG_SPI_LOG_LEVEL);
 
 #include <errno.h>
-#include <zephyr/device.h>
-#include <zephyr/drivers/clock_control/mchp_xec_clock_control.h>
-#include <zephyr/drivers/gpio.h>
-#include <zephyr/drivers/interrupt_controller/intc_mchp_xec_ecia.h>
-#include <zephyr/drivers/pinctrl.h>
-#include <zephyr/drivers/spi.h>
-#include <zephyr/dt-bindings/interrupt-controller/mchp-xec-ecia.h>
-#include <zephyr/sys/sys_io.h>
-#include <zephyr/sys/util.h>
+#include <device.h>
+#include <drivers/clock_control/mchp_xec_clock_control.h>
+#include <drivers/interrupt_controller/intc_mchp_xec_ecia.h>
+#include <drivers/pinmux.h>
+#include <drivers/spi.h>
+#include <dt-bindings/interrupt-controller/mchp-xec-ecia.h>
+#include <sys/sys_io.h>
+#include <sys/util.h>
 #include <soc.h>
-#include <zephyr/irq.h>
 
 #include "spi_context.h"
 
 /* #define XEC_QMSPI_DEBUG */
 #ifdef XEC_QMSPI_DEBUG
-#include <zephyr/sys/printk.h>
+#include <sys/printk.h>
 #endif
 
-/* common clock control device node for all Microchip XEC chips */
-#define MCHP_XEC_CLOCK_CONTROL_NODE	DT_NODELABEL(pcr)
 
 /* spin loops waiting for HW to clear soft reset bit */
 #define XEC_QMSPI_SRST_LOOPS		16
@@ -83,7 +79,6 @@ struct spi_qmspi_config {
 	uint8_t chip_sel;
 	uint8_t width;	/* 0(half) 1(single), 2(dual), 4(quad) */
 	uint8_t unused[2];
-	const struct pinctrl_dev_config *pcfg;
 	void (*irq_config_func)(void);
 };
 
@@ -93,7 +88,6 @@ struct spi_qmspi_config {
 /* Device run time data */
 struct spi_qmspi_data {
 	struct spi_context ctx;
-	uint32_t base_freq_hz;
 	uint32_t qstatus;
 	uint8_t np; /* number of data pins: 1, 2, or 4 */
 	uint8_t *pd;
@@ -113,6 +107,156 @@ struct xec_qmspi_pin {
 	uint32_t attrib;
 };
 
+/* QMSPI pin tables by port and chip select
+ * MEC172x port 0 (SHD SPI) supports quad and two chip selects
+ * port 1 named PVT(private) supports quad and one chip select
+ * port 2 named GP(general purpose) is internal to the package and supports
+ * one chip select and only two I/O pins.
+ */
+#define XEC_QMSPI_PORT							\
+	DT_PROP_OR(DT_INST(0, microchip_xec_qmspi_ldma), port-sel, 0)
+
+#define XEC_QMSPI_LINES							\
+	DT_PROP_OR(DT_INST(0, microchip_xec_qmspi_ldma), lines, 1)
+
+#define XEC_QMSPI_CS							\
+	DT_PROP_OR(DT_INST(0, microchip_xec_qmspi_ldma), chip-select, 0)
+
+
+#if XEC_QMSPI_PORT == 1
+const struct xec_qmspi_pin xec_qmspi_pin_tbl[] = {
+	{
+		.dev = DEVICE_DT_GET(DT_NODELABEL(pinmux_100_136)),
+		.pin = MCHP_GPIO_124,
+		.attrib = MCHP_GPIO_CTRL_MUX_F1 | MCHP_GPIO_CTRL_BUFT_OPENDRAIN,
+	},
+	{
+		.dev = DEVICE_DT_GET(DT_NODELABEL(pinmux_100_136)),
+		.pin = MCHP_GPIO_125,
+		.attrib = MCHP_GPIO_CTRL_MUX_F1,
+	},
+	{
+		.dev = DEVICE_DT_GET(DT_NODELABEL(pinmux_100_136)),
+		.pin = MCHP_GPIO_121,
+		.attrib = MCHP_GPIO_CTRL_MUX_F1,
+	},
+	{
+		.dev = DEVICE_DT_GET(DT_NODELABEL(pinmux_100_136)),
+		.pin = MCHP_GPIO_122,
+		.attrib = MCHP_GPIO_CTRL_MUX_F1,
+	},
+#if XEC_QMSPI_LINES == 4
+	{
+		.dev = DEVICE_DT_GET(DT_NODELABEL(pinmux_100_136)),
+		.pin = MCHP_GPIO_123,
+		.attrib = MCHP_GPIO_CTRL_MUX_F1,
+	},
+	{
+		.dev = DEVICE_DT_GET(DT_NODELABEL(pinmux_100_136)),
+		.pin = MCHP_GPIO_126,
+		.attrib = MCHP_GPIO_CTRL_MUX_F1,
+	},
+#endif
+};
+#elif XEC_QMSPI_PORT == 2
+
+/*
+ * MEC172x packages with internal SPI flash use SST25PF040C which does not
+ * support quad operation. The WP#(IO2) and HOLD#(IO3) are not pulled high
+ * internally. We must drive them high.
+ */
+const struct xec_qmspi_pin xec_qmspi_pin_tbl[] = {
+	{
+		.dev = DEVICE_DT_GET(DT_NODELABEL(pinmux_100_036)),
+		.pin = MCHP_GPIO_116,
+		.attrib = MCHP_GPIO_CTRL_MUX_F1 | MCHP_GPIO_CTRL_PUD_PU,
+	},
+	{
+		.dev = DEVICE_DT_GET(DT_NODELABEL(pinmux_100_136)),
+		.pin = MCHP_GPIO_117,
+		.attrib = MCHP_GPIO_CTRL_MUX_F1,
+	},
+	{
+		.dev = DEVICE_DT_GET(DT_NODELABEL(pinmux_040_076)),
+		.pin = MCHP_GPIO_074,
+		.attrib = MCHP_GPIO_CTRL_MUX_F1,
+	},
+	{
+		.dev = DEVICE_DT_GET(DT_NODELABEL(pinmux_040_076)),
+		.pin = MCHP_GPIO_075,
+		.attrib = MCHP_GPIO_CTRL_MUX_F1,
+	},
+	{ /* IO2 = WP# */
+		.dev = DEVICE_DT_GET(DT_NODELABEL(pinmux_040_076)),
+		.pin = MCHP_GPIO_076,
+		.attrib = MCHP_GPIO_CTRL_MUX_GPIO | MCHP_GPIO_CTRL_OUTV_HI,
+	},
+	{ /* IO3 = HOLD# */
+		.dev = DEVICE_DT_GET(DT_NODELABEL(pinmux_000_036)),
+		.pin = MCHP_GPIO_034,
+		.attrib = MCHP_GPIO_CTRL_MUX_GPIO | MCHP_GPIO_CTRL_OUTV_HI,
+	}
+};
+#else /* default to port 0 SHD_SPI */
+const struct xec_qmspi_pin xec_qmspi_pin_tbl[] = {
+#if XEC_QMSPI_CS == 0
+	{
+		.dev = DEVICE_DT_GET(DT_NODELABEL(pinmux_040_076)),
+		.pin = MCHP_GPIO_055,
+		.attrib = MCHP_GPIO_CTRL_MUX_F2 | MCHP_GPIO_CTRL_BUFT_OPENDRAIN,
+	},
+#else
+	{
+		.dev = DEVICE_DT_GET(DT_NODELABEL(pinmux_000_036)),
+		.pin = MCHP_GPIO_002,
+		.attrib = MCHP_GPIO_CTRL_MUX_F2 | MCHP_GPIO_CTRL_BUFT_OPENDRAIN,
+	},
+#endif
+	{
+		.dev = DEVICE_DT_GET(DT_NODELABEL(pinmux_040_076)),
+		.pin = MCHP_GPIO_056,
+		.attrib = MCHP_GPIO_CTRL_MUX_F2,
+	},
+	{
+		.dev = DEVICE_DT_GET(DT_NODELABEL(pinmux_200_236)),
+		.pin = MCHP_GPIO_223,
+		.attrib = MCHP_GPIO_CTRL_MUX_F1,
+	},
+	{
+		.dev = DEVICE_DT_GET(DT_NODELABEL(pinmux_200_236)),
+		.pin = MCHP_GPIO_224,
+		.attrib = MCHP_GPIO_CTRL_MUX_F2,
+	},
+#if XEC_QMSPI_LINES == 4
+	{
+		.dev = DEVICE_DT_GET(DT_NODELABEL(pinmux_200_236)),
+		.pin = MCHP_GPIO_227,
+		.attrib = MCHP_GPIO_CTRL_MUX_F1,
+	},
+	{
+		.dev = DEVICE_DT_GET(DT_NODELABEL(pinmux_000_036)),
+		.pin = MCHP_GPIO_016,
+		.attrib = MCHP_GPIO_CTRL_MUX_F2,
+	},
+#endif
+};
+#endif
+
+/* Configure pins for QMSPI port selected at build time */
+static int xec_qspi_config_port(void)
+{
+	for (size_t n = 0; n < ARRAY_SIZE(xec_qmspi_pin_tbl); n++) {
+		const struct xec_qmspi_pin *pin = &xec_qmspi_pin_tbl[n];
+
+		if (!device_is_ready(pin->dev)) {
+			return -ENODEV;
+		}
+
+		pinmux_pin_set(pin->dev, pin->pin, pin->attrib);
+	}
+
+	return 0;
+}
 
 static int xec_qmspi_spin_yield(int *counter, int max_count)
 {
@@ -162,42 +306,36 @@ static void qmspi_reset(struct qmspi_regs *regs)
 	regs->TM_TAPS_CTRL = taps[2];
 }
 
-static uint32_t qmspi_encoded_fdiv(const struct device *dev, uint32_t freq_hz)
+/*
+ * Calculate 8-bit QMSPI frequency divider register field value.
+ * QMSPI input clock is MCHP_QMSPI_INPUT_CLOCK_FREQ_HZ.
+ * The 8-bit divider is encoded as:
+ * 0 is divide by 256
+ * 1 through 255 is divide by this value.
+ */
+static uint32_t qmspi_encoded_fdiv(uint32_t freq_hz)
 {
-	struct spi_qmspi_data *qdata = dev->data;
+	uint32_t fdiv = 1;
 
-	if (freq_hz == 0u) {
-		return 0u; /* maximum frequency divider */
+	if (freq_hz < (MCHP_QMSPI_INPUT_CLOCK_FREQ_HZ / 256u)) {
+		fdiv = 0; /* HW fdiv of 0 -> divide by 256 */
+	} else if (freq_hz < MCHP_QMSPI_INPUT_CLOCK_FREQ_HZ) {
+		fdiv = MCHP_QMSPI_INPUT_CLOCK_FREQ_HZ / freq_hz;
 	}
 
-	return (qdata->base_freq_hz / freq_hz);
+	return fdiv;
 }
 
-/* Program QMSPI frequency divider field in the mode register.
- * MEC172x QMSPI input clock source is the Fast Peripheral domain whose
- * clock is controlled by the PCR turbo clock. 96 MHz if turbo mode
- * enabled else 48 MHz. Query the clock control driver to get clock
- * rate of fast peripheral domain. MEC172x QMSPI clock divider has
- * been expanded to a 16-bit field encoded as:
- * 0 = divide by 0x10000
- * 1 to 0xffff = divide by this value.
- */
-static int qmspi_set_frequency(struct qmspi_regs *regs, uint32_t freq_hz)
+/* Program QMSPI frequency divider field in mode register */
+static void qmspi_set_frequency(struct qmspi_regs *regs, uint32_t freq_hz)
 {
-	clock_control_subsys_t clkss =
-		(clock_control_subsys_t)(MCHP_XEC_PCR_CLK_PERIPH_FAST);
-	uint32_t clk = MCHP_QMSPI_INPUT_CLOCK_FREQ_HZ;
-	uint32_t fdiv = 0u;
+	uint32_t fdiv, qmode;
 
-	if (!clock_control_get_rate(DEVICE_DT_GET(MCHP_XEC_CLOCK_CONTROL_NODE),
-				    (clock_control_subsys_t)clkss, &clk)) {
-		fdiv = clk / freq_hz;
-	}
+	fdiv = qmspi_encoded_fdiv(freq_hz);
 
-	regs->MODE = ((regs->MODE & ~(MCHP_QMSPI_M_FDIV_MASK)) |
-		((fdiv << MCHP_QMSPI_M_FDIV_POS) & MCHP_QMSPI_M_FDIV_MASK));
-
-	return 0;
+	qmode = regs->MODE & ~(MCHP_QMSPI_M_FDIV_MASK);
+	qmode |= (fdiv << MCHP_QMSPI_M_FDIV_POS) & MCHP_QMSPI_M_FDIV_MASK;
+	regs->MODE = qmode;
 }
 
 /*
@@ -374,7 +512,7 @@ static int qmspi_configure(const struct device *dev,
 	/* CS1 alternate mode (frequency) */
 	regs->MODE_ALT1 = 0;
 	if (cfg->cs1_freq) {
-		uint32_t fdiv = qmspi_encoded_fdiv(dev, cfg->cs1_freq);
+		uint32_t fdiv = qmspi_encoded_fdiv(cfg->cs1_freq);
 
 		regs->MODE_ALT1 = (fdiv << MCHP_QMSPI_MA1_CS1_CDIV_POS) &
 				  MCHP_QMSPI_MA1_CS1_CDIV_MSK;
@@ -682,7 +820,7 @@ static int qmspi_transceive(const struct device *dev,
 	size_t nb = 0;
 	int err = 0;
 
-	spi_context_lock(&qdata->ctx, false, NULL, NULL, config);
+	spi_context_lock(&qdata->ctx, false, NULL, config);
 
 	err = qmspi_configure(dev, config);
 	if (err != 0) {
@@ -952,12 +1090,11 @@ static int qmspi_transceive_async(const struct device *dev,
 				  const struct spi_config *config,
 				  const struct spi_buf_set *tx_bufs,
 				  const struct spi_buf_set *rx_bufs,
-				  spi_callback_t cb,
-				  void *userdata)
+				  struct k_poll_signal *async)
 {
 	struct spi_qmspi_data *data = dev->data;
 
-	spi_context_lock(&data->ctx, true, cb, userdata, config);
+	spi_context_lock(&data->ctx, true, async, config);
 
 	int ret = qmspi_configure(dev, config);
 
@@ -1012,13 +1149,11 @@ void qmspi_xec_isr(const struct device *dev)
 {
 	const struct spi_qmspi_config *cfg = dev->config;
 	struct spi_qmspi_data *data = dev->data;
-	struct qmspi_regs *regs = cfg->regs;
-	uint32_t qstatus = regs->STS;
-#ifdef CONFIG_SPI_ASYNC
 	struct spi_context *ctx = &data->ctx;
+	struct qmspi_regs *regs = cfg->regs;
 	int xstatus = 0;
 	size_t nrx = 0;
-#endif
+	uint32_t qstatus = regs->STS;
 
 	regs->IEN = 0;
 	data->qstatus = qstatus;
@@ -1032,7 +1167,7 @@ void qmspi_xec_isr(const struct device *dev)
 		data->qstatus |= BIT(7);
 		xstatus = (int)qstatus;
 		spi_context_cs_control(&data->ctx, false);
-		spi_context_complete(&data->ctx, dev, xstatus);
+		spi_context_complete(&data->ctx, xstatus);
 	}
 
 	if (data->xfr_flags & BIT(0)) { /* is TX ? */
@@ -1077,7 +1212,7 @@ void qmspi_xec_isr(const struct device *dev)
 		spi_context_cs_control(&data->ctx, false);
 	}
 
-	spi_context_complete(&data->ctx, dev, xstatus);
+	spi_context_complete(&data->ctx, xstatus);
 
 	data->in_isr = 0;
 #endif
@@ -1097,12 +1232,7 @@ static int qmspi_xec_init(const struct device *dev)
 	const struct spi_qmspi_config *cfg = dev->config;
 	struct spi_qmspi_data *qdata = dev->data;
 	struct qmspi_regs *regs = cfg->regs;
-	const struct device *pcr_dev = DEVICE_DT_GET(MCHP_XEC_CLOCK_CONTROL_NODE);
-	int ret;
-	clock_control_subsys_t clkss =
-		(clock_control_subsys_t)(MCHP_XEC_PCR_CLK_PERIPH_FAST);
 
-	qdata->base_freq_hz = 0u;
 	qdata->qstatus = 0;
 	qdata->np = cfg->width;
 #ifdef CONFIG_SPI_ASYNC
@@ -1112,25 +1242,13 @@ static int qmspi_xec_init(const struct device *dev)
 	qdata->xfr_len = 0;
 #endif
 
-	if (!device_is_ready(pcr_dev)) {
-		LOG_ERR("%s PCR device not ready", pcr_dev->name);
-		return -ENODEV;
+	int ret = xec_qspi_config_port();
+
+	if (ret != 0) {
+		return ret;
 	}
 
 	z_mchp_xec_pcr_periph_sleep(cfg->pcr_idx, cfg->pcr_pos, 0);
-
-	ret = pinctrl_apply_state(cfg->pcfg, PINCTRL_STATE_DEFAULT);
-	if (ret != 0) {
-		LOG_ERR("QSPI pinctrl setup failed (%d)", ret);
-		return ret;
-	}
-
-	ret = clock_control_get_rate(pcr_dev, (clock_control_subsys_t)clkss,
-				&qdata->base_freq_hz);
-	if (ret) {
-		LOG_ERR("QSPI clock control failed");
-		return ret;
-	}
 
 	qmspi_reset(regs);
 	mchp_xec_ecia_girq_src_clr(cfg->girq, cfg->girq_pos);
@@ -1187,9 +1305,6 @@ static const struct spi_driver_api spi_qmspi_xec_driver_api = {
  * order the DT tools process all DT files in a build.
  */
 #define QMSPI_XEC_DEVICE(i)						\
-									\
-	PINCTRL_DT_INST_DEFINE(i);					\
-									\
 	static void qmspi_xec_irq_config_func_##i(void)			\
 	{								\
 		IRQ_CONNECT(DT_INST_IRQN(i),				\
@@ -1215,11 +1330,10 @@ static const struct spi_driver_api spi_qmspi_xec_driver_api = {
 		.irq_pri = DT_INST_IRQ(i, priority),			\
 		.pcr_idx = DT_INST_PROP_BY_IDX(i, pcrs, 0),		\
 		.pcr_pos = DT_INST_PROP_BY_IDX(i, pcrs, 1),		\
-		.port_sel = DT_INST_PROP_OR(i, port_sel, 0),		\
-		.chip_sel = DT_INST_PROP_OR(i, chip_select, 0),		\
+		.port_sel = DT_INST_PROP_OR(i, port-sel, 0),		\
+		.chip_sel = DT_INST_PROP_OR(i, chip-select, 0),		\
 		.width = DT_INST_PROP_OR(0, lines, 1),			\
 		.irq_config_func = qmspi_xec_irq_config_func_##i,	\
-		.pcfg = PINCTRL_DT_INST_DEV_CONFIG_GET(i),		\
 	};								\
 	DEVICE_DT_INST_DEFINE(i, &qmspi_xec_init, NULL,			\
 		&qmspi_xec_data_##i, &qmspi_xec_config_##i,		\

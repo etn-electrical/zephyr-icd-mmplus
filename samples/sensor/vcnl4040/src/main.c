@@ -4,15 +4,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr.h>
 
-#include <zephyr/sys/printk.h>
-#include <zephyr/sys_clock.h>
+#include <sys/printk.h>
+#include <sys_clock.h>
 #include <stdio.h>
 
-#include <zephyr/device.h>
-#include <zephyr/drivers/sensor.h>
-#include <zephyr/drivers/i2c.h>
+#include <device.h>
+#include <drivers/sensor.h>
+#include <drivers/i2c.h>
 
 #define MAX_TEST_TIME	5000
 #define SLEEPTIME	300
@@ -130,10 +130,12 @@ static void test_trigger_mode(const struct device *dev)
 
 void main(void)
 {
-	const struct device *const vcnl = DEVICE_DT_GET_ONE(vishay_vcnl4040);
+	const struct device *vcnl;
 
-	if (!device_is_ready(vcnl)) {
-		printk("sensor: device not ready.\n");
+	printf("get device vcnl4040\n");
+	vcnl = device_get_binding(DT_LABEL(DT_INST(0, vishay_vcnl4040)));
+	if (!vcnl) {
+		printf("Device not found.\n");
 		return;
 	}
 

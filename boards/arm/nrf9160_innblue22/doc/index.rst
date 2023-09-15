@@ -9,7 +9,8 @@ Overview
 The nRF9160 innblue22 is a cellular IoT sensor development board, which
 is based on the nRF9160 SiP, and features NB-IoT and LTE-M connectivity.
 
-.. figure:: img/nrf9160_innblue22.jpg
+.. figure:: img/nrf9160_innblue22.png
+	 :width: 1024px
 	 :align: center
 	 :alt: nRF9160 innblue22
 
@@ -103,9 +104,6 @@ When building a Secure/Non-Secure application, the Secure application will
 have to set the IDAU (SPU) configuration to allow Non-Secure access to all
 CPU resources utilized by the Non-Secure application firmware. SPU
 configuration shall take place before jumping to the Non-Secure application.
-
-.. note::
-   Trusted Firmware-M (TF-M) and building the ``ns`` target is not supported for this board.
 
 Building a Secure only application
 ==================================

@@ -13,11 +13,11 @@
 #ifndef __ICMPV6_H
 #define __ICMPV6_H
 
-#include <zephyr/sys/slist.h>
+#include <sys/slist.h>
 #include <zephyr/types.h>
 
-#include <zephyr/net/net_ip.h>
-#include <zephyr/net/net_pkt.h>
+#include <net/net_ip.h>
+#include <net/net_pkt.h>
 
 struct net_icmpv6_ns_hdr {
 	uint32_t reserved;
@@ -73,26 +73,18 @@ struct net_icmpv6_nd_opt_6co {
 struct net_icmpv6_nd_opt_route_info {
 	uint8_t prefix_len;
 	struct {
-#ifdef CONFIG_LITTLE_ENDIAN
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 		uint8_t reserved_2 :3;
 		uint8_t prf        :2;
 		uint8_t reserved_1 :3;
-#else
+#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 		uint8_t reserved_1 :3;
 		uint8_t prf        :2;
 		uint8_t reserved_2 :3;
 #endif
 	} flags;
 	uint32_t route_lifetime;
-	/* Variable-length prefix field follows, can be 0, 8 or 16 bytes
-	 * depending on the option length.
-	 */
-} __packed;
-
-struct net_icmpv6_nd_opt_rdnss {
-	uint16_t reserved;
-	uint32_t lifetime;
-	/* Variable-length DNS server address follows,
+	/* Variable-legnth prefix field follows, can be 0, 8 or 16 bytes
 	 * depending on the option length.
 	 */
 } __packed;
@@ -156,8 +148,8 @@ struct net_icmpv6_mld_mcast_record {
 /* Codes for ICMPv6 Destination Unreachable message */
 #define NET_ICMPV6_DST_UNREACH_NO_ROUTE  0 /* No route to destination */
 #define NET_ICMPV6_DST_UNREACH_ADMIN     1 /* Admin prohibited communication */
-#define NET_ICMPV6_DST_UNREACH_SCOPE     2 /* Beyond scope of source address */
-#define NET_ICMPV6_DST_UNREACH_NO_ADDR   3 /* Address unreachable */
+#define NET_ICMPV6_DST_UNREACH_SCOPE     2 /* Beoynd scope of source address */
+#define NET_ICMPV6_DST_UNREACH_NO_ADDR   3 /* Address unrechable */
 #define NET_ICMPV6_DST_UNREACH_NO_PORT   4 /* Port unreachable */
 #define NET_ICMPV6_DST_UNREACH_SRC_ADDR  5 /* Source address failed */
 #define NET_ICMPV6_DST_UNREACH_REJ_ROUTE 6 /* Reject route to destination */
@@ -206,13 +198,9 @@ int net_icmpv6_send_error(struct net_pkt *pkt, uint8_t type, uint8_t code,
  * to this Echo Request. May be zero.
  * @param sequence A sequence number to aid in matching Echo Replies
  * to this Echo Request. May be zero.
- * @param tc IPv6 Traffic Class field value. Represents combined DSCP and
- * ECN values.
  * @param data Arbitrary payload data that will be included in the
- * Echo Reply verbatim. May be NULL.
- * @param data_size Size of the Payload Data in bytes. May be zero. In case data
- * pointer is NULL, the function will generate the payload up to the requested
- * size.
+ * Echo Reply verbatim. May be zero.
+ * @param data_size Size of the Payload Data in bytes. May be zero.
  *
  * @return Return 0 if the sending succeed, <0 otherwise.
  */
@@ -221,7 +209,6 @@ int net_icmpv6_send_echo_request(struct net_if *iface,
 				 struct in6_addr *dst,
 				 uint16_t identifier,
 				 uint16_t sequence,
-				 uint8_t tc,
 				 const void *data,
 				 size_t data_size);
 #else
@@ -229,7 +216,6 @@ static inline int net_icmpv6_send_echo_request(struct net_if *iface,
 					       struct in6_addr *dst,
 					       uint16_t identifier,
 					       uint16_t sequence,
-					       uint8_t tc,
 					       const void *data,
 					       size_t data_size)
 {
@@ -237,7 +223,6 @@ static inline int net_icmpv6_send_echo_request(struct net_if *iface,
 	ARG_UNUSED(dst);
 	ARG_UNUSED(identifier);
 	ARG_UNUSED(sequence);
-	ARG_UNUSED(tc);
 	ARG_UNUSED(data);
 	ARG_UNUSED(data_size);
 

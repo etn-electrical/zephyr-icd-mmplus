@@ -5,10 +5,7 @@
 
 menuconfig IIS2ICLX
 	bool "IIS2ICLX I2C/SPI accelerometer Chip"
-	default y
-	depends on DT_HAS_ST_IIS2ICLX_ENABLED
-	select I2C if $(dt_compat_on_bus,$(DT_COMPAT_ST_IIS2ICLX),i2c)
-	select SPI if $(dt_compat_on_bus,$(DT_COMPAT_ST_IIS2ICLX),spi)
+	depends on I2C || SPI
 	select HAS_STMEMSC
 	select USE_STDC_IIS2ICLX
 	help
@@ -59,12 +56,12 @@ config IIS2ICLX_THREAD_STACK_SIZE
 endif # IIS2ICLX_TRIGGER
 
 config IIS2ICLX_ENABLE_TEMP
-	bool "Temperature"
+	bool "Enable temperature"
 	help
 	  Enable/disable temperature
 
 config IIS2ICLX_SENSORHUB
-	bool "I2C sensorhub feature"
+	bool "Enable I2C sensorhub feature"
 	help
 	  Enable/disable internal sensorhub. You can enable
 	  a maximum of two external sensors (if more than two are enabled
@@ -73,19 +70,19 @@ config IIS2ICLX_SENSORHUB
 if IIS2ICLX_SENSORHUB
 
 config IIS2ICLX_EXT_LIS2MDL
-	bool "LIS2MDL as external sensor"
+	bool "Enable LIS2MDL as external sensor"
 
 config IIS2ICLX_EXT_IIS2MDC
-	bool "IIS2MDC as external sensor"
+	bool "Enable IIS2MDC as external sensor"
 
 config IIS2ICLX_EXT_LPS22HH
-	bool "LPS22HH as external sensor"
+	bool "Enable LPS22HH as external sensor"
 
 config IIS2ICLX_EXT_HTS221
-	bool "HTS221 as external sensor"
+	bool "Enable HTS221 as external sensor"
 
 config IIS2ICLX_EXT_LPS22HB
-	bool "LPS22HB as external sensor"
+	bool "Enable LPS22HB as external sensor"
 
 endif # IIS2ICLX_SENSORHUB
 

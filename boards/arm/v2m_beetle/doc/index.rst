@@ -15,8 +15,10 @@ the following devices:
 - Cortex-M System Design Kit GPIO
 - Cortex-M System Design Kit UART
 
-.. image:: img/v2m_beetle.jpg
+.. image:: img/v2m_beetle.png
+     :width: 442px
      :align: center
+     :height: 335px
      :alt: ARM V2M Beetle
 
 More information about the board can be found at the `V2M Beetle Website`_.
@@ -248,10 +250,10 @@ the following message:
 
 
 .. _V2M Beetle Website:
-   https://developer.arm.com/Tools%20and%20Software/Beetle%20IoT%20Evaluation%20Platform
+   https://www.arm.com/products/tools/development-boards/versatile-express/beetle_iot_evaluation_platform.php
 
 .. _Beetle Technical Reference Manual (TRM):
-   https://developer.arm.com/documentation/100417/latest/
+   https://developer.arm.com/-/media/developer/products/system-design-tools/versatile-express-family/V2M-Beetle_TRM_draft.pdf?la=en
 
 .. _CMSIS-DAP Website:
-   https://arm-software.github.io/CMSIS_5/DAP/html/index.html
+   https://github.com/mbedmicro/CMSIS-DAP

@@ -4,14 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
+#include <kernel.h>
 
-#include <zephyr/init.h>
+#include <init.h>
 #include <ksched.h>
-#include <zephyr/wait_q.h>
-#include <zephyr/syscall_handler.h>
+#include <wait_q.h>
+#include <syscall_handler.h>
 #include <stdbool.h>
-#include <zephyr/spinlock.h>
+#include <spinlock.h>
 
 static struct k_spinlock lock;
 
@@ -26,51 +26,14 @@ void z_timer_expiration_handler(struct _timeout *t)
 	struct k_thread *thread;
 	k_spinlock_key_t key = k_spin_lock(&lock);
 
-	/* In sys_clock_announce(), when a timeout expires, it is first removed
-	 * from the timeout list, then its expiration handler is called (with
-	 * unlocked interrupts). For kernel timers, the expiration handler is
-	 * this function. Usually, the timeout structure related to the timer
-	 * that is handled here will not be linked to the timeout list at this
-	 * point. But it may happen that before this function is executed and
-	 * interrupts are locked again, a given timer gets restarted from an
-	 * interrupt context that has a priority higher than the system timer
-	 * interrupt. Then, the timeout structure for this timer will turn out
-	 * to be linked to the timeout list. And in such case, since the timer
-	 * was restarted, its expiration handler should not be executed then,
-	 * so the function exits immediately.
-	 */
-	if (sys_dnode_is_linked(&t->node)) {
-		k_spin_unlock(&lock, key);
-		return;
-	}
-
 	/*
 	 * if the timer is periodic, start it again; don't add _TICK_ALIGN
 	 * since we're already aligned to a tick boundary
 	 */
 	if (!K_TIMEOUT_EQ(timer->period, K_NO_WAIT) &&
 	    !K_TIMEOUT_EQ(timer->period, K_FOREVER)) {
-		k_timeout_t next = timer->period;
-
-		/* see note about z_add_timeout() in z_impl_k_timer_start() */
-		next.ticks = MAX(next.ticks - 1, 0);
-
-#ifdef CONFIG_TIMEOUT_64BIT
-		/* Exploit the fact that uptime during a kernel
-		 * timeout handler reflects the time of the scheduled
-		 * event and not real time to get some inexpensive
-		 * protection against late interrupts.  If we're
-		 * delayed for any reason, we still end up calculating
-		 * the next expiration as a regular stride from where
-		 * we "should" have run.  Requires absolute timeouts.
-		 * (Note offset by one: we're nominally at the
-		 * beginning of a tick, so need to defeat the "round
-		 * down" behavior on timeout addition).
-		 */
-		next = K_TIMEOUT_ABS_TICKS(k_uptime_ticks() + 1 + next.ticks);
-#endif
 		z_add_timeout(&timer->timeout, z_timer_expiration_handler,
-			      next);
+			     timer->period);
 	}
 
 	/* update timer's status */
@@ -131,7 +94,7 @@ void k_timer_init(struct k_timer *timer,
 void z_impl_k_timer_start(struct k_timer *timer, k_timeout_t duration,
 			  k_timeout_t period)
 {
-	SYS_PORT_TRACING_OBJ_FUNC(k_timer, start, timer, duration, period);
+	SYS_PORT_TRACING_OBJ_FUNC(k_timer, start, timer);
 
 	if (K_TIMEOUT_EQ(duration, K_FOREVER)) {
 		return;
@@ -141,8 +104,8 @@ void z_impl_k_timer_start(struct k_timer *timer, k_timeout_t duration,
 	 * to round up to the next tick (by convention it waits for
 	 * "at least as long as the specified timeout"), but the
 	 * period interval is always guaranteed to be reset from
-	 * within the timer ISR, so no round up is desired and 1 is
-	 * subtracted in there.
+	 * within the timer ISR, so no round up is desired.  Subtract
+	 * one.
 	 *
 	 * Note that the duration (!) value gets the same treatment
 	 * for backwards compatibility.  This is unfortunate
@@ -150,6 +113,10 @@ void z_impl_k_timer_start(struct k_timer *timer, k_timeout_t duration,
 	 * argument the same way k_sleep() does), but historical.  The
 	 * timer_api test relies on this behavior.
 	 */
+	if (!K_TIMEOUT_EQ(period, K_FOREVER) && period.ticks != 0 &&
+	    Z_TICK_ABS(period.ticks) < 0) {
+		period.ticks = MAX(period.ticks - 1, 1);
+	}
 	if (Z_TICK_ABS(duration.ticks) < 0) {
 		duration.ticks = MAX(duration.ticks - 1, 0);
 	}
@@ -177,7 +144,7 @@ void z_impl_k_timer_stop(struct k_timer *timer)
 {
 	SYS_PORT_TRACING_OBJ_FUNC(k_timer, stop, timer);
 
-	bool inactive = (z_abort_timeout(&timer->timeout) != 0);
+	int inactive = z_abort_timeout(&timer->timeout) != 0;
 
 	if (inactive) {
 		return;

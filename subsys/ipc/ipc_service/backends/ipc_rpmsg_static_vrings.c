@@ -4,32 +4,31 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/logging/log.h>
-#include <zephyr/kernel.h>
-#include <zephyr/cache.h>
-#include <zephyr/device.h>
-#include <zephyr/sys/atomic.h>
+#include <logging/log.h>
+#include <zephyr.h>
+#include <cache.h>
+#include <device.h>
+#include <sys/atomic.h>
 
-#include <zephyr/ipc/ipc_service_backend.h>
-#include <zephyr/ipc/ipc_static_vrings.h>
-#include <zephyr/ipc/ipc_rpmsg.h>
+#include <ipc/ipc_service_backend.h>
+#include <ipc/ipc_static_vrings.h>
+#include <ipc/ipc_rpmsg.h>
 
-#include <zephyr/drivers/mbox.h>
-#include <zephyr/dt-bindings/ipc_service/static_vrings.h>
+#include <drivers/mbox.h>
 
 #include "ipc_rpmsg_static_vrings.h"
 
 #define DT_DRV_COMPAT	zephyr_ipc_openamp_static_vrings
 
-#define NUM_INSTANCES	DT_NUM_INST_STATUS_OKAY(DT_DRV_COMPAT)
-
+#define WQ_PRIORITY	(0)
 #define WQ_STACK_SIZE	CONFIG_IPC_SERVICE_BACKEND_RPMSG_WQ_STACK_SIZE
 
 #define STATE_READY	(0)
 #define STATE_BUSY	(1)
 #define STATE_INITED	(2)
 
-K_THREAD_STACK_ARRAY_DEFINE(mbox_stack, NUM_INSTANCES, WQ_STACK_SIZE);
+K_KERNEL_STACK_DEFINE(mbox_stack, WQ_STACK_SIZE);
+static struct k_work_q mbox_wq;
 
 struct backend_data_t {
 	/* RPMsg */
@@ -38,16 +37,10 @@ struct backend_data_t {
 	/* Static VRINGs */
 	struct ipc_static_vrings vr;
 
-	/* MBOX WQ */
-	struct k_work mbox_work;
-	struct k_work_q mbox_wq;
-
 	/* General */
+	struct k_work mbox_work;
 	unsigned int role;
 	atomic_t state;
-
-	/* TX buffer size */
-	int tx_buffer_size;
 };
 
 struct backend_config_t {
@@ -56,10 +49,6 @@ struct backend_config_t {
 	size_t shm_size;
 	struct mbox_channel mbox_tx;
 	struct mbox_channel mbox_rx;
-	unsigned int wq_prio_type;
-	unsigned int wq_prio;
-	unsigned int id;
-	unsigned int buffer_size;
 };
 
 static void rpmsg_service_unbind(struct rpmsg_endpoint *ep)
@@ -86,21 +75,6 @@ static struct ipc_rpmsg_ept *get_ept_slot_with_name(struct ipc_rpmsg_instance *r
 static struct ipc_rpmsg_ept *get_available_ept_slot(struct ipc_rpmsg_instance *rpmsg_inst)
 {
 	return get_ept_slot_with_name(rpmsg_inst, "");
-}
-
-static bool check_endpoints_freed(struct ipc_rpmsg_instance *rpmsg_inst)
-{
-	struct ipc_rpmsg_ept *rpmsg_ept;
-
-	for (size_t i = 0; i < NUM_ENDPOINTS; i++) {
-		rpmsg_ept = &rpmsg_inst->endpoint[i];
-
-		if (strcmp("", rpmsg_ept->name) != 0) {
-			return false;
-		}
-	}
-
-	return true;
 }
 
 /*
@@ -245,17 +219,16 @@ static int vr_shm_configure(struct ipc_static_vrings *vr, const struct backend_c
 {
 	unsigned int num_desc;
 
-	num_desc = optimal_num_desc(conf->shm_size, conf->buffer_size);
+	num_desc = optimal_num_desc(conf->shm_size);
 	if (num_desc == 0) {
 		return -ENOMEM;
 	}
 
 	vr->shm_addr = conf->shm_addr + VDEV_STATUS_SIZE;
-	vr->shm_size = shm_size(num_desc, conf->buffer_size) - VDEV_STATUS_SIZE;
+	vr->shm_size = shm_size(num_desc) - VDEV_STATUS_SIZE;
 
-	vr->rx_addr = vr->shm_addr + VRING_COUNT * vq_ring_size(num_desc, conf->buffer_size);
-	vr->tx_addr = ROUND_UP(vr->rx_addr + vring_size(num_desc, VRING_ALIGNMENT),
-			       VRING_ALIGNMENT);
+	vr->rx_addr = vr->shm_addr + VRING_COUNT * vq_ring_size(num_desc);
+	vr->tx_addr = vr->rx_addr + vring_size(num_desc, VRING_ALIGNMENT);
 
 	vr->status_reg_addr = conf->shm_addr;
 
@@ -289,20 +262,17 @@ static void mbox_callback(const struct device *instance, uint32_t channel,
 {
 	struct backend_data_t *data = user_data;
 
-	k_work_submit_to_queue(&data->mbox_wq, &data->mbox_work);
+	k_work_submit_to_queue(&mbox_wq, &data->mbox_work);
 }
 
 static int mbox_init(const struct device *instance)
 {
 	const struct backend_config_t *conf = instance->config;
 	struct backend_data_t *data = instance->data;
-	int prio, err;
+	int err;
 
-	prio = (conf->wq_prio_type == PRIO_COOP) ? K_PRIO_COOP(conf->wq_prio) :
-						   K_PRIO_PREEMPT(conf->wq_prio);
-
-	k_work_queue_init(&data->mbox_wq);
-	k_work_queue_start(&data->mbox_wq, mbox_stack[conf->id], WQ_STACK_SIZE, prio, NULL);
+	k_work_queue_start(&mbox_wq, mbox_stack, K_KERNEL_STACK_SIZEOF(mbox_stack),
+			   WQ_PRIORITY, NULL);
 
 	k_work_init(&data->mbox_work, mbox_callback_process);
 
@@ -312,26 +282,6 @@ static int mbox_init(const struct device *instance)
 	}
 
 	return mbox_set_enabled(&conf->mbox_rx, 1);
-}
-
-static int mbox_deinit(const struct device *instance)
-{
-	const struct backend_config_t *conf = instance->config;
-	struct backend_data_t *data = instance->data;
-	k_tid_t wq_thread;
-	int err;
-
-	err = mbox_set_enabled(&conf->mbox_rx, 0);
-	if (err != 0) {
-		return err;
-	}
-
-	k_work_queue_drain(&data->mbox_wq, 1);
-
-	wq_thread = k_work_queue_thread_get(&data->mbox_wq);
-	k_thread_abort(wq_thread);
-
-	return 0;
 }
 
 static struct ipc_rpmsg_ept *register_ept_on_host(struct ipc_rpmsg_instance *rpmsg_inst,
@@ -405,9 +355,14 @@ static int register_ept(const struct device *instance, void **token,
 	struct ipc_rpmsg_instance *rpmsg_inst;
 	struct ipc_rpmsg_ept *rpmsg_ept;
 
-	/* Instance is not ready */
-	if (atomic_get(&data->state) != STATE_INITED) {
+	/* Instance is still being initialized */
+	if (data->state == STATE_BUSY) {
 		return -EBUSY;
+	}
+
+	/* Instance is not initialized */
+	if (data->state == STATE_READY) {
+		return -EINVAL;
 	}
 
 	/* Empty name is not valid */
@@ -429,40 +384,20 @@ static int register_ept(const struct device *instance, void **token,
 	return 0;
 }
 
-static int deregister_ept(const struct device *instance, void *token)
-{
-	struct backend_data_t *data = instance->data;
-	struct ipc_rpmsg_ept *rpmsg_ept;
-
-	/* Instance is not ready */
-	if (atomic_get(&data->state) != STATE_INITED) {
-		return -EBUSY;
-	}
-
-	rpmsg_ept = (struct ipc_rpmsg_ept *) token;
-
-	/* Endpoint is not registered with instance */
-	if (!rpmsg_ept) {
-		return -ENOENT;
-	}
-
-	rpmsg_destroy_ept(&rpmsg_ept->ep);
-
-	memset(rpmsg_ept, 0, sizeof(struct ipc_rpmsg_ept));
-
-	return 0;
-}
-
 static int send(const struct device *instance, void *token,
 		const void *msg, size_t len)
 {
 	struct backend_data_t *data = instance->data;
 	struct ipc_rpmsg_ept *rpmsg_ept;
-	int ret;
 
-	/* Instance is not ready */
-	if (atomic_get(&data->state) != STATE_INITED) {
+	/* Instance is still being initialized */
+	if (data->state == STATE_BUSY) {
 		return -EBUSY;
+	}
+
+	/* Instance is not initialized */
+	if (data->state == STATE_READY) {
+		return -EINVAL;
 	}
 
 	/* Empty message is not allowed */
@@ -472,45 +407,7 @@ static int send(const struct device *instance, void *token,
 
 	rpmsg_ept = (struct ipc_rpmsg_ept *) token;
 
-	/* Endpoint is not registered with instance */
-	if (!rpmsg_ept) {
-		return -ENOENT;
-	}
-
-	ret = rpmsg_send(&rpmsg_ept->ep, msg, len);
-
-	/* No buffers available */
-	if (ret == RPMSG_ERR_NO_BUFF) {
-		return -ENOMEM;
-	}
-
-	return ret;
-}
-
-static int send_nocopy(const struct device *instance, void *token,
-		       const void *msg, size_t len)
-{
-	struct backend_data_t *data = instance->data;
-	struct ipc_rpmsg_ept *rpmsg_ept;
-
-	/* Instance is not ready */
-	if (atomic_get(&data->state) != STATE_INITED) {
-		return -EBUSY;
-	}
-
-	/* Empty message is not allowed */
-	if (len == 0) {
-		return -EBADMSG;
-	}
-
-	rpmsg_ept = (struct ipc_rpmsg_ept *) token;
-
-	/* Endpoint is not registered with instance */
-	if (!rpmsg_ept) {
-		return -ENOENT;
-	}
-
-	return rpmsg_send_nocopy(&rpmsg_ept->ep, msg, len);
+	return rpmsg_send(&rpmsg_ept->ep, msg, len);
 }
 
 static int open(const struct device *instance)
@@ -518,7 +415,6 @@ static int open(const struct device *instance)
 	const struct backend_config_t *conf = instance->config;
 	struct backend_data_t *data = instance->data;
 	struct ipc_rpmsg_instance *rpmsg_inst;
-	struct rpmsg_device *rdev;
 	int err;
 
 	if (!atomic_cas(&data->state, STATE_READY, STATE_BUSY)) {
@@ -548,19 +444,10 @@ static int open(const struct device *instance)
 	rpmsg_inst->bound_cb = bound_cb;
 	rpmsg_inst->cb = ept_cb;
 
-	err = ipc_rpmsg_init(rpmsg_inst, data->role, conf->buffer_size,
-			     data->vr.shm_io, &data->vr.vdev,
+	err = ipc_rpmsg_init(rpmsg_inst, data->role, data->vr.shm_io, &data->vr.vdev,
 			     (void *) data->vr.shm_device.regions->virt,
 			     data->vr.shm_device.regions->size, ns_bind_cb);
 	if (err != 0) {
-		goto error;
-	}
-
-	rdev = rpmsg_virtio_get_rpmsg_device(&rpmsg_inst->rvdev);
-
-	data->tx_buffer_size = rpmsg_virtio_get_buffer_size(rdev);
-	if (data->tx_buffer_size < 0) {
-		err = -EINVAL;
 		goto error;
 	}
 
@@ -574,159 +461,10 @@ error:
 
 }
 
-static int close(const struct device *instance)
-{
-	const struct backend_config_t *conf = instance->config;
-	struct backend_data_t *data = instance->data;
-	struct ipc_rpmsg_instance *rpmsg_inst;
-	int err;
-
-	if (!atomic_cas(&data->state, STATE_INITED, STATE_BUSY)) {
-		return -EALREADY;
-	}
-
-	rpmsg_inst = &data->rpmsg_inst;
-
-	if (!check_endpoints_freed(rpmsg_inst)) {
-		return -EBUSY;
-	}
-
-	err = ipc_rpmsg_deinit(rpmsg_inst, data->role);
-	if (err != 0) {
-		goto error;
-	}
-
-	err = mbox_deinit(instance);
-	if (err != 0) {
-		goto error;
-	}
-
-	err = ipc_static_vrings_deinit(&data->vr, conf->role);
-	if (err != 0) {
-		goto error;
-	}
-
-	memset(&data->vr, 0, sizeof(struct ipc_static_vrings));
-	memset(rpmsg_inst, 0, sizeof(struct ipc_rpmsg_instance));
-
-	atomic_set(&data->state, STATE_READY);
-	return 0;
-
-error:
-	/* Back to the inited state */
-	atomic_set(&data->state, STATE_INITED);
-	return err;
-}
-
-static int get_tx_buffer_size(const struct device *instance, void *token)
-{
-	struct backend_data_t *data = instance->data;
-
-	return data->tx_buffer_size;
-}
-
-static int get_tx_buffer(const struct device *instance, void *token,
-			 void **r_data, uint32_t *size, k_timeout_t wait)
-{
-	struct backend_data_t *data = instance->data;
-	struct ipc_rpmsg_ept *rpmsg_ept;
-	void *payload;
-
-	rpmsg_ept = (struct ipc_rpmsg_ept *) token;
-
-	/* Endpoint is not registered with instance */
-	if (!rpmsg_ept) {
-		return -ENOENT;
-	}
-
-	if (!r_data || !size) {
-		return -EINVAL;
-	}
-
-	/* OpenAMP only supports a binary wait / no-wait */
-	if (!K_TIMEOUT_EQ(wait, K_FOREVER) && !K_TIMEOUT_EQ(wait, K_NO_WAIT)) {
-		return -ENOTSUP;
-	}
-
-	/* The user requested a specific size */
-	if ((*size) && (*size > data->tx_buffer_size)) {
-		/* Too big to fit */
-		*size = data->tx_buffer_size;
-		return -ENOMEM;
-	}
-
-	/*
-	 * OpenAMP doesn't really have the concept of forever but instead it
-	 * gives up after 15 seconds.  In that case, just keep retrying.
-	 */
-	do {
-		payload = rpmsg_get_tx_payload_buffer(&rpmsg_ept->ep, size,
-						      K_TIMEOUT_EQ(wait, K_FOREVER));
-	} while ((!payload) && K_TIMEOUT_EQ(wait, K_FOREVER));
-
-	/* This should really only be valid for K_NO_WAIT */
-	if (!payload) {
-		return -ENOBUFS;
-	}
-
-	(*r_data) = payload;
-
-	return 0;
-}
-
-static int hold_rx_buffer(const struct device *instance, void *token,
-			  void *data)
-{
-	struct ipc_rpmsg_ept *rpmsg_ept;
-
-	rpmsg_ept = (struct ipc_rpmsg_ept *) token;
-
-	/* Endpoint is not registered with instance */
-	if (!rpmsg_ept) {
-		return -ENOENT;
-	}
-
-	rpmsg_hold_rx_buffer(&rpmsg_ept->ep, data);
-
-	return 0;
-}
-
-static int release_rx_buffer(const struct device *instance, void *token,
-			     void *data)
-{
-	struct ipc_rpmsg_ept *rpmsg_ept;
-
-	rpmsg_ept = (struct ipc_rpmsg_ept *) token;
-
-	/* Endpoint is not registered with instance */
-	if (!rpmsg_ept) {
-		return -ENOENT;
-	}
-
-	rpmsg_release_rx_buffer(&rpmsg_ept->ep, data);
-
-	return 0;
-}
-
-static int drop_tx_buffer(const struct device *instance, void *token,
-			  const void *data)
-{
-	/* Not yet supported by OpenAMP */
-	return -ENOTSUP;
-}
-
 const static struct ipc_service_backend backend_ops = {
 	.open_instance = open,
-	.close_instance = close,
 	.register_endpoint = register_ept,
-	.deregister_endpoint = deregister_ept,
 	.send = send,
-	.send_nocopy = send_nocopy,
-	.drop_tx_buffer = drop_tx_buffer,
-	.get_tx_buffer = get_tx_buffer,
-	.get_tx_buffer_size = get_tx_buffer_size,
-	.hold_rx_buffer = hold_rx_buffer,
-	.release_rx_buffer = release_rx_buffer,
 };
 
 static int backend_init(const struct device *instance)
@@ -749,15 +487,6 @@ static int backend_init(const struct device *instance)
 		.shm_addr = DT_REG_ADDR(DT_INST_PHANDLE(i, memory_region)),		\
 		.mbox_tx = MBOX_DT_CHANNEL_GET(DT_DRV_INST(i), tx),			\
 		.mbox_rx = MBOX_DT_CHANNEL_GET(DT_DRV_INST(i), rx),			\
-		.wq_prio = COND_CODE_1(DT_INST_NODE_HAS_PROP(i, zephyr_priority),	\
-			   (DT_INST_PROP_BY_IDX(i, zephyr_priority, 0)),		\
-			   (0)),							\
-		.wq_prio_type = COND_CODE_1(DT_INST_NODE_HAS_PROP(i, zephyr_priority),	\
-			   (DT_INST_PROP_BY_IDX(i, zephyr_priority, 1)),		\
-			   (PRIO_PREEMPT)),						\
-		.buffer_size = DT_INST_PROP_OR(i, zephyr_buffer_size,			\
-					       RPMSG_BUFFER_SIZE),			\
-		.id = i,								\
 	};										\
 											\
 	static struct backend_data_t backend_data_##i;					\
@@ -772,24 +501,3 @@ static int backend_init(const struct device *instance)
 			 &backend_ops);
 
 DT_INST_FOREACH_STATUS_OKAY(DEFINE_BACKEND_DEVICE)
-
-#define BACKEND_CONFIG_INIT(n) &backend_config_##n,
-
-#if defined(CONFIG_IPC_SERVICE_BACKEND_RPMSG_SHMEM_RESET)
-static int shared_memory_prepare(const struct device *arg)
-{
-	static const struct backend_config_t *config[] = {
-		DT_INST_FOREACH_STATUS_OKAY(BACKEND_CONFIG_INIT)
-	};
-
-	for (int i = 0; i < DT_NUM_INST_STATUS_OKAY(DT_DRV_COMPAT); i++) {
-		if (config[i]->role == ROLE_HOST) {
-			memset((void *) config[i]->shm_addr, 0, VDEV_STATUS_SIZE);
-		}
-	}
-
-	return 0;
-}
-
-SYS_INIT(shared_memory_prepare, PRE_KERNEL_1, 1);
-#endif /* CONFIG_IPC_SERVICE_BACKEND_RPMSG_SHMEM_RESET */

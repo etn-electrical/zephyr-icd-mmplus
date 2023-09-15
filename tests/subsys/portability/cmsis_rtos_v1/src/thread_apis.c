@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
-#include <zephyr/kernel.h>
+#include <ztest.h>
+#include <kernel.h>
 #include <cmsis_os.h>
 
 #define STACKSZ CONFIG_CMSIS_THREAD_MAX_STACK_SIZE
@@ -27,7 +27,7 @@ void thread1(void const *argument)
 
 	/* This thread starts off at a high priority (same as thread2) */
 	thread_yield_check++;
-	zassert_equal(thread_yield_check, 1);
+	zassert_equal(thread_yield_check, 1, NULL);
 
 	/* Yield to thread2 which is of same priority */
 	status = osThreadYield();
@@ -36,7 +36,7 @@ void thread1(void const *argument)
 	/* thread_yield_check should now be 2 as it was incremented
 	 * in thread2.
 	 */
-	zassert_equal(thread_yield_check, 2);
+	zassert_equal(thread_yield_check, 2, NULL);
 }
 
 void thread2(void const *argument)
@@ -97,7 +97,7 @@ osThreadDef(thread1, osPriorityHigh, 1, STACKSZ);
 osThreadDef(thread2, osPriorityHigh, 1, STACKSZ);
 osThreadDef(thread3, osPriorityNormal, 1, STACKSZ);
 
-ZTEST(thread_apis, test_thread_prio)
+void test_thread_prio(void)
 {
 	osStatus status;
 	osThreadId id3;
@@ -128,7 +128,7 @@ ZTEST(thread_apis, test_thread_prio)
 	thread3_state = 0;
 }
 
-ZTEST(thread_apis, test_thread_apis)
+void test_thread_apis(void)
 {
 	osThreadId id1;
 	osThreadId id2;
@@ -143,4 +143,3 @@ ZTEST(thread_apis, test_thread_apis)
 		osDelay(100);
 	} while (thread_yield_check != 2);
 }
-ZTEST_SUITE(thread_apis, NULL, NULL, NULL, NULL, NULL);

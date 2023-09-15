@@ -7,9 +7,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/toolchain.h>
-#include <zephyr/linker/sections.h>
-#include <zephyr/arch/cpu.h>
+#include <toolchain.h>
+#include <linker/sections.h>
+#include <arch/cpu.h>
 
 #if defined(CONFIG_PLATFORM_SPECIFIC_INIT) && defined(CONFIG_SOC_LPC54114_M4)
 
@@ -40,9 +40,6 @@ shared_boot_entry:
     /* Flag for slave core (0) */
     movs    r4, 0
     movs    r5, 1
-    push {lr}
-    bl SystemInit
-    pop {lr}
 
     /* Determine which core (M0+ or M4) this code is running on */
     /* r2 = (((*cpu_id) >> 4) & 0xFFF); (M4 core == 0xC24) */

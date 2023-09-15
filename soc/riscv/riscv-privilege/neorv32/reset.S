@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/toolchain.h>
+#include <toolchain.h>
 
 /* exports */
 GTEXT(__reset)

@@ -4,15 +4,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(net_tc, CONFIG_NET_TC_LOG_LEVEL);
 
-#include <zephyr/kernel.h>
+#include <zephyr.h>
 #include <string.h>
 
-#include <zephyr/net/net_core.h>
-#include <zephyr/net/net_pkt.h>
-#include <zephyr/net/net_stats.h>
+#include <net/net_core.h>
+#include <net/net_pkt.h>
+#include <net/net_stats.h>
 
 #include "net_private.h"
 #include "net_stats.h"
@@ -105,21 +105,21 @@ int net_rx_priority2tc(enum net_priority prio)
 }
 
 
-#if defined(CONFIG_NET_TC_THREAD_COOPERATIVE)
+#if IS_ENABLED(CONFIG_NET_TC_THREAD_COOPERATIVE)
 #define BASE_PRIO_TX (CONFIG_NET_TC_NUM_PRIORITIES - 1)
 #else
 #define BASE_PRIO_TX (CONFIG_NET_TC_TX_COUNT - 1)
 #endif
 
-#define PRIO_TX(i, _) (BASE_PRIO_TX - i)
+#define PRIO_TX(i, _) (BASE_PRIO_TX - i),
 
-#if defined(CONFIG_NET_TC_THREAD_COOPERATIVE)
+#if IS_ENABLED(CONFIG_NET_TC_THREAD_COOPERATIVE)
 #define BASE_PRIO_RX (CONFIG_NET_TC_NUM_PRIORITIES - 1)
 #else
 #define BASE_PRIO_RX (CONFIG_NET_TC_RX_COUNT - 1)
 #endif
 
-#define PRIO_RX(i, _) (BASE_PRIO_RX - i)
+#define PRIO_RX(i, _) (BASE_PRIO_RX - i),
 
 #if NET_TC_TX_COUNT > 0
 /* Convert traffic class to thread priority */
@@ -158,7 +158,7 @@ static uint8_t tx_tc2thread(uint8_t tc)
 	 * priority.
 	 */
 	static const uint8_t thread_priorities[] = {
-		LISTIFY(NET_TC_TX_COUNT, PRIO_TX, (,))
+		UTIL_LISTIFY(NET_TC_TX_COUNT, PRIO_TX)
 	};
 
 	BUILD_ASSERT(NET_TC_TX_COUNT <= CONFIG_NUM_COOP_PRIORITIES,
@@ -175,7 +175,7 @@ static uint8_t tx_tc2thread(uint8_t tc)
 static uint8_t rx_tc2thread(uint8_t tc)
 {
 	static const uint8_t thread_priorities[] = {
-		LISTIFY(NET_TC_RX_COUNT, PRIO_RX, (,))
+		UTIL_LISTIFY(NET_TC_RX_COUNT, PRIO_RX)
 	};
 
 	BUILD_ASSERT(NET_TC_RX_COUNT <= CONFIG_NUM_COOP_PRIORITIES,

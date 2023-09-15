@@ -7,15 +7,14 @@
  */
 
 
-#include <zephyr/drivers/dma.h>
-#include <zephyr/drivers/adc.h>
-#include <zephyr/drivers/counter.h>
-#include <zephyr/kernel.h>
-#include <zephyr/ztest.h>
+#include <drivers/adc.h>
+#include <drivers/counter.h>
+#include <zephyr.h>
+#include <ztest.h>
 
 #if defined(CONFIG_BOARD_FRDM_K64F)
 
-#define ADC_DEVICE_NODE DT_INST(0, nxp_kinetis_adc16)
+#define ADC_DEVICE_NAME DT_LABEL(DT_INST(0, nxp_kinetis_adc16))
 #define ADC_RESOLUTION 12
 #define ADC_GAIN ADC_GAIN_1
 #define ADC_REFERENCE ADC_REF_INTERNAL
@@ -24,7 +23,7 @@
 
 #elif defined(CONFIG_BOARD_FRDM_K82F)
 
-#define ADC_DEVICE_NODE DT_INST(0, nxp_kinetis_adc16)
+#define ADC_DEVICE_NAME DT_LABEL(DT_INST(0, nxp_kinetis_adc16))
 #define ADC_RESOLUTION 12
 #define ADC_GAIN ADC_GAIN_1
 #define ADC_REFERENCE ADC_REF_INTERNAL
@@ -38,9 +37,8 @@
 #define SAMPLE_INTERVAL_US (10000U)
 
 #define BUFFER_SIZE 24
-#define ALIGNMENT DMA_BUF_ADDR_ALIGNMENT(DT_NODELABEL(test_dma))
-static ZTEST_BMEM __aligned(ALIGNMENT) int16_t m_sample_buffer[BUFFER_SIZE];
-static ZTEST_BMEM __aligned(ALIGNMENT) int16_t m_sample_buffer2[2][BUFFER_SIZE];
+static ZTEST_BMEM int16_t m_sample_buffer[BUFFER_SIZE];
+static ZTEST_BMEM int16_t m_sample_buffer2[2][BUFFER_SIZE];
 static int current_buf_inx;
 
 static const struct adc_channel_cfg m_1st_channel_cfg = {
@@ -66,51 +64,51 @@ static const struct adc_channel_cfg m_2nd_channel_cfg = {
 
 const struct device *get_adc_device(void)
 {
-	const struct device *const dev = DEVICE_DT_GET(ADC_DEVICE_NODE);
-
-	if (!device_is_ready(dev)) {
-		printk("ADC device is not ready\n");
-		return NULL;
-	}
-
-	return dev;
+	return device_get_binding(ADC_DEVICE_NAME);
 }
 
 const struct device *get_count_device(void)
 {
-	const struct device *const dev = DEVICE_DT_GET(DT_NODELABEL(pit0));
+	char *dev_name = DT_LABEL(DT_NODELABEL(pit0));
 
-	if (!device_is_ready(dev)) {
-		printk("count device is not ready\n");
-		return NULL;
-	}
-
-	return dev;
+	return device_get_binding(dev_name);
 }
 
 static void init_pit(void)
 {
+	char *dev_name = DT_LABEL(DT_NODELABEL(pit0));
 	int err;
-	const struct device *const dev = DEVICE_DT_GET(DT_NODELABEL(pit0));
+	const struct device *dev;
 	struct counter_top_cfg top_cfg = { .callback = NULL,
 					   .user_data = NULL,
 					   .flags = 0 };
 
-	zassert_true(device_is_ready(dev), "Counter device is not ready");
+	dev = device_get_binding(dev_name);
+	zassert_not_null(dev, "Unable to get counter device %s", dev_name);
 
 	counter_start(dev);
 	top_cfg.ticks = counter_us_to_ticks(dev, HW_TRIGGER_INTERVAL);
 	err = counter_set_top_value(dev, &top_cfg);
 	zassert_equal(0, err, "%s: Counter failed to set top value (err: %d)",
-		      dev->name, err);
+		      dev_name, err);
+}
+
+static void stop_pit(void)
+{
+	char *dev_name = DT_LABEL(DT_NODELABEL(pit0));
+	const struct device *dev;
+
+	dev = device_get_binding(dev_name);
+	zassert_not_null(dev, "Unable to get counter device %s", dev_name);
+	counter_stop(dev);
 }
 
 static const struct device *init_adc(void)
 {
 	int ret;
-	const struct device *const adc_dev = DEVICE_DT_GET(ADC_DEVICE_NODE);
+	const struct device *adc_dev = device_get_binding(ADC_DEVICE_NAME);
 
-	zassert_true(device_is_ready(adc_dev), "ADC device is not ready");
+	zassert_not_null(adc_dev, "Cannot get ADC device");
 
 	ret = adc_channel_setup(adc_dev, &m_1st_channel_cfg);
 	zassert_equal(ret, 0,
@@ -190,9 +188,9 @@ static int test_task_one_channel(void)
 	return TC_PASS;
 }
 
-ZTEST_USER(adc_dma, test_adc_sample_one_channel)
+void test_adc_sample_one_channel(void)
 {
-	zassert_true(test_task_one_channel() == TC_PASS);
+	zassert_true(test_task_one_channel() == TC_PASS, NULL);
 }
 
 /*
@@ -224,10 +222,10 @@ static int test_task_two_channels(void)
 }
 #endif /* defined(ADC_2ND_CHANNEL_ID) */
 
-ZTEST_USER(adc_dma, test_adc_sample_two_channels)
+void test_adc_sample_two_channels(void)
 {
 #if defined(ADC_2ND_CHANNEL_ID)
-	zassert_true(test_task_two_channels() == TC_PASS);
+	zassert_true(test_task_two_channels() == TC_PASS, NULL);
 #else
 	ztest_test_skip();
 #endif /* defined(ADC_2ND_CHANNEL_ID) */
@@ -274,10 +272,10 @@ static int test_task_asynchronous_call(void)
 }
 #endif /* defined(CONFIG_ADC_ASYNC) */
 
-ZTEST_USER(adc_dma, test_adc_asynchronous_call)
+void test_adc_asynchronous_call(void)
 {
 #if defined(CONFIG_ADC_ASYNC)
-	zassert_true(test_task_asynchronous_call() == TC_PASS);
+	zassert_true(test_task_asynchronous_call() == TC_PASS, NULL);
 #else
 	ztest_test_skip();
 #endif /* defined(CONFIG_ADC_ASYNC) */
@@ -340,9 +338,9 @@ static int test_task_with_interval(void)
 	return TC_PASS;
 }
 
-ZTEST(adc_dma, test_adc_sample_with_interval)
+void test_adc_sample_with_interval(void)
 {
-	zassert_true(test_task_with_interval() == TC_PASS);
+	zassert_true(test_task_with_interval() == TC_PASS, NULL);
 }
 
 /*
@@ -426,9 +424,9 @@ static int test_task_repeated_samplings(void)
 	return TC_PASS;
 }
 
-ZTEST(adc_dma, test_adc_repeated_samplings)
+void test_adc_repeated_samplings(void)
 {
-	zassert_true(test_task_repeated_samplings() == TC_PASS);
+	zassert_true(test_task_repeated_samplings() == TC_PASS, NULL);
 }
 
 /*
@@ -471,7 +469,7 @@ static int test_task_invalid_request(void)
 	return TC_PASS;
 }
 
-ZTEST_USER(adc_dma, test_adc_invalid_request)
+void test_adc_invalid_request(void)
 {
-	zassert_true(test_task_invalid_request() == TC_PASS);
+	zassert_true(test_task_invalid_request() == TC_PASS, NULL);
 }

@@ -7,18 +7,16 @@
 
 #define DT_DRV_COMPAT nxp_kinetis_ftm_pwm
 
-#include <zephyr/drivers/clock_control.h>
+#include <drivers/clock_control.h>
 #include <errno.h>
-#include <zephyr/drivers/pwm.h>
-#include <zephyr/irq.h>
+#include <drivers/pwm.h>
 #include <soc.h>
 #include <fsl_ftm.h>
 #include <fsl_clock.h>
-#include <zephyr/drivers/pinctrl.h>
 
-#include <zephyr/logging/log.h>
-
-LOG_MODULE_REGISTER(pwm_mcux_ftm, CONFIG_PWM_LOG_LEVEL);
+#define LOG_LEVEL CONFIG_PWM_LOG_LEVEL
+#include <logging/log.h>
+LOG_MODULE_REGISTER(pwm_mcux_ftm);
 
 #define MAX_CHANNELS ARRAY_SIZE(FTM0->CONTROLS)
 
@@ -38,7 +36,6 @@ struct mcux_ftm_config {
 #ifdef CONFIG_PWM_CAPTURE
 	void (*irq_config_func)(const struct device *dev);
 #endif /* CONFIG_PWM_CAPTURE */
-	const struct pinctrl_dev_config *pincfg;
 };
 
 struct mcux_ftm_capture_data {
@@ -46,8 +43,6 @@ struct mcux_ftm_capture_data {
 	pwm_capture_callback_handler_t callback;
 	void *user_data;
 	uint32_t first_edge_overflows;
-	uint16_t first_edge_cnt;
-	bool first_edge_overflow;
 	bool pulse_capture;
 };
 
@@ -61,24 +56,25 @@ struct mcux_ftm_data {
 #endif /* CONFIG_PWM_CAPTURE */
 };
 
-static int mcux_ftm_set_cycles(const struct device *dev, uint32_t channel,
-			       uint32_t period_cycles, uint32_t pulse_cycles,
-			       pwm_flags_t flags)
+static int mcux_ftm_pin_set(const struct device *dev, uint32_t pwm,
+			    uint32_t period_cycles, uint32_t pulse_cycles,
+			    pwm_flags_t flags)
 {
 	const struct mcux_ftm_config *config = dev->config;
 	struct mcux_ftm_data *data = dev->data;
 	status_t status;
 #ifdef CONFIG_PWM_CAPTURE
-	uint32_t pair = channel / 2U;
+	uint32_t pair = pwm / 2U;
 	uint32_t irqs;
 #endif /* CONFIG_PWM_CAPTURE */
 
-	if (period_cycles == 0U) {
-		LOG_ERR("Channel can not be set to inactive level");
-		return -ENOTSUP;
+	if ((period_cycles == 0U) || (pulse_cycles > period_cycles)) {
+		LOG_ERR("Invalid combination: period_cycles=%d, "
+			    "pulse_cycles=%d", period_cycles, pulse_cycles);
+		return -EINVAL;
 	}
 
-	if (channel >= config->channel_count) {
+	if (pwm >= config->channel_count) {
 		LOG_ERR("Invalid channel");
 		return -ENOTSUP;
 	}
@@ -91,12 +87,12 @@ static int mcux_ftm_set_cycles(const struct device *dev, uint32_t channel,
 	}
 #endif /* CONFIG_PWM_CAPTURE */
 
-	data->channel[channel].dutyValue = pulse_cycles;
+	data->channel[pwm].dutyValue = pulse_cycles;
 
 	if ((flags & PWM_POLARITY_INVERTED) == 0) {
-		data->channel[channel].level = kFTM_HighTrue;
+		data->channel[pwm].level = kFTM_HighTrue;
 	} else {
-		data->channel[channel].level = kFTM_LowTrue;
+		data->channel[pwm].level = kFTM_LowTrue;
 	}
 
 	LOG_DBG("pulse_cycles=%d, period_cycles=%d, flags=%d",
@@ -139,17 +135,18 @@ static int mcux_ftm_set_cycles(const struct device *dev, uint32_t channel,
 }
 
 #ifdef CONFIG_PWM_CAPTURE
-static int mcux_ftm_configure_capture(const struct device *dev,
-				      uint32_t channel, pwm_flags_t flags,
-				      pwm_capture_callback_handler_t cb,
-				      void *user_data)
+static int mcux_ftm_pin_configure_capture(const struct device *dev,
+					  uint32_t pwm,
+					  pwm_flags_t flags,
+					  pwm_capture_callback_handler_t cb,
+					  void *user_data)
 {
 	const struct mcux_ftm_config *config = dev->config;
 	struct mcux_ftm_data *data = dev->data;
 	ftm_dual_edge_capture_param_t *param;
-	uint32_t pair = channel / 2U;
+	uint32_t pair = pwm / 2U;
 
-	if (channel & 0x1U) {
+	if (pwm & 0x1U) {
 		LOG_ERR("PWM capture only supported on even channels");
 		return -ENOTSUP;
 	}
@@ -209,13 +206,13 @@ static int mcux_ftm_configure_capture(const struct device *dev,
 	return 0;
 }
 
-static int mcux_ftm_enable_capture(const struct device *dev, uint32_t channel)
+static int mcux_ftm_pin_enable_capture(const struct device *dev, uint32_t pwm)
 {
 	const struct mcux_ftm_config *config = dev->config;
 	struct mcux_ftm_data *data = dev->data;
-	uint32_t pair = channel / 2U;
+	uint32_t pair = pwm / 2U;
 
-	if (channel & 0x1U) {
+	if (pwm & 0x1U) {
 		LOG_ERR("PWM capture only supported on even channels");
 		return -ENOTSUP;
 	}
@@ -247,13 +244,13 @@ static int mcux_ftm_enable_capture(const struct device *dev, uint32_t channel)
 	return 0;
 }
 
-static int mcux_ftm_disable_capture(const struct device *dev, uint32_t channel)
+static int mcux_ftm_pin_disable_capture(const struct device *dev, uint32_t pwm)
 {
 	const struct mcux_ftm_config *config = dev->config;
 	struct mcux_ftm_data *data = dev->data;
-	uint32_t pair = channel / 2U;
+	uint32_t pair = pwm / 2U;
 
-	if (channel & 0x1U) {
+	if (pwm & 0x1U) {
 		LOG_ERR("PWM capture only supported on even channels");
 		return -ENOTSUP;
 	}
@@ -273,35 +270,27 @@ static int mcux_ftm_disable_capture(const struct device *dev, uint32_t channel)
 	return 0;
 }
 
-static void mcux_ftm_capture_first_edge(const struct device *dev, uint32_t channel,
-					uint16_t cnt, bool overflow)
+static void mcux_ftm_capture_first_edge(const struct device *dev, uint32_t pwm)
 {
 	const struct mcux_ftm_config *config = dev->config;
 	struct mcux_ftm_data *data = dev->data;
 	struct mcux_ftm_capture_data *capture;
-	uint32_t pair = channel / 2U;
+	uint32_t pair = pwm / 2U;
 
 	__ASSERT_NO_MSG(pair < ARRAY_SIZE(data->capture));
 	capture = &data->capture[pair];
 
 	FTM_DisableInterrupts(config->base, BIT(PAIR_1ST_CH(pair)));
-
-	capture->first_edge_cnt = cnt;
 	capture->first_edge_overflows = data->overflows;
-	capture->first_edge_overflow = overflow;
-
-	LOG_DBG("pair = %d, 1st cnt = %u, 1st ovf = %d", pair, cnt, overflow);
 }
 
-static void mcux_ftm_capture_second_edge(const struct device *dev, uint32_t channel,
-					 uint16_t cnt, bool overflow)
-
+static void mcux_ftm_capture_second_edge(const struct device *dev, uint32_t pwm)
 {
 	const struct mcux_ftm_config *config = dev->config;
 	struct mcux_ftm_data *data = dev->data;
 	uint32_t second_edge_overflows = data->overflows;
 	struct mcux_ftm_capture_data *capture;
-	uint32_t pair = channel / 2U;
+	uint32_t pair = pwm / 2U;
 	uint32_t overflows;
 	uint32_t first_cnv;
 	uint32_t second_cnv;
@@ -314,27 +303,13 @@ static void mcux_ftm_capture_second_edge(const struct device *dev, uint32_t chan
 	first_cnv = config->base->CONTROLS[PAIR_1ST_CH(pair)].CnV;
 	second_cnv = config->base->CONTROLS[PAIR_2ND_CH(pair)].CnV;
 
-	if (capture->pulse_capture) {
-		/* Clear both edge flags for pulse capture to capture first edge overflow counter */
-		FTM_ClearStatusFlags(config->base, BIT(PAIR_1ST_CH(pair)) | BIT(PAIR_2ND_CH(pair)));
-	} else {
-		/* Only clear second edge flag for period capture as next first edge is this edge */
+	/* Prepare for next capture */
+	if (capture->param.mode == kFTM_Continuous) {
 		FTM_ClearStatusFlags(config->base, BIT(PAIR_2ND_CH(pair)));
 	}
 
-	if (unlikely(capture->first_edge_overflow && first_cnv > capture->first_edge_cnt)) {
-		/* Compensate for the overflow registered in the same IRQ */
-		capture->first_edge_overflows--;
-	}
-
-	if (unlikely(overflow && second_cnv > cnt)) {
-		/* Compensate for the overflow registered in the same IRQ */
-		second_edge_overflows--;
-	}
-
-	overflows = second_edge_overflows - capture->first_edge_overflows;
-
 	/* Calculate cycles, check for overflows */
+	overflows = second_edge_overflows - capture->first_edge_overflows;
 	if (overflows > 0) {
 		if (u32_mul_overflow(overflows, config->base->MOD, &cycles)) {
 			LOG_ERR("overflow while calculating cycles");
@@ -351,10 +326,8 @@ static void mcux_ftm_capture_second_edge(const struct device *dev, uint32_t chan
 		cycles = second_cnv - first_cnv;
 	}
 
-	LOG_DBG("pair = %d, 1st ovfs = %u, 2nd ovfs = %u, ovfs = %u, 1st cnv = %u, "
-		"2nd cnv = %u, cycles = %u, 2nd cnt = %u, 2nd ovf = %d",
-		pair, capture->first_edge_overflows, second_edge_overflows, overflows, first_cnv,
-		second_cnv, cycles, cnt, overflow);
+	LOG_DBG("pair = %d, overflows = %u, cycles = %u", pair, overflows,
+		cycles);
 
 	if (capture->pulse_capture) {
 		capture->callback(dev, pair, 0, cycles, status,
@@ -365,16 +338,9 @@ static void mcux_ftm_capture_second_edge(const struct device *dev, uint32_t chan
 	}
 
 	if (capture->param.mode == kFTM_OneShot) {
-		/* One-shot capture done */
 		FTM_DisableInterrupts(config->base, BIT(PAIR_2ND_CH(pair)));
-	} else if (capture->pulse_capture) {
-		/* Prepare for first edge of next pulse capture */
-		FTM_EnableInterrupts(config->base, BIT(PAIR_1ST_CH(pair)));
 	} else {
-		/* First edge of next period capture is second edge of this capture (this edge) */
-		capture->first_edge_cnt = cnt;
-		capture->first_edge_overflows = second_edge_overflows;
-		capture->first_edge_overflow = false;
+		FTM_EnableInterrupts(config->base, BIT(PAIR_1ST_CH(pair)));
 	}
 }
 
@@ -382,36 +348,32 @@ static void mcux_ftm_isr(const struct device *dev)
 {
 	const struct mcux_ftm_config *config = dev->config;
 	struct mcux_ftm_data *data = dev->data;
-	bool overflow = false;
 	uint32_t flags;
 	uint32_t irqs;
-	uint16_t cnt;
 	uint32_t ch;
 
 	flags = FTM_GetStatusFlags(config->base);
 	irqs = FTM_GetEnabledInterrupts(config->base);
-	cnt = config->base->CNT;
 
 	if (flags & kFTM_TimeOverflowFlag) {
 		data->overflows++;
-		overflow = true;
 		FTM_ClearStatusFlags(config->base, kFTM_TimeOverflowFlag);
 	}
 
 	for (ch = 0; ch < MAX_CHANNELS; ch++) {
 		if ((flags & BIT(ch)) && (irqs & BIT(ch))) {
 			if (ch & 1) {
-				mcux_ftm_capture_second_edge(dev, ch, cnt, overflow);
+				mcux_ftm_capture_second_edge(dev, ch);
 			} else {
-				mcux_ftm_capture_first_edge(dev, ch, cnt, overflow);
+				mcux_ftm_capture_first_edge(dev, ch);
 			}
 		}
 	}
 }
 #endif /* CONFIG_PWM_CAPTURE */
 
-static int mcux_ftm_get_cycles_per_sec(const struct device *dev,
-				       uint32_t channel, uint64_t *cycles)
+static int mcux_ftm_get_cycles_per_sec(const struct device *dev, uint32_t pwm,
+				       uint64_t *cycles)
 {
 	const struct mcux_ftm_config *config = dev->config;
 	struct mcux_ftm_data *data = dev->data;
@@ -428,21 +390,10 @@ static int mcux_ftm_init(const struct device *dev)
 	ftm_chnl_pwm_config_param_t *channel = data->channel;
 	ftm_config_t ftm_config;
 	int i;
-	int err;
-
-	err = pinctrl_apply_state(config->pincfg, PINCTRL_STATE_DEFAULT);
-	if (err != 0) {
-		return err;
-	}
 
 	if (config->channel_count > ARRAY_SIZE(data->channel)) {
 		LOG_ERR("Invalid channel count");
 		return -EINVAL;
-	}
-
-	if (!device_is_ready(config->clock_dev)) {
-		LOG_ERR("clock control device not ready");
-		return -ENODEV;
 	}
 
 	if (clock_control_get_rate(config->clock_dev, config->clock_subsys,
@@ -479,12 +430,12 @@ static int mcux_ftm_init(const struct device *dev)
 }
 
 static const struct pwm_driver_api mcux_ftm_driver_api = {
-	.set_cycles = mcux_ftm_set_cycles,
+	.pin_set = mcux_ftm_pin_set,
 	.get_cycles_per_sec = mcux_ftm_get_cycles_per_sec,
 #ifdef CONFIG_PWM_CAPTURE
-	.configure_capture = mcux_ftm_configure_capture,
-	.enable_capture = mcux_ftm_enable_capture,
-	.disable_capture = mcux_ftm_disable_capture,
+	.pin_configure_capture = mcux_ftm_pin_configure_capture,
+	.pin_enable_capture = mcux_ftm_pin_enable_capture,
+	.pin_disable_capture = mcux_ftm_pin_disable_capture,
 #endif /* CONFIG_PWM_CAPTURE */
 };
 
@@ -518,18 +469,16 @@ static const struct mcux_ftm_config mcux_ftm_config_##n = { \
 	.channel_count = FSL_FEATURE_FTM_CHANNEL_COUNTn((FTM_Type *) \
 		DT_INST_REG_ADDR(n)), \
 	.mode = kFTM_EdgeAlignedPwm, \
-	.pincfg = PINCTRL_DT_INST_DEV_CONFIG_GET(n), \
 	CAPTURE_INIT \
 }
 
 #define FTM_DEVICE(n) \
-	PINCTRL_DT_INST_DEFINE(n); \
 	static struct mcux_ftm_data mcux_ftm_data_##n; \
 	static const struct mcux_ftm_config mcux_ftm_config_##n; \
 	DEVICE_DT_INST_DEFINE(n, &mcux_ftm_init,		       \
 			    NULL, &mcux_ftm_data_##n, \
 			    &mcux_ftm_config_##n, \
-			    POST_KERNEL, CONFIG_PWM_INIT_PRIORITY, \
+			    POST_KERNEL, CONFIG_KERNEL_INIT_PRIORITY_DEVICE, \
 			    &mcux_ftm_driver_api); \
 	FTM_CONFIG_FUNC(n) \
 	FTM_INIT_CFG(n);

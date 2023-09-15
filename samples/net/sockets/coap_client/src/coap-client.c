@@ -4,19 +4,19 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(net_coap_client_sample, LOG_LEVEL_DBG);
 
 #include <errno.h>
-#include <zephyr/sys/printk.h>
-#include <zephyr/sys/byteorder.h>
-#include <zephyr/kernel.h>
+#include <sys/printk.h>
+#include <sys/byteorder.h>
+#include <zephyr.h>
 
-#include <zephyr/net/socket.h>
-#include <zephyr/net/net_mgmt.h>
-#include <zephyr/net/net_ip.h>
-#include <zephyr/net/udp.h>
-#include <zephyr/net/coap.h>
+#include <net/socket.h>
+#include <net/net_mgmt.h>
+#include <net/net_ip.h>
+#include <net/udp.h>
+#include <net/coap.h>
 
 #include "net_private.h"
 

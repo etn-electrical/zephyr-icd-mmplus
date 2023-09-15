@@ -15,18 +15,24 @@
 #ifndef __SOC_H_
 #define __SOC_H_
 
-#include <zephyr/sys/util.h>
+#include <sys/util.h>
 
 #ifndef _ASMLANGUAGE
-#include <zephyr/device.h>
-#include <zephyr/random/rand32.h>
+#include <device.h>
+#include <random/rand32.h>
 #endif
+
+/*
+ * UART
+ */
+#define UART_NS16550_ACCESS_IOPORT 0x3f8
+
 
 /* PCI definitions */
 /* FIXME: The values below copied from generic ia32 soc, we need to get the
  * correct numbers for Atom and the minnowboard
  *
- * This is added now to get basic enumeration of devices and verify that PCI
+ * This is added now to get basic enumartion of devices and verify that PCI
  * driver is functional.
  */
 #define PCI_BUS_NUMBERS 1

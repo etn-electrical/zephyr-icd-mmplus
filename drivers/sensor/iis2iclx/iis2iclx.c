@@ -10,14 +10,14 @@
 
 #define DT_DRV_COMPAT st_iis2iclx
 
-#include <zephyr/drivers/sensor.h>
-#include <zephyr/kernel.h>
-#include <zephyr/device.h>
-#include <zephyr/init.h>
+#include <drivers/sensor.h>
+#include <kernel.h>
+#include <device.h>
+#include <init.h>
 #include <string.h>
-#include <zephyr/sys/byteorder.h>
-#include <zephyr/sys/__assert.h>
-#include <zephyr/logging/log.h>
+#include <sys/byteorder.h>
+#include <sys/__assert.h>
+#include <logging/log.h>
 
 #include "iis2iclx.h"
 
@@ -629,7 +629,7 @@ static int iis2iclx_init(const struct device *dev)
  */
 
 #define IIS2ICLX_DEVICE_INIT(inst)					\
-	SENSOR_DEVICE_DT_INST_DEFINE(inst,				\
+	DEVICE_DT_INST_DEFINE(inst,					\
 			    iis2iclx_init,				\
 			    NULL,					\
 			    &iis2iclx_data_##inst,			\

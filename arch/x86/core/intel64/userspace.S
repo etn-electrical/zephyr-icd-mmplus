@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/toolchain.h>
-#include <zephyr/arch/cpu.h>
+#include <toolchain.h>
+#include <arch/cpu.h>
 #include <offsets_short.h>
-#include <zephyr/syscall.h>
-#include <zephyr/sys/mem_manage.h>
+#include <syscall.h>
+#include <sys/mem_manage.h>
 
 #ifdef CONFIG_X86_KPTI
 /* Copy interrupt return stack context to the trampoline stack, switch back

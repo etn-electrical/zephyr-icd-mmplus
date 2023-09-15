@@ -4,14 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/drivers/gpio.h>
-#include <zephyr/sys/reboot.h>
-#include <zephyr/settings/settings.h>
+#include <zephyr.h>
+#include <drivers/gpio.h>
+#include <sys/reboot.h>
+#include <settings/settings.h>
 #include <canopennode.h>
 
 #define LOG_LEVEL CONFIG_CANOPEN_LOG_LEVEL
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(app);
 
 #define CAN_INTERFACE DEVICE_DT_GET(DT_CHOSEN(zephyr_canbus))
@@ -86,7 +86,7 @@ static void config_leds(CO_NMT_t *nmt)
 					    GPIO_OUTPUT_INACTIVE);
 		if (err) {
 			LOG_ERR("failed to configure Red LED gpio: %d", err);
-			led_red_gpio.port = NULL;
+			led_green_gpio.port = NULL;
 		}
 	}
 

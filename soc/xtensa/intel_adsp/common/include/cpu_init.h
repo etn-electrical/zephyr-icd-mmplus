@@ -4,9 +4,16 @@
 #ifndef __INTEL_ADSP_CPU_INIT_H
 #define __INTEL_ADSP_CPU_INIT_H
 
-#include <zephyr/arch/xtensa/cache.h>
+#include <arch/xtensa/cache.h>
 #include <xtensa/config/core-isa.h>
-#include <adsp_memory.h>
+
+#define CxL1CCAP (*(volatile uint32_t *)0x9F080080)
+#define CxL1CCFG (*(volatile uint32_t *)0x9F080084)
+#define CxL1PCFG (*(volatile uint32_t *)0x9F080088)
+
+/* "Data/Instruction Cache Memory Way Count" fields */
+#define CxL1CCAP_DCMWC ((CxL1CCAP >> 16) & 7)
+#define CxL1CCAP_ICMWC ((CxL1CCAP >> 20) & 7)
 
 /* Low-level CPU initialization.  Call this immediately after entering
  * C code to initialize the cache, protection and synchronization
@@ -16,24 +23,25 @@ static ALWAYS_INLINE void cpu_early_init(void)
 {
 	uint32_t reg;
 
-#ifdef CONFIG_ADSP_NEED_POWER_ON_CACHE
-	/* First, we need to power the cache SRAM banks on!  Write a bit
-	 * for each cache way in the bottom half of the L1CCFG register
-	 * and poll the top half for them to turn on.
-	 */
-	uint32_t dmask = BIT(ADSP_CxL1CCAP_DCMWC) - 1;
-	uint32_t imask = BIT(ADSP_CxL1CCAP_ICMWC) - 1;
-	uint32_t waymask = (imask << 8) | dmask;
+	if (IS_ENABLED(CONFIG_SOC_SERIES_INTEL_CAVS_V25)) {
+		/* First, on cAVS 2.5 we need to power the cache SRAM banks
+		 * on!  Write a bit for each cache way in the bottom half of
+		 * the L1CCFG register and poll the top half for them to turn
+		 * on.
+		 */
+		uint32_t dmask = BIT(CxL1CCAP_DCMWC) - 1;
+		uint32_t imask = BIT(CxL1CCAP_ICMWC) - 1;
+		uint32_t waymask = (imask << 8) | dmask;
 
-	ADSP_CxL1CCFG_REG = waymask;
-	while (((ADSP_CxL1CCFG_REG >> 16) & waymask) != waymask) {
-	}
+		CxL1CCFG = waymask;
+		while (((CxL1CCFG >> 16) & waymask) != waymask) {
+		}
 
-	/* Prefetcher also power gates, same interface */
-	ADSP_CxL1PCFG_REG = 1;
-	while ((ADSP_CxL1PCFG_REG & 0x10000) == 0) {
+		/* Prefetcher also power gates, same interface */
+		CxL1PCFG = 1;
+		while ((CxL1PCFG & 0x10000) == 0) {
+		}
 	}
-#endif
 
 	/* Now set up the Xtensa CPU to enable the cache logic.  The
 	 * details of the fields are somewhat complicated, but per the
@@ -53,7 +61,7 @@ static ALWAYS_INLINE void cpu_early_init(void)
 	 * SOF for now.  If we care about prefetch priority tuning
 	 * we're supposed to ask Cadence I guess.
 	 */
-	reg = ADSP_L1_CACHE_PREFCTL_VALUE;
+	reg = IS_ENABLED(CONFIG_SOC_SERIES_INTEL_CAVS_V25) ? 0x1038 : 0;
 	__asm__ volatile("wsr %0, PREFCTL; rsync" :: "r"(reg));
 
 	/* Finally we need to enable the cache in the Region
@@ -80,7 +88,7 @@ static ALWAYS_INLINE void cpu_early_init(void)
 	 * are still disabled at this stage and will remain so
 	 * consistently until Zephyr switches into the main thread.
 	 */
-	reg = VECBASE_RESET_PADDR_SRAM;
+	reg = XCHAL_VECBASE_RESET_PADDR_SRAM;
 	__asm__ volatile("wsr %0, VECBASE" :: "r"(reg));
 }
 

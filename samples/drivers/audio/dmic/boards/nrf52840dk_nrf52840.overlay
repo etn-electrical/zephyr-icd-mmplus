@@ -4,18 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-&pinctrl {
-	pdm0_default_alt: pdm0_default_alt {
-		group1 {
-			psels = <NRF_PSEL(PDM_CLK, 0, 30)>,
-				<NRF_PSEL(PDM_DIN, 0, 31)>;
-		};
-	};
-};
-
 dmic_dev: &pdm0 {
 	status = "okay";
-	pinctrl-0 = <&pdm0_default_alt>;
-	pinctrl-names = "default";
+	clk-pin = <30>;
+	din-pin = <31>;
 	clock-source = "PCLK32M_HFXO";
 };

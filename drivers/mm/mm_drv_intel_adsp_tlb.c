@@ -22,18 +22,18 @@
 
 #define DT_DRV_COMPAT intel_adsp_tlb
 
-#include <zephyr/device.h>
-#include <zephyr/kernel.h>
-#include <zephyr/spinlock.h>
-#include <zephyr/sys/__assert.h>
-#include <zephyr/sys/check.h>
-#include <zephyr/sys/mem_manage.h>
-#include <zephyr/sys/util.h>
+#include <device.h>
+#include <kernel.h>
+#include <spinlock.h>
+#include <sys/__assert.h>
+#include <sys/check.h>
+#include <sys/mem_manage.h>
+#include <sys/util.h>
 
 #include <soc.h>
-#include <adsp_memory.h>
+#include <cavs-mem.h>
 
-#include <zephyr/drivers/mm/system_mm.h>
+#include <drivers/mm/system_mm.h>
 #include "mm_drv_common.h"
 
 DEVICE_MMIO_TOPLEVEL_STATIC(tlb_regs, DT_DRV_INST(0));
@@ -45,7 +45,12 @@ DEVICE_MMIO_TOPLEVEL_STATIC(tlb_regs, DT_DRV_INST(0));
  * Number of significant bits in the page index (defines the size of
  * the table)
  */
-#define TLB_PADDR_SIZE DT_INST_PROP(0, paddr_size)
+#if defined(CONFIG_SOC_SERIES_INTEL_CAVS_V15)
+# define TLB_PADDR_SIZE 9
+#else
+# define TLB_PADDR_SIZE 11
+#endif
+
 #define TLB_PADDR_MASK ((1 << TLB_PADDR_SIZE) - 1)
 #define TLB_ENABLE_BIT BIT(TLB_PADDR_SIZE)
 
@@ -54,7 +59,7 @@ static struct k_spinlock tlb_lock;
 /**
  * Calculate the index to the TLB table.
  *
- * @param vaddr Page-aligned virtual address.
+ * @param vaddr Page-aligned virutal address.
  * @return Index to the TLB table.
  */
 static uint32_t get_tlb_entry_idx(uintptr_t vaddr)
@@ -255,28 +260,6 @@ int sys_mm_drv_page_flag_get(void *virt, uint32_t *flags)
 
 	return 0;
 }
-
-int sys_mm_drv_update_page_flags(void *virt, uint32_t flags)
-{
-	ARG_UNUSED(virt);
-	ARG_UNUSED(flags);
-
-	/*
-	 * There are no caching mode, or R/W, or eXecution (etc.) bits.
-	 * So just return 0.
-	 */
-
-	return 0;
-}
-
-int sys_mm_drv_update_region_flags(void *virt, size_t size,
-				   uint32_t flags)
-{
-	void *va = z_soc_cached_ptr(virt);
-
-	return sys_mm_drv_simple_update_region_flags(va, size, flags);
-}
-
 
 int sys_mm_drv_remap_region(void *virt_old, size_t size,
 			    void *virt_new)

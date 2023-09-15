@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/tracing/tracing.h>
+#include <tracing/tracing.h>
 
 void arch_cpu_idle(void)
 {

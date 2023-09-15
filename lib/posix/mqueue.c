@@ -3,12 +3,12 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#include <zephyr/kernel.h>
+#include <kernel.h>
 #include <errno.h>
 #include <string.h>
-#include <zephyr/sys/atomic.h>
-#include <zephyr/posix/time.h>
-#include <zephyr/posix/mqueue.h>
+#include <sys/atomic.h>
+#include <posix/time.h>
+#include <posix/mqueue.h>
 
 typedef struct mqueue_object {
 	sys_snode_t snode;
@@ -61,7 +61,7 @@ mqd_t mq_open(const char *name, int oflags, ...)
 {
 	va_list va;
 	mode_t mode;
-	struct mq_attr *attrs = NULL;
+	mq_attr *attrs = NULL;
 	long msg_size = 0U, max_msgs = 0U;
 	mqueue_object *msg_queue;
 	mqueue_desc *msg_queue_desc = NULL, *mqd = (mqueue_desc *)(-1);
@@ -70,7 +70,7 @@ mqd_t mq_open(const char *name, int oflags, ...)
 	va_start(va, oflags);
 	if ((oflags & O_CREAT) != 0) {
 		mode = va_arg(va, PROMOTED_MODE_T);
-		attrs = va_arg(va, struct mq_attr*);
+		attrs = va_arg(va, mq_attr*);
 	}
 	va_end(va);
 
@@ -97,7 +97,7 @@ mqd_t mq_open(const char *name, int oflags, ...)
 
 	if ((msg_queue != NULL) && (oflags & O_CREAT) != 0 &&
 	    (oflags & O_EXCL) != 0) {
-		/* Message queue has already been opened and O_EXCL is set */
+		/* Message queue has alreadey been opened and O_EXCL is set */
 		errno = EEXIST;
 		return (mqd_t)mqd;
 	}

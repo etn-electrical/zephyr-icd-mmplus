@@ -10,7 +10,7 @@
 
 #include <stdbool.h>
 #include <zephyr/types.h>
-#include <zephyr/bluetooth/gatt.h>
+#include <bluetooth/gatt.h>
 
 #ifdef __cplusplus
 extern "C" {

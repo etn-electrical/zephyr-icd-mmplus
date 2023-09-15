@@ -3,9 +3,9 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#include <zephyr/sys/sys_heap.h>
-#include <zephyr/sys/util.h>
-#include <zephyr/kernel.h>
+#include <sys/sys_heap.h>
+#include <sys/util.h>
+#include <kernel.h>
 #include "heap.h"
 
 /* White-box sys_heap validation code.  Uses internal data structures.
@@ -110,7 +110,7 @@ bool sys_heap_validate(struct sys_heap *heap)
 	 * sys_heap_runtime_stats_get function.
 	 */
 	size_t allocated_bytes, free_bytes;
-	struct sys_memory_stats stat;
+	struct sys_heap_runtime_stats stat;
 
 	get_alloc_info(h, &allocated_bytes, &free_bytes);
 	sys_heap_runtime_stats_get(heap, &stat);
@@ -414,7 +414,7 @@ void sys_heap_print_info(struct sys_heap *heap, bool dump_chunks)
 #ifdef CONFIG_SYS_HEAP_RUNTIME_STATS
 
 int sys_heap_runtime_stats_get(struct sys_heap *heap,
-		struct sys_memory_stats *stats)
+		struct sys_heap_runtime_stats *stats)
 {
 	if ((heap == NULL) || (stats == NULL)) {
 		return -EINVAL;
@@ -422,18 +422,6 @@ int sys_heap_runtime_stats_get(struct sys_heap *heap,
 
 	stats->free_bytes = heap->heap->free_bytes;
 	stats->allocated_bytes = heap->heap->allocated_bytes;
-	stats->max_allocated_bytes = heap->heap->max_allocated_bytes;
-
-	return 0;
-}
-
-int sys_heap_runtime_stats_reset_max(struct sys_heap *heap)
-{
-	if (heap == NULL) {
-		return -EINVAL;
-	}
-
-	heap->heap->max_allocated_bytes = heap->heap->allocated_bytes;
 
 	return 0;
 }

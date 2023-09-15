@@ -8,18 +8,16 @@
 #define DT_DRV_COMPAT	nxp_kinetis_dspi
 
 #include <errno.h>
-#include <zephyr/drivers/spi.h>
-#include <zephyr/drivers/clock_control.h>
+#include <drivers/spi.h>
+#include <drivers/clock_control.h>
 #include <fsl_dspi.h>
-#include <zephyr/drivers/pinctrl.h>
 #ifdef CONFIG_DSPI_MCUX_EDMA
-#include <zephyr/drivers/dma.h>
+#include <drivers/dma.h>
 #include <fsl_edma.h>
 #endif
 
 #define LOG_LEVEL CONFIG_SPI_LOG_LEVEL
-#include <zephyr/logging/log.h>
-#include <zephyr/irq.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(spi_mcux_dspi);
 
 #include "spi_context.h"
@@ -49,7 +47,6 @@ struct spi_mcux_config {
 	bool enable_rxfifo_overwrite;
 	bool enable_modified_timing_format;
 	bool is_dma_chn_shared;
-	const struct pinctrl_dev_config *pincfg;
 };
 
 struct spi_mcux_data {
@@ -96,7 +93,7 @@ static int spi_mcux_transfer_next_packet(const struct device *dev)
 		/* nothing left to rx or tx, we're done! */
 		LOG_DBG("spi transceive done");
 		spi_context_cs_control(&data->ctx, false);
-		spi_context_complete(&data->ctx, dev, 0);
+		spi_context_complete(&data->ctx, 0);
 		return 0;
 	}
 
@@ -475,7 +472,7 @@ static int configure_dma(const struct device *dev)
 static void dma_callback(const struct device *dma_dev, void *callback_arg,
 			 uint32_t channel, int error_code)
 {
-	const struct device *dev = (const struct device *)callback_arg;
+	const struct device *dev = (struct device *)callback_arg;
 	const struct spi_mcux_config *config = dev->config;
 	SPI_Type *base = config->base;
 	struct spi_mcux_data *data = dev->data;
@@ -633,11 +630,6 @@ static int spi_mcux_configure(const struct device *dev,
 	ctar_config->lastSckToPcsDelayInNanoSec = config->sck_pcs_delay;
 	ctar_config->betweenTransferDelayInNanoSec = config->transfer_delay;
 
-	if (!device_is_ready(config->clock_dev)) {
-		LOG_ERR("clock control device not ready");
-		return -ENODEV;
-	}
-
 	if (clock_control_get_rate(config->clock_dev, config->clock_subsys,
 				   &clock_freq)) {
 		return -EINVAL;
@@ -676,8 +668,7 @@ static int transceive(const struct device *dev,
 		      const struct spi_buf_set *tx_bufs,
 		      const struct spi_buf_set *rx_bufs,
 		      bool asynchronous,
-		      spi_callback_t cb,
-		      void *userdata)
+		      struct k_poll_signal *signal)
 {
 	struct spi_mcux_data *data = dev->data;
 	int ret;
@@ -686,7 +677,7 @@ static int transceive(const struct device *dev,
 	SPI_Type *base = config->base;
 #endif
 
-	spi_context_lock(&data->ctx, asynchronous, cb, userdata, spi_cfg);
+	spi_context_lock(&data->ctx, asynchronous, signal, spi_cfg);
 
 	ret = spi_mcux_configure(dev, spi_cfg);
 	if (ret) {
@@ -733,7 +724,7 @@ static int spi_mcux_transceive(const struct device *dev,
 			       const struct spi_buf_set *tx_bufs,
 			       const struct spi_buf_set *rx_bufs)
 {
-	return transceive(dev, spi_cfg, tx_bufs, rx_bufs, false, NULL, NULL);
+	return transceive(dev, spi_cfg, tx_bufs, rx_bufs, false, NULL);
 }
 
 #ifdef CONFIG_SPI_ASYNC
@@ -741,10 +732,9 @@ static int spi_mcux_transceive_async(const struct device *dev,
 				     const struct spi_config *spi_cfg,
 				     const struct spi_buf_set *tx_bufs,
 				     const struct spi_buf_set *rx_bufs,
-				     spi_callback_t cb,
-				     void *userdata)
+				     struct k_poll_signal *async)
 {
-	return transceive(dev, spi_cfg, tx_bufs, rx_bufs, true, cb, userdata);
+	return transceive(dev, spi_cfg, tx_bufs, rx_bufs, true, async);
 }
 #endif /* CONFIG_SPI_ASYNC */
 
@@ -762,8 +752,6 @@ static int spi_mcux_init(const struct device *dev)
 {
 	int err;
 	struct spi_mcux_data *data = dev->data;
-	const struct spi_mcux_config *config = dev->config;
-
 #ifdef CONFIG_DSPI_MCUX_EDMA
 	enum dma_channel_filter spi_filter = DMA_CHANNEL_NORMAL;
 	const struct device *dma_dev;
@@ -775,13 +763,10 @@ static int spi_mcux_init(const struct device *dev)
 	data->tx_dma_config.dma_channel =
 	  dma_request_channel(dma_dev, (void *)&spi_filter);
 #else
+	const struct spi_mcux_config *config = dev->config;
+
 	config->irq_config_func(dev);
 #endif
-	err = pinctrl_apply_state(config->pincfg, PINCTRL_STATE_DEFAULT);
-	if (err != 0) {
-		return err;
-	}
-
 	data->dev = dev;
 
 	err = spi_context_cs_configure_all(&data->ctx);
@@ -876,7 +861,6 @@ static const struct spi_driver_api spi_mcux_driver_api = {
 #endif
 
 #define SPI_MCUX_DSPI_DEVICE(id)					\
-	PINCTRL_DT_INST_DEFINE(id);					\
 	static void spi_mcux_config_func_##id(const struct device *dev);\
 	TX_BUFFER(id);							\
 	RX_BUFFER(id);							\
@@ -910,7 +894,6 @@ static const struct spi_driver_api spi_mcux_driver_api = {
 		    DT_INST_PROP(id, modified_timing_format),		\
 		.is_dma_chn_shared =					\
 		    DT_INST_PROP(id, nxp_rx_tx_chn_share),		\
-		.pincfg = PINCTRL_DT_INST_DEV_CONFIG_GET(id),		\
 	};								\
 	DEVICE_DT_INST_DEFINE(id,					\
 			    &spi_mcux_init,				\

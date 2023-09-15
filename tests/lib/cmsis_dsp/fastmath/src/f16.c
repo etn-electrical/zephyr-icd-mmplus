@@ -5,8 +5,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
-#include <zephyr/kernel.h>
+#include <ztest.h>
+#include <zephyr.h>
 #include <stdlib.h>
 #include <arm_math_f16.h>
 #include "../../common/test_common.h"
@@ -19,15 +19,6 @@
 #define REL_LOG_ERROR_THRESH	(3.0e-2)
 #define ABS_ERROR_THRESH	(1.0e-3)
 #define ABS_LOG_ERROR_THRESH	(3.0e-2)
-
-#ifdef CONFIG_ARMV8_1_M_MVEF
-/*
- * NOTE: The MVE vector version of the `vinverse` function is slightly less
- *       accurate than the scalar version.
- */
-#undef REL_ERROR_THRESH
-#define REL_ERROR_THRESH	(1.1e-3)
-#endif
 
 #if 0
 /*
@@ -95,9 +86,7 @@ static void test_arm_sin_f16(void)
 }
 #endif
 
-ZTEST_SUITE(fastmath_f16, NULL, NULL, NULL, NULL, NULL);
-
-ZTEST(fastmath_f16, test_arm_sqrt_f16)
+static void test_arm_sqrt_f16(void)
 {
 	size_t index;
 	size_t length = ARRAY_SIZE(in_sqrt);
@@ -166,10 +155,10 @@ static void test_arm_vlog_f16(
 	free(output);
 }
 
-DEFINE_TEST_VARIANT3(fastmath_f16, arm_vlog_f16, all, in_log, ref_log, 25);
-DEFINE_TEST_VARIANT3(fastmath_f16, arm_vlog_f16, 3, in_log, ref_log, 3);
-DEFINE_TEST_VARIANT3(fastmath_f16, arm_vlog_f16, 8, in_log, ref_log, 8);
-DEFINE_TEST_VARIANT3(fastmath_f16, arm_vlog_f16, 11, in_log, ref_log, 11);
+DEFINE_TEST_VARIANT3(arm_vlog_f16, all, in_log, ref_log, 25);
+DEFINE_TEST_VARIANT3(arm_vlog_f16, 3, in_log, ref_log, 3);
+DEFINE_TEST_VARIANT3(arm_vlog_f16, 8, in_log, ref_log, 8);
+DEFINE_TEST_VARIANT3(arm_vlog_f16, 11, in_log, ref_log, 11);
 
 static void test_arm_vexp_f16(
 	const uint16_t *input1, const uint16_t *ref, size_t length)
@@ -198,12 +187,12 @@ static void test_arm_vexp_f16(
 	free(output);
 }
 
-DEFINE_TEST_VARIANT3(fastmath_f16, arm_vexp_f16, all, in_exp, ref_exp, 52);
-DEFINE_TEST_VARIANT3(fastmath_f16, arm_vexp_f16, 3, in_exp, ref_exp, 3);
-DEFINE_TEST_VARIANT3(fastmath_f16, arm_vexp_f16, 8, in_exp, ref_exp, 8);
-DEFINE_TEST_VARIANT3(fastmath_f16, arm_vexp_f16, 11, in_exp, ref_exp, 11);
+DEFINE_TEST_VARIANT3(arm_vexp_f16, all, in_exp, ref_exp, 52);
+DEFINE_TEST_VARIANT3(arm_vexp_f16, 3, in_exp, ref_exp, 3);
+DEFINE_TEST_VARIANT3(arm_vexp_f16, 8, in_exp, ref_exp, 8);
+DEFINE_TEST_VARIANT3(arm_vexp_f16, 11, in_exp, ref_exp, 11);
 
-ZTEST(fastmath_f16, test_arm_vinverse_f16)
+static void test_arm_vinverse_f16(void)
 {
 	size_t length = ARRAY_SIZE(ref_vinverse);
 	float16_t *output;
@@ -228,6 +217,27 @@ ZTEST(fastmath_f16, test_arm_vinverse_f16)
 
 	/* Free output buffer */
 	free(output);
+}
+
+void test_fastmath_f16(void)
+{
+	ztest_test_suite(fastmath_f16,
+		/* NOTE: F16 sin and cos are not implemented for now */
+		/* ztest_unit_test(test_arm_cos_f16), */
+		/* ztest_unit_test(test_arm_sin_f16), */
+		ztest_unit_test(test_arm_sqrt_f16),
+		ztest_unit_test(test_arm_vlog_f16_all),
+		ztest_unit_test(test_arm_vlog_f16_3),
+		ztest_unit_test(test_arm_vlog_f16_8),
+		ztest_unit_test(test_arm_vlog_f16_11),
+		ztest_unit_test(test_arm_vexp_f16_all),
+		ztest_unit_test(test_arm_vexp_f16_3),
+		ztest_unit_test(test_arm_vexp_f16_8),
+		ztest_unit_test(test_arm_vexp_f16_11),
+		ztest_unit_test(test_arm_vinverse_f16)
+		);
+
+	ztest_run_test_suite(fastmath_f16);
 }
 
 /* TODO: Add inverse test */

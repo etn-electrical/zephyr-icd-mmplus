@@ -6,10 +6,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/sys/printk.h>
+#include <sys/printk.h>
 
-#include <zephyr/bluetooth/bluetooth.h>
-#include <zephyr/bluetooth/mesh.h>
+#include <bluetooth/bluetooth.h>
+#include <bluetooth/mesh.h>
+
+#include "board.h"
 
 #define MAX_FAULT 24
 
@@ -72,7 +74,7 @@ static int fault_test(struct bt_mesh_model *model, uint8_t test_id,
 	}
 
 	has_reg_fault = true;
-	bt_mesh_health_srv_fault_update(bt_mesh_model_elem(model));
+	bt_mesh_fault_update(bt_mesh_model_elem(model));
 
 	return 0;
 }
@@ -137,6 +139,8 @@ static int output_number(bt_mesh_output_action_t action, uint32_t number)
 
 static void prov_complete(uint16_t net_idx, uint16_t addr)
 {
+	board_prov_complete();
+
 	if (IS_ENABLED(CONFIG_BT_MESH_IV_UPDATE_TEST)) {
 		bt_mesh_iv_update_test(true);
 	}
@@ -168,6 +172,8 @@ static void bt_ready(int err)
 	}
 
 	printk("Bluetooth initialized\n");
+
+	board_init();
 
 	err = bt_mesh_init(&prov, &comp);
 	if (err) {

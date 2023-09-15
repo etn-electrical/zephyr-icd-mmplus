@@ -4,12 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 #include <errno.h>
-#include <zephyr/kernel.h>
-#include <zephyr/arch/cpu.h>
+#include <kernel.h>
+#include <arch/cpu.h>
 #include <zephyr/types.h>
-#include <zephyr/toolchain.h>
+#include <soc.h>
+#include <toolchain.h>
 
-#include <zephyr/arch/arc/v2/secureshield/arc_secure.h>
+#include <arch/arc/v2/secureshield/arc_secure.h>
 
 #define IRQ_PRIO_MASK (0xffff << ARC_N_IRQ_START_LEVEL)
 /*

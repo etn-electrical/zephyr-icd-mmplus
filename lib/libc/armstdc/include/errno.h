@@ -39,7 +39,7 @@
  * @{
  */
 
-#include <zephyr/sys/errno_private.h>
+#include <sys/errno_private.h>
 
 #ifdef __cplusplus
 extern "C" {

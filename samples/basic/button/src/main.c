@@ -5,11 +5,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/device.h>
-#include <zephyr/drivers/gpio.h>
-#include <zephyr/sys/util.h>
-#include <zephyr/sys/printk.h>
+#include <zephyr.h>
+#include <device.h>
+#include <drivers/gpio.h>
+#include <sys/util.h>
+#include <sys/printk.h>
 #include <inttypes.h>
 
 #define SLEEP_TIME_MS	1
@@ -42,7 +42,7 @@ void main(void)
 {
 	int ret;
 
-	if (!gpio_is_ready_dt(&button)) {
+	if (!device_is_ready(button.port)) {
 		printk("Error: button device %s is not ready\n",
 		       button.port->name);
 		return;

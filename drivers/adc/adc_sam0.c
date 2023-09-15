@@ -7,11 +7,9 @@
 #define DT_DRV_COMPAT atmel_sam0_adc
 
 #include <soc.h>
-#include <zephyr/drivers/adc.h>
-#include <zephyr/drivers/pinctrl.h>
+#include <drivers/adc.h>
 
-#include <zephyr/logging/log.h>
-#include <zephyr/irq.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(adc_sam0, CONFIG_ADC_LOG_LEVEL);
 
 #define ADC_CONTEXT_USES_KERNEL_TIMER
@@ -45,7 +43,6 @@ struct adc_sam0_data {
 
 struct adc_sam0_cfg {
 	Adc *regs;
-	const struct pinctrl_dev_config *pcfg;
 
 #ifdef MCLK
 	uint32_t mclk_mask;
@@ -134,6 +131,7 @@ static int adc_sam0_channel_setup(const struct device *dev,
 	adc->SAMPCTRL.reg = sampctrl;
 	wait_synchronization(adc);
 
+
 	uint8_t refctrl;
 
 	switch (channel_cfg->reference) {
@@ -142,37 +140,27 @@ static int adc_sam0_channel_setup(const struct device *dev,
 		/* Enable the internal bandgap reference */
 		ADC_BGEN = 1;
 		break;
+	case ADC_REF_VDD_1_2:
+		refctrl = ADC_REFCTRL_REFSEL_VDD_1_2 | ADC_REFCTRL_REFCOMP;
+		break;
 #ifdef ADC_REFCTRL_REFSEL_VDD_1
 	case ADC_REF_VDD_1:
 		refctrl = ADC_REFCTRL_REFSEL_VDD_1 | ADC_REFCTRL_REFCOMP;
 		break;
 #endif
-	case ADC_REF_VDD_1_2:
-		refctrl = ADC_REFCTRL_REFSEL_VDD_1_2 | ADC_REFCTRL_REFCOMP;
-		break;
 	case ADC_REF_EXTERNAL0:
 		refctrl = ADC_REFCTRL_REFSEL_AREFA;
 		break;
-#ifdef ADC_REFCTRL_REFSEL_AREFB
 	case ADC_REF_EXTERNAL1:
 		refctrl = ADC_REFCTRL_REFSEL_AREFB;
 		break;
-#endif
 	default:
 		LOG_ERR("Selected reference is not valid");
 		return -EINVAL;
 	}
 	if (adc->REFCTRL.reg != refctrl) {
-#ifdef ADC_SAM0_REFERENCE_ENABLE_PROTECTED
-		adc->CTRLA.bit.ENABLE = 0;
-		wait_synchronization(adc);
-#endif
 		adc->REFCTRL.reg = refctrl;
 		wait_synchronization(adc);
-#ifdef ADC_SAM0_REFERENCE_ENABLE_PROTECTED
-		adc->CTRLA.bit.ENABLE = 1;
-		wait_synchronization(adc);
-#endif
 #ifdef ADC_SAM0_REFERENCE_GLITCH
 		struct adc_sam0_data *data = dev->data;
 
@@ -447,22 +435,16 @@ static int adc_sam0_init(const struct device *dev)
 	const struct adc_sam0_cfg *const cfg = dev->config;
 	struct adc_sam0_data *data = dev->data;
 	Adc *const adc = cfg->regs;
-	int retval;
 
 #ifdef MCLK
 	GCLK->PCHCTRL[cfg->gclk_id].reg = cfg->gclk_mask | GCLK_PCHCTRL_CHEN;
 
-	MCLK_ADC |= cfg->mclk_mask;
+	MCLK->APBDMASK.reg |= cfg->mclk_mask;
 #else
 	PM->APBCMASK.bit.ADC_ = 1;
 
 	GCLK->CLKCTRL.reg = cfg->gclk | GCLK_CLKCTRL_CLKEN;
 #endif
-
-	retval = pinctrl_apply_state(cfg->pcfg, PINCTRL_STATE_DEFAULT);
-	if (retval < 0) {
-		return retval;
-	}
 
 	ADC_PRESCALER(adc) = cfg->prescaler;
 	wait_synchronization(adc);
@@ -529,7 +511,7 @@ do {									\
 	adc->CALIB.reg = ADC_SAM0_BIASCOMP(n)				\
 			 | ADC_SAM0_BIASR2R(n)				\
 			 | ADC_SAM0_BIASREFBUF(n);			\
-} while (false)
+} while (0)
 
 #else
 
@@ -554,12 +536,11 @@ do {									\
 		      ADC_FUSES_BIASCAL_Msk) >> ADC_FUSES_BIASCAL_Pos;	\
 	adc->CALIB.reg = ADC_CALIB_BIAS_CAL(bias) |			\
 			 ADC_CALIB_LINEARITY_CAL(lin);			\
-} while (false)
+} while (0)
 
 #endif
 
 #define ADC_SAM0_DEVICE(n)						\
-	PINCTRL_DT_INST_DEFINE(n);					\
 	static void adc_sam0_config_##n(const struct device *dev);	\
 	static const struct adc_sam0_cfg adc_sam_cfg_##n = {		\
 		.regs = (Adc *)DT_INST_REG_ADDR(n),			\
@@ -569,7 +550,6 @@ do {									\
 					  _FREQ_HZ) /			\
 			DT_INST_PROP(n, prescaler),			\
 		.config_func = &adc_sam0_config_##n,			\
-		.pcfg = PINCTRL_DT_INST_DEV_CONFIG_GET(n),		\
 	};								\
 	static struct adc_sam0_data adc_sam_data_##n = {		\
 		ADC_CONTEXT_INIT_TIMER(adc_sam_data_##n, ctx),		\

@@ -6,16 +6,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/linker/sections.h>
-#include <zephyr/pm/device.h>
-#include <zephyr/ztest.h>
-#include <zephyr/random/rand32.h>
+#include <zephyr.h>
+#include <linker/sections.h>
+#include <pm/device.h>
+#include <ztest.h>
+#include <random/rand32.h>
 
-#include <zephyr/net/ethernet.h>
-#include <zephyr/net/dummy.h>
-#include <zephyr/net/net_if.h>
-#include <zephyr/net/socket.h>
+#include <net/ethernet.h>
+#include <net/dummy.h>
+#include <net/net_if.h>
+#include <net/socket.h>
 
 struct fake_dev_context {
 	uint8_t mac_addr[sizeof(struct net_eth_addr)];
@@ -108,7 +108,7 @@ NET_DEVICE_INIT(fake_dev, "fake_dev",
 		CONFIG_KERNEL_INIT_PRIORITY_DEFAULT,
 		&fake_dev_if_api, _ETH_L2_LAYER, _ETH_L2_CTX_TYPE, 127);
 
-void *test_setup(void)
+void test_setup(void)
 {
 	struct net_if *iface;
 	struct in_addr in4addr_my = { { { 192, 168, 0, 2 } } };
@@ -120,10 +120,9 @@ void *test_setup(void)
 
 	ifaddr = net_if_ipv4_addr_add(iface, &in4addr_my, NET_ADDR_MANUAL, 0);
 	zassert_not_null(ifaddr, "Could not add iface address");
-	return NULL;
 }
 
-ZTEST(test_net_pm_test_suite, test_pm)
+void test_pm(void)
 {
 	struct net_if *iface =
 		net_if_get_first_by_type(&NET_L2_GET_NAME(DUMMY));
@@ -184,4 +183,10 @@ ZTEST(test_net_pm_test_suite, test_pm)
 	close(sock);
 }
 
-ZTEST_SUITE(test_net_pm_test_suite, NULL, test_setup, NULL, NULL, NULL);
+void test_main(void)
+{
+	ztest_test_suite(test_net_pm,
+			 ztest_unit_test(test_setup),
+			 ztest_unit_test(test_pm));
+	ztest_run_test_suite(test_net_pm);
+}

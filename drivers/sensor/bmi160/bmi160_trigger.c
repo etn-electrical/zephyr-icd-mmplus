@@ -5,13 +5,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/drivers/sensor.h>
-#include <zephyr/drivers/gpio.h>
+#include <kernel.h>
+#include <drivers/sensor.h>
+#include <drivers/gpio.h>
 
 #include "bmi160.h"
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_DECLARE(BMI160, CONFIG_SENSOR_LOG_LEVEL);
 
 static void bmi160_handle_anymotion(const struct device *dev)
@@ -52,8 +52,9 @@ static void bmi160_handle_drdy(const struct device *dev, uint8_t status)
 static void bmi160_handle_interrupts(const struct device *dev)
 {
 	union {
-		uint8_t raw[5];
+		uint8_t raw[6];
 		struct {
+			uint8_t dummy; /* spi related dummy byte */
 			uint8_t status;
 			uint8_t int_status[4];
 		};

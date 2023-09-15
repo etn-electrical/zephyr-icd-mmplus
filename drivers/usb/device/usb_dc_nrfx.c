@@ -16,18 +16,17 @@
 #include <soc.h>
 #include <string.h>
 #include <stdio.h>
-#include <zephyr/kernel.h>
-#include <zephyr/drivers/usb/usb_dc.h>
-#include <zephyr/usb/usb_device.h>
-#include <zephyr/drivers/clock_control.h>
-#include <zephyr/drivers/clock_control/nrf_clock_control.h>
+#include <kernel.h>
+#include <drivers/usb/usb_dc.h>
+#include <usb/usb_device.h>
+#include <drivers/clock_control.h>
+#include <drivers/clock_control/nrf_clock_control.h>
 #include <nrfx_usbd.h>
 #include <nrfx_power.h>
 
 
 #define LOG_LEVEL CONFIG_USB_DRIVER_LOG_LEVEL
-#include <zephyr/logging/log.h>
-#include <zephyr/irq.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(usb_nrfx);
 
 /* USB device controller access from devicetree */
@@ -665,6 +664,36 @@ static int eps_ctx_init(void)
 	return 0;
 }
 
+static void eps_ctx_uninit(void)
+{
+	struct nrf_usbd_ep_ctx *ep_ctx;
+	uint32_t i;
+
+	for (i = 0U; i < CFG_EPIN_CNT; i++) {
+		ep_ctx = in_endpoint_ctx(i);
+		__ASSERT_NO_MSG(ep_ctx);
+		memset(ep_ctx, 0, sizeof(*ep_ctx));
+	}
+
+	for (i = 0U; i < CFG_EPOUT_CNT; i++) {
+		ep_ctx = out_endpoint_ctx(i);
+		__ASSERT_NO_MSG(ep_ctx);
+		memset(ep_ctx, 0, sizeof(*ep_ctx));
+	}
+
+	if (CFG_EP_ISOIN_CNT) {
+		ep_ctx = in_endpoint_ctx(NRF_USBD_EPIN(8));
+		__ASSERT_NO_MSG(ep_ctx);
+		memset(ep_ctx, 0, sizeof(*ep_ctx));
+	}
+
+	if (CFG_EP_ISOOUT_CNT) {
+		ep_ctx = out_endpoint_ctx(NRF_USBD_EPOUT(8));
+		__ASSERT_NO_MSG(ep_ctx);
+		memset(ep_ctx, 0, sizeof(*ep_ctx));
+	}
+}
+
 static inline void usbd_work_process_pwr_events(struct usbd_pwr_event *pwr_evt)
 {
 	struct nrf_usbd_ctx *ctx = get_usbd_ctx();
@@ -1105,7 +1134,7 @@ static void usbd_event_handler(nrfx_usbd_evt_t const *const p_event)
 		if ((drv_setup.bRequest != USB_SREQ_SET_ADDRESS)
 		    || (USB_REQTYPE_GET_TYPE(drv_setup.bmRequestType)
 			!= USB_REQTYPE_TYPE_STANDARD)) {
-			/* SetAddress is handled by USBD hardware.
+			/* SetAddress is habdled by USBD hardware.
 			 * No software action required.
 			 */
 
@@ -1162,11 +1191,11 @@ static inline void usbd_reinit(void)
 }
 
 /**
- * @brief function to generate fake receive request for
+ * @brief funciton to generate fake receive request for
  * ISO OUT EP.
  *
  * ISO OUT endpoint does not generate irq by itself and reading
- * from ISO OUT ep is synchronized with SOF frame. For more details
+ * from ISO OUT ep is sunchronized with SOF frame. For more details
  * refer to Nordic usbd specification.
  */
 static void usbd_sof_trigger_iso_read(void)
@@ -1264,6 +1293,7 @@ static void usbd_work_handler(struct k_work *item)
 int usb_dc_attach(void)
 {
 	struct nrf_usbd_ctx *ctx = get_usbd_ctx();
+	nrfx_err_t err;
 	int ret;
 
 	if (ctx->attached) {
@@ -1280,6 +1310,12 @@ int usb_dc_attach(void)
 	IRQ_CONNECT(DT_INST_IRQN(0), DT_INST_IRQ(0, priority),
 		    nrfx_isr, nrfx_usbd_irq_handler, 0);
 
+	err = nrfx_usbd_init(usbd_event_handler);
+
+	if (err != NRFX_SUCCESS) {
+		LOG_DBG("nRF USBD driver init failed. Code: %d", (uint32_t)err);
+		return -EIO;
+	}
 	nrfx_power_usbevt_enable();
 
 	ret = eps_ctx_init();
@@ -1312,9 +1348,14 @@ int usb_dc_detach(void)
 	k_mutex_lock(&ctx->drv_lock, K_FOREVER);
 
 	usbd_evt_flush();
+	eps_ctx_uninit();
 
 	if (nrfx_usbd_is_enabled()) {
 		nrfx_usbd_disable();
+	}
+
+	if (nrfx_usbd_is_initialized()) {
+		nrfx_usbd_uninit();
 	}
 
 	(void)hfxo_stop(ctx);
@@ -1567,6 +1608,10 @@ int usb_dc_ep_disable(const uint8_t ep)
 {
 	struct nrf_usbd_ep_ctx *ep_ctx;
 
+	if (!dev_attached() || !dev_ready()) {
+		return -ENODEV;
+	}
+
 	ep_ctx = endpoint_ctx(ep);
 	if (!ep_ctx) {
 		return -EINVAL;
@@ -1657,7 +1702,7 @@ int usb_dc_ep_write(const uint8_t ep, const uint8_t *const data,
 	/** If writing to a Control Endpoint there might be a need to transfer
 	 * ZLP. If the Hosts asks for more data that the device may return and
 	 * the last packet is wMaxPacketSize long. The driver must send ZLP.
-	 * For consistence with the Zephyr USB stack sending ZLP must be issued
+	 * For consistance with the Zephyr USB stack sending ZLP must be issued
 	 * from the stack level. Making trans_zlp flag true results in blocking
 	 * the driver from starting setup stage without required ZLP.
 	 */
@@ -1872,7 +1917,6 @@ int usb_dc_wakeup_request(void)
 static int usb_init(const struct device *arg)
 {
 	struct nrf_usbd_ctx *ctx = get_usbd_ctx();
-	nrfx_err_t err;
 
 #ifdef CONFIG_HAS_HW_NRF_USBREG
 	/* Use CLOCK/POWER priority for compatibility with other series where
@@ -1897,12 +1941,6 @@ static int usb_init(const struct device *arg)
 		.handler = usb_dc_power_event_handler
 	};
 
-	err = nrfx_usbd_init(usbd_event_handler);
-	if (err != NRFX_SUCCESS) {
-		LOG_DBG("nRF USBD driver init failed. Code: %d", (uint32_t)err);
-		return -EIO;
-	}
-
 	/* Ignore the return value, as NRFX_ERROR_ALREADY_INITIALIZED is not
 	 * a problem here.
 	 */
@@ -1914,7 +1952,6 @@ static int usb_init(const struct device *arg)
 			   K_KERNEL_STACK_SIZEOF(usbd_work_queue_stack),
 			   CONFIG_SYSTEM_WORKQUEUE_PRIORITY, NULL);
 
-	k_thread_name_set(&usbd_work_queue.thread, "usbd_workq");
 	k_work_init(&ctx->usb_work, usbd_work_handler);
 
 	return 0;

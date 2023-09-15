@@ -25,7 +25,7 @@ config CONSOLE_HAS_DRIVER
 	  that some kind of console exists.
 
 config CONSOLE_HANDLER
-	bool "Console input handler"
+	bool "Enable console input handler"
 	depends on UART_CONSOLE && SERIAL_SUPPORT_INTERRUPT
 	select UART_INTERRUPT_DRIVEN
 	help
@@ -58,7 +58,7 @@ config UART_CONSOLE_DEBUG_SERVER_HOOKS
 	  code handle them if they are of no special significance to it.
 
 config UART_CONSOLE_MCUMGR
-	bool "UART console mcumgr passthrough"
+	bool "Enable UART console mcumgr passthrough"
 	depends on UART_CONSOLE
 	help
 	  Enables the UART console to receive mcumgr frames for image upgrade
@@ -67,7 +67,7 @@ config UART_CONSOLE_MCUMGR
 	  (e.g., the shell).  If unset, incoming mcumgr frames are dropped.
 
 config UART_CONSOLE_INPUT_EXPIRED
-	bool "Support for UART console input expired mechanism"
+	bool "Enable support for UART console input expired mechanism"
 	default y
 	depends on UART_CONSOLE && PM
 	help
@@ -86,15 +86,6 @@ config UART_CONSOLE_INPUT_EXPIRED_TIMEOUT
 	help
 	  Fixed amount of time which unit is milliseconds to keep the UART
 	  console in use flag true.
-
-config JAILHOUSE_DEBUG_CONSOLE
-	bool "Use JAILHOUSE_DEBUG console"
-	select CONSOLE_HAS_DRIVER
-	depends on ARM64
-	help
-	  Emit console messages to a jailhouse hypervisor debug console.
-	  Useful in board bring-up if there aren't any working serial
-	  drivers.
 
 config RAM_CONSOLE
 	bool "Use RAM console"
@@ -179,6 +170,17 @@ config IPM_CONSOLE
 	help
 	  Enable console over Inter-processor Mailbox.
 
+# Workaround for not being able to have commas in macro arguments
+DT_CHOSEN_Z_IPM_CONSOLE := zephyr,console
+
+config IPM_CONSOLE_ON_DEV_NAME
+	string "IPM device name used by console"
+	default "$(dt_chosen_label,$(DT_CHOSEN_Z_IPM_CONSOLE))" if HAS_DTS
+	default "IPM_0"
+	depends on IPM_CONSOLE
+	help
+	  IPM device name used by IPM console driver.
+
 config IPM_CONSOLE_LINE_BUF_LEN
 	int "IPM console line buffer length"
 	default 128
@@ -187,8 +189,29 @@ config IPM_CONSOLE_LINE_BUF_LEN
 	  IPM console line buffer length specify amount of the buffer
 	  where characters are stored before sending the whole line.
 
+config UART_PIPE
+	bool "Enable pipe UART driver"
+	select UART_INTERRUPT_DRIVEN
+	help
+	  Enable pipe UART driver. This driver allows application to communicate
+	  over UART with custom defined protocol. Driver doesn't inspect received
+	  data (as contrary to console UART driver) and all aspects of received
+	  protocol data are handled by application provided callback.
+
+# Workaround for not being able to have commas in macro arguments
+DT_CHOSEN_Z_UART_PIPE := zephyr,uart-pipe
+
+config UART_PIPE_ON_DEV_NAME
+	string "Device Name of UART Device for pipe UART"
+	default "$(dt_chosen_label,$(DT_CHOSEN_Z_UART_PIPE))" if HAS_DTS
+	default "UART_0"
+	depends on UART_PIPE
+	help
+	  This option specifies the name of UART device to be used
+	  for pipe UART.
+
 config UART_MCUMGR
-	bool "Mcumgr UART driver"
+	bool "Enable mcumgr UART driver"
 	select UART_INTERRUPT_DRIVEN
 	help
 	  Enable the mcumgr UART driver. This driver allows the application to
@@ -215,7 +238,7 @@ config UART_MCUMGR_RX_BUF_COUNT
 	  buffers hold received mcumgr fragments prior to reassembly.  This
 	  setting's value must satisfy the following relation:
 	  UART_MCUMGR_RX_BUF_COUNT * UART_MCUMGR_RX_BUF_SIZE >=
-	  MCUMGR_TRANSPORT_UART_MTU
+	  MCUMGR_SMP_UART_MTU
 
 endif # UART_MCUMGR
 
@@ -266,10 +289,16 @@ config NATIVE_POSIX_CONSOLE_INIT_PRIORITY
 config SEMIHOST_CONSOLE
 	bool "Use semihosting for console"
 	select CONSOLE_HAS_DRIVER
-	depends on SEMIHOST
+	depends on CPU_CORTEX_M || ARM64
 	help
 	  Enable this option to use semihosting for console.
-	  See SEMIHOST for a more complete description of semihosting.
+	  Semihosting is a mechanism that enables code running on an ARM target
+	  to communicate and use the Input/Output facilities on a host computer
+	  that is running a debugger.
+	  Additional information can be found in:
+	  https://developer.arm.com/docs/dui0471/k/what-is-semihosting/what-is-semihosting
+	  This option is compatible with hardware and with QEMU, through the
+	  (automatic) use of the -semihosting-config switch when invoking it.
 
 module = UART_CONSOLE
 module-str = UART console
@@ -278,7 +307,7 @@ source "subsys/logging/Kconfig.template.log_config"
 source "drivers/console/Kconfig.gsm_mux"
 
 config UART_MUX
-	bool "UART muxing (GSM 07.10) support [EXPERIMENTAL]"
+	bool "Enable UART muxing (GSM 07.10) support [EXPERIMENTAL]"
 	depends on SERIAL_SUPPORT_INTERRUPT && GSM_MUX
 	select UART_INTERRUPT_DRIVEN
 	select EXPERIMENTAL
@@ -352,18 +381,5 @@ config UART_MUX_VERBOSE_DEBUG
 	  As there might be lot of debug output printed, only enable
 	  this if really needed.
 
-config EFI_CONSOLE
-	bool "Use EFI console for console output"
-	select CONSOLE_HAS_DRIVER
-	help
-	  Enable this option to use EFI console output.
-
-config WINSTREAM_CONSOLE
-	bool "Use Winstream console"
-	depends on WINSTREAM
-	help
-	  Use winstream as a console.
-
-	  See the WINSTREAM Kconfig help for more information.
 
 endif # CONSOLE

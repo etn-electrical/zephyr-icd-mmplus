@@ -12,6 +12,7 @@
 #ifndef _RPI_PICO_RP2040_SOC_H_
 #define _RPI_PICO_RP2040_SOC_H_
 
+#include <autoconf.h>
 
 #define __VTOR_PRESENT CONFIG_CPU_CORTEX_M_HAS_VTOR
 #define __MPU_PRESENT CONFIG_CPU_HAS_ARM_MPU

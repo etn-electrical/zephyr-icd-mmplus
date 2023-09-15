@@ -6,19 +6,18 @@
 
 #define DT_DRV_COMPAT solomon_ssd1306fb
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(ssd1306, CONFIG_DISPLAY_LOG_LEVEL);
 
 #include <string.h>
-#include <zephyr/device.h>
-#include <zephyr/init.h>
-#include <zephyr/drivers/display.h>
-#include <zephyr/drivers/gpio.h>
-#include <zephyr/drivers/i2c.h>
-#include <zephyr/drivers/spi.h>
-#include <zephyr/kernel.h>
+#include <device.h>
+#include <init.h>
+#include <drivers/gpio.h>
+#include <drivers/i2c.h>
+#include <drivers/spi.h>
 
 #include "ssd1306_regs.h"
+#include <display/cfb.h>
 
 #if DT_INST_PROP(0, segment_remap) == 1
 #define SSD1306_PANEL_SEGMENT_REMAP	true
@@ -93,7 +92,7 @@ static inline bool ssd1306_bus_ready(const struct device *dev)
 		return false;
 	}
 
-	return spi_is_ready_dt(&config->bus);
+	return spi_is_ready(&config->bus);
 }
 
 static inline int ssd1306_write_bus(const struct device *dev,

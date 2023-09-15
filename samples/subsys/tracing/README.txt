@@ -1,9 +1,9 @@
-Title: Send Tracing Formatted Packet To The Host With Supported Backends
+Title: Send Tracing Formated Packet To The Host With Supported Backends
 
 Description:
 
 This application can be used to demonstrate the tracing feature. The tracing
-formatted packet will be sent to the host with the currently supported tracing
+formated packet will be sent to the host with the currently supported tracing
 backend under tracing generic infrastructure.
 
 --------------------------------------------------------------------------------
@@ -17,9 +17,6 @@ Build a UART-tracing image with:
 or:
 
     cmake -DBOARD=mps2_an521 -DCONF_FILE=prj_uart_ctf.conf ..
-
-NOTE: You may need to set 'zephyr,tracing-uart' property under the chosen
-node in your devicetree.  See boards/mps2_an521.overlay for an example.
 
 After the application has run for a while, check the trace output file.
 

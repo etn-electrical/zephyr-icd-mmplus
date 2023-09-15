@@ -13,7 +13,7 @@
 #ifndef EFR32BG13P_SOC_H_
 #define EFR32BG13P_SOC_H_
 
-#include <zephyr/sys/util.h>
+#include <sys/util.h>
 
 #ifndef _ASMLANGUAGE
 

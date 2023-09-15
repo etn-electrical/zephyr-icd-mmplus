@@ -4,20 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/shell/shell.h>
+#include <zephyr.h>
+#include <shell/shell.h>
 #include <version.h>
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 #include <stdlib.h>
-#include <zephyr/drivers/uart.h>
-#include <zephyr/usb/usb_device.h>
+#include <drivers/uart.h>
+#include <usb/usb_device.h>
 #include <ctype.h>
-
-#ifdef CONFIG_ARCH_POSIX
-#include <unistd.h>
-#else
-#include <zephyr/posix/unistd.h>
-#endif
 
 LOG_MODULE_REGISTER(app);
 
@@ -369,8 +363,7 @@ static int cmd_dict(const struct shell *shell, size_t argc, char **argv,
 }
 
 SHELL_SUBCMD_DICT_SET_CREATE(sub_dict_cmds, cmd_dict,
-	(value_0, 0, "value 0"), (value_1, 1, "value 1"),
-	(value_2, 2, "value 2"), (value_3, 3, "value 3")
+	(value_0, 0), (value_1, 1), (value_2, 2), (value_3, 3)
 );
 
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_demo,
@@ -400,32 +393,6 @@ SHELL_COND_CMD_ARG_REGISTER(CONFIG_SHELL_START_OBSCURED, login, NULL,
 
 SHELL_COND_CMD_REGISTER(CONFIG_SHELL_START_OBSCURED, logout, NULL,
 			"Log out.", cmd_logout);
-
-
-/* Create a set of commands. Commands to this set are added using @ref SHELL_SUBCMD_ADD
- * and @ref SHELL_SUBCMD_COND_ADD.
- */
-SHELL_SUBCMD_SET_CREATE(sub_section_cmd, (section_cmd));
-
-static int cmd1_handler(const struct shell *sh, size_t argc, char **argv)
-{
-	ARG_UNUSED(sh);
-	ARG_UNUSED(argc);
-	ARG_UNUSED(argv);
-
-	shell_print(sh, "cmd1 executed");
-
-	return 0;
-}
-
-/* Create a set of subcommands for "section_cmd cm1". */
-SHELL_SUBCMD_SET_CREATE(sub_section_cmd1, (section_cmd, cmd1));
-
-/* Add command to the set. Subcommand set is identify by parent shell command. */
-SHELL_SUBCMD_ADD((section_cmd), cmd1, &sub_section_cmd1, "help for cmd1", cmd1_handler, 1, 0);
-
-SHELL_CMD_REGISTER(section_cmd, &sub_section_cmd,
-		   "Demo command using section for subcommand registration", NULL);
 
 void main(void)
 {

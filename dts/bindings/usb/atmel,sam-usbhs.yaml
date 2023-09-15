@@ -6,18 +6,16 @@ description: |
 
 compatible: "atmel,sam-usbhs"
 
-include:
-  - name: usb-ep.yaml
-  - name: pinctrl-device.yaml
+include: usb-ep.yaml
 
 properties:
-  reg:
-    required: true
+    reg:
+      required: true
 
-  interrupts:
-    required: true
+    interrupts:
+      required: true
 
-  peripheral-id:
-    type: int
-    required: true
-    description: peripheral ID
+    peripheral-id:
+      type: int
+      required: true
+      description: peripheral ID

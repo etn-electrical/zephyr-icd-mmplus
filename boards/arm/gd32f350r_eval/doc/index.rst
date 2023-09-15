@@ -13,7 +13,7 @@ The GD32F350RBT6 features a single-core ARM Cortex-M4F MCU which can run up
 to 108-MHz with flash accesses zero wait states, 128kB of Flash, 16kB of
 SRAM and 55 GPIOs.
 
-.. image:: img/gd32f350r_eval.jpg
+.. image:: img/gd32f350r_eval.png
      :align: center
      :alt: gd32f350r_eval
 
@@ -57,14 +57,11 @@ The board configuration supports the following hardware features:
      - N/A
      - N/A
    * - USART
-     - :kconfig:option:`CONFIG_SERIAL`
+     - :kconfig:`CONFIG_SERIAL`
      - :dtcompatible:`gd,gd32-usart`
    * - PINMUX
-     - :kconfig:option:`CONFIG_PINCTRL`
+     - :kconfig:`CONFIG_PINCTRL`
      - :dtcompatible:`gd,gd32-pinctrl-af`
-   * - ADC
-     - :kconfig:option:`CONFIG_ADC`
-     - :dtcompatible:`gd,gd32-adc`
 
 Serial Port
 ===========

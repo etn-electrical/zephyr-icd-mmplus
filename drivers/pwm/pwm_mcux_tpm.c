@@ -10,17 +10,16 @@
 
 #define DT_DRV_COMPAT nxp_kinetis_tpm
 
-#include <zephyr/drivers/clock_control.h>
+#include <drivers/clock_control.h>
 #include <errno.h>
-#include <zephyr/drivers/pwm.h>
+#include <drivers/pwm.h>
 #include <soc.h>
 #include <fsl_tpm.h>
 #include <fsl_clock.h>
-#include <zephyr/drivers/pinctrl.h>
 
-#include <zephyr/logging/log.h>
-
-LOG_MODULE_REGISTER(pwm_mcux_tpm, CONFIG_PWM_LOG_LEVEL);
+#define LOG_LEVEL CONFIG_PWM_LOG_LEVEL
+#include <logging/log.h>
+LOG_MODULE_REGISTER(pwm_mcux_tpm);
 
 #define MAX_CHANNELS ARRAY_SIZE(TPM0->CONTROLS)
 
@@ -32,7 +31,6 @@ struct mcux_tpm_config {
 	tpm_clock_prescale_t prescale;
 	uint8_t channel_count;
 	tpm_pwm_mode_t mode;
-	const struct pinctrl_dev_config *pincfg;
 };
 
 struct mcux_tpm_data {
@@ -41,31 +39,32 @@ struct mcux_tpm_data {
 	tpm_chnl_pwm_signal_param_t channel[MAX_CHANNELS];
 };
 
-static int mcux_tpm_set_cycles(const struct device *dev, uint32_t channel,
-			       uint32_t period_cycles, uint32_t pulse_cycles,
-			       pwm_flags_t flags)
+static int mcux_tpm_pin_set(const struct device *dev, uint32_t pwm,
+			      uint32_t period_cycles, uint32_t pulse_cycles,
+			      pwm_flags_t flags)
 {
 	const struct mcux_tpm_config *config = dev->config;
 	struct mcux_tpm_data *data = dev->data;
 	uint8_t duty_cycle;
 
-	if (period_cycles == 0U) {
-		LOG_ERR("Channel can not be set to inactive level");
-		return -ENOTSUP;
+	if ((period_cycles == 0U) || (pulse_cycles > period_cycles)) {
+		LOG_ERR("Invalid combination: period_cycles=%d, "
+			    "pulse_cycles=%d", period_cycles, pulse_cycles);
+		return -EINVAL;
 	}
 
-	if (channel >= config->channel_count) {
+	if (pwm >= config->channel_count) {
 		LOG_ERR("Invalid channel");
 		return -ENOTSUP;
 	}
 
 	duty_cycle = pulse_cycles * 100U / period_cycles;
-	data->channel[channel].dutyCyclePercent = duty_cycle;
+	data->channel[pwm].dutyCyclePercent = duty_cycle;
 
 	if ((flags & PWM_POLARITY_INVERTED) == 0) {
-		data->channel[channel].level = kTPM_HighTrue;
+		data->channel[pwm].level = kTPM_HighTrue;
 	} else {
-		data->channel[channel].level = kTPM_LowTrue;
+		data->channel[pwm].level = kTPM_LowTrue;
 	}
 
 	LOG_DBG("pulse_cycles=%d, period_cycles=%d, duty_cycle=%d, flags=%d",
@@ -108,17 +107,17 @@ static int mcux_tpm_set_cycles(const struct device *dev, uint32_t channel,
 		}
 		TPM_StartTimer(config->base, config->tpm_clock_source);
 	} else {
-		TPM_UpdateChnlEdgeLevelSelect(config->base, channel,
-					      data->channel[channel].level);
-		TPM_UpdatePwmDutycycle(config->base, channel, config->mode,
+		TPM_UpdateChnlEdgeLevelSelect(config->base, pwm,
+					      data->channel[pwm].level);
+		TPM_UpdatePwmDutycycle(config->base, pwm, config->mode,
 				       duty_cycle);
 	}
 
 	return 0;
 }
 
-static int mcux_tpm_get_cycles_per_sec(const struct device *dev,
-				       uint32_t channel, uint64_t *cycles)
+static int mcux_tpm_get_cycles_per_sec(const struct device *dev, uint32_t pwm,
+					 uint64_t *cycles)
 {
 	const struct mcux_tpm_config *config = dev->config;
 	struct mcux_tpm_data *data = dev->data;
@@ -135,16 +134,10 @@ static int mcux_tpm_init(const struct device *dev)
 	tpm_chnl_pwm_signal_param_t *channel = data->channel;
 	tpm_config_t tpm_config;
 	int i;
-	int err;
 
 	if (config->channel_count > ARRAY_SIZE(data->channel)) {
 		LOG_ERR("Invalid channel count");
 		return -EINVAL;
-	}
-
-	if (!device_is_ready(config->clock_dev)) {
-		LOG_ERR("clock control device not ready");
-		return -ENODEV;
 	}
 
 	if (clock_control_on(config->clock_dev, config->clock_subsys)) {
@@ -166,11 +159,6 @@ static int mcux_tpm_init(const struct device *dev)
 		channel++;
 	}
 
-	err = pinctrl_apply_state(config->pincfg, PINCTRL_STATE_DEFAULT);
-	if (err) {
-		return err;
-	}
-
 	TPM_GetDefaultConfig(&tpm_config);
 	tpm_config.prescale = config->prescale;
 
@@ -180,12 +168,11 @@ static int mcux_tpm_init(const struct device *dev)
 }
 
 static const struct pwm_driver_api mcux_tpm_driver_api = {
-	.set_cycles = mcux_tpm_set_cycles,
+	.pin_set = mcux_tpm_pin_set,
 	.get_cycles_per_sec = mcux_tpm_get_cycles_per_sec,
 };
 
 #define TPM_DEVICE(n) \
-	PINCTRL_DT_INST_DEFINE(n); \
 	static const struct mcux_tpm_config mcux_tpm_config_##n = { \
 		.base =	(TPM_Type *) \
 			DT_INST_REG_ADDR(n), \
@@ -197,13 +184,12 @@ static const struct pwm_driver_api mcux_tpm_driver_api = {
 		.channel_count = FSL_FEATURE_TPM_CHANNEL_COUNTn((TPM_Type *) \
 			DT_INST_REG_ADDR(n)), \
 		.mode = kTPM_EdgeAlignedPwm, \
-		.pincfg = PINCTRL_DT_INST_DEV_CONFIG_GET(n), \
 	}; \
 	static struct mcux_tpm_data mcux_tpm_data_##n; \
 	DEVICE_DT_INST_DEFINE(n, &mcux_tpm_init, NULL, \
 			    &mcux_tpm_data_##n, \
 			    &mcux_tpm_config_##n, \
-			    POST_KERNEL, CONFIG_PWM_INIT_PRIORITY, \
+			    POST_KERNEL, CONFIG_KERNEL_INIT_PRIORITY_DEVICE, \
 			    &mcux_tpm_driver_api);
 
 DT_INST_FOREACH_STATUS_OKAY(TPM_DEVICE)

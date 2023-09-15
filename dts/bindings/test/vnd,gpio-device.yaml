@@ -5,21 +5,17 @@ description: Test GPIO node
 
 compatible: "vnd,gpio-device"
 
-include:
-  - name: gpio-controller.yaml
-  - name: base.yaml
-    property-blocklist:
-      - label
+include: [gpio-controller.yaml, base.yaml]
 
 properties:
-  reg:
-    required: true
+    reg:
+      required: true
 
-  label:
-    type: string
+    label:
+      required: true
 
-  "#gpio-cells":
-    const: 2
+    "#gpio-cells":
+      const: 2
 
 gpio-cells:
   - pin

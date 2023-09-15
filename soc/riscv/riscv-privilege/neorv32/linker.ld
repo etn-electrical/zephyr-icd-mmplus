@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/linker/linker-tool.h>
+#include <linker/linker-tool.h>
 
 MEMORY
 {
@@ -20,4 +20,4 @@ SECTIONS
 	} GROUP_LINK_IN(IO)
 }
 
-#include <zephyr/arch/riscv/common/linker.ld>
+#include <arch/riscv/common/linker.ld>

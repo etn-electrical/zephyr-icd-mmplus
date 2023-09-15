@@ -17,4 +17,5 @@ supported:
   - eeprom
   - gpio
   - i2c
+  - pinmux
   - serial

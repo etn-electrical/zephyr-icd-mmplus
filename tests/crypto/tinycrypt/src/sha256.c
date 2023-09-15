@@ -39,18 +39,18 @@
 
 #include <tinycrypt/sha256.h>
 #include <tinycrypt/constants.h>
-#include <zephyr/test_utils.h>
+#include <test_utils.h>
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <zephyr/types.h>
-#include <zephyr/ztest.h>
+#include <ztest.h>
 
 /*
  * NIST SHA256 test vector 1.
  */
-ZTEST(tinycrypt, test_sha256_1)
+void test_sha256_1(void)
 {
 	TC_START("Performing SHA256 tests (NIST tests vectors):");
 
@@ -81,7 +81,7 @@ ZTEST(tinycrypt, test_sha256_1)
 /*
  * NIST SHA256 test vector 2.
  */
-ZTEST(tinycrypt, test_sha256_2)
+void test_sha256_2(void)
 {
 	uint32_t result = TC_PASS;
 
@@ -109,7 +109,7 @@ ZTEST(tinycrypt, test_sha256_2)
 	zassert_false(result, "SHA256 test #2 failed.");
 }
 
-ZTEST(tinycrypt, test_sha256_3)
+void test_sha256_3(void)
 {
 	uint32_t result = TC_PASS;
 
@@ -137,7 +137,7 @@ ZTEST(tinycrypt, test_sha256_3)
 
 }
 
-ZTEST(tinycrypt, test_sha256_4)
+void test_sha256_4(void)
 {
 	uint32_t result = TC_PASS;
 
@@ -165,7 +165,7 @@ ZTEST(tinycrypt, test_sha256_4)
 
 }
 
-ZTEST(tinycrypt, test_sha256_5)
+void test_sha256_5(void)
 {
 	uint32_t result = TC_PASS;
 
@@ -195,7 +195,7 @@ ZTEST(tinycrypt, test_sha256_5)
 
 }
 
-ZTEST(tinycrypt, test_sha256_6)
+void test_sha256_6(void)
 {
 	uint32_t result = TC_PASS;
 
@@ -225,7 +225,7 @@ ZTEST(tinycrypt, test_sha256_6)
 
 }
 
-ZTEST(tinycrypt, test_sha256_7)
+void test_sha256_7(void)
 {
 	uint32_t result = TC_PASS;
 
@@ -255,7 +255,7 @@ ZTEST(tinycrypt, test_sha256_7)
 
 }
 
-ZTEST(tinycrypt, test_sha256_8)
+void test_sha256_8(void)
 {
 	uint32_t result = TC_PASS;
 
@@ -285,7 +285,7 @@ ZTEST(tinycrypt, test_sha256_8)
 
 }
 
-ZTEST(tinycrypt, test_sha256_9)
+void test_sha256_9(void)
 {
 	uint32_t result = TC_PASS;
 
@@ -315,7 +315,7 @@ ZTEST(tinycrypt, test_sha256_9)
 
 }
 
-ZTEST(tinycrypt, test_sha256_10)
+void test_sha256_10(void)
 {
 	uint32_t result = TC_PASS;
 
@@ -345,7 +345,7 @@ ZTEST(tinycrypt, test_sha256_10)
 
 }
 
-ZTEST(tinycrypt, test_sha256_11)
+void test_sha256_11(void)
 {
 	uint32_t result = TC_PASS;
 
@@ -375,7 +375,7 @@ ZTEST(tinycrypt, test_sha256_11)
 
 }
 
-ZTEST(tinycrypt, test_sha256_12)
+void test_sha256_12(void)
 {
 	uint32_t result = TC_PASS;
 
@@ -407,7 +407,7 @@ ZTEST(tinycrypt, test_sha256_12)
 	zassert_false(result, "SHA256 test #12 failed.");
 }
 #if EXTREME_SLOW
-ZTEST(tinycrypt, test_sha256_13)
+void test_sha256_13(void)
 {
 	uint32_t result = TC_PASS;
 
@@ -440,7 +440,7 @@ ZTEST(tinycrypt, test_sha256_13)
 
 }
 
-ZTEST(tinycrypt, test_sha256_14)
+void test_sha256_14(void)
 {
 	uint32_t result = TC_PASS;
 
@@ -474,7 +474,7 @@ ZTEST(tinycrypt, test_sha256_14)
 }
 #endif
 
-ZTEST(tinycrypt, test_sha256_13_and_14)
+void test_sha256_13_and_14(void)
 {
 #if EXTREME_SLOW
 	result = test_sha256_13();

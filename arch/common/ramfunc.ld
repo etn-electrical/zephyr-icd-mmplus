@@ -13,9 +13,6 @@ SECTION_DATA_PROLOGUE(.ramfunc,,)
 	__ramfunc_start = .;
 	*(.ramfunc)
 	*(".ramfunc.*")
-
-#include <snippets-ramfunc-section.ld>
-
 	MPU_ALIGN(__ramfunc_size);
 	__ramfunc_end = .;
 } GROUP_DATA_LINK_IN(RAMABLE_REGION, ROMABLE_REGION)

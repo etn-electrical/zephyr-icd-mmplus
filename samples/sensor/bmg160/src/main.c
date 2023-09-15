@@ -4,15 +4,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr.h>
 
-#include <zephyr/sys/printk.h>
-#include <zephyr/sys_clock.h>
+#include <sys/printk.h>
+#include <sys_clock.h>
 #include <stdio.h>
 
-#include <zephyr/device.h>
-#include <zephyr/drivers/sensor.h>
-#include <zephyr/drivers/i2c.h>
+#include <device.h>
+#include <drivers/sensor.h>
+#include <drivers/i2c.h>
 
 #define MAX_TEST_TIME	15000
 #define SLEEPTIME	300
@@ -172,7 +172,7 @@ static void test_trigger_mode(const struct device *bmg160)
 
 void main(void)
 {
-	const struct device *const bmg160 = DEVICE_DT_GET_ANY(bosch_bmg160);
+	const struct device *bmg160 = DEVICE_DT_GET_ANY(bosch_bmg160);
 #if defined(CONFIG_BMG160_RANGE_RUNTIME)
 	struct sensor_value attr;
 #endif

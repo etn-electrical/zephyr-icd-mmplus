@@ -5,25 +5,28 @@ compatible: "atmel,sam-gpio"
 include: [gpio-controller.yaml, base.yaml]
 
 properties:
-  reg:
-    required: true
+    reg:
+      required: true
 
-  interrupts:
-    required: true
+    interrupts:
+      required: true
 
-  peripheral-id:
-    type: int
-    description: peripheral ID
-    required: true
+    label:
+      required: true
 
-  "#gpio-cells":
-    const: 2
+    peripheral-id:
+      type: int
+      description: peripheral ID
+      required: true
 
-  "#atmel,pin-cells":
-    type: int
-    required: true
-    const: 2
-    description: Number of items to expect in a atmel,pins specifier
+    "#gpio-cells":
+      const: 2
+
+    "#atmel,pin-cells":
+      type: int
+      required: true
+      const: 2
+      description: Number of items to expect in a atmel,pins specifier
 
 
 gpio-cells:

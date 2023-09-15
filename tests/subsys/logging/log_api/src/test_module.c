@@ -10,13 +10,12 @@
  *
  */
 
-#include "test_module.h"
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 
 LOG_MODULE_DECLARE(test, CONFIG_SAMPLE_MODULE_LOG_LEVEL);
 
 void test_func(void)
 {
-	LOG_DBG(TEST_DBG_MSG);
-	LOG_ERR(TEST_ERR_MSG);
+	LOG_DBG("debug");
+	LOG_ERR("test");
 }

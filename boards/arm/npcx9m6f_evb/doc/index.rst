@@ -1,7 +1,7 @@
 .. _npcx9m6f_evb:
 
-Nuvoton NPCX9M6F_EVB
-####################
+NPCX9M6F_EVB
+###################
 
 Overview
 ********
@@ -10,7 +10,8 @@ The NPCX9M6F_EVB kit is a development platform to evaluate the
 Nuvoton NPCX9 series microcontrollers. This board needs to be mated with
 part number NPCX996F.
 
-.. image:: npcx9m6f_evb.jpg
+.. image:: ./npcx9m6f_evb.png
+     :width: 800px
      :align: center
      :alt: NPCX9M6F Evaluation Board
 
@@ -93,31 +94,10 @@ JTAG-only sessions.
 Flashing
 ========
 
-If the correct headers are installed, this board supports both J-TAG and also
-the ChromiumOS servo.
-
-To flash using Servo V2, μServo, or Servo V4 (CCD), see the
+Build application as usual for the ``npcx9m6f_evb`` board, and flash
+using Servo V2, μServo, or Servo V4 (CCD). See the
 `Chromium EC Flashing Documentation`_ for more information.
 
-To flash with J-TAG, install the drivers for your programmer, for example:
-SEGGER J-link's drivers are at https://www.segger.com/downloads/jlink/
-
-The openocd from Zephyr SDK 0.14.2 doesn't include npcx support, so build openocd from source.::
-
-  sudo apt-get install libftdi-dev libusb-1.0.0-dev
-  git clone https://git.code.sf.net/p/openocd/code ~/openocd
-  cd ~/openocd
-  ./bootstrap
-  ./configure --enable-jlink --enable-ftdi
-  make clean
-  make
-  sudo make install
-
-Build and flash the blinky sample.::
-
-  west build -t clean && \
-    west build -c -p auto -b npcx9m6f_evb samples/basic/blinky && \
-    west flash --openocd /usr/local/bin/openocd
 
 Debugging
 =========

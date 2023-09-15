@@ -40,13 +40,12 @@
  */
 
 #include <errno.h>
-#include <zephyr/device.h>
-#include <zephyr/drivers/clock_control.h>
-#include <zephyr/drivers/pinctrl.h>
-#include <zephyr/drivers/sensor.h>
-#include <zephyr/dt-bindings/sensor/npcx_tach.h>
+#include <device.h>
+#include <drivers/clock_control.h>
+#include <drivers/sensor.h>
+#include <dt-bindings/sensor/npcx_tach.h>
 #include <soc.h>
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 
 LOG_MODULE_REGISTER(tach_npcx, CONFIG_SENSOR_LOG_LEVEL);
 
@@ -56,14 +55,15 @@ struct tach_npcx_config {
 	uintptr_t base;
 	/* clock configuration */
 	struct npcx_clk_cfg clk_cfg;
+	/* pinmux configuration */
+	const uint8_t alts_size;
+	const struct npcx_alt *alts_list;
 	/* sampling clock frequency of tachometer */
 	uint32_t sample_clk;
 	/* selected port of tachometer */
 	int port;
 	/* number of pulses (holes) per round of tachometer's input (encoder) */
 	int pulses_per_round;
-	/* pinmux configuration */
-	const struct pinctrl_dev_config *pcfg;
 };
 
 /* Driver data */
@@ -259,6 +259,8 @@ int tach_npcx_sample_fetch(const struct device *dev, enum sensor_channel chan)
 	if (tach_npcx_is_underflow(dev)) {
 		/* Clear pending flags */
 		tach_npcx_clear_underflow_flag(dev);
+
+		LOG_INF("%s is underflow!", dev->name);
 		data->capture = 0;
 
 		return 0;
@@ -291,7 +293,7 @@ static int tach_npcx_channel_get(const struct device *dev,
 		/*
 		 * RPM = (f * 60) / (n * TACH)
 		 *   n = Pulses per round
-		 *   f = Tachometer operation frequency (Hz)
+		 *   f = Tachometer operation freqency (Hz)
 		 *   TACH = Captured counts of tachometer
 		 */
 		val->val1 = (config->sample_clk * 60) /
@@ -314,11 +316,6 @@ static int tach_npcx_init(const struct device *dev)
 	const struct device *const clk_dev = DEVICE_DT_GET(NPCX_CLK_CTRL_NODE);
 	int ret;
 
-	if (!device_is_ready(clk_dev)) {
-		LOG_ERR("clock control device not ready");
-		return -ENODEV;
-	}
-
 	/* Turn on device clock first and get source clock freq. */
 	ret = clock_control_on(clk_dev, (clock_control_subsys_t *)
 							&config->clk_cfg);
@@ -335,12 +332,7 @@ static int tach_npcx_init(const struct device *dev)
 	}
 
 	/* Configure pin-mux for tachometer device */
-	ret = pinctrl_apply_state(config->pcfg, PINCTRL_STATE_DEFAULT);
-	if (ret < 0) {
-		LOG_ERR("Tacho pinctrl setup failed (%d)", ret);
-		return ret;
-	}
-
+	npcx_pinctrl_mux_configure(config->alts_list, config->alts_size, 1);
 
 	/* Configure tachometer and its operate freq. */
 	ret = tach_npcx_configure(dev);
@@ -367,20 +359,22 @@ static const struct sensor_driver_api tach_npcx_driver_api = {
 };
 
 #define NPCX_TACH_INIT(inst)                                                   \
-	PINCTRL_DT_INST_DEFINE(inst);					       \
+	static const struct npcx_alt tach_alts##inst[] =		       \
+					NPCX_DT_ALT_ITEMS_LIST(inst);	       \
 									       \
 	static const struct tach_npcx_config tach_cfg_##inst = {               \
 		.base = DT_INST_REG_ADDR(inst),                                \
 		.clk_cfg = NPCX_DT_CLK_CFG_ITEM(inst),                         \
+		.alts_size = ARRAY_SIZE(tach_alts##inst),                      \
+		.alts_list = tach_alts##inst,                                  \
 		.sample_clk = DT_INST_PROP(inst, sample_clk),                  \
 		.port = DT_INST_PROP(inst, port),                              \
 		.pulses_per_round = DT_INST_PROP(inst, pulses_per_round),      \
-		.pcfg = PINCTRL_DT_INST_DEV_CONFIG_GET(inst),                  \
 	};                                                                     \
 									       \
 	static struct tach_npcx_data tach_data_##inst;                         \
 									       \
-	SENSOR_DEVICE_DT_INST_DEFINE(inst,                                     \
+	DEVICE_DT_INST_DEFINE(inst,                                            \
 			      tach_npcx_init,                                  \
 			      NULL,                                            \
 			      &tach_data_##inst,                               \

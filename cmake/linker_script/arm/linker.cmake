@@ -6,7 +6,7 @@ set_ifndef(region_min_align CONFIG_CUSTOM_SECTION_MIN_ALIGN_SIZE)
 # to make linker section alignment comply with MPU granularity.
 set_ifndef(region_min_align CONFIG_ARM_MPU_REGION_MIN_ALIGN_AND_SIZE)
 
-# If building without MPU support, use default 4-byte alignment.. if not set above.
+# If building without MPU support, use default 4-byte alignment.. if not set abve.
 set_ifndef(region_min_align 4)
 
 # Note, the `+ 0` in formulas below avoids errors in cases where a Kconfig
@@ -34,11 +34,20 @@ zephyr_linker_memory(NAME FLASH    FLAGS rx START ${FLASH_ADDR} SIZE ${FLASH_SIZ
 zephyr_linker_memory(NAME RAM      FLAGS wx START ${RAM_ADDR}   SIZE ${RAM_SIZE})
 zephyr_linker_memory(NAME IDT_LIST FLAGS wx START ${IDT_ADDR}   SIZE 2K)
 
-# Only use 'rw' as FLAGS. It's not used anyway.
-dt_comp_path(paths COMPATIBLE "zephyr,memory-region")
-foreach(path IN LISTS paths)
-  zephyr_linker_dts_memory(PATH ${path} FLAGS rw)
-endforeach()
+# TI CCFG Registers
+zephyr_linker_dts_memory(NODELABEL ti_ccfg_partition FLAGS rwx)
+
+# Data & Instruction Tightly Coupled Memory
+zephyr_linker_dts_memory(CHOSEN "zephyr,itcm"  FLAGS rw)
+zephyr_linker_dts_memory(CHOSEN "zephyr,dtcm"  FLAGS rw)
+
+zephyr_linker_dts_memory(NODELABEL sram1       FLAGS rw)
+zephyr_linker_dts_memory(NODELABEL sram2       FLAGS rw)
+zephyr_linker_dts_memory(NODELABEL sram3       FLAGS rw)
+zephyr_linker_dts_memory(NODELABEL sram4       FLAGS rw)
+zephyr_linker_dts_memory(NODELABEL sdram1      FLAGS rw)
+zephyr_linker_dts_memory(NODELABEL sdram2      FLAGS rw)
+zephyr_linker_dts_memory(NODELABEL backup_sram FLAGS rw)
 
 if(CONFIG_XIP)
   zephyr_linker_group(NAME ROM_REGION LMA FLASH)
@@ -84,7 +93,7 @@ zephyr_linker_section_configure(SECTION .text INPUT ".glue_7")
 zephyr_linker_section_configure(SECTION .text INPUT ".vfp11_veneer")
 zephyr_linker_section_configure(SECTION .text INPUT ".v4_bx")
 
-if(CONFIG_CPP)
+if(CONFIG_CPLUSPLUS)
   zephyr_linker_section(NAME .ARM.extab GROUP ROM_REGION)
   zephyr_linker_section_configure(SECTION .ARM.extab INPUT ".gnu.linkonce.armextab.*")
 endif()
@@ -195,8 +204,3 @@ zephyr_linker_section_configure(SECTION .data ANY FLAGS "+RW")
 zephyr_linker_section_configure(SECTION .bss ANY FLAGS "+ZI")
 
 include(${COMMON_ZEPHYR_LINKER_DIR}/debug-sections.cmake)
-
-dt_comp_path(paths COMPATIBLE "zephyr,memory-region")
-foreach(path IN LISTS paths)
-  zephyr_linker_dts_section(PATH ${path})
-endforeach()

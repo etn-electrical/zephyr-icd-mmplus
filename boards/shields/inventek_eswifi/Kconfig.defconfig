@@ -7,6 +7,10 @@ if SHIELD_INVENTEK_ESWIFI || \
 
 if NETWORKING
 
+config WIFI_ESWIFI
+	default y
+	depends on WIFI
+
 orsource "boards/*.defconfig"
 
 choice WIFI_ESWIFI_BUS

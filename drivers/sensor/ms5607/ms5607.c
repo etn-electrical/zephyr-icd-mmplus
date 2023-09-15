@@ -6,16 +6,16 @@
 
 #define DT_DRV_COMPAT meas_ms5607
 
-#include <zephyr/init.h>
-#include <zephyr/kernel.h>
-#include <zephyr/sys/byteorder.h>
-#include <zephyr/drivers/sensor.h>
-#include <zephyr/sys/__assert.h>
+#include <init.h>
+#include <kernel.h>
+#include <sys/byteorder.h>
+#include <drivers/sensor.h>
+#include <sys/__assert.h>
 
 #include "ms5607.h"
 
 #define LOG_LEVEL CONFIG_SENSOR_LOG_LEVEL
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(ms5607);
 
 static void ms5607_compensate(struct ms5607_data *data,
@@ -322,17 +322,20 @@ static const struct sensor_driver_api ms5607_api_funcs = {
 /* Initializes a struct ms5607_config for an instance on a SPI bus. */
 #define MS5607_CONFIG_SPI(inst)						\
 	{								\
+		.bus = DEVICE_DT_GET(DT_INST_BUS(inst)),		\
 		.tf = &ms5607_spi_transfer_function,			\
-		.bus_cfg.spi = SPI_DT_SPEC_INST_GET(inst,		\
-						MS5607_SPI_OPERATION,	\
-						0),			\
+		.bus_cfg.spi_bus =					\
+			SPI_DT_SPEC_INST_GET(inst,			\
+					   MS5607_SPI_OPERATION,	\
+					   0),				\
 	}
 
 /* Initializes a struct ms5607_config for an instance on a I2C bus. */
 #define MS5607_CONFIG_I2C(inst)						\
 	{								\
+		.bus = DEVICE_DT_GET(DT_INST_BUS(inst)),		\
 		.tf = &ms5607_i2c_transfer_function,			\
-		.bus_cfg.i2c = I2C_DT_SPEC_INST_GET(inst),		\
+		.bus_cfg.i2c_addr = DT_INST_REG_ADDR(inst)		\
 	}
 
 /*
@@ -345,7 +348,7 @@ static const struct sensor_driver_api ms5607_api_funcs = {
 		COND_CODE_1(DT_INST_ON_BUS(inst, spi),			\
 			    (MS5607_CONFIG_SPI(inst)),			\
 			    (MS5607_CONFIG_I2C(inst)));			\
-	SENSOR_DEVICE_DT_INST_DEFINE(inst,				\
+	DEVICE_DT_INST_DEFINE(inst,					\
 			ms5607_init,					\
 			NULL,						\
 			&ms5607_data_##inst,				\

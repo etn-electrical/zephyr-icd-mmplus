@@ -6,12 +6,11 @@
 
 #define DT_DRV_COMPAT st_stm32_eeprom
 
-#include <zephyr/drivers/eeprom.h>
+#include <drivers/eeprom.h>
 #include <soc.h>
-#include <zephyr/kernel.h>
 
 #define LOG_LEVEL CONFIG_EEPROM_LOG_LEVEL
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(eeprom_stm32);
 
 K_MUTEX_DEFINE(lock);

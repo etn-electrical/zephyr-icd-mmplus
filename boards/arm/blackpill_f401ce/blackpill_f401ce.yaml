@@ -1,5 +1,5 @@
 identifier: blackpill_f401ce
-name: WeAct Studio Black Pill V3.0 (F401CE)
+name: WeAct Studio Black Pill V3.0
 type: mcu
 arch: arm
 toolchain:

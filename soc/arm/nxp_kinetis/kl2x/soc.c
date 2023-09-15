@@ -4,13 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/device.h>
-#include <zephyr/init.h>
+#include <kernel.h>
+#include <device.h>
+#include <init.h>
 #include <soc.h>
 #include <fsl_common.h>
 #include <fsl_clock.h>
-#include <zephyr/arch/cpu.h>
+#include <arch/cpu.h>
 
 #define LPSCI0SRC_MCGFLLCLK	(1)
 
@@ -73,7 +73,7 @@ static ALWAYS_INLINE void clock_init(void)
 #if DT_NODE_HAS_STATUS(DT_NODELABEL(uart0), okay)
 	CLOCK_SetLpsci0Clock(LPSCI0SRC_MCGFLLCLK);
 #endif
-#if CONFIG_USB_KINETIS || CONFIG_UDC_KINETIS
+#if CONFIG_USB_KINETIS
 	CLOCK_EnableUsbfs0Clock(kCLOCK_UsbSrcPll0,
 				DT_PROP(DT_PATH(cpus, cpu_0), clock_frequency));
 #endif
@@ -102,13 +102,10 @@ static int kl2x_init(const struct device *arg)
 	return 0;
 }
 
-#ifdef CONFIG_PLATFORM_SPECIFIC_INIT
-
-void z_arm_platform_init(void)
+void z_arm_watchdog_init(void)
 {
-	SystemInit();
+	/* Disable the watchdog */
+	SIM->COPC = 0;
 }
-
-#endif /* CONFIG_PLATFORM_SPECIFIC_INIT */
 
 SYS_INIT(kl2x_init, PRE_KERNEL_1, 0);

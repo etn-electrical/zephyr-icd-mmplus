@@ -34,7 +34,7 @@ extern "C" {
 #include <sys/types.h>
 
 /**
- * @brief Allocate a TCP connection for the net_context
+ * @brief Allocate a TCP connecton for the net_context
  *        and mutually link the net_context and TCP connection.
  *
  * @param context Network context
@@ -44,13 +44,24 @@ extern "C" {
 int net_tcp_get(struct net_context *context);
 
 /**
- * @brief Close and delete the TCP connection for the net_context
+ * @brief Close and delete the TCP connecton for the net_context
  *
  * @param context Network context
  *
  * @return 0 on success, < 0 on error
  */
 int net_tcp_put(struct net_context *context);
+
+/* TODO: Clarify what happens if the ref count goes to 0 */
+/**
+ * @brief Unref a TCP connecton
+ *
+ * @param context Network context
+ *
+ * @return 0 if successful, < 0 on error
+ */
+int net_tcp_unref(struct net_context *context);
+/* TODO: Merge net_tcp_unref() and net_tcp_put() */
 
 /**
  * @brief Listen for an incoming TCP connection
@@ -101,7 +112,7 @@ int net_tcp_queue(struct net_context *context, const void *buf, size_t len,
 struct net_tcp_hdr *net_tcp_input(struct net_pkt *pkt,
 					struct net_pkt_data_access *tcp_access);
 /* TODO: net_tcp_input() isn't used by TCP and might be dropped with little
- *       re-factoring
+ *       re-factorig
  */
 
 /* No ops, provided for compatibility with the old TCP */

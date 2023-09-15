@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/device.h>
-#include <zephyr/drivers/uart.h>
+#include <zephyr.h>
+#include <device.h>
+#include <drivers/uart.h>
 
 #include <string.h>
 
@@ -18,7 +18,7 @@
 /* queue to store up to 10 messages (aligned to 4-byte boundary) */
 K_MSGQ_DEFINE(uart_msgq, MSG_SIZE, 10, 4);
 
-static const struct device *const uart_dev = DEVICE_DT_GET(UART_DEVICE_NODE);
+static const struct device *uart_dev = DEVICE_DT_GET(UART_DEVICE_NODE);
 
 /* receive buffer used in UART ISR callback */
 static char rx_buf[MSG_SIZE];
@@ -36,12 +36,10 @@ void serial_cb(const struct device *dev, void *user_data)
 		return;
 	}
 
-	if (!uart_irq_rx_ready(uart_dev)) {
-		return;
-	}
+	while (uart_irq_rx_ready(uart_dev)) {
 
-	/* read until FIFO empty */
-	while (uart_fifo_read(uart_dev, &c, 1) == 1) {
+		uart_fifo_read(uart_dev, &c, 1);
+
 		if ((c == '\n' || c == '\r') && rx_buf_pos > 0) {
 			/* terminate string */
 			rx_buf[rx_buf_pos] = '\0';
@@ -80,18 +78,7 @@ void main(void)
 	}
 
 	/* configure interrupt and callback to receive data */
-	int ret = uart_irq_callback_user_data_set(uart_dev, serial_cb, NULL);
-
-	if (ret < 0) {
-		if (ret == -ENOTSUP) {
-			printk("Interrupt-driven UART API support not enabled\n");
-		} else if (ret == -ENOSYS) {
-			printk("UART device does not support interrupt-driven API\n");
-		} else {
-			printk("Error setting UART callback: %d\n", ret);
-		}
-		return;
-	}
+	uart_irq_callback_user_data_set(uart_dev, serial_cb, NULL);
 	uart_irq_rx_enable(uart_dev);
 
 	print_uart("Hello! I'm your echo bot.\r\n");

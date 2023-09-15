@@ -10,10 +10,10 @@
 
 #define DT_DRV_COMPAT st_iis2dlpc
 
-#include <zephyr/kernel.h>
-#include <zephyr/drivers/sensor.h>
-#include <zephyr/drivers/gpio.h>
-#include <zephyr/logging/log.h>
+#include <kernel.h>
+#include <drivers/sensor.h>
+#include <drivers/gpio.h>
+#include <logging/log.h>
 
 #include "iis2dlpc.h"
 
@@ -67,19 +67,6 @@ static int iis2dlpc_enable_int(const struct device *dev,
 		return iis2dlpc_pin_int1_route_set(ctx,
 				&int_route.ctrl4_int1_pad_ctrl);
 #endif /* CONFIG_IIS2DLPC_TAP */
-#ifdef CONFIG_IIS2DLPC_ACTIVITY
-	case SENSOR_TRIG_DELTA:
-		/* set interrupt for pin INT1 */
-		iis2dlpc_pin_int1_route_get(ctx,
-			    &int_route.ctrl4_int1_pad_ctrl);
-		int_route.ctrl4_int1_pad_ctrl.int1_wu = enable;
-
-		iis2dlpc_act_mode_set(ctx, enable ? IIS2DLPC_DETECT_ACT_INACT
-						  : IIS2DLPC_NO_DETECTION);
-
-		return iis2dlpc_pin_int1_route_set(ctx,
-			   &int_route.ctrl4_int1_pad_ctrl);
-#endif /* CONFIG_IIS2DLPC_ACTIVITY */
 	default:
 		LOG_ERR("Unsupported trigger interrupt route %d", type);
 		return -ENOTSUP;
@@ -115,11 +102,6 @@ int iis2dlpc_trigger_set(const struct device *dev,
 		iis2dlpc->double_tap_handler = handler;
 		return iis2dlpc_enable_int(dev, SENSOR_TRIG_DOUBLE_TAP, state);
 #endif /* CONFIG_IIS2DLPC_TAP */
-#ifdef CONFIG_IIS2DLPC_ACTIVITY
-	case SENSOR_TRIG_DELTA:
-		iis2dlpc->activity_handler = handler;
-		return iis2dlpc_enable_int(dev, SENSOR_TRIG_DELTA, state);
-#endif /* CONFIG_IIS2DLPC_ACTIVITY */
 	default:
 		LOG_ERR("Unsupported sensor trigger");
 		return -ENOTSUP;
@@ -141,25 +123,6 @@ static int iis2dlpc_handle_drdy_int(const struct device *dev)
 
 	return 0;
 }
-
-#ifdef CONFIG_IIS2DLPC_ACTIVITY
-static int iis2dlpc_handle_activity_int(const struct device *dev)
-{
-	struct iis2dlpc_data *data = dev->data;
-	sensor_trigger_handler_t handler = data->activity_handler;
-
-	struct sensor_trigger tap_trig = {
-		.type = SENSOR_TRIG_DELTA,
-		.chan = SENSOR_CHAN_ALL,
-	};
-
-	if (handler) {
-		handler(dev, &tap_trig);
-	}
-
-	return 0;
-}
-#endif /* CONFIG_IIS2DLPC_ACTIVITY */
 
 #ifdef CONFIG_IIS2DLPC_TAP
 static int iis2dlpc_handle_single_tap_int(const struct device *dev)
@@ -220,11 +183,6 @@ static void iis2dlpc_handle_interrupt(const struct device *dev)
 		iis2dlpc_handle_double_tap_int(dev);
 	}
 #endif /* CONFIG_IIS2DLPC_TAP */
-#ifdef CONFIG_IIS2DLPC_ACTIVITY
-	if (sources.all_int_src.wu_ia) {
-		iis2dlpc_handle_activity_int(dev);
-	}
-#endif /* CONFIG_IIS2DLPC_ACTIVITY */
 
 	gpio_pin_interrupt_configure_dt(&cfg->gpio_drdy,
 					GPIO_INT_EDGE_TO_ACTIVE);

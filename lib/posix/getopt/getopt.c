@@ -30,15 +30,10 @@
  */
 
 #include <string.h>
-#ifdef CONFIG_ARCH_POSIX
-#include <unistd.h>
-#else
-#include <zephyr/posix/unistd.h>
-#endif
 #include "getopt.h"
 #include "getopt_common.h"
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(getopt);
 
 #define	BADCH	((int)'?')

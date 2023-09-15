@@ -4,12 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/device.h>
-#include <zephyr/init.h>
-#include <zephyr/drivers/ipm.h>
+#include <kernel.h>
+#include <device.h>
+#include <init.h>
+#include <drivers/ipm.h>
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(ipm_console, CONFIG_IPM_LOG_LEVEL);
 
 const struct device *ipm_dev;
@@ -70,9 +70,9 @@ static int ipm_console_init(const struct device *dev)
 
 	LOG_DBG("IPM console initialization");
 
-	ipm_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_console));
-	if (!device_is_ready(ipm_dev)) {
-		LOG_ERR("%s is not ready", ipm_dev->name);
+	ipm_dev = device_get_binding(CONFIG_IPM_CONSOLE_ON_DEV_NAME);
+	if (!ipm_dev) {
+		LOG_ERR("Cannot get %s", CONFIG_IPM_CONSOLE_ON_DEV_NAME);
 		return -ENODEV;
 	}
 

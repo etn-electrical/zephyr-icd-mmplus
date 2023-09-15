@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_DECLARE(net_gptp, CONFIG_NET_GPTP_LOG_LEVEL);
 
 #include "gptp_messages.h"
@@ -52,7 +52,6 @@ static void gptp_md_follow_up_prepare(struct net_pkt *pkt,
 	hdr->correction_field *= sync_send->rate_ratio;
 	hdr->correction_field += sync_send->follow_up_correction_field;
 	hdr->correction_field <<= 16;
-	hdr->correction_field = htonll(hdr->correction_field);
 
 	memcpy(&hdr->port_id.clk_id, &sync_send->src_port_id.clk_id,
 	       GPTP_CLOCK_ID_LEN);
@@ -116,7 +115,7 @@ static int gptp_set_md_sync_receive(int port,
 	sync_ts = &state->rcvd_sync_ptr->timestamp;
 
 	sync_rcv->follow_up_correction_field =
-		(ntohll(fup_hdr->correction_field) >> 16);
+		ntohll(fup_hdr->correction_field);
 	memcpy(&sync_rcv->src_port_id, &sync_hdr->port_id,
 	       sizeof(struct gptp_port_identity));
 	sync_rcv->log_msg_interval = fup_hdr->log_msg_interval;
@@ -399,7 +398,7 @@ static void gptp_md_pdelay_compute(int port)
 
 	/*
 	 * Currently, if the computed delay is negative, this means
-	 * that it is negligible enough compared to other factors.
+	 * that it is negligeable enough compared to other factors.
 	 */
 	if ((port_ds->neighbor_prop_delay <=
 	     port_ds->neighbor_prop_delay_thresh)) {
@@ -572,7 +571,7 @@ static void gptp_md_pdelay_req_state_machine(int port)
 	port_ds = GPTP_PORT_DS(port);
 
 	/* Unset AS-Capable if multiple responses to a pDelay request have been
-	 * received.
+	 * reveived.
 	 */
 	if (state->rcvd_pdelay_resp > 1 || state->rcvd_pdelay_follow_up > 1) {
 		port_ds->as_capable = false;

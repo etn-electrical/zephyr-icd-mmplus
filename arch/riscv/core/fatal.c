@@ -4,12 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/kernel_structs.h>
-#include <kernel_internal.h>
+#include <kernel.h>
+#include <kernel_structs.h>
 #include <inttypes.h>
-#include <zephyr/exc_handle.h>
-#include <zephyr/logging/log.h>
+#include <exc_handle.h>
+#include <logging/log.h>
 LOG_MODULE_DECLARE(os, CONFIG_KERNEL_LOG_LEVEL);
 
 #ifdef CONFIG_USERSPACE
@@ -35,20 +34,12 @@ FUNC_NORETURN void z_riscv_fatal_error(unsigned int reason,
 		LOG_ERR("     a0: " PR_REG "    t0: " PR_REG, esf->a0, esf->t0);
 		LOG_ERR("     a1: " PR_REG "    t1: " PR_REG, esf->a1, esf->t1);
 		LOG_ERR("     a2: " PR_REG "    t2: " PR_REG, esf->a2, esf->t2);
-#if defined(CONFIG_RISCV_ISA_RV32E)
-		LOG_ERR("     a3: " PR_REG, esf->a3);
-		LOG_ERR("     a4: " PR_REG, esf->a4);
-		LOG_ERR("     a5: " PR_REG, esf->a5);
-#else
 		LOG_ERR("     a3: " PR_REG "    t3: " PR_REG, esf->a3, esf->t3);
 		LOG_ERR("     a4: " PR_REG "    t4: " PR_REG, esf->a4, esf->t4);
 		LOG_ERR("     a5: " PR_REG "    t5: " PR_REG, esf->a5, esf->t5);
 		LOG_ERR("     a6: " PR_REG "    t6: " PR_REG, esf->a6, esf->t6);
 		LOG_ERR("     a7: " PR_REG, esf->a7);
-#endif /* CONFIG_RISCV_ISA_RV32E */
-#ifdef CONFIG_USERSPACE
-		LOG_ERR("     sp: " PR_REG, esf->sp);
-#endif
+		LOG_ERR("         " NO_REG "    tp: " PR_REG, esf->tp);
 		LOG_ERR("     ra: " PR_REG, esf->ra);
 		LOG_ERR("   mepc: " PR_REG, esf->mepc);
 		LOG_ERR("mstatus: " PR_REG, esf->mstatus);
@@ -59,7 +50,7 @@ FUNC_NORETURN void z_riscv_fatal_error(unsigned int reason,
 	CODE_UNREACHABLE;
 }
 
-static char *cause_str(unsigned long cause)
+static char *cause_str(ulong_t cause)
 {
 	switch (cause) {
 	case 0:
@@ -95,51 +86,6 @@ static char *cause_str(unsigned long cause)
 	}
 }
 
-static bool bad_stack_pointer(z_arch_esf_t *esf)
-{
-#ifdef CONFIG_PMP_STACK_GUARD
-	/*
-	 * Check if the kernel stack pointer prior this exception (before
-	 * storing the exception stack frame) was in the stack guard area.
-	 */
-	uintptr_t sp = (uintptr_t)esf + sizeof(z_arch_esf_t);
-
-#ifdef CONFIG_USERSPACE
-	if (_current->arch.priv_stack_start != 0 &&
-	    sp >= _current->arch.priv_stack_start &&
-	    sp <  _current->arch.priv_stack_start + Z_RISCV_STACK_GUARD_SIZE) {
-		return true;
-	}
-
-	if (z_stack_is_user_capable(_current->stack_obj) &&
-	    sp >= _current->stack_info.start - K_THREAD_STACK_RESERVED &&
-	    sp <  _current->stack_info.start - K_THREAD_STACK_RESERVED
-		  + Z_RISCV_STACK_GUARD_SIZE) {
-		return true;
-	}
-#endif /* CONFIG_USERSPACE */
-
-	if (sp >= _current->stack_info.start - K_KERNEL_STACK_RESERVED &&
-	    sp <  _current->stack_info.start - K_KERNEL_STACK_RESERVED
-		  + Z_RISCV_STACK_GUARD_SIZE) {
-		return true;
-	}
-#endif /* CONFIG_PMP_STACK_GUARD */
-
-#ifdef CONFIG_USERSPACE
-	if ((esf->mstatus & MSTATUS_MPP) == 0 &&
-	    (esf->sp < _current->stack_info.start ||
-	     esf->sp > _current->stack_info.start +
-		       _current->stack_info.size -
-		       _current->stack_info.delta)) {
-		/* user stack pointer moved outside of its allowed stack */
-		return true;
-	}
-#endif
-
-	return false;
-}
-
 void _Fault(z_arch_esf_t *esf)
 {
 #ifdef CONFIG_USERSPACE
@@ -148,22 +94,21 @@ void _Fault(z_arch_esf_t *esf)
 	 * treated as recoverable.
 	 */
 	for (int i = 0; i < ARRAY_SIZE(exceptions); i++) {
-		unsigned long start = (unsigned long)exceptions[i].start;
-		unsigned long end = (unsigned long)exceptions[i].end;
+		ulong_t start = (ulong_t)exceptions[i].start;
+		ulong_t end = (ulong_t)exceptions[i].end;
 
 		if (esf->mepc >= start && esf->mepc < end) {
-			esf->mepc = (unsigned long)exceptions[i].fixup;
+			esf->mepc = (ulong_t)exceptions[i].fixup;
 			return;
 		}
 	}
 #endif /* CONFIG_USERSPACE */
-
-	unsigned long mcause;
+	ulong_t mcause;
 
 	__asm__ volatile("csrr %0, mcause" : "=r" (mcause));
 
 #ifndef CONFIG_SOC_OPENISA_RV32M1_RISCV32
-	unsigned long mtval;
+	ulong_t mtval;
 	__asm__ volatile("csrr %0, mtval" : "=r" (mtval));
 #endif
 
@@ -176,9 +121,11 @@ void _Fault(z_arch_esf_t *esf)
 
 	unsigned int reason = K_ERR_CPU_EXCEPTION;
 
-	if (bad_stack_pointer(esf)) {
-		reason = K_ERR_STACK_CHK_FAIL;
+#if !defined(CONFIG_USERSPACE)
+	if (esf->t5 == ARCH_EXCEPT_MARKER) {
+		reason = esf->t6;
 	}
+#endif
 
 	z_riscv_fatal_error(reason, esf);
 }

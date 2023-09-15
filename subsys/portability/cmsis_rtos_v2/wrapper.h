@@ -7,7 +7,7 @@
 #ifndef __WRAPPER_H__
 #define __WRAPPER_H__
 
-#include <zephyr/kernel.h>
+#include <kernel.h>
 #include <cmsis_os2.h>
 
 #define TRUE    1

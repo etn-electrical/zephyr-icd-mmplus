@@ -41,7 +41,7 @@ licensing, as described in :ref:`Zephyr_Licensing`.
 	   <p>Introducing the Zephyr Project: overview, architecture, features, and licensing</p>
        </li>
        <li class="grid-item">
-	   <a href="develop/getting_started/index.html">
+	   <a href="getting_started/index.html">
                <span class="grid-icon fa fa-map-signs"></span>
 	       <h2>Getting Started Guide</h2>
 	   </a>
@@ -65,11 +65,11 @@ licensing, as described in :ref:`Zephyr_Licensing`.
 	       by Zephyr</p>
        </li>
        <li class="grid-item">
-	   <a href="hardware/index.html">
+	   <a href="reference/index.html">
                <span class="grid-icon fa fa-sign-in"></span>
-	       <h2>Hardware Support</h2>
+	       <h2>API Reference</h2>
 	   </a>
-	   <p>Information about supported architectures, supported hardware and porting guides</p>
+	   <p>API Documentation, Zephyr configuration, and subsystem Reference</p>
        </li>
        <li class="grid-item">
 	   <a href="security/index.html">
@@ -86,11 +86,11 @@ licensing, as described in :ref:`Zephyr_Licensing`.
 	   <p>List of supported boards and platforms.</p>
        </li>
        <li class="grid-item">
-	   <a href="services/index.html">
+	   <a href="guides/index.html">
                <span class="grid-icon fa fa-puzzle-piece"></span>
-	       <h2>OS Services</h2>
+	       <h2>User and Developer Guides</h2>
 	   </a>
-	   <p>OS Services and guides how to use them with Zephyr</p>
+	   <p>User and Developer Guides, including tools and tips</p>
        </li>
    </ul>
 
@@ -102,14 +102,13 @@ Sections
    :caption: Contents
 
    introduction/index.rst
-   develop/index.rst
-   kernel/index.rst
-   services/index.rst
-   build/index.rst
-   connectivity/index.rst
-   hardware/index.rst
+   getting_started/index.rst
    contribute/index.rst
-   project/index.rst
+   development_process/index.rst
+   guides/build/index.rst
+   application/index.rst
+   reference/index.rst
+   guides/index.rst
    security/index.rst
    samples/index.rst
    boards/index.rst

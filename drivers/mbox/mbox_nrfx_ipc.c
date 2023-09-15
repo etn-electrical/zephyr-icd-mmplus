@@ -4,12 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/drivers/mbox.h>
+#include <drivers/mbox.h>
 #include <nrfx_ipc.h>
 
 #define LOG_LEVEL CONFIG_MBOX_LOG_LEVEL
-#include <zephyr/logging/log.h>
-#include <zephyr/irq.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(mbox_nrfx_ipc);
 
 #define DT_DRV_COMPAT nordic_mbox_nrf_ipc
@@ -45,23 +44,27 @@ static inline bool is_tx_channel_valid(const struct device *dev, uint32_t ch)
 	return ((ch < IPC_CONF_NUM) && (conf->tx_mask & BIT(ch)));
 }
 
-static void mbox_dispatcher(uint8_t event_idx, void *p_context)
+static void mbox_dispatcher(uint32_t event_mask, void *p_context)
 {
 	struct mbox_nrf_data *data = (struct mbox_nrf_data *) p_context;
 	const struct device *dev = data->dev;
 
-	uint32_t channel = event_idx;
+	while (event_mask) {
+		uint32_t channel = __CLZ(__RBIT(event_mask));
 
-	if (!is_rx_channel_valid(dev, channel)) {
-		LOG_WRN("RX event on illegal channel");
-	}
+		if (!is_rx_channel_valid(dev, channel)) {
+			LOG_WRN("RX event on illegal channel");
+		}
 
-	if (!(data->enabled_mask & BIT(channel))) {
-		LOG_WRN("RX event on disabled channel");
-	}
+		if (!(data->enabled_mask & BIT(channel))) {
+			LOG_WRN("RX event on disabled channel");
+		}
 
-	if (data->cb[channel] != NULL) {
-		data->cb[channel](dev, channel, data->user_data[channel], NULL);
+		event_mask &= ~BIT(channel);
+
+		if (data->cb[channel] != NULL) {
+			data->cb[channel](dev, channel, data->user_data[channel], NULL);
+		}
 	}
 }
 
@@ -199,5 +202,5 @@ static const struct mbox_driver_api mbox_nrf_driver_api = {
 };
 
 DEVICE_DT_INST_DEFINE(0, mbox_nrf_init, NULL, &nrfx_mbox_data, &nrfx_mbox_conf,
-		    POST_KERNEL, CONFIG_MBOX_INIT_PRIORITY,
+		    POST_KERNEL, CONFIG_KERNEL_INIT_PRIORITY_DEVICE,
 		    &mbox_nrf_driver_api);

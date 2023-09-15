@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/spinlock.h>
-#include <zephyr/sys/heap_listener.h>
+#include <spinlock.h>
+#include <sys/heap_listener.h>
 
 static struct k_spinlock heap_listener_lock;
 static sys_slist_t heap_listener_list = SYS_SLIST_STATIC_INIT(&heap_listener_list);

@@ -5,22 +5,18 @@
  */
 
 #include <stdbool.h>
-#ifdef CONFIG_ARCH_POSIX
 #include <fcntl.h>
-#else
-#include <zephyr/posix/fcntl.h>
-#endif
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(net_sock_mgmt, CONFIG_NET_SOCKETS_LOG_LEVEL);
 
-#include <zephyr/kernel.h>
-#include <zephyr/sys/util.h>
-#include <zephyr/net/socket.h>
-#include <zephyr/syscall_handler.h>
-#include <zephyr/sys/fdtable.h>
-#include <zephyr/net/socket_net_mgmt.h>
-#include <zephyr/net/ethernet_mgmt.h>
+#include <kernel.h>
+#include <sys/util.h>
+#include <net/socket.h>
+#include <syscall_handler.h>
+#include <sys/fdtable.h>
+#include <net/socket_net_mgmt.h>
+#include <net/ethernet_mgmt.h>
 
 #include "sockets_internal.h"
 #include "net_private.h"

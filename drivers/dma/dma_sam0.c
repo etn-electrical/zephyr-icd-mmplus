@@ -6,12 +6,11 @@
 
 #define DT_DRV_COMPAT atmel_sam0_dmac
 
-#include <zephyr/device.h>
+#include <device.h>
 #include <soc.h>
-#include <zephyr/drivers/dma.h>
+#include <drivers/dma.h>
 
-#include <zephyr/logging/log.h>
-#include <zephyr/irq.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(dma_sam0, CONFIG_DMA_LOG_LEVEL);
 
 #define DMA_REGS	((Dmac *)DT_INST_REG_ADDR(0))
@@ -67,7 +66,7 @@ static int dma_sam0_config(const struct device *dev, uint32_t channel,
 	struct dma_block_config *block = config->head_block;
 	struct dma_sam0_channel *channel_control;
 	DMAC_BTCTRL_Type btctrl = { .reg = 0 };
-	unsigned int key;
+	int key;
 
 	if (channel >= DMAC_CH_NUM) {
 		LOG_ERR("Unsupported channel");
@@ -263,7 +262,7 @@ inval:
 
 static int dma_sam0_start(const struct device *dev, uint32_t channel)
 {
-	unsigned int key = irq_lock();
+	int key = irq_lock();
 
 	ARG_UNUSED(dev);
 
@@ -294,7 +293,7 @@ static int dma_sam0_start(const struct device *dev, uint32_t channel)
 
 static int dma_sam0_stop(const struct device *dev, uint32_t channel)
 {
-	unsigned int key = irq_lock();
+	int key = irq_lock();
 
 	ARG_UNUSED(dev);
 
@@ -317,7 +316,7 @@ static int dma_sam0_reload(const struct device *dev, uint32_t channel,
 {
 	struct dma_sam0_data *data = dev->data;
 	DmacDescriptor *desc = &data->descriptors[channel];
-	unsigned int key = irq_lock();
+	int key = irq_lock();
 
 	switch (desc->BTCTRL.bit.BEATSIZE) {
 	case DMAC_BTCTRL_BEATSIZE_BYTE_Val:
@@ -399,7 +398,7 @@ static int dma_sam0_get_status(const struct device *dev, uint32_t channel,
 			    DT_INST_IRQ_BY_IDX(0, n, priority),		 \
 			    dma_sam0_isr, DEVICE_DT_INST_GET(0), 0);	 \
 		irq_enable(DT_INST_IRQ_BY_IDX(0, n, irq));		 \
-	} while (false)
+	} while (0)
 
 static int dma_sam0_init(const struct device *dev)
 {

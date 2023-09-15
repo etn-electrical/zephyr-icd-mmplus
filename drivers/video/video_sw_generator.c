@@ -3,9 +3,9 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#include <zephyr/kernel.h>
+#include <zephyr.h>
 
-#include <zephyr/drivers/video.h>
+#include <drivers/video.h>
 
 #define VIDEO_PATTERN_COLOR_BAR	0
 #define VIDEO_PATTERN_FPS	30

@@ -8,11 +8,11 @@
 
 #include <errno.h>
 
-#include <zephyr/kernel.h>
-#include <zephyr/device.h>
-#include <zephyr/init.h>
+#include <kernel.h>
+#include <device.h>
+#include <init.h>
 #include <soc.h>
-#include <zephyr/drivers/flash.h>
+#include <drivers/flash.h>
 #include <string.h>
 #include <nrfx_nvmc.h>
 #include <nrf_erratas.h>
@@ -20,7 +20,7 @@
 #include "soc_flash_nrf.h"
 
 #define LOG_LEVEL CONFIG_FLASH_LOG_LEVEL
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(flash_nrf);
 
 #if DT_NODE_HAS_STATUS(DT_INST(0, nordic_nrf51_flash_controller), okay)
@@ -54,7 +54,7 @@ static int erase_synchronously(uint32_t addr, uint32_t size);
 #endif /* !CONFIG_SOC_FLASH_NRF_RADIO_SYNC_NONE */
 
 static const struct flash_parameters flash_nrf_parameters = {
-#if defined(CONFIG_SOC_FLASH_NRF_EMULATE_ONE_BYTE_WRITE_ACCESS)
+#if IS_ENABLED(CONFIG_SOC_FLASH_NRF_EMULATE_ONE_BYTE_WRITE_ACCESS)
 	.write_block_size = 1,
 #else
 	.write_block_size = 4,
@@ -408,7 +408,7 @@ static int write_op(void *context)
 		nrf_flash_sync_get_timestamp_begin();
 	}
 #endif /* !CONFIG_SOC_FLASH_NRF_RADIO_SYNC_NONE */
-#if defined(CONFIG_SOC_FLASH_NRF_EMULATE_ONE_BYTE_WRITE_ACCESS)
+#if IS_ENABLED(CONFIG_SOC_FLASH_NRF_EMULATE_ONE_BYTE_WRITE_ACCESS)
 	/* If not aligned, write unaligned beginning */
 	if (!is_aligned_32(w_ctx->flash_addr)) {
 		uint32_t count = sizeof(uint32_t) - (w_ctx->flash_addr & 0x3);
@@ -460,7 +460,7 @@ static int write_op(void *context)
 		}
 #endif /* !CONFIG_SOC_FLASH_NRF_RADIO_SYNC_NONE */
 	}
-#if defined(CONFIG_SOC_FLASH_NRF_EMULATE_ONE_BYTE_WRITE_ACCESS)
+#if IS_ENABLED(CONFIG_SOC_FLASH_NRF_EMULATE_ONE_BYTE_WRITE_ACCESS)
 	/* Write remaining unaligned data */
 	if (w_ctx->len) {
 		if (SUSPEND_POFWARN()) {

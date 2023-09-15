@@ -52,17 +52,17 @@
  *
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/arch/cpu.h>
+#include <kernel.h>
+#include <arch/cpu.h>
 
-#include <zephyr/toolchain.h>
-#include <zephyr/linker/sections.h>
-#include <zephyr/device.h>
-#include <zephyr/pm/device.h>
+#include <toolchain.h>
+#include <linker/sections.h>
+#include <device.h>
+#include <pm/device.h>
 #include <string.h>
 
-#include <zephyr/drivers/interrupt_controller/ioapic.h> /* public API declarations */
-#include <zephyr/drivers/interrupt_controller/loapic.h> /* public API declarations and registers */
+#include <drivers/interrupt_controller/ioapic.h> /* public API declarations */
+#include <drivers/interrupt_controller/loapic.h> /* public API declarations and registers */
 #include "intc_ioapic_priv.h"
 
 DEVICE_MMIO_TOPLEVEL_STATIC(ioapic_regs, DT_DRV_INST(0));
@@ -89,7 +89,7 @@ DEVICE_MMIO_TOPLEVEL_STATIC(ioapic_regs, DT_DRV_INST(0));
 static __pinned_bss uint32_t ioapic_rtes;
 
 #ifdef CONFIG_PM_DEVICE
-#include <zephyr/pm/device.h>
+#include <pm/device.h>
 
 #define BITS_PER_IRQ  4
 #define IOAPIC_BITFIELD_HI_LO	0
@@ -119,11 +119,10 @@ static void IoApicRedUpdateLo(unsigned int irq, uint32_t value,
 #if defined(CONFIG_INTEL_VTD_ICTL) &&				\
 	!defined(CONFIG_INTEL_VTD_ICTL_XAPIC_PASSTHROUGH)
 
-#include <zephyr/drivers/interrupt_controller/intel_vtd.h>
-#include <zephyr/arch/x86/acpi.h>
+#include <drivers/interrupt_controller/intel_vtd.h>
+#include <arch/x86/acpi.h>
 
-static const struct device *const vtd =
-	DEVICE_DT_GET_OR_NULL(DT_INST(0, intel_vt_d));
+static const struct device *vtd;
 static uint16_t ioapic_id;
 
 
@@ -132,6 +131,14 @@ static bool get_vtd(void)
 	if (vtd != NULL) {
 		return true;
 	}
+
+#define DRV_COMPAT_BAK DT_DRV_COMPAT
+#undef DT_DRV_COMPAT
+#define DT_DRV_COMPAT intel_vt_d
+	vtd = device_get_binding(DT_INST_LABEL(0));
+#undef DT_DRV_COMPAT
+#define DT_DRV_COMPAT DRV_COMPAT_BAK
+#undef DRV_COMPAT_BAK
 
 	ioapic_id = z_acpi_get_dev_id_from_dmar(ACPI_DRHD_DEV_SCOPE_IOAPIC);
 
@@ -438,7 +445,7 @@ static uint32_t __IoApicGet(int32_t offset)
 
 	key = irq_lock();
 
-	*((volatile uint32_t *) (IOAPIC_REG + IOAPIC_IND)) = (unsigned char)offset;
+	*((volatile uint32_t *) (IOAPIC_REG + IOAPIC_IND)) = (char)offset;
 	value = *((volatile uint32_t *)(IOAPIC_REG + IOAPIC_DATA));
 
 	irq_unlock(key);
@@ -463,7 +470,7 @@ static void __IoApicSet(int32_t offset, uint32_t value)
 
 	key = irq_lock();
 
-	*(volatile uint32_t *)(IOAPIC_REG + IOAPIC_IND) = (unsigned char)offset;
+	*(volatile uint32_t *)(IOAPIC_REG + IOAPIC_IND) = (char)offset;
 	*((volatile uint32_t *)(IOAPIC_REG + IOAPIC_DATA)) = value;
 
 	irq_unlock(key);
@@ -538,4 +545,4 @@ static void IoApicRedUpdateLo(unsigned int irq,
 PM_DEVICE_DEFINE(ioapic, ioapic_pm_action);
 
 DEVICE_DEFINE(ioapic, "ioapic", ioapic_init, PM_DEVICE_GET(ioapic), NULL, NULL,
-	      PRE_KERNEL_1, CONFIG_INTC_INIT_PRIORITY, NULL);
+	      PRE_KERNEL_1, CONFIG_KERNEL_INIT_PRIORITY_DEFAULT, NULL);

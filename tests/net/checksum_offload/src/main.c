@@ -8,7 +8,7 @@
 
 #define NET_LOG_LEVEL CONFIG_NET_L2_ETHERNET_LOG_LEVEL
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(net_test, NET_LOG_LEVEL);
 
 #include <zephyr/types.h>
@@ -16,17 +16,17 @@ LOG_MODULE_REGISTER(net_test, NET_LOG_LEVEL);
 #include <stddef.h>
 #include <string.h>
 #include <errno.h>
-#include <zephyr/sys/printk.h>
-#include <zephyr/linker/sections.h>
-#include <zephyr/random/rand32.h>
+#include <sys/printk.h>
+#include <linker/sections.h>
+#include <random/rand32.h>
 
-#include <zephyr/ztest.h>
+#include <ztest.h>
 
-#include <zephyr/net/ethernet.h>
-#include <zephyr/net/buf.h>
-#include <zephyr/net/net_ip.h>
-#include <zephyr/net/net_l2.h>
-#include <zephyr/net/udp.h>
+#include <net/ethernet.h>
+#include <net/buf.h>
+#include <net/net_ip.h>
+#include <net/net_l2.h>
+#include <net/udp.h>
 
 #include "ipv6.h"
 #include "udp_internal.h"
@@ -392,7 +392,7 @@ static void test_address_setup(void)
 		zassert_not_null(ifaddr, "addr1");
 	}
 
-	/* For testing purposes we need to set the addresses preferred */
+	/* For testing purposes we need to set the adddresses preferred */
 	ifaddr->addr_state = NET_ADDR_PREFERRED;
 
 	ifaddr = net_if_ipv6_addr_add(iface1, &ll_addr,
@@ -928,35 +928,20 @@ static void test_rx_chksum_offload_enabled_test_v4(void)
 	k_sleep(K_MSEC(10));
 }
 
-static void *net_chksum_offload_tests_setup(void)
+void test_main(void)
 {
-	test_eth_setup();
-	test_address_setup();
-	return NULL;
-}
+	ztest_test_suite(net_chksum_offload_test,
+			 ztest_unit_test(test_eth_setup),
+			 ztest_unit_test(test_address_setup),
+			 ztest_unit_test(test_tx_chksum_offload_disabled_test_v6),
+			 ztest_unit_test(test_tx_chksum_offload_disabled_test_v4),
+			 ztest_unit_test(test_tx_chksum_offload_enabled_test_v6),
+			 ztest_unit_test(test_tx_chksum_offload_enabled_test_v4),
+			 ztest_unit_test(test_rx_chksum_offload_disabled_test_v6),
+			 ztest_unit_test(test_rx_chksum_offload_disabled_test_v4),
+			 ztest_unit_test(test_rx_chksum_offload_enabled_test_v6),
+			 ztest_unit_test(test_rx_chksum_offload_enabled_test_v4)
+			 );
 
-ZTEST(net_chksum_offload, test_chksum_offload_disabled_v4)
-{
-	test_tx_chksum_offload_disabled_test_v4();
-	test_rx_chksum_offload_disabled_test_v4();
+	ztest_run_test_suite(net_chksum_offload_test);
 }
-
-ZTEST(net_chksum_offload, test_chksum_offload_enabled_v4)
-{
-	test_tx_chksum_offload_enabled_test_v4();
-	test_rx_chksum_offload_enabled_test_v4();
-}
-
-ZTEST(net_chksum_offload, test_chksum_offload_disabled_v6)
-{
-	test_tx_chksum_offload_disabled_test_v6();
-	test_rx_chksum_offload_disabled_test_v6();
-}
-
-ZTEST(net_chksum_offload, test_chksum_offload_enabled_v6)
-{
-	test_tx_chksum_offload_enabled_test_v6();
-	test_rx_chksum_offload_enabled_test_v6();
-}
-
-ZTEST_SUITE(net_chksum_offload, NULL, net_chksum_offload_tests_setup, NULL, NULL, NULL);

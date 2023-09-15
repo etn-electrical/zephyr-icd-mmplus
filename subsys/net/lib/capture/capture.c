@@ -4,20 +4,20 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(net_capture, CONFIG_NET_CAPTURE_LOG_LEVEL);
 
-#include <zephyr/kernel.h>
+#include <zephyr.h>
 #include <stdlib.h>
-#include <zephyr/sys/slist.h>
-#include <zephyr/net/net_core.h>
-#include <zephyr/net/net_ip.h>
-#include <zephyr/net/net_if.h>
-#include <zephyr/net/net_pkt.h>
-#include <zephyr/net/virtual.h>
-#include <zephyr/net/virtual_mgmt.h>
-#include <zephyr/net/capture.h>
-#include <zephyr/net/ethernet.h>
+#include <sys/slist.h>
+#include <net/net_core.h>
+#include <net/net_ip.h>
+#include <net/net_if.h>
+#include <net/net_pkt.h>
+#include <net/virtual.h>
+#include <net/virtual_mgmt.h>
+#include <net/capture.h>
+#include <net/ethernet.h>
 
 #include "net_private.h"
 #include "ipv4.h"
@@ -194,7 +194,7 @@ static int setup_iface(struct net_if *iface, const char *ipaddr,
 
 	if (!net_ipaddr_parse(ipaddr, strlen(ipaddr), addr)) {
 		NET_ERR("Tunnel local address \"%s\" invalid.",
-			ipaddr);
+			log_strdup(ipaddr));
 		return -EINVAL;
 	}
 
@@ -207,7 +207,7 @@ static int setup_iface(struct net_if *iface, const char *ipaddr,
 					      NET_ADDR_MANUAL, 0);
 		if (!ifaddr) {
 			NET_ERR("Cannot add %s to interface %d",
-				ipaddr, net_if_get_by_iface(iface));
+				log_strdup(ipaddr), net_if_get_by_iface(iface));
 			return -EINVAL;
 		}
 
@@ -223,7 +223,7 @@ static int setup_iface(struct net_if *iface, const char *ipaddr,
 					      NET_ADDR_MANUAL, 0);
 		if (!ifaddr) {
 			NET_ERR("Cannot add %s to interface %d",
-				ipaddr, net_if_get_by_iface(iface));
+				log_strdup(ipaddr), net_if_get_by_iface(iface));
 			return -EINVAL;
 		}
 
@@ -248,7 +248,8 @@ static int cleanup_iface(struct net_if *iface, struct sockaddr *addr)
 		ret = net_if_ipv6_addr_rm(iface, &net_sin6(addr)->sin6_addr);
 		if (!ret) {
 			NET_ERR("Cannot remove %s from interface %d",
-				net_sprint_ipv6_addr(&net_sin6(addr)->sin6_addr),
+				log_strdup(net_sprint_ipv6_addr(
+						  &net_sin6(addr)->sin6_addr)),
 				net_if_get_by_iface(iface));
 			ret = -EINVAL;
 		}
@@ -259,7 +260,8 @@ static int cleanup_iface(struct net_if *iface, struct sockaddr *addr)
 		ret = net_if_ipv4_addr_rm(iface, &net_sin(addr)->sin_addr);
 		if (!ret) {
 			NET_ERR("Cannot remove %s from interface %d",
-				net_sprint_ipv4_addr(&net_sin(addr)->sin_addr),
+				log_strdup(net_sprint_ipv4_addr(
+						  &net_sin(addr)->sin_addr)),
 				net_if_get_by_iface(iface));
 		}
 
@@ -280,6 +282,7 @@ int net_capture_setup(const char *remote_addr, const char *my_local_addr,
 	struct sockaddr peer = { 0 };
 	struct net_if *remote_iface;
 	struct net_capture *ctx;
+	int remote_addr_len;
 	int local_addr_len;
 	int orig_mtu;
 	int ret;
@@ -314,6 +317,8 @@ int net_capture_setup(const char *remote_addr, const char *my_local_addr,
 		orig_mtu = net_if_get_mtu(remote_iface);
 		mtu = orig_mtu - sizeof(struct net_ipv6_hdr) -
 			sizeof(struct net_udp_hdr);
+		remote_addr_len = sizeof(struct sockaddr_in6);
+
 	} else if (IS_ENABLED(CONFIG_NET_IPV4) && remote.sa_family == AF_INET) {
 		remote_iface = net_if_ipv4_select_src_iface(
 						&net_sin(&remote)->sin_addr);
@@ -323,6 +328,8 @@ int net_capture_setup(const char *remote_addr, const char *my_local_addr,
 		orig_mtu = net_if_get_mtu(remote_iface);
 		mtu = orig_mtu - sizeof(struct net_ipv4_hdr) -
 			sizeof(struct net_udp_hdr);
+		remote_addr_len = sizeof(struct sockaddr_in);
+
 	} else {
 		NET_ERR("Invalid address family %d", remote.sa_family);
 		ret = -EINVAL;
@@ -684,7 +691,7 @@ static const struct net_capture_interface_api capture_interface_api = {
 };
 
 #define DEFINE_NET_CAPTURE_DEV_DATA(x, _)				\
-	static struct net_capture capture_dev_data_##x
+	static struct net_capture capture_dev_data_##x;
 
 #define DEFINE_NET_CAPTURE_DEVICE(x, _)					\
 	DEVICE_DEFINE(net_capture_##x,					\
@@ -695,7 +702,7 @@ static const struct net_capture_interface_api capture_interface_api = {
 		      NULL,						\
 		      POST_KERNEL,					\
 		      CONFIG_KERNEL_INIT_PRIORITY_DEVICE,		\
-		      &capture_interface_api)
+		      &capture_interface_api);
 
-LISTIFY(CONFIG_NET_CAPTURE_DEVICE_COUNT, DEFINE_NET_CAPTURE_DEV_DATA, (;), _);
-LISTIFY(CONFIG_NET_CAPTURE_DEVICE_COUNT, DEFINE_NET_CAPTURE_DEVICE, (;), _);
+UTIL_LISTIFY(CONFIG_NET_CAPTURE_DEVICE_COUNT, DEFINE_NET_CAPTURE_DEV_DATA, _)
+UTIL_LISTIFY(CONFIG_NET_CAPTURE_DEVICE_COUNT, DEFINE_NET_CAPTURE_DEVICE, _)

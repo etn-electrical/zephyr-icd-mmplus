@@ -14,17 +14,15 @@
 
 
 #include <errno.h>
-#include <zephyr/sys/__assert.h>
-#include <zephyr/kernel.h>
-#include <zephyr/device.h>
-#include <zephyr/init.h>
+#include <sys/__assert.h>
+#include <kernel.h>
+#include <device.h>
+#include <init.h>
 #include <soc.h>
-#include <zephyr/drivers/i2c.h>
-#include <zephyr/drivers/pinctrl.h>
+#include <drivers/i2c.h>
 
 #define LOG_LEVEL CONFIG_I2C_LOG_LEVEL
-#include <zephyr/logging/log.h>
-#include <zephyr/irq.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(i2c_sam_twihs);
 
 #include "i2c-priv.h"
@@ -43,7 +41,8 @@ struct i2c_sam_twihs_dev_cfg {
 	Twihs *regs;
 	void (*irq_config)(void);
 	uint32_t bitrate;
-	const struct pinctrl_dev_config *pcfg;
+	const struct soc_gpio_pin *pin_list;
+	uint8_t pin_list_size;
 	uint8_t periph_id;
 	uint8_t irq_id;
 };
@@ -66,6 +65,8 @@ struct i2c_sam_twihs_dev_data {
 	struct k_sem sem;
 	struct twihs_msg msg;
 };
+
+#define DEV_NAME(dev) ((dev)->name)
 
 static int i2c_clk_set(Twihs *const twihs, uint32_t speed)
 {
@@ -106,7 +107,7 @@ static int i2c_sam_twihs_configure(const struct device *dev, uint32_t config)
 	uint32_t bitrate;
 	int ret;
 
-	if (!(config & I2C_MODE_CONTROLLER)) {
+	if (!(config & I2C_MODE_MASTER)) {
 		LOG_ERR("Master Mode is not enabled");
 		return -EIO;
 	}
@@ -291,10 +292,7 @@ static int i2c_sam_twihs_initialize(const struct device *dev)
 	k_sem_init(&dev_data->sem, 0, 1);
 
 	/* Connect pins to the peripheral */
-	ret = pinctrl_apply_state(dev_cfg->pcfg, PINCTRL_STATE_DEFAULT);
-	if (ret < 0) {
-		return ret;
-	}
+	soc_gpio_list_configure(dev_cfg->pin_list, dev_cfg->pin_list_size);
 
 	/* Enable module's clock */
 	soc_pmc_peripheral_enable(dev_cfg->periph_id);
@@ -304,16 +302,16 @@ static int i2c_sam_twihs_initialize(const struct device *dev)
 
 	bitrate_cfg = i2c_map_dt_bitrate(dev_cfg->bitrate);
 
-	ret = i2c_sam_twihs_configure(dev, I2C_MODE_CONTROLLER | bitrate_cfg);
+	ret = i2c_sam_twihs_configure(dev, I2C_MODE_MASTER | bitrate_cfg);
 	if (ret < 0) {
-		LOG_ERR("Failed to initialize %s device", dev->name);
+		LOG_ERR("Failed to initialize %s device", DEV_NAME(dev));
 		return ret;
 	}
 
 	/* Enable module's IRQ */
 	irq_enable(dev_cfg->irq_id);
 
-	LOG_INF("Device %s initialized", dev->name);
+	LOG_INF("Device %s initialized", DEV_NAME(dev));
 
 	return 0;
 }
@@ -324,7 +322,6 @@ static const struct i2c_driver_api i2c_sam_twihs_driver_api = {
 };
 
 #define I2C_TWIHS_SAM_INIT(n)						\
-	PINCTRL_DT_INST_DEFINE(n);					\
 	static void i2c##n##_sam_irq_config(void)			\
 	{								\
 		IRQ_CONNECT(DT_INST_IRQN(n), DT_INST_IRQ(n, priority),	\
@@ -332,12 +329,15 @@ static const struct i2c_driver_api i2c_sam_twihs_driver_api = {
 			    DEVICE_DT_INST_GET(n), 0);			\
 	}								\
 									\
+	static const struct soc_gpio_pin pins_twihs##n[] = ATMEL_SAM_DT_INST_PINS(n); \
+									\
 	static const struct i2c_sam_twihs_dev_cfg i2c##n##_sam_config = {\
 		.regs = (Twihs *)DT_INST_REG_ADDR(n),			\
 		.irq_config = i2c##n##_sam_irq_config,			\
 		.periph_id = DT_INST_PROP(n, peripheral_id),		\
 		.irq_id = DT_INST_IRQN(n),				\
-		.pcfg = PINCTRL_DT_INST_DEV_CONFIG_GET(n),		\
+		.pin_list = pins_twihs##n,				\
+		.pin_list_size = ARRAY_SIZE(pins_twihs##n),		\
 		.bitrate = DT_INST_PROP(n, clock_frequency),		\
 	};								\
 									\

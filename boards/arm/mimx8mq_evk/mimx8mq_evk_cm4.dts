@@ -7,7 +7,6 @@
 /dts-v1/;
 
 #include <nxp/nxp_imx8mq_m4.dtsi>
-#include "mimx8mq_evk-pinctrl.dtsi"
 
 / {
 	model = "NXP i.MX8MQ EVK board";
@@ -28,6 +27,4 @@
 &uart2 {
 	status = "okay";
 	current-speed = <115200>;
-	pinctrl-0 = <&uart2_default>;
-	pinctrl-names = "default";
 };

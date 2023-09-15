@@ -7,9 +7,9 @@
 #ifndef __TEST_MODBUS_H__
 #define __TEST_MODBUS_H__
 
-#include <zephyr/drivers/uart.h>
-#include <zephyr/ztest.h>
-#include <zephyr/modbus/modbus.h>
+#include <drivers/uart.h>
+#include <ztest.h>
+#include <modbus/modbus.h>
 
 #define MB_TEST_BAUDRATE_LOW	9600
 #define MB_TEST_BAUDRATE_HIGH	115200
@@ -47,9 +47,7 @@ void test_holding_reg(void);
 void test_diagnostic(void);
 void test_client_disable(void);
 
-int client_raw_cb(const int iface, const struct modbus_adu *adu,
-		void *user_data);
-int server_raw_cb(const int iface, const struct modbus_adu *adu,
-		void *user_data);
+int client_raw_cb(const int iface, const struct modbus_adu *adu);
+int server_raw_cb(const int iface, const struct modbus_adu *adu);
 
 #endif /* __TEST_MODBUS_H__ */

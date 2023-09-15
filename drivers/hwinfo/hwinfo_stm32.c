@@ -7,9 +7,9 @@
 #include <soc.h>
 #include <stm32_ll_utils.h>
 #include <stm32_ll_rcc.h>
-#include <zephyr/drivers/hwinfo.h>
+#include <drivers/hwinfo.h>
 #include <string.h>
-#include <zephyr/sys/byteorder.h>
+#include <sys/byteorder.h>
 
 struct stm32_uid {
 	uint32_t id[3];
@@ -51,28 +51,8 @@ int z_impl_hwinfo_get_reset_cause(uint32_t *cause)
 		flags |= RESET_WATCHDOG;
 	}
 #endif
-#if defined(RCC_RSR_IWDG1RSTF)
-	if (LL_RCC_IsActiveFlag_IWDG1RST()) {
-		flags |= RESET_WATCHDOG;
-	}
-#endif
-#if defined(RCC_RSR_IWDG2RSTF)
-	if (LL_RCC_IsActiveFlag_IWDG2RST()) {
-		flags |= RESET_WATCHDOG;
-	}
-#endif
 #if defined(RCC_FLAG_WWDGRST)
 	if (LL_RCC_IsActiveFlag_WWDGRST()) {
-		flags |= RESET_WATCHDOG;
-	}
-#endif
-#if defined(RCC_RSR_WWDG1RSTF)
-	if (LL_RCC_IsActiveFlag_WWDG1RST()) {
-		flags |= RESET_WATCHDOG;
-	}
-#endif
-#if defined(RCC_RSR_WWDG2RSTF)
-	if (LL_RCC_IsActiveFlag_WWDG2RST()) {
 		flags |= RESET_WATCHDOG;
 	}
 #endif

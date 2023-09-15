@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
-#include <zephyr/ztest_error_hook.h>
+#include <ztest.h>
+#include <ztest_error_hook.h>
 
 /* Macro declarations */
-#define STACK_SIZE (512 + CONFIG_TEST_EXTRA_STACK_SIZE)
+#define STACK_SIZE (512 + CONFIG_TEST_EXTRA_STACKSIZE)
 #define SEM_INIT_VAL (0U)
 #define SEM_MAX_VAL  (3U)
 #define TOTAL_MAX (4U)
@@ -24,7 +24,7 @@ static struct k_thread multi_tid_give[STACK_NUMS];
 static struct k_thread multi_tid_take[STACK_NUMS];
 static struct k_sem usage_sem, sync_sem, limit_sem, uninit_sem;
 static ZTEST_DMEM int flag;
-static ZTEST_DMEM atomic_t atomic_count;
+static ZTEST_DMEM int count;
 
 /**
  * @defgroup kernel_sys_sem_tests Semaphore
@@ -37,7 +37,7 @@ static void sem_thread_give_uninit(void *p1, void *p2, void *p3)
 {
 	ztest_set_fault_valid(true);
 
-	/* use sem without initialise */
+	/* use sem without initialse */
 	k_sem_give(&uninit_sem);
 
 	ztest_test_fail();
@@ -70,12 +70,12 @@ static void thread_high_prio_sem_take(void *p1, void *p2, void *p3)
  *
  * @details Using semaphore with some situations
  * - Use a uninitialized semaphore
- * - Use semaphore normally
+ * - Use semphore normally
  * - Use semaphore with different priority threads
  *
  * @ingroup kernel_sys_sem_tests
  */
-ZTEST_USER(kernel_sys_sem, test_multiple_thread_sem_usage)
+void test_multiple_thread_sem_usage(void)
 {
 	k_sem_init(&usage_sem, SEM_INIT_VAL, SEM_MAX_VAL);
 	k_sem_init(&sync_sem, SEM_INIT_VAL, SEM_MAX_VAL);
@@ -127,34 +127,26 @@ ZTEST_USER(kernel_sys_sem, test_multiple_thread_sem_usage)
 
 static void multi_thread_sem_give(void *p1, void *p2, void *p3)
 {
-	int count;
-
-	(void)atomic_inc(&atomic_count);
-	count = atomic_get(&atomic_count);
+	count++;
 	k_sem_give(&limit_sem);
 
-	if (count < TOTAL_MAX) {
+	if (count < TOTAL_MAX)
 		zassert_equal(k_sem_count_get(&limit_sem), count, "multi get sem error");
-	} else {
+	else
 		zassert_equal(k_sem_count_get(&limit_sem), SEM_MAX_VAL, "count > SEM_MAX_VAL");
-	}
 
 	k_sem_take(&sync_sem, K_FOREVER);
 }
 
 static void multi_thread_sem_take(void *p1, void *p2, void *p3)
 {
-	int count;
-
 	k_sem_take(&limit_sem, K_FOREVER);
-	(void)atomic_dec(&atomic_count);
-	count = atomic_get(&atomic_count);
+	count--;
 
-	if (count >= 0) {
+	if (count >= 0)
 		zassert_equal(k_sem_count_get(&limit_sem), count, "multi take sem error");
-	} else {
+	else
 		zassert_equal(k_sem_count_get(&limit_sem), 0, "count < SEM_INIT_VAL");
-	}
 
 	k_sem_give(&sync_sem);
 }
@@ -170,12 +162,12 @@ static void multi_thread_sem_take(void *p1, void *p2, void *p3)
  *
  * @ingroup kernel_sys_sem_tests
  */
-ZTEST_USER(kernel_sys_sem, test_multi_thread_sem_limit)
+void test_multi_thread_sem_limit(void)
 {
 	k_sem_init(&limit_sem, SEM_INIT_VAL, SEM_MAX_VAL);
 	k_sem_init(&sync_sem, SEM_INIT_VAL, SEM_MAX_VAL);
 
-	(void)atomic_set(&atomic_count, 0);
+	count = 0;
 	for (int i = 1; i <= TOTAL_MAX; i++) {
 		k_thread_create(&multi_tid_give[i], multi_stack_give[i], STACK_SIZE,
 				multi_thread_sem_give, NULL, NULL, NULL,
@@ -184,22 +176,15 @@ ZTEST_USER(kernel_sys_sem, test_multi_thread_sem_limit)
 
 	k_sleep(K_MSEC(50));
 
-	(void)atomic_set(&atomic_count, SEM_MAX_VAL);
+	count = SEM_MAX_VAL;
 	for (int i = 1; i <= TOTAL_MAX; i++) {
 		k_thread_create(&multi_tid_take[i], multi_stack_take[i], STACK_SIZE,
 				multi_thread_sem_take, NULL, NULL, NULL,
 				PRIO, K_USER | K_INHERIT_PERMS, K_NO_WAIT);
 	}
-
-	/* cleanup all threads for the following test cases */
-	k_sleep(K_MSEC(50));
-	for (int i = 1; i <= TOTAL_MAX; i++) {
-		k_thread_abort(&multi_tid_give[i]);
-		k_thread_abort(&multi_tid_take[i]);
-	}
 }
 
-void *test_init(void)
+void test_main(void)
 {
 	k_thread_access_grant(k_current_get(), &usage_sem, &sync_sem, &limit_sem,
 			      &multi_tid_give[0], &multi_tid_give[1],
@@ -213,7 +198,9 @@ void *test_init(void)
 			      &multi_stack_take[2], &multi_stack_give[0],
 			      &multi_stack_give[1], &multi_stack_give[2],
 			      &multi_stack_give[3], &multi_stack_give[4]);
-	return NULL;
+
+	ztest_test_suite(test_kernel_sys_sem,
+			 ztest_1cpu_user_unit_test(test_multiple_thread_sem_usage),
+			 ztest_1cpu_user_unit_test(test_multi_thread_sem_limit));
+	ztest_run_test_suite(test_kernel_sys_sem);
 }
-ZTEST_SUITE(kernel_sys_sem, NULL, test_init,
-	    ztest_simple_1cpu_before, ztest_simple_1cpu_after, NULL);

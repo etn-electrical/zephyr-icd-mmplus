@@ -21,7 +21,6 @@
 		led0 = &led_0_green;
 		led1 = &led_1_green;
 		led2 = &led_2_green;
-		watchdog0 = &iwdg;
 	};
 
 	leds {
@@ -39,10 +38,6 @@
 			label = "LED2";
 		};
 	};
-};
-
-&clk_lsi {
-	status = "okay";
 };
 
 &clk_hse {
@@ -68,8 +63,6 @@
 };
 
 &rtc {
-	clocks = <&rcc STM32_CLOCK_BUS_APB1 0x10000000>,
-		 <&rcc STM32_SRC_LSI RTC_SEL(2)>;
 	status = "okay";
 };
 

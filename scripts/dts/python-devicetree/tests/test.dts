@@ -310,7 +310,7 @@
 	};
 
 	//
-	// For testing hierarchy.
+	// For testing Node.parent and Node.children
 	//
 
 	parent {
@@ -332,13 +332,6 @@
 		bar = <1>;
 		baz = <2>;
 		qaz = <3>;
-
-		child {
-			foo = <0>;
-			bar = <1>;
-			baz = <2>;
-			qaz = <3>;
-		};
 	};
 
 	//

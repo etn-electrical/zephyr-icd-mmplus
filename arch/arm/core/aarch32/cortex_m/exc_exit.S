@@ -13,10 +13,10 @@
  * wrapped around by _isr_wrapper()).
  */
 
-#include <zephyr/toolchain.h>
-#include <zephyr/linker/sections.h>
+#include <toolchain.h>
+#include <linker/sections.h>
 #include <offsets_short.h>
-#include <zephyr/arch/cpu.h>
+#include <arch/cpu.h>
 
 _ASM_FILE_PROLOGUE
 

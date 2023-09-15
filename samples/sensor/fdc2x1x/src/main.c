@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/device.h>
-#include <zephyr/sys/util.h>
-#include <zephyr/drivers/sensor.h>
-#include <zephyr/drivers/sensor/fdc2x1x.h>
+#include <zephyr.h>
+#include <device.h>
+#include <sys/util.h>
+#include <drivers/sensor.h>
+#include "drivers/sensor/fdc2x1x.h"
 #include <stdio.h>
 
 #define CH_BUF_INIT(m)          {},
@@ -70,7 +70,7 @@ void main(void)
 	enum sensor_channel base;
 	int i;
 
-	const struct device *const dev = DEVICE_DT_GET(DEVICE_NODE);
+	const struct device *dev = DEVICE_DT_GET(DEVICE_NODE);
 
 	if (!device_is_ready(dev)) {
 		printk("Device %s is not ready\n", dev->name);

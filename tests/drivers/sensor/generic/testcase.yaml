@@ -3,8 +3,8 @@ common:
     - qemu_x86
     - mps2_an385
 tests:
-  drivers.sensor.generic:
+  drivers.sensor:
     tags: drivers sensor
-  drivers.sensor.generic.fpu:
+  drivers.sensor.fpu:
     extra_args: CONF_FILE=prj_fpu.conf
     tags: drivers sensor

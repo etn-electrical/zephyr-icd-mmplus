@@ -16,12 +16,12 @@
  * Protect your eyes and do not look directly into those LEDs.
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr.h>
 
-#include <zephyr/sys/printk.h>
+#include <sys/printk.h>
 
-#include <zephyr/device.h>
-#include <zephyr/drivers/gpio.h>
+#include <device.h>
+#include <drivers/gpio.h>
 /* in millisecond */
 #define SLEEPTIME	K_MSEC(250)
 

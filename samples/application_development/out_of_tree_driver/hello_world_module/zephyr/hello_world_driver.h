@@ -10,7 +10,7 @@
 extern "C" {
 #endif
 
-#include <zephyr/device.h>
+#include <device.h>
 
 /*
  * This 'Hello World' driver has a 'print' syscall that prints the

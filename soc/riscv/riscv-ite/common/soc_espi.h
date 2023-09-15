@@ -7,8 +7,8 @@
 #ifndef _ITE_IT8XXX2_SOC_ESPI_H_
 #define _ITE_IT8XXX2_SOC_ESPI_H_
 
-#include <zephyr/device.h>
-#include <zephyr/sys/util.h>
+#include <device.h>
+#include <sys/util.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -23,14 +23,6 @@ extern "C" {
  * @param enable/disable eSPI pad
  */
 void espi_it8xxx2_enable_pad_ctrl(const struct device *dev, bool enable);
-
-/**
- * @brief eSPI transaction interrupt control
- *
- * @param dev pointer to eSPI device
- * @param enable/disable eSPI transaction interrupt
- */
-void espi_it8xxx2_enable_trans_irq(const struct device *dev, bool enable);
 
 #ifdef __cplusplus
 }

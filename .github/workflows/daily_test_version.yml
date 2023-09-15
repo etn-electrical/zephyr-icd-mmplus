@@ -5,14 +5,14 @@ name: Publish commit for daily testing
 
 on:
   schedule:
-  - cron: '50 22 * * *'
+    - cron:  '50 22 * * *'
   push:
     branches:
-    - refs/tags/*
+      - refs/tags/*
 
 jobs:
   get_version:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     if: github.repository == 'zephyrproject-rtos/zephyr'
 
     steps:
@@ -28,7 +28,7 @@ jobs:
         pip3 install gitpython
 
     - name: checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v2
       with:
         fetch-depth: 0
 

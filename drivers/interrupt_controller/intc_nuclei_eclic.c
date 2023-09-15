@@ -8,14 +8,13 @@
  * @brief Driver for Nuclie's Extended Core Interrupt Controller
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/arch/cpu.h>
-#include <zephyr/sys/util.h>
-#include <zephyr/init.h>
+#include <kernel.h>
+#include <arch/cpu.h>
+#include <sys/util.h>
+#include <init.h>
 #include <soc.h>
 
-#include <zephyr/sw_isr_table.h>
-#include <zephyr/drivers/interrupt_controller/riscv_clic.h>
+#include <sw_isr_table.h>
 
 union CLICCFG {
 	struct {
@@ -123,7 +122,7 @@ static inline uint8_t mask8(uint8_t len)
 /**
  * @brief Enable interrupt
  */
-void riscv_clic_irq_enable(uint32_t irq)
+void nuclei_eclic_irq_enable(uint32_t irq)
 {
 	ECLIC_CTRL[irq].INTIE.b.IE = 1;
 }
@@ -131,7 +130,7 @@ void riscv_clic_irq_enable(uint32_t irq)
 /**
  * @brief Disable interrupt
  */
-void riscv_clic_irq_disable(uint32_t irq)
+void nuclei_eclic_irq_disable(uint32_t irq)
 {
 	ECLIC_CTRL[irq].INTIE.b.IE = 0;
 }
@@ -139,7 +138,7 @@ void riscv_clic_irq_disable(uint32_t irq)
 /**
  * @brief Get enable status of interrupt
  */
-int riscv_clic_irq_is_enabled(uint32_t irq)
+int nuclei_eclic_irq_is_enabled(uint32_t irq)
 {
 	return ECLIC_CTRL[irq].INTIE.b.IE;
 }
@@ -147,7 +146,7 @@ int riscv_clic_irq_is_enabled(uint32_t irq)
 /**
  * @brief Set priority and level of interrupt
  */
-void riscv_clic_irq_priority_set(uint32_t irq, uint32_t pri, uint32_t flags)
+void nuclei_eclic_irq_priority_set(uint32_t irq, uint32_t pri, uint32_t flags)
 {
 	const uint8_t prio = leftalign8(MIN(pri, max_prio), intctlbits);
 	const uint8_t level =  leftalign8(MIN((irq_get_level(irq) - 1), max_level), nlbits);
@@ -182,4 +181,4 @@ static int nuclei_eclic_init(const struct device *dev)
 	return 0;
 }
 
-SYS_INIT(nuclei_eclic_init, PRE_KERNEL_1, CONFIG_INTC_INIT_PRIORITY);
+SYS_INIT(nuclei_eclic_init, PRE_KERNEL_1, CONFIG_KERNEL_INIT_PRIORITY_DEFAULT);

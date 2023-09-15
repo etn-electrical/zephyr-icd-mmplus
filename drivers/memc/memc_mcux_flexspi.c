@@ -6,12 +6,8 @@
 
 #define DT_DRV_COMPAT	nxp_imx_flexspi
 
-#include <zephyr/logging/log.h>
-#include <zephyr/sys/util.h>
-#ifdef CONFIG_PINCTRL
-#include <zephyr/drivers/pinctrl.h>
-#endif
-#include <zephyr/pm/device.h>
+#include <logging/log.h>
+#include <sys/util.h>
 
 #include "memc_mcux_flexspi.h"
 
@@ -29,8 +25,7 @@
 
 LOG_MODULE_REGISTER(memc_flexspi, CONFIG_MEMC_LOG_LEVEL);
 
-/* flexspi device data should be stored in RAM to avoid read-while-write hazards */
-struct memc_flexspi_data {
+struct memc_flexspi_config {
 	FLEXSPI_Type *base;
 	uint8_t *ahb_base;
 	bool xip;
@@ -41,33 +36,33 @@ struct memc_flexspi_data {
 	bool combination_mode;
 	bool sck_differential_clock;
 	flexspi_read_sample_clock_t rx_sample_clock;
-#ifdef CONFIG_PINCTRL
-	const struct pinctrl_dev_config *pincfg;
-#endif
+};
+
+struct memc_flexspi_data {
 	size_t size[kFLEXSPI_PortCount];
 };
 
 void memc_flexspi_wait_bus_idle(const struct device *dev)
 {
-	struct memc_flexspi_data *data = dev->data;
+	const struct memc_flexspi_config *config = dev->config;
 
-	while (false == FLEXSPI_GetBusIdleStatus(data->base)) {
+	while (false == FLEXSPI_GetBusIdleStatus(config->base)) {
 	}
 }
 
 bool memc_flexspi_is_running_xip(const struct device *dev)
 {
-	struct memc_flexspi_data *data = dev->data;
+	const struct memc_flexspi_config *config = dev->config;
 
-	return data->xip;
+	return config->xip;
 }
 
 int memc_flexspi_update_lut(const struct device *dev, uint32_t index,
 		const uint32_t *cmd, uint32_t count)
 {
-	struct memc_flexspi_data *data = dev->data;
+	const struct memc_flexspi_config *config = dev->config;
 
-	FLEXSPI_UpdateLUT(data->base, index, cmd, count);
+	FLEXSPI_UpdateLUT(config->base, index, cmd, count);
 
 	return 0;
 }
@@ -76,6 +71,7 @@ int memc_flexspi_set_device_config(const struct device *dev,
 		const flexspi_device_config_t *device_config,
 		flexspi_port_t port)
 {
+	const struct memc_flexspi_config *config = dev->config;
 	struct memc_flexspi_data *data = dev->data;
 
 	if (port >= kFLEXSPI_PortCount) {
@@ -85,7 +81,7 @@ int memc_flexspi_set_device_config(const struct device *dev,
 
 	data->size[port] = device_config->flashSize * KB(1);
 
-	FLEXSPI_SetFlashConfig(data->base,
+	FLEXSPI_SetFlashConfig(config->base,
 			       (flexspi_device_config_t *) device_config,
 			       port);
 
@@ -94,9 +90,9 @@ int memc_flexspi_set_device_config(const struct device *dev,
 
 int memc_flexspi_reset(const struct device *dev)
 {
-	struct memc_flexspi_data *data = dev->data;
+	const struct memc_flexspi_config *config = dev->config;
 
-	FLEXSPI_SoftwareReset(data->base);
+	FLEXSPI_SoftwareReset(config->base);
 
 	return 0;
 }
@@ -104,8 +100,8 @@ int memc_flexspi_reset(const struct device *dev)
 int memc_flexspi_transfer(const struct device *dev,
 		flexspi_transfer_t *transfer)
 {
-	struct memc_flexspi_data *data = dev->data;
-	status_t status = FLEXSPI_TransferBlocking(data->base, transfer);
+	const struct memc_flexspi_config *config = dev->config;
+	status_t status = FLEXSPI_TransferBlocking(config->base, transfer);
 
 	if (status != kStatus_Success) {
 		LOG_ERR("Transfer error: %d", status);
@@ -118,6 +114,7 @@ int memc_flexspi_transfer(const struct device *dev,
 void *memc_flexspi_get_ahb_address(const struct device *dev,
 		flexspi_port_t port, off_t offset)
 {
+	const struct memc_flexspi_config *config = dev->config;
 	struct memc_flexspi_data *data = dev->data;
 	int i;
 
@@ -130,12 +127,12 @@ void *memc_flexspi_get_ahb_address(const struct device *dev,
 		offset += data->size[port];
 	}
 
-	return data->ahb_base + offset;
+	return config->ahb_base + offset;
 }
 
 static int memc_flexspi_init(const struct device *dev)
 {
-	struct memc_flexspi_data *data = dev->data;
+	const struct memc_flexspi_config *config = dev->config;
 	flexspi_config_t flexspi_config;
 
 	/* we should not configure the device we are running on */
@@ -144,90 +141,37 @@ static int memc_flexspi_init(const struct device *dev)
 		return 0;
 	}
 
-	/*
-	 * SOCs such as the RT1064 and RT1024 have internal flash, and no pinmux
-	 * settings, continue if no pinctrl state found.
-	 */
-#ifdef CONFIG_PINCTRL
-	int ret;
-
-	ret = pinctrl_apply_state(data->pincfg, PINCTRL_STATE_DEFAULT);
-	if (ret < 0 && ret != -ENOENT) {
-		return ret;
-	}
-#endif
-
 	FLEXSPI_GetDefaultConfig(&flexspi_config);
 
-	flexspi_config.ahbConfig.enableAHBBufferable = data->ahb_bufferable;
-	flexspi_config.ahbConfig.enableAHBCachable = data->ahb_cacheable;
-	flexspi_config.ahbConfig.enableAHBPrefetch = data->ahb_prefetch;
-	flexspi_config.ahbConfig.enableReadAddressOpt = data->ahb_read_addr_opt;
+	flexspi_config.ahbConfig.enableAHBBufferable = config->ahb_bufferable;
+	flexspi_config.ahbConfig.enableAHBCachable = config->ahb_cacheable;
+	flexspi_config.ahbConfig.enableAHBPrefetch = config->ahb_prefetch;
+	flexspi_config.ahbConfig.enableReadAddressOpt = config->ahb_read_addr_opt;
 #if !(defined(FSL_FEATURE_FLEXSPI_HAS_NO_MCR0_COMBINATIONEN) && \
 	FSL_FEATURE_FLEXSPI_HAS_NO_MCR0_COMBINATIONEN)
-	flexspi_config.enableCombination = data->combination_mode;
+	flexspi_config.enableCombination = config->combination_mode;
 #endif
-	flexspi_config.enableSckBDiffOpt = data->sck_differential_clock;
-	flexspi_config.rxSampleClock = data->rx_sample_clock;
+	flexspi_config.enableSckBDiffOpt = config->sck_differential_clock;
+	flexspi_config.rxSampleClock = config->rx_sample_clock;
 
-	FLEXSPI_Init(data->base, &flexspi_config);
+	FLEXSPI_Init(config->base, &flexspi_config);
 
 	return 0;
 }
-
-#ifdef CONFIG_PM_DEVICE
-static int memc_flexspi_pm_action(const struct device *dev, enum pm_device_action action)
-{
-	struct memc_flexspi_data *data = dev->data;
-	int ret;
-
-	switch (action) {
-	case PM_DEVICE_ACTION_RESUME:
-#ifdef CONFIG_PINCTRL
-		ret = pinctrl_apply_state(data->pincfg, PINCTRL_STATE_DEFAULT);
-		if (ret < 0 && ret != -ENOENT) {
-			return ret;
-		}
-#endif
-		break;
-	case PM_DEVICE_ACTION_SUSPEND:
-#ifdef CONFIG_PINCTRL
-		ret = pinctrl_apply_state(data->pincfg, PINCTRL_STATE_SLEEP);
-		if (ret < 0 && ret != -ENOENT) {
-			return ret;
-		}
-#endif
-		break;
-	default:
-		return -ENOTSUP;
-	}
-
-	return 0;
-}
-#endif
 
 #if defined(CONFIG_XIP) && defined(CONFIG_CODE_FLEXSPI)
 #define MEMC_FLEXSPI_CFG_XIP(node_id) DT_SAME_NODE(node_id, DT_NODELABEL(flexspi))
 #elif defined(CONFIG_XIP) && defined(CONFIG_CODE_FLEXSPI2)
 #define MEMC_FLEXSPI_CFG_XIP(node_id) DT_SAME_NODE(node_id, DT_NODELABEL(flexspi2))
-#elif defined(CONFIG_SOC_SERIES_IMX_RT6XX) || defined(CONFIG_SOC_SERIES_IMX_RT5XX)
-#define MEMC_FLEXSPI_CFG_XIP(node_id) DT_SAME_NODE(node_id, DT_NODELABEL(flexspi))
+#elif defined(CONFIG_SOC_SERIES_IMX_RT6XX)
+#define MEMC_FLEXSPI_CFG_XIP(node_id) IS_ENABLED(CONFIG_XIP)
 #else
 #define MEMC_FLEXSPI_CFG_XIP(node_id) false
 #endif
 
-#ifdef CONFIG_PINCTRL
-#define PINCTRL_DEFINE(n) PINCTRL_DT_INST_DEFINE(n);
-#define PINCTRL_INIT(n) .pincfg = PINCTRL_DT_INST_DEV_CONFIG_GET(n),
-#else
-#define PINCTRL_DEFINE(n)
-#define PINCTRL_INIT(n)
-#endif
-
 #define MEMC_FLEXSPI(n)							\
-	PINCTRL_DEFINE(n)						\
-	static struct memc_flexspi_data					\
-		memc_flexspi_data_##n = {				\
+	static const struct memc_flexspi_config				\
+		memc_flexspi_config_##n = {				\
 		.base = (FLEXSPI_Type *) DT_INST_REG_ADDR(n),		\
 		.xip = MEMC_FLEXSPI_CFG_XIP(DT_DRV_INST(n)),		\
 		.ahb_base = (uint8_t *) DT_INST_REG_ADDR_BY_IDX(n, 1),	\
@@ -238,16 +182,15 @@ static int memc_flexspi_pm_action(const struct device *dev, enum pm_device_actio
 		.combination_mode = DT_INST_PROP(n, combination_mode),	\
 		.sck_differential_clock = DT_INST_PROP(n, sck_differential_clock),	\
 		.rx_sample_clock = DT_INST_PROP(n, rx_clock_source),	\
-		PINCTRL_INIT(n)						\
 	};								\
 									\
-	PM_DEVICE_DT_INST_DEFINE(n, memc_flexspi_pm_action);		\
+	static struct memc_flexspi_data memc_flexspi_data_##n;		\
 									\
 	DEVICE_DT_INST_DEFINE(n,					\
 			      memc_flexspi_init,			\
-			      PM_DEVICE_DT_INST_GET(n),			\
-			      &memc_flexspi_data_##n,			\
 			      NULL,					\
+			      &memc_flexspi_data_##n,			\
+			      &memc_flexspi_config_##n,			\
 			      POST_KERNEL,				\
 			      CONFIG_KERNEL_INIT_PRIORITY_DEVICE,	\
 			      NULL);

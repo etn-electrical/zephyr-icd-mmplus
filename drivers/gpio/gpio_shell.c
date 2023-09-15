@@ -7,15 +7,15 @@
  * Use "device list" command for GPIO port names
  */
 
-#include <zephyr/sys/printk.h>
-#include <zephyr/shell/shell.h>
-#include <zephyr/init.h>
+#include <sys/printk.h>
+#include <shell/shell.h>
+#include <init.h>
 #include <string.h>
 #include <stdio.h>
-#include <zephyr/drivers/gpio.h>
+#include <drivers/gpio.h>
 #include <stdlib.h>
 #include <ctype.h>
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 
 #define LOG_LEVEL CONFIG_LOG_DEFAULT_LEVEL
 
@@ -46,10 +46,6 @@ static int cmd_gpio_conf(const struct shell *sh, size_t argc, char **argv)
 		index = (uint8_t)atoi(argv[args_indx.index]);
 		if (!strcmp(argv[args_indx.mode], "in")) {
 			type = GPIO_INPUT;
-		} else if (!strcmp(argv[args_indx.mode], "inu")) {
-			type = GPIO_INPUT | GPIO_PULL_UP;
-		} else if (!strcmp(argv[args_indx.mode], "ind")) {
-			type = GPIO_INPUT | GPIO_PULL_DOWN;
 		} else if (!strcmp(argv[args_indx.mode], "out")) {
 			type = GPIO_OUTPUT;
 		} else {

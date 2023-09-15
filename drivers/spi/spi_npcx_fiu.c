@@ -6,9 +6,9 @@
 
 #define DT_DRV_COMPAT nuvoton_npcx_spi_fiu
 
-#include <zephyr/drivers/clock_control.h>
-#include <zephyr/drivers/spi.h>
-#include <zephyr/logging/log.h>
+#include <drivers/clock_control.h>
+#include <drivers/spi.h>
+#include <logging/log.h>
 #include <soc.h>
 
 LOG_MODULE_REGISTER(spi_npcx_fiu, LOG_LEVEL_ERR);
@@ -75,7 +75,7 @@ static int spi_npcx_fiu_transceive(const struct device *dev,
 	size_t cur_xfer_len;
 	int error = 0;
 
-	spi_context_lock(ctx, false, NULL, NULL, spi_cfg);
+	spi_context_lock(ctx, false, NULL, spi_cfg);
 	ctx->config = spi_cfg;
 
 	/*
@@ -142,7 +142,7 @@ int spi_npcx_fiu_release(const struct device *dev,
 static int spi_npcx_fiu_init(const struct device *dev)
 {
 	const struct npcx_spi_fiu_config *const config = dev->config;
-	const struct device *const clk_dev = DEVICE_DT_GET(NPCX_CLK_CTRL_NODE);
+	const struct device *clk_dev = DEVICE_DT_GET(NPCX_CLK_CTRL_NODE);
 	int ret;
 
 	if (!device_is_ready(clk_dev)) {

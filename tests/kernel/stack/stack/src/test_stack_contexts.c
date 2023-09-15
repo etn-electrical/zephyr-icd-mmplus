@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
-#include <zephyr/irq_offload.h>
-#define STACK_SIZE (512 + CONFIG_TEST_EXTRA_STACK_SIZE)
+#include <ztest.h>
+#include <irq_offload.h>
+#define STACK_SIZE (512 + CONFIG_TEST_EXTRA_STACKSIZE)
 #define STACK_LEN 4
 #define HIGH_T1			0xaaa
 #define HIGH_T2			0xbbb
@@ -40,8 +40,8 @@ static void tstack_pop(struct k_stack *pstack)
 
 	for (int i = STACK_LEN - 1; i >= 0; i--) {
 		/**TESTPOINT: stack pop*/
-		zassert_false(k_stack_pop(pstack, &rx_data, K_NO_WAIT));
-		zassert_equal(rx_data, data[i]);
+		zassert_false(k_stack_pop(pstack, &rx_data, K_NO_WAIT), NULL);
+		zassert_equal(rx_data, data[i], NULL);
 	}
 }
 
@@ -113,7 +113,7 @@ static void tstack_thread_isr(struct k_stack *pstack)
  *
  * @see k_stack_init(), k_stack_push(), #K_STACK_DEFINE(x), k_stack_pop()
  */
-ZTEST(stack_contexts, test_stack_thread2thread)
+void test_stack_thread2thread(void)
 {
 	/**TESTPOINT: test k_stack_init stack*/
 	k_stack_init(&stack, data, STACK_LEN);
@@ -128,7 +128,7 @@ ZTEST(stack_contexts, test_stack_thread2thread)
  * @brief Verifies data passing between user threads via stack
  * @see k_stack_init(), k_stack_push(), #K_STACK_DEFINE(x), k_stack_pop()
  */
-ZTEST_USER(stack_contexts, test_stack_user_thread2thread)
+void test_stack_user_thread2thread(void)
 {
 	struct k_stack *stack = k_object_alloc(K_OBJ_STACK);
 
@@ -144,7 +144,7 @@ ZTEST_USER(stack_contexts, test_stack_user_thread2thread)
  * @brief Verifies data passing between thread and ISR via stack
  * @see k_stack_init(), k_stack_push(), #K_STACK_DEFINE(x), k_stack_pop()
  */
-ZTEST(stack_contexts, test_stack_thread2isr)
+void test_stack_thread2isr(void)
 {
 	/**TESTPOINT: test k_stack_init stack*/
 	k_stack_init(&stack, data, STACK_LEN);
@@ -158,7 +158,7 @@ ZTEST(stack_contexts, test_stack_thread2isr)
  * @see k_stack_alloc_init(), k_stack_push(), #K_STACK_DEFINE(x), k_stack_pop(),
  * k_stack_cleanup()
  */
-ZTEST(stack_contexts, test_stack_alloc_thread2thread)
+void test_stack_alloc_thread2thread(void)
 {
 	int ret;
 
@@ -230,10 +230,8 @@ static void high_prio_t2_wait_for_stack(void *p1, void *p2, void *p3)
  *
  * @ingroup kernel_stack_tests
  */
-ZTEST(stack_contexts, test_stack_multithread_competition)
+void test_stack_multithread_competition(void)
 {
-	k_stack_init(&stack, data, STACK_LEN);
-
 	int old_prio = k_thread_priority_get(k_current_get());
 	int prio = 10;
 	stack_data_t test_data[3];
@@ -289,7 +287,7 @@ ZTEST(stack_contexts, test_stack_multithread_competition)
  *
  * @ingroup kernel_stack_tests
  */
-ZTEST(stack_contexts, test_stack_alloc_null)
+void test_stack_alloc_null(void)
 {
 	int ret;
 

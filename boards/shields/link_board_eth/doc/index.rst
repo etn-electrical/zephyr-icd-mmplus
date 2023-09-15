@@ -12,7 +12,8 @@ It was developed as an expansion component for the reel board.
 See :ref:`reel_board` documentation for more information about
 link board family and how to connect it to the reel board.
 
-.. image:: img/link_board_eth.jpg
+.. image:: ./img/link_board_eth.png
+     :width: 720px
      :align: center
      :alt: link board ETH
 
@@ -113,7 +114,7 @@ Zephyr application. For example:
    :goals: build
 
 .. _link board ETH Website:
-   https://www.phytec.eu/en/produkte/low-power-solutions/reel-board/
+   https://www.phytec.eu/product-eu/internet-of-things/link-board-eth
 
 .. _ENC424J600 Website:
    https://www.microchip.com/wwwproducts/en/ENC424J600

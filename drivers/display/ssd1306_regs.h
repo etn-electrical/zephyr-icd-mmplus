@@ -78,7 +78,7 @@
 
 
 /*
- * Timing and Driving Scheme Setting Command Table
+ * Timming and Driving Scheme Setting Command Table
  */
 #define SSD1306_SET_CLOCK_DIV_RATIO		0xd5 /* double byte command */
 

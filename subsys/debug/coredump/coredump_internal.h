@@ -7,7 +7,7 @@
 #ifndef DEBUG_COREDUMP_INTERNAL_H_
 #define DEBUG_COREDUMP_INTERNAL_H_
 
-#include <zephyr/toolchain.h>
+#include <toolchain.h>
 
 /**
  * @cond INTERNAL_HIDDEN

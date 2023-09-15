@@ -17,7 +17,8 @@ The i.MX RT600 family provides up to 4.5MB of on-chip SRAM and several
 high-bandwidth interfaces to access off-chip flash, including an Octal/Quad SPI
 interface with an on-the-fly decryption engine.
 
-.. image:: mimxrt685_evk.jpg
+.. image:: ./mimxrt685_evk.jpg
+   :width: 720px
    :align: center
    :alt: MIMXRT685-EVK
 
@@ -54,13 +55,8 @@ these references:
 Supported Features
 ==================
 
-NXP considers the MIMXRT685-EVK as a superset board for the i.MX RT6xx
-family of MCUs.  This board is a focus for NXP's Full Platform Support for
-Zephyr, to better enable the entire RT6xx family.  NXP prioritizes enabling
-this board with new support for Zephyr features.  The mimxrt685_evk board
-configuration supports the hardware features below.  Another very similar
-board is the :ref:`mimxrt595_evk`, and that board may have additional features
-already supported, which can also be re-used on this mimxrt685_evk board:
+The mimxrt685_evk board configuration supports the following hardware
+features:
 
 +-----------+------------+-------------------------------------+
 | Interface | Controller | Driver/Component                    |
@@ -77,8 +73,7 @@ already supported, which can also be re-used on this mimxrt685_evk board:
 +-----------+------------+-------------------------------------+
 | FLASH     | on-chip    | OctalSPI Flash                      |
 +-----------+------------+-------------------------------------+
-| USART     | on-chip    | serial port-polling;                |
-|           |            | serial port-interrupt               |
+| USART     | on-chip    | serial port-polling                 |
 +-----------+------------+-------------------------------------+
 | I2C       | on-chip    | i2c                                 |
 +-----------+------------+-------------------------------------+
@@ -103,10 +98,6 @@ already supported, which can also be re-used on this mimxrt685_evk board:
 | ADC       | on-chip    | adc                                 |
 +-----------+------------+-------------------------------------+
 | CTIMER    | on-chip    | counter                             |
-+-----------+------------+-------------------------------------+
-| TRNG      | on-chip    | entropy                             |
-+-----------+------------+-------------------------------------+
-| FLEXSPI   | on-chip    | flash programming                   |
 +-----------+------------+-------------------------------------+
 
 The default configuration can be found in the defconfig file:

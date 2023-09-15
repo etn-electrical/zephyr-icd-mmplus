@@ -7,11 +7,10 @@
 
 #define DT_DRV_COMPAT renesas_rcar_pfc
 
-#include <zephyr/arch/cpu.h>
-#include <zephyr/devicetree.h>
-#include <zephyr/drivers/pinctrl.h>
+#include <devicetree.h>
+#include <drivers/pinctrl.h>
 #include <soc.h>
-#include <zephyr/sys/util.h>
+#include <sys/util.h>
 
 #define PFC_REG_BASE  DT_INST_REG_ADDR(0)
 #define PFC_RCAR_PMMR 0x0
@@ -121,7 +120,7 @@ static const struct pfc_bias_reg *pfc_rcar_get_bias_reg(uint16_t pin,
 {
 	const struct pfc_bias_reg *bias_regs = pfc_rcar_get_bias_regs();
 
-	/* Loop around all the registers to find the bit for a given pin */
+	/* Loop arround all the registers to find the bit for a given pin */
 	while (bias_regs->puen && bias_regs->pud) {
 		for (size_t i = 0U; i < ARRAY_SIZE(bias_regs->pins); i++) {
 			if (bias_regs->pins[i] == pin) {
@@ -167,27 +166,19 @@ int pinctrl_configure_pin(const pinctrl_soc_pin_t *pin)
 {
 	int ret = 0;
 
-	/* Set pin as GPIO if capable */
+	/* Some pins cannot be used as GPIO */
 	if (RCAR_IS_GP_PIN(pin->pin)) {
-		pfc_rcar_set_gpsr(pin->pin, false);
-	} else if ((pin->flags & RCAR_PIN_FLAGS_FUNC_SET) == 0U) {
-		/* A function must be set for non GPIO capable pin */
-		return -EINVAL;
+		pfc_rcar_set_gpsr(pin->pin, true);
 	}
 
-	/* Select function for pin */
 	if ((pin->flags & RCAR_PIN_FLAGS_FUNC_SET) != 0U) {
 		pfc_rcar_set_ipsr(&pin->func);
+	}
 
-		if (RCAR_IS_GP_PIN(pin->pin)) {
-			pfc_rcar_set_gpsr(pin->pin, true);
-		}
-
-		if ((pin->flags & RCAR_PIN_FLAGS_PULL_SET) != 0U) {
-			ret = pfc_rcar_set_bias(pin->pin, pin->flags);
-			if (ret < 0) {
-				return ret;
-			}
+	if ((pin->flags & RCAR_PIN_FLAGS_PULL_SET) != 0U) {
+		ret = pfc_rcar_set_bias(pin->pin, pin->flags);
+		if (ret < 0) {
+			return ret;
 		}
 	}
 

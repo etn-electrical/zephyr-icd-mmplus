@@ -9,6 +9,9 @@ if BOOTLOADER_MCUBOOT
 	config HAS_FLASH_LOAD_OFFSET
 		default y
 
+	config XIP
+		default y
+
 	config MCUBOOT_GENERATE_UNSIGNED_IMAGE
 		default y
 
@@ -17,17 +20,13 @@ if BOOTLOADER_MCUBOOT
 
 	config ROM_START_OFFSET
 		default 0x20
-
-	config HAS_DYNAMIC_DEVICE_HANDLES
-		default y
 endif
 
 config SOC
 	default "esp32"
 
-config SOC_TOOLCHAIN_NAME
-	string
-	default "espressif_esp32"
+config IRQ_OFFLOAD_INTNUM
+	default 7
 
 if SMP
 
@@ -37,7 +36,7 @@ config SCHED_IPI_SUPPORTED
 config SCHED_CPU_MASK
 	default y
 
-config MP_MAX_NUM_CPUS
+config MP_NUM_CPUS
 	default 2
 
 endif
@@ -45,11 +44,8 @@ endif
 config MINIMAL_LIBC_OPTIMIZE_STRING_FOR_SIZE
 	default n
 
-config SYS_CLOCK_HW_CYCLES_PER_SEC
-	default $(dt_node_int_prop_int,/cpus/cpu@0,clock-frequency)
-
-config XTENSA_CCOUNT_HZ
-	default SYS_CLOCK_HW_CYCLES_PER_SEC
+config LOG_DETECT_MISSED_STRDUP
+	default n
 
 if GDBSTUB
 

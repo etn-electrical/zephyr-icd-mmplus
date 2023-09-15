@@ -7,30 +7,33 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/ztest.h>
-#include <zephyr/kernel_structs.h>
+#include <zephyr.h>
+#include <ztest.h>
+#include <kernel_structs.h>
 #include <string.h>
 #include <stdlib.h>
-#include <zephyr/app_memory/app_memdomain.h>
-#include <zephyr/sys/util.h>
-#include <zephyr/debug/stack.h>
-#include <zephyr/syscall_handler.h>
+#include <app_memory/app_memdomain.h>
+#include <sys/util.h>
+#include <debug/stack.h>
+#include <syscall_handler.h>
 #include "test_syscall.h"
-#include <zephyr/sys/libc-hooks.h> /* for z_libc_partition */
 
 #if defined(CONFIG_ARC)
-#include <zephyr/arch/arc/v2/mpu/arc_core_mpu.h>
+#include <arch/arc/v2/mpu/arc_core_mpu.h>
 #endif
 
 #if defined(CONFIG_ARM)
 extern void arm_core_mpu_disable(void);
 #endif
 
+#if defined(CONFIG_RISCV)
+#include <../arch/riscv/include/core_pmp.h>
+#endif
+
 #define INFO(fmt, ...) printk(fmt, ##__VA_ARGS__)
 #define PIPE_LEN 1
 #define BYTES_TO_READ_WRITE 1
-#define STACKSIZE (256 + CONFIG_TEST_EXTRA_STACK_SIZE)
+#define STACKSIZE (256 + CONFIG_TEST_EXTRA_STACKSIZE)
 
 K_SEM_DEFINE(test_revoke_sem, 0, 1);
 
@@ -76,12 +79,10 @@ void k_sys_fatal_error_handler(unsigned int reason, const z_arch_esf_t *pEsf)
 		} else {
 			printk("Wrong fault reason, expecting %d\n",
 			       expected_reason);
-			printk("PROJECT EXECUTION FAILED\n");
 			k_fatal_halt(reason);
 		}
 	} else {
 		printk("Unexpected fault during test\n");
-		printk("PROJECT EXECUTION FAILED\n");
 		k_fatal_halt(reason);
 	}
 }
@@ -91,7 +92,7 @@ void k_sys_fatal_error_handler(unsigned int reason, const z_arch_esf_t *pEsf)
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST_USER(userspace, test_is_usermode)
+static void test_is_usermode(void)
 {
 	/* Confirm that we are in fact running in user mode. */
 	clear_fault();
@@ -104,7 +105,7 @@ ZTEST_USER(userspace, test_is_usermode)
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST_USER(userspace, test_write_control)
+static void test_write_control(void)
 {
 	/* Try to write to a control register. */
 #if defined(CONFIG_X86)
@@ -188,7 +189,7 @@ ZTEST_USER(userspace, test_write_control)
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST_USER(userspace, test_disable_mmu_mpu)
+static void test_disable_mmu_mpu(void)
 {
 	/* Try to disable memory protections. */
 #if defined(CONFIG_X86)
@@ -238,12 +239,7 @@ ZTEST_USER(userspace, test_disable_mmu_mpu)
 #elif defined(CONFIG_RISCV)
 	set_fault(K_ERR_CPU_EXCEPTION);
 
-	/*
-	 * Try to make everything accessible through PMP slot 3
-	 * which should not be locked.
-	 */
-	csr_write(pmpaddr3, LLONG_MAX);
-	csr_write(pmpcfg0, (PMP_R|PMP_W|PMP_X|PMP_NAPOT) << 24);
+	z_riscv_pmp_clear_config();
 #else
 #error "Not implemented for this architecture"
 #endif
@@ -255,7 +251,7 @@ ZTEST_USER(userspace, test_disable_mmu_mpu)
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST_USER(userspace, test_read_kernram)
+static void test_read_kernram(void)
 {
 	/* Try to read from kernel RAM. */
 	void *p;
@@ -272,7 +268,7 @@ ZTEST_USER(userspace, test_read_kernram)
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST_USER(userspace, test_write_kernram)
+static void test_write_kernram(void)
 {
 	/* Try to write to kernel RAM. */
 	set_fault(K_ERR_CPU_EXCEPTION);
@@ -283,14 +279,14 @@ ZTEST_USER(userspace, test_write_kernram)
 
 extern int _k_neg_eagain;
 
-#include <zephyr/linker/linker-defs.h>
+#include <linker/linker-defs.h>
 
 /**
  * @brief Test to write kernel RO
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST_USER(userspace, test_write_kernro)
+static void test_write_kernro(void)
 {
 	bool in_rodata;
 
@@ -321,7 +317,7 @@ ZTEST_USER(userspace, test_write_kernro)
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST_USER(userspace, test_write_kerntext)
+static void test_write_kerntext(void)
 {
 	/* Try to write to kernel text. */
 	set_fault(K_ERR_CPU_EXCEPTION);
@@ -337,7 +333,7 @@ static int kernel_data;
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST_USER(userspace, test_read_kernel_data)
+static void test_read_kernel_data(void)
 {
 	set_fault(K_ERR_CPU_EXCEPTION);
 
@@ -350,7 +346,7 @@ ZTEST_USER(userspace, test_read_kernel_data)
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST_USER(userspace, test_write_kernel_data)
+static void test_write_kernel_data(void)
 {
 	set_fault(K_ERR_CPU_EXCEPTION);
 
@@ -368,11 +364,11 @@ K_APP_DMEM(default_part) int32_t size = (0 - CONFIG_PRIVILEGED_STACK_SIZE -
 #endif
 
 /**
- * @brief Test to read privileged stack
+ * @brief Test to read provileged stack
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST_USER(userspace, test_read_priv_stack)
+static void test_read_priv_stack(void)
 {
 	/* Try to read from privileged stack. */
 #if defined(CONFIG_ARC)
@@ -396,7 +392,7 @@ ZTEST_USER(userspace, test_read_priv_stack)
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST_USER(userspace, test_write_priv_stack)
+static void test_write_priv_stack(void)
 {
 	/* Try to write to privileged stack. */
 #if defined(CONFIG_ARC)
@@ -423,7 +419,7 @@ K_APP_BMEM(default_part) static struct k_sem sem;
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST_USER(userspace, test_pass_user_object)
+static void test_pass_user_object(void)
 {
 	/* Try to pass a user object to a system call. */
 	set_fault(K_ERR_KERNEL_OOPS);
@@ -439,7 +435,7 @@ static struct k_sem ksem;
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST_USER(userspace, test_pass_noperms_object)
+static void test_pass_noperms_object(void)
 {
 	/* Try to pass a object to a system call w/o permissions. */
 	set_fault(K_ERR_KERNEL_OOPS);
@@ -459,7 +455,7 @@ void thread_body(void)
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST_USER(userspace, test_start_kernel_thread)
+static void test_start_kernel_thread(void)
 {
 	/* Try to start a kernel thread from a usermode thread */
 	set_fault(K_ERR_KERNEL_OOPS);
@@ -470,6 +466,7 @@ ZTEST_USER(userspace, test_start_kernel_thread)
 	zassert_unreachable("Create a kernel thread did not fault");
 }
 
+#ifndef CONFIG_MMU
 static void uthread_read_body(void *p1, void *p2, void *p3)
 {
 	unsigned int *vptr = p1;
@@ -493,14 +490,11 @@ static void uthread_write_body(void *p1, void *p2, void *p3)
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST_USER(userspace, test_read_other_stack)
+static void test_read_other_stack(void)
 {
 	/* Try to read from another thread's stack. */
 	unsigned int val;
 
-#ifdef CONFIG_MMU
-	ztest_test_skip();
-#endif
 	k_thread_create(&test_thread, test_stack, STACKSIZE,
 			uthread_read_body, &val, NULL, NULL,
 			-1, K_USER | K_INHERIT_PERMS,
@@ -515,20 +509,28 @@ ZTEST_USER(userspace, test_read_other_stack)
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST_USER(userspace, test_write_other_stack)
+static void test_write_other_stack(void)
 {
 	/* Try to write to another thread's stack. */
 	unsigned int val;
 
-#ifdef CONFIG_MMU
-	ztest_test_skip();
-#endif
 	k_thread_create(&test_thread, test_stack, STACKSIZE,
 			uthread_write_body, &val, NULL, NULL,
 			-1, K_USER | K_INHERIT_PERMS,
 			K_NO_WAIT);
 	k_thread_join(&test_thread, K_FOREVER);
 }
+#else
+static void test_read_other_stack(void)
+{
+	ztest_test_skip();
+}
+
+static void test_write_other_stack(void)
+{
+	ztest_test_skip();
+}
+#endif /* CONFIG_MMU */
 
 /**
  * @brief Test to revoke access to kobject without permission
@@ -539,7 +541,7 @@ ZTEST_USER(userspace, test_write_other_stack)
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST_USER(userspace, test_revoke_noperms_object)
+static void test_revoke_noperms_object(void)
 {
 	/* Attempt to revoke access to kobject w/o permissions*/
 	set_fault(K_ERR_KERNEL_OOPS);
@@ -555,7 +557,7 @@ ZTEST_USER(userspace, test_revoke_noperms_object)
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST_USER(userspace, test_access_after_revoke)
+static void test_access_after_revoke(void)
 {
 	k_object_release(&test_revoke_sem);
 
@@ -581,7 +583,7 @@ static void umode_enter_func(void)
 *
 * @ingroup kernel_memprotect_tests
 */
-ZTEST(userspace, test_user_mode_enter)
+static void test_user_mode_enter(void)
 {
 	clear_fault();
 
@@ -598,7 +600,7 @@ K_APP_BMEM(default_part) static size_t bytes_written_read;
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST_USER(userspace, test_write_kobject_user_pipe)
+static void test_write_kobject_user_pipe(void)
 {
 	/*
 	 * Attempt to use system call from k_pipe_get to write over
@@ -618,7 +620,7 @@ ZTEST_USER(userspace, test_write_kobject_user_pipe)
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST_USER(userspace, test_read_kobject_user_pipe)
+static void test_read_kobject_user_pipe(void)
 {
 	/*
 	 * Attempt to use system call from k_pipe_put to read a
@@ -676,14 +678,9 @@ static void drop_user(volatile bool *to_modify)
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST(userspace_domain, test_1st_init_and_access_other_memdomain)
+static void test_init_and_access_other_memdomain(void)
 {
-	struct k_mem_partition *parts[] = {
-#if Z_LIBC_PARTITION_EXISTS
-		&z_libc_partition,
-#endif
-		&ztest_mem_partition, &alt_part
-	};
+	struct k_mem_partition *parts[] = { &ztest_mem_partition, &alt_part };
 
 	zassert_equal(
 		k_mem_domain_init(&alternate_domain, ARRAY_SIZE(parts), parts),
@@ -708,7 +705,7 @@ extern k_thread_stack_t ztest_thread_stack[];
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST(userspace_domain, test_domain_add_thread_drop_to_user)
+static void test_domain_add_thread_drop_to_user(void)
 {
 	clear_fault();
 	k_mem_domain_add_thread(&alternate_domain, k_current_get());
@@ -722,7 +719,7 @@ ZTEST(userspace_domain, test_domain_add_thread_drop_to_user)
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST(userspace_domain, test_domain_add_part_drop_to_user)
+static void test_domain_add_part_drop_to_user(void)
 {
 	clear_fault();
 
@@ -739,7 +736,7 @@ ZTEST(userspace_domain, test_domain_add_part_drop_to_user)
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST(userspace_domain, test_domain_remove_part_drop_to_user)
+static void test_domain_remove_part_drop_to_user(void)
 {
 	/* We added alt_part to the default domain in the previous test,
 	 * remove it, and then try to access again.
@@ -759,7 +756,7 @@ ZTEST(userspace_domain, test_domain_remove_part_drop_to_user)
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST(userspace_domain_ctx, test_domain_add_thread_context_switch)
+static void test_domain_add_thread_context_switch(void)
 {
 	clear_fault();
 	k_mem_domain_add_thread(&alternate_domain, k_current_get());
@@ -771,7 +768,7 @@ ZTEST(userspace_domain_ctx, test_domain_add_thread_context_switch)
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST(userspace_domain_ctx, test_domain_add_part_context_switch)
+static void test_domain_add_part_context_switch(void)
 {
 	clear_fault();
 
@@ -789,7 +786,7 @@ ZTEST(userspace_domain_ctx, test_domain_add_part_context_switch)
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST(userspace_domain_ctx, test_domain_remove_part_context_switch)
+static void test_domain_remove_part_context_switch(void)
 {
 	/* We added alt_part to the default domain in the previous test,
 	 * remove it, and then try to access again.
@@ -818,7 +815,7 @@ void z_impl_missing_syscall(void)
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST_USER(userspace, test_unimplemented_syscall)
+void test_unimplemented_syscall(void)
 {
 	set_fault(K_ERR_KERNEL_OOPS);
 
@@ -834,7 +831,7 @@ ZTEST_USER(userspace, test_unimplemented_syscall)
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST_USER(userspace, test_bad_syscall)
+void test_bad_syscall(void)
 {
 	set_fault(K_ERR_KERNEL_OOPS);
 
@@ -857,7 +854,7 @@ static struct k_sem recycle_sem;
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST(userspace, test_object_recycle)
+void test_object_recycle(void)
 {
 	struct z_object *ko;
 	int perms_count = 0;
@@ -880,7 +877,7 @@ ZTEST(userspace, test_object_recycle)
 		     "object wasn't marked as initialized");
 
 	for (int i = 0; i < CONFIG_MAX_THREAD_BYTES; i++) {
-		perms_count += POPCOUNT(ko->perms[i]);
+		perms_count += popcount(ko->perms[i]);
 	}
 
 	zassert_true(perms_count == 1, "invalid number of thread permissions");
@@ -892,34 +889,34 @@ ZTEST(userspace, test_object_recycle)
 	z_except_reason(provided); \
 } while (false)
 
-ZTEST_USER(userspace, test_oops_panic)
+void test_oops_panic(void)
 {
 	test_oops(K_ERR_KERNEL_PANIC, K_ERR_KERNEL_OOPS);
 }
 
-ZTEST_USER(userspace, test_oops_oops)
+void test_oops_oops(void)
 {
 	test_oops(K_ERR_KERNEL_OOPS, K_ERR_KERNEL_OOPS);
 }
 
-ZTEST_USER(userspace, test_oops_exception)
+void test_oops_exception(void)
 {
 	test_oops(K_ERR_CPU_EXCEPTION, K_ERR_KERNEL_OOPS);
 }
 
-ZTEST_USER(userspace, test_oops_maxint)
+void test_oops_maxint(void)
 {
 	test_oops(INT_MAX, K_ERR_KERNEL_OOPS);
 }
 
-ZTEST_USER(userspace, test_oops_stackcheck)
+void test_oops_stackcheck(void)
 {
 	test_oops(K_ERR_STACK_CHK_FAIL, K_ERR_STACK_CHK_FAIL);
 }
 
 void z_impl_check_syscall_context(void)
 {
-	unsigned int key = irq_lock();
+	int key = irq_lock();
 
 	irq_unlock(key);
 
@@ -938,12 +935,11 @@ static inline void z_vrfy_check_syscall_context(void)
 }
 #include <syscalls/check_syscall_context_mrsh.c>
 
-ZTEST_USER(userspace, test_syscall_context)
+void test_syscall_context(void)
 {
 	check_syscall_context();
 }
 
-#ifdef CONFIG_THREAD_USERSPACE_LOCAL_DATA
 static void tls_leakage_user_part(void *p1, void *p2, void *p3)
 {
 	char *tls_area = p1;
@@ -953,11 +949,9 @@ static void tls_leakage_user_part(void *p1, void *p2, void *p3)
 			      "TLS data leakage to user mode");
 	}
 }
-#endif
 
-ZTEST(userspace, test_tls_leakage)
+void test_tls_leakage(void)
 {
-#ifdef CONFIG_THREAD_USERSPACE_LOCAL_DATA
 	/* Tests two assertions:
 	 *
 	 * - That a user thread has full access to its TLS area
@@ -970,21 +964,15 @@ ZTEST(userspace, test_tls_leakage)
 
 	k_thread_user_mode_enter(tls_leakage_user_part,
 				 _current->userspace_local_data, NULL, NULL);
-#else
-	ztest_test_skip();
-#endif
 }
 
-#ifdef CONFIG_THREAD_USERSPACE_LOCAL_DATA
 void tls_entry(void *p1, void *p2, void *p3)
 {
 	printk("tls_entry\n");
 }
-#endif
 
-ZTEST(userspace, test_tls_pointer)
+void test_tls_pointer(void)
 {
-#ifdef CONFIG_THREAD_USERSPACE_LOCAL_DATA
 	k_thread_create(&test_thread, test_stack, STACKSIZE, tls_entry,
 			NULL, NULL, NULL, 1, K_USER, K_FOREVER);
 
@@ -1008,15 +996,10 @@ ZTEST(userspace, test_tls_pointer)
 		printk("tls area out of bounds\n");
 		ztest_test_fail();
 	}
-
-	k_thread_abort(&test_thread);
-#else
-	ztest_test_skip();
-#endif
 }
 
 
-void *userspace_setup(void)
+void test_main(void)
 {
 	int ret;
 
@@ -1047,18 +1030,55 @@ void *userspace_setup(void)
 #if defined(CONFIG_GEN_PRIV_STACKS)
 	priv_stack_ptr = (char *)z_priv_stack_find(ztest_thread_stack);
 #else
-	priv_stack_ptr = (char *)((uintptr_t)ztest_thread_stack +
-				  Z_RISCV_STACK_GUARD_SIZE);
+	struct _thread_arch *thread_struct;
+
+	thread_struct = ((struct _thread_arch *) ztest_thread_stack);
+	priv_stack_ptr = (char *)thread_struct->priv_stack_start + 1;
 #endif
 #endif
 	k_thread_access_grant(k_current_get(),
 			      &test_thread, &test_stack,
 			      &test_revoke_sem, &kpipe);
-	return NULL;
+	ztest_test_suite(userspace,
+		ztest_user_unit_test(test_is_usermode),
+		ztest_user_unit_test(test_write_control),
+		ztest_user_unit_test(test_disable_mmu_mpu),
+		ztest_user_unit_test(test_read_kernram),
+		ztest_user_unit_test(test_write_kernram),
+		ztest_user_unit_test(test_write_kernro),
+		ztest_user_unit_test(test_write_kerntext),
+		ztest_user_unit_test(test_read_kernel_data),
+		ztest_user_unit_test(test_write_kernel_data),
+		ztest_user_unit_test(test_read_priv_stack),
+		ztest_user_unit_test(test_write_priv_stack),
+		ztest_user_unit_test(test_pass_user_object),
+		ztest_user_unit_test(test_pass_noperms_object),
+		ztest_user_unit_test(test_start_kernel_thread),
+		ztest_1cpu_user_unit_test(test_read_other_stack),
+		ztest_1cpu_user_unit_test(test_write_other_stack),
+		ztest_user_unit_test(test_revoke_noperms_object),
+		ztest_user_unit_test(test_access_after_revoke),
+		ztest_unit_test(test_user_mode_enter),
+		ztest_user_unit_test(test_write_kobject_user_pipe),
+		ztest_user_unit_test(test_read_kobject_user_pipe),
+		ztest_1cpu_unit_test(test_init_and_access_other_memdomain),
+		ztest_unit_test(test_domain_add_thread_drop_to_user),
+		ztest_unit_test(test_domain_add_part_drop_to_user),
+		ztest_unit_test(test_domain_remove_part_drop_to_user),
+		ztest_unit_test(test_domain_add_thread_context_switch),
+		ztest_unit_test(test_domain_add_part_context_switch),
+		ztest_unit_test(test_domain_remove_part_context_switch),
+		ztest_user_unit_test(test_unimplemented_syscall),
+		ztest_user_unit_test(test_bad_syscall),
+		ztest_user_unit_test(test_oops_panic),
+		ztest_user_unit_test(test_oops_oops),
+		ztest_user_unit_test(test_oops_exception),
+		ztest_user_unit_test(test_oops_maxint),
+		ztest_user_unit_test(test_oops_stackcheck),
+		ztest_unit_test(test_object_recycle),
+		ztest_user_unit_test(test_syscall_context),
+		ztest_unit_test(test_tls_leakage),
+		ztest_unit_test(test_tls_pointer)
+		);
+	ztest_run_test_suite(userspace);
 }
-
-ZTEST_SUITE(userspace, NULL, userspace_setup, NULL, NULL, NULL);
-
-ZTEST_SUITE(userspace_domain, NULL, NULL, NULL, NULL, NULL);
-
-ZTEST_SUITE(userspace_domain_ctx, NULL, NULL, NULL, NULL, NULL);

@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/device.h>
-#include <zephyr/drivers/gpio.h>
-#include <zephyr/mgmt/osdp.h>
+#include <zephyr.h>
+#include <device.h>
+#include <drivers/gpio.h>
+#include <mgmt/osdp.h>
 
 /* The devicetree node identifier for the "led0" alias. */
 #define LED0_NODE DT_ALIAS(led0)
@@ -28,9 +28,9 @@ enum osdp_pd_e {
 	OSDP_PD_SENTINEL,
 };
 
-int key_press_callback(int pd, uint8_t *data, int len)
+int key_press_callback(int pd, uint8_t key)
 {
-	printk("CP PD[%d] key press - data: 0x%02x\n", pd, data[0]);
+	printk("CP PD[%d] key press - data: 0x%02x\n", pd, key);
 	return 0;
 }
 
@@ -46,22 +46,6 @@ int card_read_callback(int pd, int format, uint8_t *data, int len)
 	}
 
 	printk("]\n");
-	return 0;
-}
-
-int event_handler(void *unused, int pd, struct osdp_event *e)
-{
-	switch (e->type) {
-	case OSDP_EVENT_CARDREAD:
-		card_read_callback(pd, e->cardread.format,
-				   e->cardread.data, e->cardread.length);
-		break;
-	case OSDP_EVENT_KEYPRESS:
-		key_press_callback(pd, e->keypress.data, e->keypress.length);
-		break;
-	default:
-		break;
-	}
 	return 0;
 }
 
@@ -87,7 +71,8 @@ void main(void)
 		return;
 	}
 
-	osdp_cp_set_event_callback(event_handler, NULL);
+	osdp_cp_set_callback_key_press(key_press_callback);
+	osdp_cp_set_callback_card_read(card_read_callback);
 
 	led_state = 0;
 	while (1) {

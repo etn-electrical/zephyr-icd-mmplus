@@ -3,10 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/init.h>
+#include <zephyr.h>
+#include <init.h>
 #include <stm32_ll_adc.h>
-#include <zephyr/devicetree.h>
+#include <devicetree.h>
 
 static int enable_adc_reference(const struct device *dev)
 {

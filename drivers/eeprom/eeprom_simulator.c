@@ -7,13 +7,13 @@
 
 #define DT_DRV_COMPAT zephyr_sim_eeprom
 
-#include <zephyr/device.h>
-#include <zephyr/drivers/eeprom.h>
+#include <device.h>
+#include <drivers/eeprom.h>
 
-#include <zephyr/init.h>
-#include <zephyr/kernel.h>
-#include <zephyr/sys/util.h>
-#include <zephyr/stats/stats.h>
+#include <init.h>
+#include <kernel.h>
+#include <sys/util.h>
+#include <stats/stats.h>
 #include <string.h>
 #include <errno.h>
 
@@ -27,13 +27,15 @@
 #endif
 
 #define LOG_LEVEL CONFIG_EEPROM_LOG_LEVEL
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(eeprom_simulator);
 
 struct eeprom_sim_config {
 	size_t size;
 	bool readonly;
 };
+
+#define DEV_NAME(dev) ((dev)->name)
 
 #define EEPROM(addr) (mock_eeprom + (addr))
 
@@ -49,7 +51,7 @@ static struct k_sem sem_lock;
 #define SYNC_UNLOCK()
 #endif
 
-/* simulator statistics */
+/* simulator statistcs */
 STATS_SECT_START(eeprom_sim_stats)
 STATS_SECT_ENTRY32(bytes_read)		/* total bytes read */
 STATS_SECT_ENTRY32(bytes_written)	/* total bytes written */
@@ -219,14 +221,14 @@ static int eeprom_mock_init(const struct device *dev)
 
 	eeprom_fd = open(eeprom_file_path, O_RDWR | O_CREAT, (mode_t)0600);
 	if (eeprom_fd == -1) {
-		posix_print_warning("Failed to open eeprom device file "
+		posix_print_warning("Failed to open eeprom device file ",
 				    "%s: %s\n",
 				    eeprom_file_path, strerror(errno));
 		return -EIO;
 	}
 
 	if (ftruncate(eeprom_fd, DT_INST_PROP(0, size)) == -1) {
-		posix_print_warning("Failed to resize eeprom device file "
+		posix_print_warning("Failed to resize eeprom device file ",
 				    "%s: %s\n",
 				    eeprom_file_path, strerror(errno));
 		return -EIO;

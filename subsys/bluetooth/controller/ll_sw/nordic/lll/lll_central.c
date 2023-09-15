@@ -7,10 +7,10 @@
 #include <stdint.h>
 #include <stddef.h>
 
-#include <zephyr/toolchain.h>
+#include <toolchain.h>
 
-#include <zephyr/sys/util.h>
-#include <zephyr/sys/byteorder.h>
+#include <sys/util.h>
+#include <sys/byteorder.h>
 
 #include "hal/ccm.h"
 #include "hal/radio.h"
@@ -21,8 +21,6 @@
 #include "util/memq.h"
 #include "util/dbuf.h"
 
-#include "pdu_df.h"
-#include "pdu_vendor.h"
 #include "pdu.h"
 
 #include "lll.h"
@@ -37,6 +35,9 @@
 #include "lll_df_internal.h"
 #include "lll_tim_internal.h"
 
+#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_DEBUG_HCI_DRIVER)
+#define LOG_MODULE_NAME bt_ctlr_lll_central
+#include "common/log.h"
 #include <soc.h>
 #include "hal/debug.h"
 
@@ -157,12 +158,10 @@ static int prepare_cb(struct lll_prepare_param *p)
 
 #if defined(CONFIG_BT_CTLR_DF_CONN_CTE_TX)
 	if (pdu_data_tx->cp) {
-		cte_len = CTE_LEN_US(pdu_data_tx->octet3.cte_info.time);
+		cte_len = CTE_LEN_US(pdu_data_tx->cte_info.time);
 
-		lll_df_cte_tx_configure(pdu_data_tx->octet3.cte_info.type,
-					pdu_data_tx->octet3.cte_info.time,
-					lll->df_tx_cfg.ant_sw_len,
-					lll->df_tx_cfg.ant_ids);
+		lll_df_cte_tx_configure(pdu_data_tx->cte_info.type, pdu_data_tx->cte_info.time,
+					lll->df_tx_cfg.ant_sw_len, lll->df_tx_cfg.ant_ids);
 	} else
 #endif /* CONFIG_BT_CTLR_DF_CONN_CTE_TX */
 	{

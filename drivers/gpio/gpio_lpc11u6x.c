@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2020 Seagate Technology LLC
- * Copyright 2022 NXP
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -16,13 +15,13 @@
  * @note See the UM10732 LPC11U6x/E6x user manual for register definitions.
  */
 
-#include <zephyr/drivers/clock_control.h>
-#include <zephyr/drivers/gpio.h>
-#include <zephyr/irq.h>
+#include <drivers/clock_control.h>
+#include <drivers/gpio.h>
+#include <drivers/pinmux.h>
 
-#include <soc.h>
+#include <dt-bindings/pinctrl/lpc11u6x-pinctrl.h>
 
-#include <zephyr/drivers/gpio/gpio_utils.h>
+#include "gpio_utils.h"
 
 /* Offset from syscon base address. */
 #define LPC11U6X_PINTSEL_REGS	0x178
@@ -80,7 +79,7 @@ struct lpc11u6x_pint_regs {
  * ports: GPIO and SYSCON registers base addresses, clock name and subsystem.
  */
 struct gpio_lpc11u6x_shared {
-	const struct device *clock_dev;
+	char *clock_controller_name;
 	clock_control_subsys_t clock_subsys;
 	uint32_t gpio_base;
 	uint32_t syscon_base;
@@ -91,14 +90,15 @@ struct gpio_lpc11u6x_config {
 	/* gpio_driver_config needs to be first */
 	struct gpio_driver_config common;
 	const struct gpio_lpc11u6x_shared *shared;
+	char *pinmux_name;
 	uint8_t port_num;
 	uint8_t ngpios;
-	volatile uint32_t *iocon_base;
 };
 
 struct gpio_lpc11u6x_data {
 	/* gpio_driver_data needs to be first. */
 	struct gpio_driver_data common;
+	const struct device *pinmux_dev;
 	sys_slist_t cb_list;
 };
 
@@ -106,11 +106,12 @@ static int gpio_lpc11u6x_pin_configure(const struct device *port,
 				       gpio_pin_t pin, gpio_flags_t flags)
 {
 	const struct gpio_lpc11u6x_config *config = port->config;
+	struct gpio_lpc11u6x_data *data = port->data;
 	struct lpc11u6x_gpio_regs *gpio_regs = (struct lpc11u6x_gpio_regs *)
 		(config->shared->gpio_base + LPC11U6X_GPIO_REGS);
 	uint8_t port_num = config->port_num;
-	uint32_t offset;
 	uint32_t func;
+	int ret;
 
 	if (pin >= config->ngpios) {
 		return -EINVAL;
@@ -119,7 +120,7 @@ static int gpio_lpc11u6x_pin_configure(const struct device *port,
 	/*
 	 * PIO0_4 and PIO0_5 are "true" open drain pins muxed with the I2C port
 	 * 0. They still can be configured as GPIOs but only in open drain mode
-	 * and with no pull-down or pull-up resistor enabled.
+	 * and with no pull-down or pull-up resitor enabled.
 	 */
 	if (port_num == 0 && (pin == 4 || pin == 5) &&
 		((flags & GPIO_OPEN_DRAIN) == 0 ||
@@ -139,29 +140,24 @@ static int gpio_lpc11u6x_pin_configure(const struct device *port,
 
 	if (flags & GPIO_SINGLE_ENDED) {
 		/* Open source mode is not supported. */
-		if (flags & GPIO_LINE_OPEN_DRAIN) {
-			func |= IOCON_PIO_OD(1);
-		} else {
+		if (flags & GPIO_LINE_OPEN_DRAIN)
+			func |= IOCON_OPENDRAIN_EN;
+		else
 			return -ENOTSUP;
-		}
 	}
 
 	if (flags & GPIO_PULL_UP) {
-		func |= IOCON_PIO_MODE(0x2);
+		func |= IOCON_MODE_PULLUP;
 	} else if (flags & GPIO_PULL_DOWN) {
-		func |= IOCON_PIO_MODE(0x1);
+		func |= IOCON_MODE_PULLDOWN;
 	} else {
-		func |= IOCON_PIO_MODE(0x0);
+		func |= IOCON_MODE_INACT;
 	}
 
-	/* Handle 4 bytes hole between PIO2_1 and PIO2_2. */
-	if (port_num == 2 && pin > 1) {
-		offset = pin + 1;
-	} else {
-		offset = pin;
+	ret = pinmux_pin_set(data->pinmux_dev, pin, func);
+	if (ret < 0) {
+		return ret;
 	}
-	/* iocon base + offset gives configuration register for this pin */
-	config->iocon_base[offset] = func;
 
 	/* Initial output value. */
 	if (flags & GPIO_OUTPUT_INIT_HIGH) {
@@ -334,7 +330,7 @@ static int gpio_lpc11u6x_pin_interrupt_configure(const struct device *port,
 
 	/*
 	 * Because the PINTSEL register only have 6 bits to encode a pin
-	 * number, then PIO2_8 to PIO2_23 can't be attached to an interrupt
+	 * number, then PIO2_8 to PIO2_23 can't be attacehd to an interrupt
 	 * line.
 	 */
 	if (config->port_num == 2 && pin > 7) {
@@ -372,26 +368,23 @@ static int gpio_lpc11u6x_pin_interrupt_configure(const struct device *port,
 		/* Select edge interrupt mode. */
 		pint_regs->isel &= ~BIT(irq);
 		/* Enable interrupts on falling and/or rising edges. */
-		if (trig & GPIO_INT_TRIG_LOW) {
+		if (trig & GPIO_INT_TRIG_LOW)
 			pint_regs->sienf |= BIT(irq);
-		} else {
+		else
 			pint_regs->cienf |= BIT(irq);
-		}
-		if (trig & GPIO_INT_TRIG_HIGH) {
+		if (trig & GPIO_INT_TRIG_HIGH)
 			pint_regs->sienr |= BIT(irq);
-		} else {
+		else
 			pint_regs->cienr |= BIT(irq);
-		}
 		break;
 	case GPIO_INT_MODE_LEVEL:
 		/* Select level interrupt mode. */
 		pint_regs->isel |= BIT(irq);
 		/* Set active level. */
-		if (trig & GPIO_INT_TRIG_LOW) {
+		if (trig & GPIO_INT_TRIG_LOW)
 			pint_regs->cienf |= BIT(irq);
-		} else {
+		else
 			pint_regs->sienf |= BIT(irq);
-		}
 		/* Enable level interrupt. */
 		pint_regs->sienr |= BIT(irq);
 		break;
@@ -500,7 +493,7 @@ static const struct gpio_driver_api gpio_lpc11u6x_driver_api = {
  */
 
 static const struct gpio_lpc11u6x_shared gpio_lpc11u6x_shared = {
-	.clock_dev = DEVICE_DT_GET(DT_INST_CLOCKS_CTLR(0)),
+	.clock_controller_name = DT_LABEL(DT_INST_PHANDLE(0, clocks)),
 	.clock_subsys = (clock_control_subsys_t) DT_INST_PHA(0, clocks, clkid),
 	.gpio_base = DT_INST_REG_ADDR_BY_IDX(0, 0),
 	.syscon_base = DT_INST_REG_ADDR_BY_IDX(0, 1),
@@ -513,25 +506,34 @@ do {							                \
 		    DT_INST_IRQ_BY_IDX(0, n, priority),			\
 		    gpio_lpc11u6x_isr, &gpio_lpc11u6x_shared, 0);	\
 	irq_enable(DT_INST_IRQ_BY_IDX(0, n, irq));			\
-} while (false)
+} while (0)
 
 static int gpio_lpc11u6x_init(const struct device *dev)
 {
 	const struct gpio_lpc11u6x_config *config = dev->config;
+	struct gpio_lpc11u6x_data *data = dev->data;
+	const struct device *clock_dev;
 	int ret;
 	static bool gpio_ready;
+
+	/* Retrieve pinmux device. */
+	data->pinmux_dev = device_get_binding(config->pinmux_name);
+	if (!data->pinmux_dev) {
+		return -EINVAL;
+	}
 
 	/* Initialize shared resources only once. */
 	if (gpio_ready) {
 		return 0;
 	}
 
-	if (!device_is_ready(config->shared->clock_dev)) {
+	/* Enable GPIO and PINT clocks. */
+	clock_dev = device_get_binding(config->shared->clock_controller_name);
+	if (!clock_dev) {
 		return -ENODEV;
 	}
 
-	/* Enable GPIO and PINT clocks. */
-	ret = clock_control_on(config->shared->clock_dev, config->shared->clock_subsys);
+	ret = clock_control_on(clock_dev, config->shared->clock_subsys);
 	if (ret < 0) {
 		return ret;
 	}
@@ -574,9 +576,9 @@ static const struct gpio_lpc11u6x_config				\
 	},								\
 	.shared = &gpio_lpc11u6x_shared,				\
 	.port_num = id,							\
+	.pinmux_name = DT_LABEL(DT_PHANDLE(DT_NODELABEL(gpio##id),	\
+				pinmux_port)),				\
 	.ngpios = DT_PROP(DT_NODELABEL(gpio##id), ngpios),		\
-	.iocon_base = (volatile uint32_t *)DT_REG_ADDR(			\
-		DT_INST_PHANDLE(id, iocon)),				\
 };									\
 									\
 static struct gpio_lpc11u6x_data gpio_lpc11u6x_data_##id;		\

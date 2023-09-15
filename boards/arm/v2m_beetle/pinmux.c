@@ -4,12 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/device.h>
-#include <zephyr/init.h>
-#include <zephyr/kernel.h>
+#include <device.h>
+#include <init.h>
+#include <kernel.h>
+#include <drivers/pinmux.h>
 #include <soc.h>
-#include <zephyr/sys/sys_io.h>
-#include <zephyr/drivers/gpio/gpio_cmsdk_ahb.h>
+#include <sys/sys_io.h>
+#include <gpio/gpio_cmsdk_ahb.h>
 
 /**
  * @brief Pinmux driver for ARM V2M Beetle Board
@@ -128,7 +129,7 @@ static void arm_v2m_beetle_pinmux_defaults(void)
 
 	/* Set the ARD_PWR_EN GPIO1[15] as an output */
 	CMSDK_AHB_GPIO1_DEV->outenableset |= (0x1 << 15);
-	/* Set on 3v3 (for ARDUINO HDR compliance) */
+	/* Set on 3v3 (for ARDUINO HDR compliancy) */
 	CMSDK_AHB_GPIO1_DEV->data |= (0x1 << 15);
 }
 

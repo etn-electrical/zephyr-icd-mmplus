@@ -6,7 +6,6 @@
 
 /dts-v1/;
 #include <atmel/samd21.dtsi>
-#include "serpente-pinctrl.dtsi"
 
 / {
 	model = "Serpente";
@@ -55,15 +54,15 @@
 	pwmleds {
 		compatible = "pwm-leds";
 		red_pwm_led: pwm_led_0 {
-			pwms = <&tcc0 0 PWM_MSEC(20)>;
+			pwms = <&tcc0 0>;
 			label = "Red PWM LED";
 		};
 		green_pwm_led: pwm_led_1 {
-			pwms = <&tcc0 3 PWM_MSEC(20)>;
+			pwms = <&tcc0 3>;
 			label = "Green PWM LED";
 		};
 		blue_pwm_led: pwm_led_2 {
-			pwms = <&tcc0 1 PWM_MSEC(20)>;
+			pwms = <&tcc0 1>;
 			label = "Blue PWM LED";
 		};
 	};
@@ -84,8 +83,7 @@
 	rxpo = <1>;
 	txpo = <0>;
 
-	pinctrl-0 = <&sercom2_uart_default>;
-	pinctrl-names = "default";
+	pinctrl-0 = <&pa9d_sercom2_pad1 &pa8d_sercom2_pad0>;
 };
 
 &sercom3 {
@@ -95,26 +93,17 @@
 	dopo = <1>;
 	#address-cells = <1>;
 	#size-cells = <0>;
-
-	pinctrl-0 = <&sercom3_spi_default>;
-	pinctrl-names = "default";
 };
 
 zephyr_udc0: &usb0 {
 	status = "okay";
-
-	pinctrl-0 = <&usb_dc_default>;
-	pinctrl-names = "default";
 };
 
 &tcc0 {
 	status = "okay";
 	compatible = "atmel,sam0-tcc-pwm";
 	prescaler = <4>;
-	#pwm-cells = <2>;
-
-	pinctrl-0 = <&pwm_default>;
-	pinctrl-names = "default";
+	#pwm-cells = <1>;
 };
 
 &flash0 {

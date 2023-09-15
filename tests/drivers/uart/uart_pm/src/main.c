@@ -4,16 +4,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/drivers/uart.h>
-#include <zephyr/device.h>
-#include <zephyr/pm/device.h>
-#include <zephyr/ztest.h>
+#include <drivers/uart.h>
+#include <device.h>
+#include <pm/device.h>
+#include <ztest.h>
 
 #if defined(CONFIG_BOARD_NRF52840DK_NRF52840)
 #define LABEL uart0
 #endif
 
-#define UART_DEVICE_DEV DT_NODELABEL(LABEL)
+#define UART_DEVICE_NAME DT_LABEL(DT_NODELABEL(LABEL))
 #define HAS_RX DT_NODE_HAS_PROP(DT_NODELABEL(LABEL), rx_pin)
 
 static void polling_verify(const struct device *dev, bool is_async, bool active)
@@ -34,7 +34,7 @@ static void polling_verify(const struct device *dev, bool is_async, bool active)
 	}
 
 	err = uart_poll_in(dev, &c);
-	zassert_equal(err, -1);
+	zassert_equal(err, -1, NULL);
 
 	for (int i = 0; i < ARRAY_SIZE(outs); i++) {
 		uart_poll_out(dev, outs[i]);
@@ -43,11 +43,11 @@ static void polling_verify(const struct device *dev, bool is_async, bool active)
 		if (active) {
 			err = uart_poll_in(dev, &c);
 			zassert_equal(err, 0, "Unexpected err: %d", err);
-			zassert_equal(c, outs[i]);
+			zassert_equal(c, outs[i], NULL);
 		}
 
 		err = uart_poll_in(dev, &c);
-		zassert_equal(err, -1);
+		zassert_equal(err, -1, NULL);
 	}
 }
 
@@ -102,7 +102,7 @@ static bool async_verify(const struct device *dev, bool active)
 		zassert_equal(err, 0, "Unexpected err: %d", err);
 	}
 
-	zassert_true(tx_done);
+	zassert_true(tx_done, NULL);
 
 	return true;
 }
@@ -118,7 +118,7 @@ static void communication_verify(const struct device *dev, bool active)
 	enum pm_device_state power_state; \
 	int err = pm_device_state_get(dev, &power_state); \
 	zassert_equal(err, 0, "Unexpected err: %d", err); \
-	zassert_equal(power_state, exp_state); \
+	zassert_equal(power_state, exp_state, NULL); \
 } while (0)
 
 static void action_run(const struct device *dev, enum pm_device_action action,
@@ -152,12 +152,12 @@ static void action_run(const struct device *dev, enum pm_device_action action,
 	state_verify(dev, exp_state);
 }
 
-ZTEST(uart_pm, test_uart_pm_in_idle)
+static void test_uart_pm_in_idle(void)
 {
 	const struct device *dev;
 
-	dev = DEVICE_DT_GET(UART_DEVICE_DEV);
-	zassert_true(device_is_ready(dev), "uart device is not ready");
+	dev = device_get_binding(UART_DEVICE_NAME);
+	zassert_true(dev != NULL, NULL);
 
 	state_verify(dev, PM_DEVICE_STATE_ACTIVE);
 	communication_verify(dev, true);
@@ -175,12 +175,12 @@ ZTEST(uart_pm, test_uart_pm_in_idle)
 	communication_verify(dev, true);
 }
 
-ZTEST(uart_pm, test_uart_pm_poll_tx)
+static void test_uart_pm_poll_tx(void)
 {
 	const struct device *dev;
 
-	dev = DEVICE_DT_GET(UART_DEVICE_DEV);
-	zassert_true(device_is_ready(dev), "uart device is not ready");
+	dev = device_get_binding(UART_DEVICE_NAME);
+	zassert_true(dev != NULL, NULL);
 
 	communication_verify(dev, true);
 
@@ -216,13 +216,13 @@ static K_TIMER_DEFINE(pm_timer, timeout, NULL);
 /* Test going into low power state after interrupting poll out. Use various
  * delays to test interruption at multiple places.
  */
-ZTEST(uart_pm, test_uart_pm_poll_tx_interrupted)
+static void test_uart_pm_poll_tx_interrupted(void)
 {
 	const struct device *dev;
 	char str[] = "test";
 
-	dev = DEVICE_DT_GET(UART_DEVICE_DEV);
-	zassert_true(device_is_ready(dev), "uart device is not ready");
+	dev = device_get_binding(UART_DEVICE_NAME);
+	zassert_true(dev != NULL, NULL);
 
 	k_timer_user_data_set(&pm_timer, (void *)dev);
 
@@ -241,13 +241,16 @@ ZTEST(uart_pm, test_uart_pm_poll_tx_interrupted)
 	}
 }
 
-void *uart_pm_setup(void)
+void test_main(void)
 {
 	if (!HAS_RX) {
 		PRINT("No RX pin\n");
 	}
 
-	return NULL;
+	ztest_test_suite(uart_pm,
+			 ztest_unit_test(test_uart_pm_in_idle),
+			 ztest_unit_test(test_uart_pm_poll_tx),
+			 ztest_unit_test(test_uart_pm_poll_tx_interrupted)
+			);
+	ztest_run_test_suite(uart_pm);
 }
-
-ZTEST_SUITE(uart_pm, NULL, uart_pm_setup, NULL, NULL, NULL);

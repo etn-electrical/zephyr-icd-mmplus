@@ -4,13 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr.h>
 #include <stddef.h>
-#include <zephyr/ztest.h>
+#include <ztest.h>
 
-#include <zephyr/bluetooth/bluetooth.h>
-#include <zephyr/bluetooth/hci.h>
-#include <zephyr/sys/byteorder.h>
+#include <bluetooth/bluetooth.h>
+#include <bluetooth/hci.h>
+#include <sys/byteorder.h>
 #include <host/hci_core.h>
 
 #include "util/util.h"
@@ -18,11 +18,7 @@
 #include "util/mem.h"
 #include "util/dbuf.h"
 
-#include "pdu_df.h"
-#include "lll/pdu_vendor.h"
 #include "pdu.h"
-
-#include "hal/ccm.h"
 
 #include "lll.h"
 #include "lll/lll_adv_types.h"
@@ -140,8 +136,6 @@ void common_release_adv_set(struct ll_adv_set *adv_set)
  */
 void common_create_per_adv_chain(struct ll_adv_set *adv_set, uint8_t pdu_count)
 {
-	uint8_t hdr_data[ULL_ADV_HDR_DATA_LEN_SIZE +
-			 ULL_ADV_HDR_DATA_AUX_PTR_PTR_SIZE];
 	struct pdu_adv *pdu_prev, *pdu, *pdu_new;
 	char pdu_buff[PDU_PAULOAD_BUFF_SIZE];
 	void *extra_data_prev, *extra_data;
@@ -151,7 +145,7 @@ void common_create_per_adv_chain(struct ll_adv_set *adv_set, uint8_t pdu_count)
 
 	lll_sync = adv_set->lll.sync;
 	pdu = lll_adv_sync_data_peek(lll_sync, NULL);
-	ull_adv_sync_pdu_init(pdu, 0U, 0U, 0U, NULL);
+	ull_adv_sync_pdu_init(pdu, 0);
 
 	err = ull_adv_sync_pdu_alloc(adv_set, ULL_ADV_PDU_EXTRA_DATA_ALLOC_IF_EXIST, &pdu_prev,
 				     &pdu, &extra_data_prev, &extra_data, &pdu_idx);
@@ -165,7 +159,7 @@ void common_create_per_adv_chain(struct ll_adv_set *adv_set, uint8_t pdu_count)
 	err = ull_adv_sync_pdu_set_clear(lll_sync, pdu_prev, pdu,
 					 (pdu_count > 1 ? ULL_ADV_PDU_HDR_FIELD_AUX_PTR :
 								ULL_ADV_PDU_HDR_FIELD_NONE),
-					 ULL_ADV_PDU_HDR_FIELD_NONE, hdr_data);
+					 ULL_ADV_PDU_HDR_FIELD_NONE, NULL);
 	zassert_equal(err, 0, "Unexpected error during initialization of extended PDU, err: %d",
 		      err);
 
@@ -188,27 +182,17 @@ void common_create_per_adv_chain(struct ll_adv_set *adv_set, uint8_t pdu_count)
 		if (idx < pdu_count - 1) {
 			if (IS_ENABLED(CONFIG_BT_CTLR_ADV_PERIODIC_ADI_SUPPORT) &&
 			    adi_in_sync_ind) {
-				ull_adv_sync_pdu_init(pdu_new,
-						ULL_ADV_PDU_HDR_FIELD_AUX_PTR |
-						ULL_ADV_PDU_HDR_FIELD_ADI,
-						lll_sync->adv->phy_s,
-						lll_sync->adv->phy_flags, NULL);
+				ull_adv_sync_pdu_init(pdu_new, ULL_ADV_PDU_HDR_FIELD_AUX_PTR |
+								       ULL_ADV_PDU_HDR_FIELD_ADI);
 			} else {
-				ull_adv_sync_pdu_init(pdu_new,
-						ULL_ADV_PDU_HDR_FIELD_AUX_PTR,
-						lll_sync->adv->phy_s,
-						lll_sync->adv->phy_flags, NULL);
+				ull_adv_sync_pdu_init(pdu_new, ULL_ADV_PDU_HDR_FIELD_AUX_PTR);
 			}
 		} else {
 			if (IS_ENABLED(CONFIG_BT_CTLR_ADV_PERIODIC_ADI_SUPPORT) &&
 			    adi_in_sync_ind) {
-				ull_adv_sync_pdu_init(pdu_new,
-						ULL_ADV_PDU_HDR_FIELD_ADI,
-						0U, 0U, NULL);
+				ull_adv_sync_pdu_init(pdu_new, ULL_ADV_PDU_HDR_FIELD_ADI);
 			} else {
-				ull_adv_sync_pdu_init(pdu_new,
-						ULL_ADV_PDU_HDR_FIELD_NONE,
-						0U, 0U, NULL);
+				ull_adv_sync_pdu_init(pdu_new, ULL_ADV_PDU_HDR_FIELD_NONE);
 			}
 		}
 		/* Add some AD for testing */
@@ -351,7 +335,7 @@ void common_validate_per_adv_pdu(struct pdu_adv *pdu, enum test_pdu_ext_adv_type
 }
 
 /*
- * @brief Helper function to prepare CTE configuration for a given advertising set.
+ * @brief Helper function to prepre CTE configuration for a given advertising set.
  *
  * Note: There is a single instance of CTE configuration. In case there is a need
  * to use multiple advertising sets at once, all will use the same CTE configuration.

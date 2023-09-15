@@ -5,17 +5,21 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr.h>
 #include <errno.h>
-#include <zephyr/sys/atomic.h>
-#include <zephyr/sys/util.h>
-#include <zephyr/sys/byteorder.h>
+#include <sys/atomic.h>
+#include <sys/util.h>
+#include <sys/byteorder.h>
 
-#include <zephyr/net/buf.h>
-#include <zephyr/bluetooth/bluetooth.h>
-#include <zephyr/bluetooth/conn.h>
-#include <zephyr/bluetooth/mesh.h>
-#include <zephyr/bluetooth/uuid.h>
+#include <net/buf.h>
+#include <bluetooth/bluetooth.h>
+#include <bluetooth/conn.h>
+#include <bluetooth/mesh.h>
+#include <bluetooth/uuid.h>
+
+#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_MESH_DEBUG_PROV)
+#define LOG_MODULE_NAME bt_mesh_prov
+#include "common/log.h"
 
 #include "host/ecc.h"
 #include "host/testing.h"
@@ -27,10 +31,6 @@
 #include "foundation.h"
 #include "prov.h"
 
-#define LOG_LEVEL CONFIG_BT_MESH_PROV_LOG_LEVEL
-#include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(bt_mesh_prov);
-
 struct bt_mesh_prov_link bt_mesh_prov_link;
 const struct bt_mesh_prov *bt_mesh_prov;
 
@@ -41,11 +41,11 @@ BUILD_ASSERT(sizeof(bt_mesh_prov_link.conf_inputs) == 145,
 static void pub_key_ready(const uint8_t *pkey)
 {
 	if (!pkey) {
-		LOG_WRN("Public key not available");
+		BT_WARN("Public key not available");
 		return;
 	}
 
-	LOG_DBG("Local public key ready");
+	BT_DBG("Local public key ready");
 }
 
 int bt_mesh_prov_reset_state(void (*func)(const uint8_t key[BT_PUB_KEY_LEN]))
@@ -67,7 +67,7 @@ int bt_mesh_prov_reset_state(void (*func)(const uint8_t key[BT_PUB_KEY_LEN]))
 
 	err = bt_pub_key_gen(&pub_key_cb);
 	if (err) {
-		LOG_ERR("Failed to generate public key (%d)", err);
+		BT_ERR("Failed to generate public key (%d)", err);
 		return err;
 	}
 	return 0;
@@ -287,7 +287,7 @@ int bt_mesh_prov_auth(bool is_provisioner, uint8_t method, uint8_t action, uint8
 
 int bt_mesh_input_number(uint32_t num)
 {
-	LOG_DBG("%u", num);
+	BT_DBG("%u", num);
 
 	if (!atomic_test_and_clear_bit(bt_mesh_prov_link.flags, WAIT_NUMBER)) {
 		return -EINVAL;
@@ -302,7 +302,7 @@ int bt_mesh_input_number(uint32_t num)
 
 int bt_mesh_input_string(const char *str)
 {
-	LOG_DBG("%s", str);
+	BT_DBG("%s", log_strdup(str));
 
 	if (strlen(str) > PROV_IO_OOB_SIZE_MAX ||
 			strlen(str) > bt_mesh_prov_link.oob_size) {
@@ -313,7 +313,7 @@ int bt_mesh_input_string(const char *str)
 		return -EINVAL;
 	}
 
-	memcpy(bt_mesh_prov_link.auth, str, strlen(str));
+	strcpy((char *)bt_mesh_prov_link.auth, str);
 
 	bt_mesh_prov_link.role->input_complete();
 
@@ -348,23 +348,23 @@ static void prov_recv(const struct prov_bearer *bearer, void *cb_data,
 
 	uint8_t type = buf->data[0];
 
-	LOG_DBG("type 0x%02x len %u", type, buf->len);
+	BT_DBG("type 0x%02x len %u", type, buf->len);
 
 	if (type >= ARRAY_SIZE(bt_mesh_prov_link.role->op)) {
-		LOG_ERR("Unknown provisioning PDU type 0x%02x", type);
+		BT_ERR("Unknown provisioning PDU type 0x%02x", type);
 		bt_mesh_prov_link.role->error(PROV_ERR_NVAL_PDU);
 		return;
 	}
 
 	if ((type != PROV_FAILED && type != bt_mesh_prov_link.expect) ||
 	    !bt_mesh_prov_link.role->op[type]) {
-		LOG_WRN("Unexpected msg 0x%02x != 0x%02x", type, bt_mesh_prov_link.expect);
+		BT_WARN("Unexpected msg 0x%02x != 0x%02x", type, bt_mesh_prov_link.expect);
 		bt_mesh_prov_link.role->error(PROV_ERR_UNEXP_PDU);
 		return;
 	}
 
 	if (1 + op_len[type] != buf->len) {
-		LOG_ERR("Invalid length %u for type 0x%02x", buf->len, type);
+		BT_ERR("Invalid length %u for type 0x%02x", buf->len, type);
 		bt_mesh_prov_link.role->error(PROV_ERR_NVAL_FMT);
 		return;
 	}
@@ -390,7 +390,7 @@ static void prov_link_opened(const struct prov_bearer *bearer, void *cb_data)
 static void prov_link_closed(const struct prov_bearer *bearer, void *cb_data,
 			     enum prov_bearer_link_status reason)
 {
-	LOG_DBG("%u", reason);
+	BT_DBG("%u", reason);
 
 	if (bt_mesh_prov_link.role->link_closed) {
 		bt_mesh_prov_link.role->link_closed();
@@ -431,11 +431,11 @@ void bt_mesh_prov_complete(uint16_t net_idx, uint16_t addr)
 void bt_mesh_prov_reset(void)
 {
 	if (IS_ENABLED(CONFIG_BT_MESH_PB_ADV)) {
-		bt_mesh_pb_adv_reset();
+		pb_adv_reset();
 	}
 
 	if (IS_ENABLED(CONFIG_BT_MESH_PB_GATT)) {
-		bt_mesh_pb_gatt_reset();
+		pb_gatt_reset();
 	}
 
 	bt_mesh_prov_reset_state(NULL);
@@ -448,18 +448,18 @@ void bt_mesh_prov_reset(void)
 int bt_mesh_prov_init(const struct bt_mesh_prov *prov_info)
 {
 	if (!prov_info) {
-		LOG_ERR("No provisioning context provided");
+		BT_ERR("No provisioning context provided");
 		return -EINVAL;
 	}
 
 	bt_mesh_prov = prov_info;
 
 	if (IS_ENABLED(CONFIG_BT_MESH_PB_ADV)) {
-		bt_mesh_pb_adv_init();
+		pb_adv_init();
 	}
 
 	if (IS_ENABLED(CONFIG_BT_MESH_PB_GATT)) {
-		bt_mesh_pb_gatt_init();
+		pb_gatt_init();
 	}
 
 	return bt_mesh_prov_reset_state(NULL);

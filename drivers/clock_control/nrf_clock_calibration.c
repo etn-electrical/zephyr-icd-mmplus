@@ -3,12 +3,12 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#include <zephyr/drivers/sensor.h>
-#include <zephyr/drivers/clock_control.h>
+#include <drivers/sensor.h>
+#include <drivers/clock_control.h>
 #include "nrf_clock_calibration.h"
-#include <zephyr/drivers/clock_control/nrf_clock_control.h>
+#include <drivers/clock_control/nrf_clock_control.h>
 #include <nrfx_clock.h>
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 #include <stdlib.h>
 
 LOG_MODULE_DECLARE(clock_control, CONFIG_CLOCK_CONTROL_LOG_LEVEL);
@@ -32,6 +32,7 @@ LOG_MODULE_DECLARE(clock_control, CONFIG_CLOCK_CONTROL_LOG_LEVEL);
  */
 
 static atomic_t cal_process_in_progress;
+static int16_t prev_temperature; /* Previous temperature measurement. */
 static uint8_t calib_skip_cnt; /* Counting down skipped calibrations. */
 static volatile int total_cnt; /* Total number of calibrations. */
 static volatile int total_skips_cnt; /* Total number of skipped calibrations. */
@@ -47,22 +48,10 @@ static void cal_lf_callback(struct onoff_manager *mgr,
 static struct onoff_client cli;
 static struct onoff_manager *mgrs;
 
-/* Temperature sensor is only needed if
- * CONFIG_CLOCK_CONTROL_NRF_CALIBRATION_MAX_SKIP > 0, since a value of 0
- * indicates performing calibration periodically regardless of temperature
- * change.
- */
-#define USE_TEMP_SENSOR							\
-	(CONFIG_CLOCK_CONTROL_NRF_CALIBRATION_MAX_SKIP > 0)
-
-#if USE_TEMP_SENSOR
-static const struct device *const temp_sensor =
-	DEVICE_DT_GET_OR_NULL(DT_INST(0, nordic_nrf_temp));
+static const struct device *temp_sensor;
 
 static void measure_temperature(struct k_work *work);
 static K_WORK_DEFINE(temp_measure_work, measure_temperature);
-static int16_t prev_temperature; /* Previous temperature measurement. */
-#endif /* USE_TEMP_SENSOR */
 
 static void timeout_handler(struct k_timer *timer);
 static K_TIMER_DEFINE(backoff_timer, timeout_handler, NULL);
@@ -115,6 +104,11 @@ static void cal_lf_callback(struct onoff_manager *mgr,
 /* Start actual HW calibration assuming that HFCLK XTAL is on. */
 static void start_hw_cal(void)
 {
+	/* Workaround for Errata 192 */
+	if (IS_ENABLED(CONFIG_SOC_SERIES_NRF52X)) {
+		*(volatile uint32_t *)0x40000C34 = 0x00000002;
+	}
+
 	nrfx_clock_calibration_start();
 	calib_skip_cnt = CONFIG_CLOCK_CONTROL_NRF_CALIBRATION_MAX_SKIP;
 }
@@ -165,18 +159,13 @@ static void cal_hf_callback(struct onoff_manager *mgr,
 			    struct onoff_client *cli,
 			    uint32_t state, int res)
 {
-#if USE_TEMP_SENSOR
-	if (!device_is_ready(temp_sensor)) {
+	if ((temp_sensor == NULL) || !IS_ENABLED(CONFIG_MULTITHREADING)) {
 		start_hw_cal();
 	} else {
 		k_work_submit(&temp_measure_work);
 	}
-#else
-	start_hw_cal();
-#endif /* USE_TEMP_SENSOR */
 }
 
-#if USE_TEMP_SENSOR
 /* Convert sensor value to 0.25'C units. */
 static inline int16_t sensor_value_to_temp_unit(struct sensor_value *val)
 {
@@ -233,7 +222,17 @@ static void measure_temperature(struct k_work *work)
 	LOG_DBG("Calibration %s. Temperature diff: %d (in 0.25'C units).",
 			started ? "started" : "skipped", diff);
 }
-#endif /* USE_TEMP_SENSOR */
+
+#define TEMP_NODE DT_INST(0, nordic_nrf_temp)
+
+#if DT_NODE_HAS_STATUS(TEMP_NODE, okay)
+static inline const struct device *temp_device(void)
+{
+	return device_get_binding(DT_LABEL(TEMP_NODE));
+}
+#else
+#define temp_device() NULL
+#endif
 
 void z_nrf_clock_calibration_init(struct onoff_manager *onoff_mgrs)
 {
@@ -241,6 +240,17 @@ void z_nrf_clock_calibration_init(struct onoff_manager *onoff_mgrs)
 	total_cnt = 0;
 	total_skips_cnt = 0;
 }
+
+#if CONFIG_CLOCK_CONTROL_NRF_CALIBRATION_MAX_SKIP
+static int temp_sensor_init(const struct device *arg)
+{
+	temp_sensor = temp_device();
+
+	return 0;
+}
+
+SYS_INIT(temp_sensor_init, APPLICATION, 0);
+#endif /* CONFIG_CLOCK_CONTROL_NRF_CALIBRATION_MAX_SKIP */
 
 static void start_unconditional_cal_process(void)
 {

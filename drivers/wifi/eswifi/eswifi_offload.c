@@ -7,15 +7,16 @@
 #include "eswifi_log.h"
 LOG_MODULE_DECLARE(LOG_MODULE_NAME);
 
-#include <zephyr/kernel.h>
-#include <zephyr/device.h>
+#include <zephyr.h>
+#include <kernel.h>
+#include <device.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
 
-#include <zephyr/net/net_pkt.h>
-#include <zephyr/net/net_if.h>
+#include <net/net_pkt.h>
+#include <net/net_if.h>
 
 #include "eswifi.h"
 
@@ -373,7 +374,7 @@ static int eswifi_off_recv(struct net_context *context,
 
 	err = k_sem_take(&socket->read_sem, K_MSEC(timeout));
 
-	/* Unregister callback */
+	/* Unregister cakkback */
 	eswifi_lock(eswifi);
 	socket->recv_cb = NULL;
 	eswifi_unlock(eswifi);
@@ -397,7 +398,7 @@ static int eswifi_off_put(struct net_context *context)
 	}
 
 	if (--socket->usage <= 0) {
-		socket->context = NULL;
+		memset(socket, 0, sizeof(*socket));
 	}
 done:
 	eswifi_unlock(eswifi);
@@ -489,7 +490,6 @@ void eswifi_offload_async_msg(struct eswifi_dev *eswifi, char *msg, size_t len)
 		sin_addr = &peer->sin_addr;
 		memcpy(&sin_addr->s4_addr, ip, 4);
 		peer->sin_port = htons(port);
-		peer->sin_family = AF_INET;
 		socket->state = ESWIFI_SOCKET_STATE_CONNECTED;
 		socket->usage++;
 

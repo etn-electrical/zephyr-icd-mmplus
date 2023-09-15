@@ -4,20 +4,18 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr.h>
 #include <stddef.h>
-#include <zephyr/ztest.h>
+#include <ztest.h>
 
-#include <zephyr/bluetooth/bluetooth.h>
-#include <zephyr/bluetooth/hci.h>
+#include <bluetooth/bluetooth.h>
+#include <bluetooth/hci.h>
 #include <host/hci_core.h>
 
 #include <util/util.h>
 #include <util/memq.h>
 #include <util/dbuf.h>
 
-#include <pdu_df.h>
-#include <lll/pdu_vendor.h>
 #include <pdu.h>
 #include <lll.h>
 #include <lll_scan.h>
@@ -52,7 +50,7 @@ void common_create_per_sync_set(void)
 	 * because it is not required to test DF functionality.
 	 */
 	scan = ull_scan_set_get(SCAN_HANDLE_1M);
-	sync = scan->periodic.sync;
+	sync = scan->per_scan.sync;
 	g_per_sync->handle = ull_sync_handle_get(sync);
 	sync->lll.phy = PHY_2M;
 	/* timeout_reload member is used by controller to check if sync was established. */

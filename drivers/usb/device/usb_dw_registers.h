@@ -15,7 +15,7 @@
 #ifndef ZEPHYR_DRIVERS_USB_DEVICE_USB_DW_REGISTERS_H_
 #define ZEPHYR_DRIVERS_USB_DEVICE_USB_DW_REGISTERS_H_
 
-#include <zephyr/sys/util.h>
+#include <sys/util.h>
 
 #ifdef __cplusplus
 extern "C" {

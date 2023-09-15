@@ -4,13 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/sys/__assert.h>
-#include <zephyr/device.h>
-#include <zephyr/init.h>
+#include <sys/__assert.h>
+#include <device.h>
+#include <init.h>
 #include <soc.h>
-#include <zephyr/kernel.h>
-#include <zephyr/arch/cpu.h>
-#include <zephyr/arch/arm/aarch32/cortex_m/cmsis.h>
+#include <kernel.h>
+#include <arch/cpu.h>
+#include <arch/arm/aarch32/cortex_m/cmsis.h>
 
 static int soc_init(const struct device *dev)
 {

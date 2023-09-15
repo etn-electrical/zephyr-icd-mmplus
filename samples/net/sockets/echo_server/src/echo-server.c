@@ -7,20 +7,20 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(net_echo_server_sample, LOG_LEVEL_DBG);
 
-#include <zephyr/kernel.h>
-#include <zephyr/linker/sections.h>
+#include <zephyr.h>
+#include <linker/sections.h>
 #include <errno.h>
-#include <zephyr/shell/shell.h>
+#include <shell/shell.h>
 
-#include <zephyr/net/net_core.h>
-#include <zephyr/net/tls_credentials.h>
+#include <net/net_core.h>
+#include <net/tls_credentials.h>
 
-#include <zephyr/net/net_mgmt.h>
-#include <zephyr/net/net_event.h>
-#include <zephyr/net/net_conn_mgr.h>
+#include <net/net_mgmt.h>
+#include <net/net_event.h>
+#include <net/net_conn_mgr.h>
 
 #include "common.h"
 #include "certificate.h"

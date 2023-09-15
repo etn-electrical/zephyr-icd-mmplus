@@ -10,13 +10,12 @@
 
 #define DT_DRV_COMPAT sifive_wdt
 
-#include <zephyr/kernel.h>
+#include <kernel.h>
 #include <soc.h>
-#include <zephyr/drivers/watchdog.h>
+#include <drivers/watchdog.h>
 
 #define LOG_LEVEL CONFIG_WDT_LOG_LEVEL
-#include <zephyr/logging/log.h>
-#include <zephyr/irq.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(wdt_sifive);
 
 #define WDOGCFG_SCALE_MAX     0xf

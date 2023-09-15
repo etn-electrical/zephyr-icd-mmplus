@@ -15,13 +15,13 @@
  * available in virtual address space after loading of page table.
  */
 
-#include <zephyr/arch/x86/ia32/asm.h>
-#include <zephyr/arch/x86/msr.h>
+#include <arch/x86/ia32/asm.h>
+#include <arch/x86/msr.h>
 #include <kernel_arch_data.h>
-#include <zephyr/arch/cpu.h>
-#include <zephyr/arch/x86/multiboot.h>
+#include <arch/cpu.h>
+#include <arch/x86/multiboot.h>
 #include <x86_mmu.h>
-#include <zephyr/sys/mem_manage.h>
+#include <sys/mem_manage.h>
 
 	/* exports (private APIs) */
 
@@ -43,8 +43,6 @@
 #if defined(CONFIG_X86_SSE)
 	GDATA(_sse_mxcsr_default_value)
 #endif
-
-	GDATA(x86_cpu_boot_arg)
 
 .macro install_page_tables
 #ifdef CONFIG_X86_MMU
@@ -271,13 +269,7 @@ __csSet:
 	/* load 32-bit operand size IDT */
 	lidt	z_x86_idt
 
-	movl	$x86_cpu_boot_arg, %ebp
-	/* Boot type to multiboot, ebx content will help to mitigate */
-	movl	$MULTIBOOT_BOOT_TYPE, \
-			__x86_boot_arg_t_boot_type_OFFSET(%ebp)
-	/* pointer to multiboot info, or NULL */
-	movl	%ebx, __x86_boot_arg_t_arg_OFFSET(%ebp)
-	pushl	$x86_cpu_boot_arg
+	pushl	%ebx		/* pointer to multiboot info, or NULL */
 	call	z_x86_prep_c	/* enter kernel; never returns */
 
 #if defined(CONFIG_X86_SSE)

@@ -5,29 +5,23 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/device.h>
-#include <zephyr/devicetree.h>
-#include <zephyr/drivers/gpio.h>
-#include <zephyr/display/cfb.h>
-#include <zephyr/sys/printk.h>
-#include <zephyr/drivers/flash.h>
-#include <zephyr/storage/flash_map.h>
-#include <zephyr/drivers/sensor.h>
+#include <zephyr.h>
+#include <device.h>
+#include <drivers/gpio.h>
+#include <display/cfb.h>
+#include <sys/printk.h>
+#include <drivers/flash.h>
+#include <storage/flash_map.h>
+#include <drivers/sensor.h>
 
 #include <string.h>
 #include <stdio.h>
 
-#include <zephyr/bluetooth/bluetooth.h>
-#include <zephyr/bluetooth/mesh/access.h>
+#include <bluetooth/bluetooth.h>
+#include <bluetooth/mesh/access.h>
 
 #include "mesh.h"
 #include "board.h"
-
-#define STORAGE_PARTITION		storage_partition
-#define STORAGE_PARTITION_DEV		FIXED_PARTITION_DEVICE(STORAGE_PARTITION)
-#define STORAGE_PARTITION_OFFSET	FIXED_PARTITION_OFFSET(STORAGE_PARTITION)
-#define STORAGE_PARTITION_SIZE		FIXED_PARTITION_SIZE(STORAGE_PARTITION)
 
 enum font_size {
 	FONT_SMALL = 0,
@@ -54,20 +48,30 @@ struct font_info {
 
 #define STAT_COUNT 128
 
-static const struct device *const epd_dev = DEVICE_DT_GET_ONE(solomon_ssd16xxfb);
+static const struct device *epd_dev;
 static bool pressed;
 static uint8_t screen_id = SCREEN_MAIN;
+static const struct device *gpio;
 static struct k_work_delayable epd_work;
 static struct k_work_delayable long_press_work;
 static char str_buf[256];
 
-static const struct gpio_dt_spec leds[] = {
-	GPIO_DT_SPEC_GET(DT_ALIAS(led0), gpios),
-	GPIO_DT_SPEC_GET(DT_ALIAS(led1), gpios),
-	GPIO_DT_SPEC_GET(DT_ALIAS(led2), gpios),
+static struct {
+	const struct device *dev;
+	const char *name;
+	gpio_pin_t pin;
+	gpio_flags_t flags;
+} leds[] = {
+	{ .name = DT_GPIO_LABEL(DT_ALIAS(led0), gpios),
+	  .pin = DT_GPIO_PIN(DT_ALIAS(led0), gpios),
+	  .flags = DT_GPIO_FLAGS(DT_ALIAS(led0), gpios)},
+	{ .name = DT_GPIO_LABEL(DT_ALIAS(led1), gpios),
+	  .pin = DT_GPIO_PIN(DT_ALIAS(led1), gpios),
+	  .flags = DT_GPIO_FLAGS(DT_ALIAS(led1), gpios)},
+	{ .name = DT_GPIO_LABEL(DT_ALIAS(led2), gpios),
+	  .pin = DT_GPIO_PIN(DT_ALIAS(led2), gpios),
+	  .flags = DT_GPIO_FLAGS(DT_ALIAS(led2), gpios)}
 };
-
-static const struct gpio_dt_spec sw0_gpio = GPIO_DT_SPEC_GET(DT_ALIAS(sw0), gpios);
 
 struct k_work_delayable led_timer;
 
@@ -440,7 +444,7 @@ static void long_press(struct k_work *work)
 
 static bool button_is_pressed(void)
 {
-	return gpio_pin_get_dt(&sw0_gpio) > 0;
+	return gpio_pin_get(gpio, DT_GPIO_PIN(DT_ALIAS(sw0), gpios)) > 0;
 }
 
 static void button_interrupt(const struct device *dev,
@@ -471,7 +475,7 @@ static void button_interrupt(const struct device *dev,
 	case SCREEN_STATS:
 		return;
 	case SCREEN_MAIN:
-		if (pins & BIT(sw0_gpio.pin)) {
+		if (pins & BIT(DT_GPIO_PIN(DT_ALIAS(sw0), gpios))) {
 			uint32_t uptime = k_uptime_get_32();
 			static uint32_t bad_count, press_ts;
 
@@ -504,25 +508,28 @@ static int configure_button(void)
 {
 	static struct gpio_callback button_cb;
 
-	if (!device_is_ready(sw0_gpio.port)) {
-		printk("%s: device not ready.\n", sw0_gpio.port->name);
+	gpio = device_get_binding(DT_GPIO_LABEL(DT_ALIAS(sw0), gpios));
+	if (!gpio) {
 		return -ENODEV;
 	}
 
-	gpio_pin_configure_dt(&sw0_gpio, GPIO_INPUT);
+	gpio_pin_configure(gpio, DT_GPIO_PIN(DT_ALIAS(sw0), gpios),
+			   GPIO_INPUT | DT_GPIO_FLAGS(DT_ALIAS(sw0), gpios));
 
-	gpio_pin_interrupt_configure_dt(&sw0_gpio, GPIO_INT_EDGE_BOTH);
+	gpio_pin_interrupt_configure(gpio, DT_GPIO_PIN(DT_ALIAS(sw0), gpios),
+				     GPIO_INT_EDGE_BOTH);
 
-	gpio_init_callback(&button_cb, button_interrupt, BIT(sw0_gpio.pin));
+	gpio_init_callback(&button_cb, button_interrupt,
+			   BIT(DT_GPIO_PIN(DT_ALIAS(sw0), gpios)));
 
-	gpio_add_callback(sw0_gpio.port, &button_cb);
+	gpio_add_callback(gpio, &button_cb);
 
 	return 0;
 }
 
 int set_led_state(uint8_t id, bool state)
 {
-	return gpio_pin_set_dt(&leds[id], state);
+	return gpio_pin_set(leds[id].dev, leds[id].pin, state);
 }
 
 static void led_timeout(struct k_work *work)
@@ -553,12 +560,15 @@ static int configure_leds(void)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(leds); i++) {
-		if (!device_is_ready(leds[i].port)) {
-			printk("%s: device not ready.\n", leds[i].port->name);
+		leds[i].dev = device_get_binding(leds[i].name);
+		if (!leds[i].dev) {
+			printk("Failed to get %s device\n", leds[i].name);
 			return -ENODEV;
 		}
 
-		gpio_pin_configure_dt(&leds[i], GPIO_OUTPUT_INACTIVE);
+		gpio_pin_configure(leds[i].dev, leds[i].pin,
+				   leds[i].flags |
+				   GPIO_OUTPUT_INACTIVE);
 	}
 
 	k_work_init_delayable(&led_timer, led_timeout);
@@ -567,14 +577,12 @@ static int configure_leds(void)
 
 static int erase_storage(void)
 {
-	const struct device *dev = STORAGE_PARTITION_DEV;
+	const struct device *dev;
 
-	if (!device_is_ready(dev)) {
-		printk("Flash device not ready\n");
-		return -ENODEV;
-	}
+	dev = device_get_binding(DT_CHOSEN_ZEPHYR_FLASH_CONTROLLER_LABEL);
 
-	return flash_erase(dev, STORAGE_PARTITION_OFFSET, STORAGE_PARTITION_SIZE);
+	return flash_erase(dev, FLASH_AREA_OFFSET(storage),
+			   FLASH_AREA_SIZE(storage));
 }
 
 void board_refresh_display(void)
@@ -584,8 +592,9 @@ void board_refresh_display(void)
 
 int board_init(void)
 {
-	if (!device_is_ready(epd_dev)) {
-		printk("%s: device not ready.\n", epd_dev->name);
+	epd_dev = device_get_binding(DT_LABEL(DT_INST(0, solomon_ssd16xxfb)));
+	if (epd_dev == NULL) {
+		printk("SSD16XX device not found\n");
 		return -ENODEV;
 	}
 

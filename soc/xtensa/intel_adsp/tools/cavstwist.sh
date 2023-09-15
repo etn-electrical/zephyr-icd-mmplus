@@ -7,7 +7,6 @@ set -e
 # host (e.g. an Up Squared board running Linux). Can be used as the
 # hook for both --device-serial-pty and --west-flash, for example:
 #
-#  export CAVS_OLD_FLASHER=1
 #  export CAVS_HOST=tgl2
 #  export CAVS_KEY=$HOME/otc_private_key_3k.pem
 #  export CAVS_RIMAGE=$HOME/rimage
@@ -15,12 +14,6 @@ set -e
 #  twister -p intel_adsp_cavs25 --device-testing \
 #     --device-serial-pty=$ZEPHYR_BASE/soc/xtensa/intel_adsp/tools/cavstwist.sh \
 #     --west-flash=$ZEPHYR_BASE/soc/xtensa/intel_adsp/tools/cavstwist.sh
-#
-# The CAVS_OLD_FLASHER is necessary because now the client-server-based
-# cavstool works by default. This is to tell the build system to use
-# the misc-flasher as the runner. Please remember to do the command
-# "unset CAVS_OLD_FLASHER" when you are going to switch to the
-# client-server-based intel_adsp runner.
 #
 # The device at CAVS_HOST must be accessible via non-interactive ssh
 # access and the remote account must have password-free sudo ability.
@@ -72,7 +65,7 @@ set -e
 
 if [ -z "$CAVS_HOST" -o -z "$CAVS_KEY" -o -z "$CAVS_RIMAGE" ]; then
     echo "Missing cavstwist.sh configuration, must have:" 1>&2
-    echo "  export CAVS_HOST=ssh_host_name[:port]" 1>&2
+    echo "  export CAVS_HOST=ssh_host_name" 1>&2
     echo "  export CAVS_KEY=/path/to/signing_key.pem" 1>&2
     echo "  export CAVS_RIMAGE=/path/to/built/rimage/dir" 1>&2
     exit 1
@@ -119,14 +112,14 @@ if [ "$DO_LOAD" = "1" ]; then
     # Must "accept" the file so the next signing script knows it's OK
     # to write a new one
     mv $IMAGE $IMAGE2
-    scp $IMAGE2 $CAVSTOOL scp://$CAVS_HOST
+    scp $IMAGE2 $CAVSTOOL $CAVS_HOST:
     rm -f $IMAGE2
 
     # Twister seems to overlap tests by a tiny bit, and of course the
     # remote system might have other junk running from manual testing.
     # If something is doing log reading at the moment of firmware
     # load, it tends fairly reliably to hang the DSP.  Kill it.
-    ssh ssh://$CAVS_HOST "sudo pkill -9 -f cavstool" ||:
+    ssh $CAVS_HOST "sudo pkill -9 -f cavstool" ||:
 
-    exec ssh ssh://$CAVS_HOST "sudo ./$(basename $CAVSTOOL) $(basename $IMAGE2)"
+    exec ssh $CAVS_HOST "sudo ./$(basename $CAVSTOOL) $(basename $IMAGE2)"
 fi

@@ -8,7 +8,7 @@
 
 #define NET_LOG_LEVEL CONFIG_NET_HOSTNAME_LOG_LEVEL
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(net_test, NET_LOG_LEVEL);
 
 #include <zephyr/types.h>
@@ -16,16 +16,16 @@ LOG_MODULE_REGISTER(net_test, NET_LOG_LEVEL);
 #include <stddef.h>
 #include <string.h>
 #include <errno.h>
-#include <zephyr/random/rand32.h>
-#include <zephyr/sys/printk.h>
-#include <zephyr/linker/sections.h>
+#include <random/rand32.h>
+#include <sys/printk.h>
+#include <linker/sections.h>
 
-#include <zephyr/ztest.h>
+#include <ztest.h>
 
-#include <zephyr/net/ethernet.h>
-#include <zephyr/net/buf.h>
-#include <zephyr/net/net_ip.h>
-#include <zephyr/net/net_if.h>
+#include <net/ethernet.h>
+#include <net/buf.h>
+#include <net/net_ip.h>
+#include <net/net_if.h>
 
 #define NET_LOG_ENABLED 1
 #include "net_private.h"
@@ -216,7 +216,7 @@ static void iface_cb(struct net_if *iface, void *user_data)
 	}
 }
 
-static void *test_iface_setup(void)
+static void test_iface_setup(void)
 {
 	struct net_if_mcast_addr *maddr;
 	struct net_if_addr *ifaddr;
@@ -252,7 +252,7 @@ static void *test_iface_setup(void)
 		zassert_not_null(ifaddr, "ipv4 addr1");
 	}
 
-	/* For testing purposes we need to set the addresses preferred */
+	/* For testing purposes we need to set the adddresses preferred */
 	ifaddr->addr_state = NET_ADDR_PREFERRED;
 
 	ifaddr = net_if_ipv6_addr_add(iface1, &ll_addr,
@@ -277,8 +277,6 @@ static void *test_iface_setup(void)
 	net_if_up(iface1);
 
 	test_started = true;
-
-	return NULL;
 }
 
 static int bytes_from_hostname_unique(uint8_t *buf, int buf_len, const char *src)
@@ -315,7 +313,7 @@ static int bytes_from_hostname_unique(uint8_t *buf, int buf_len, const char *src
 	return 0;
 }
 
-ZTEST(net_hostname, test_hostname_get)
+static void test_hostname_get(void)
 {
 	const char *hostname;
 	const char *config_hostname = CONFIG_NET_HOSTNAME;
@@ -338,7 +336,7 @@ ZTEST(net_hostname, test_hostname_get)
 	}
 }
 
-ZTEST(net_hostname, test_hostname_set)
+static void test_hostname_set(void)
 {
 	if (IS_ENABLED(CONFIG_NET_HOSTNAME_UNIQUE)) {
 		int ret;
@@ -349,4 +347,13 @@ ZTEST(net_hostname, test_hostname_set)
 	}
 }
 
-ZTEST_SUITE(net_hostname, NULL, test_iface_setup, NULL, NULL, NULL);
+void test_main(void)
+{
+	ztest_test_suite(net_hostname_test,
+			 ztest_unit_test(test_iface_setup),
+			 ztest_unit_test(test_hostname_get),
+			 ztest_unit_test(test_hostname_set)
+		);
+
+	ztest_run_test_suite(net_hostname_test);
+}

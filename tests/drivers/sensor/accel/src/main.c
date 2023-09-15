@@ -11,13 +11,11 @@
  * @}
  */
 
-#include <zephyr/ztest.h>
-#include <zephyr/drivers/sensor.h>
+#include <ztest.h>
+#include <drivers/sensor.h>
 
-struct sensor_accel_fixture {
-	const struct device *accel_spi;
-	const struct device *accel_i2c;
-};
+/* There is no obvious way to pass this to tests, so use a global */
+ZTEST_BMEM static const char *accel_label;
 
 static enum sensor_channel channel[] = {
 	SENSOR_CHAN_ACCEL_X,
@@ -28,8 +26,13 @@ static enum sensor_channel channel[] = {
 	SENSOR_CHAN_GYRO_Z,
 };
 
-static void test_sensor_accel_basic(const struct device *dev)
+void test_sensor_accel_basic(void)
 {
+	const struct device *dev;
+
+	dev = device_get_binding(accel_label);
+	zassert_not_null(dev, "failed: dev '%s' is null", accel_label);
+
 	zassert_equal(sensor_sample_fetch(dev), 0, "fail to fetch sample");
 
 	for (int i = 0; i < ARRAY_SIZE(channel); i++) {
@@ -44,39 +47,25 @@ static void test_sensor_accel_basic(const struct device *dev)
 }
 
 /* Run all of our tests on an accelerometer device with the given label */
-static void run_tests_on_accel(const struct device *accel)
+static void run_tests_on_accel(const char *label)
 {
-	zassert_true(device_is_ready(accel), "Accelerometer device is not ready");
+	const struct device *accel = device_get_binding(label);
 
-	PRINT("Running tests on '%s'\n", accel->name);
+	PRINT("Running tests on '%s'\n", label);
+	zassert_not_null(accel, "Unable to get Accelerometer device");
 	k_object_access_grant(accel, k_current_get());
+	accel_label = label;
+	ztest_test_suite(test_sensor_accel,
+			 ztest_user_unit_test(test_sensor_accel_basic));
+	ztest_run_test_suite(test_sensor_accel);
 }
 
-ZTEST_USER_F(sensor_accel, test_sensor_accel_basic_spi)
+/* test case main entry */
+void test_main(void)
 {
-	run_tests_on_accel(fixture->accel_spi);
-	test_sensor_accel_basic(fixture->accel_spi);
+	run_tests_on_accel(DT_LABEL(DT_ALIAS(accel_0)));
+
+#if DT_NODE_EXISTS(DT_ALIAS(accel_1))
+	run_tests_on_accel(DT_LABEL(DT_ALIAS(accel_1)));
+#endif
 }
-
-
-ZTEST_USER_F(sensor_accel, test_sensor_accel_basic_i2c)
-{
-	if (fixture->accel_i2c == NULL) {
-		ztest_test_skip();
-	}
-
-	run_tests_on_accel(fixture->accel_i2c);
-	test_sensor_accel_basic(fixture->accel_i2c);
-}
-
-static void *sensor_accel_setup(void)
-{
-	static struct sensor_accel_fixture fixture = {
-		.accel_spi = DEVICE_DT_GET(DT_ALIAS(accel_0)),
-		.accel_i2c = DEVICE_DT_GET_OR_NULL(DT_ALIAS(accel_1)),
-	};
-
-	return &fixture;
-}
-
-ZTEST_SUITE(sensor_accel, NULL, sensor_accel_setup, NULL, NULL, NULL);

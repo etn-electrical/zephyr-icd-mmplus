@@ -9,7 +9,7 @@
 #ifndef ZEPHYR_LIB_LIBC_MINIMAL_INCLUDE_STDIO_H_
 #define ZEPHYR_LIB_LIBC_MINIMAL_INCLUDE_STDIO_H_
 
-#include <zephyr/toolchain.h>
+#include <toolchain.h>
 #include <stdarg.h>     /* Needed to get definition of va_list */
 #include <stddef.h>
 
@@ -30,10 +30,6 @@ typedef int  FILE;
 #define stdout ((FILE *) 2)
 #define stderr ((FILE *) 3)
 
-#define SEEK_SET	0	/* Seek from beginning of file.  */
-#define SEEK_CUR	1	/* Seek from current position.  */
-#define SEEK_END	2	/* Seek from end of file.  */
-
 int __printf_like(1, 2) printf(const char *ZRESTRICT format, ...);
 int __printf_like(3, 4) snprintf(char *ZRESTRICT str, size_t len,
 				 const char *ZRESTRICT format, ...);
@@ -53,7 +49,6 @@ int __printf_like(2, 0) vfprintf(FILE *ZRESTRICT stream,
 				 const char *ZRESTRICT format,
 				 va_list ap);
 
-void perror(const char *s);
 int puts(const char *s);
 
 int fputc(int c, FILE *stream);

@@ -7,13 +7,12 @@
 
 #define DT_DRV_COMPAT nxp_kinetis_wdog
 
-#include <zephyr/drivers/watchdog.h>
-#include <zephyr/drivers/clock_control.h>
-#include <zephyr/irq.h>
+#include <drivers/watchdog.h>
+#include <drivers/clock_control.h>
 #include <fsl_wdog.h>
 
 #define LOG_LEVEL CONFIG_WDT_LOG_LEVEL
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(wdt_mcux_wdog);
 
 #define MIN_TIMEOUT 4
@@ -77,11 +76,6 @@ static int mcux_wdog_install_timeout(const struct device *dev,
 	if (data->timeout_valid) {
 		LOG_ERR("No more timeouts can be installed");
 		return -ENOMEM;
-	}
-
-	if (!device_is_ready(config->clock_dev)) {
-		LOG_ERR("clock control device not ready");
-		return -ENODEV;
 	}
 
 	if (clock_control_get_rate(config->clock_dev, config->clock_subsys,

@@ -10,14 +10,12 @@
 
 #define DT_DRV_COMPAT nxp_lpc_wwdt
 
-#include <zephyr/drivers/watchdog.h>
-#include <zephyr/irq.h>
-#include <zephyr/sys_clock.h>
+#include <drivers/watchdog.h>
 #include <fsl_wwdt.h>
 #include <fsl_clock.h>
 
 #define LOG_LEVEL CONFIG_WDT_LOG_LEVEL
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(wdt_mcux_wwdt);
 
 #define MIN_TIMEOUT 0xFF
@@ -82,7 +80,7 @@ static int mcux_wwdt_install_timeout(const struct device *dev,
 		return -ENOMEM;
 	}
 
-#if defined(CONFIG_SOC_MIMXRT685S_CM33) || defined(CONFIG_SOC_MIMXRT595S_CM33)
+#if defined(CONFIG_SOC_MIMXRT685S_CM33)
 	clock_freq = CLOCK_GetWdtClkFreq(0);
 #else
 	const struct mcux_wwdt_config *config = dev->config;

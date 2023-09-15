@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
-#include <zephyr/drivers/pm_cpu_ops/psci.h>
-#include <zephyr/drivers/pm_cpu_ops.h>
+#include <ztest.h>
+#include <drivers/pm_cpu_ops/psci.h>
+#include <drivers/pm_cpu_ops.h>
 
-ZTEST(arm64_psci, test_psci_func)
+void test_psci_func(void)
 {
 	uint32_t ver;
 	int ret;
@@ -17,11 +17,16 @@ ZTEST(arm64_psci, test_psci_func)
 	ver = psci_version();
 	zassert_false((PSCI_VERSION_MAJOR(ver) == 0 &&
 		       PSCI_VERSION_MINOR(ver) < 2),
-		       "Wrong PSCI firmware version");
+		       "Wrong PSCI firware version");
 
 	/* This should return -PSCI_RET_ALREADY_ON that is mapped to -EINVAL */
 	ret = pm_cpu_on(0, 0);
 	zassert_true(ret == -EINVAL, "Wrong return code from psci_cpu_on");
 }
 
-ZTEST_SUITE(arm64_psci, NULL, NULL, NULL, NULL, NULL);
+void test_main(void)
+{
+	ztest_test_suite(psci_func,
+		ztest_unit_test(test_psci_func));
+	ztest_run_test_suite(psci_func);
+}

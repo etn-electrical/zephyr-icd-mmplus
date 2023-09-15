@@ -4,14 +4,24 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <errno.h>
-#include <string.h>
 #include "coverage.h"
 
-K_HEAP_DEFINE(gcov_heap, CONFIG_COVERAGE_GCOV_HEAP_SIZE);
+
+#if defined(CONFIG_X86) || defined(CONFIG_SOC_SERIES_MPS2)
+#define MALLOC_MAX_HEAP_SIZE 32768
+#define MALLOC_MIN_BLOCK_SIZE 128
+#else
+#define MALLOC_MAX_HEAP_SIZE 16384
+#define MALLOC_MIN_BLOCK_SIZE 64
+#endif
+
+
+K_HEAP_DEFINE(gcov_heap, MALLOC_MAX_HEAP_SIZE);
+
 
 static struct gcov_info *gcov_info_head;
 
@@ -39,9 +49,12 @@ void __gcov_exit(void)
  * buff_write_u64 - Store 64 bit data on a buffer and return the size
  */
 
+#define MASK_32BIT (0xffffffffUL)
 static inline void buff_write_u64(void *buffer, size_t *off, uint64_t v)
 {
-	memcpy((uint8_t *)buffer + *off, (uint8_t *)&v, sizeof(v));
+	*((uint32_t *)((uint8_t *)buffer + *off) + 0) = (uint32_t)(v & MASK_32BIT);
+	*((uint32_t *)((uint8_t *)buffer + *off) + 1) = (uint32_t)((v >> 32) &
+							  MASK_32BIT);
 	*off = *off + sizeof(uint64_t);
 }
 
@@ -50,7 +63,7 @@ static inline void buff_write_u64(void *buffer, size_t *off, uint64_t v)
  */
 static inline void buff_write_u32(void *buffer, size_t *off, uint32_t v)
 {
-	memcpy((uint8_t *)buffer + *off, (uint8_t *)&v, sizeof(v));
+	*((uint32_t *)((uint8_t *)buffer + *off)) = v;
 	*off = *off + sizeof(uint32_t);
 }
 
@@ -60,15 +73,8 @@ size_t calculate_buff_size(struct gcov_info *info)
 	uint32_t iter;
 	uint32_t iter_1;
 	uint32_t iter_2;
-
-	/* Few fixed values at the start: magic number,
-	 * version, stamp, and checksum.
-	 */
-#ifdef GCOV_12_FORMAT
-	uint32_t size = sizeof(uint32_t) * 4;
-#else
+	/* few Fixed values at the start version, stamp and magic number. */
 	uint32_t size = sizeof(uint32_t) * 3;
-#endif
 
 	for (iter = 0U; iter < info->n_functions; iter++) {
 		/* space for TAG_FUNCTION and FUNCTION_LENGTH
@@ -131,12 +137,6 @@ size_t populate_buffer(uint8_t *buffer, struct gcov_info *info)
 		       &buffer_write_position,
 		       info->stamp);
 
-#ifdef GCOV_12_FORMAT
-	buff_write_u32(buffer,
-		       &buffer_write_position,
-		       info->checksum);
-#endif
-
 	for (iter_functions = 0U;
 	     iter_functions < info->n_functions;
 	     iter_functions++) {
@@ -178,16 +178,9 @@ size_t populate_buffer(uint8_t *buffer, struct gcov_info *info)
 				       &buffer_write_position,
 				       GCOV_TAG_FOR_COUNTER(iter_counts));
 
-#ifdef GCOV_12_FORMAT
-			/* GCOV 12 counts the length by bytes */
-			buff_write_u32(buffer,
-				       &buffer_write_position,
-				       counters_per_func->num * 2U * 4);
-#else
 			buff_write_u32(buffer,
 				       &buffer_write_position,
 				       counters_per_func->num * 2U);
-#endif
 
 			for (iter_counter_values = 0U;
 			     iter_counter_values < counters_per_func->num;

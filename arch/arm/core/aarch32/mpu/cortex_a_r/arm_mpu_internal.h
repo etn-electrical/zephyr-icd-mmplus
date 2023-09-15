@@ -3,7 +3,7 @@
  * Copyright (c) 2019 Lexmark International, Inc.
  */
 
-#include <zephyr/sys/math_extras.h>
+#include <sys/math_extras.h>
 
 /**
  *  Get the number of supported MPU regions.

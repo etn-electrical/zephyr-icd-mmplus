@@ -27,13 +27,15 @@ This sensor board has the following features:
 * :abbr:`UART (Universal asynchronous receiver-transmitter)`
 * :abbr:`WDT (Watchdog Timer)`
 
-.. figure:: img/bl654_sensor_board.jpg
+.. figure:: img/bl654_sensor_board.png
+     :width: 467px
      :align: center
      :alt: BL654 Sensor Board front and back
 
      BL654 Sensor Board front and back
 
-.. figure:: img/bl654_sensor_board_usb_swd_programmer.jpg
+.. figure:: img/bl654_sensor_board_usb_swd_programmer.png
+     :width: 302px
      :align: center
      :alt: BL654 Sensor Board connected to USB-SWD Programmer (UART and SWD access)
 
@@ -119,7 +121,7 @@ The sensor can be powered directly from a coin cell or from a voltage supplied
 on the UART pins, the board accepts voltage from 1.8v-3.3v. Note that if using a
 battery with a UART/debugger connected, the voltage of the UART/debugger (if it
 does not automatically sense/adjust) must be within 0.3v of the voltage of the
-coin cell to prevent suppression diodes in the nRF52840 silicon being activated
+coin cell to prevent supression diodes in the nRF52840 silicon being activated
 or possible back-powering of the battery.
 
 To power the board from an external source via UART, the solder bridge SB1 must

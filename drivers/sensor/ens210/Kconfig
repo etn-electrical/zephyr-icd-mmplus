@@ -5,9 +5,7 @@
 
 menuconfig ENS210
 	bool "ENS210 Digital Temperature and Humidity sensor"
-	default y
-	depends on DT_HAS_AMS_ENS210_ENABLED
-	select I2C
+	depends on I2C
 	help
 	  Enable driver for ENS210 Digital Temperature and Humidity sensor.
 if ENS210
@@ -20,9 +18,9 @@ choice
 config ENS210_TEMPERATURE_OFF
 	bool "Disable temperature measurements"
 config ENS210_TEMPERATURE_SINGLE
-	bool "Temperature measurements in single shot mode"
+	bool "Enable temperature measurements in single shot mode"
 config ENS210_TEMPERATURE_CONTINUOUS
-	bool "Temperature measurements in continuous mode"
+	bool "Enable temperature measurements in continuous mode"
 endchoice
 
 choice
@@ -33,13 +31,13 @@ choice
 config ENS210_HUMIDITY_OFF
 	bool "Disable relative humidity measurements"
 config ENS210_HUMIDITY_SINGLE
-	bool "Relative humidity measurements in single shot mode"
+	bool "Enable relative humidity measurements in single shot mode"
 config ENS210_HUMIDITY_CONTINUOUS
-	bool "Relative humidity measurements in continuous mode"
+	bool "Enable relative humidity measurements in continuous mode"
 endchoice
 
 config ENS210_CRC_CHECK
-	bool "CRC Check"
+	bool "Enable CRC Check"
 	default y
 	help
 	  Check the crc value after data reading.

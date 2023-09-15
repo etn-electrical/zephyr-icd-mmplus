@@ -9,9 +9,9 @@
  * @brief ARM Cortex-A and Cortex-R System Control Block interface
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/arch/cpu.h>
-#include <zephyr/sys/util.h>
+#include <kernel.h>
+#include <arch/cpu.h>
+#include <sys/util.h>
 
 /**
  *

@@ -6,19 +6,14 @@
 
 #include "mem_protect.h"
 #include <kernel_internal.h> /* For z_main_thread */
-#include <zephyr/sys/libc-hooks.h> /* for z_libc_partition */
 
 static struct k_thread child_thread;
-static K_THREAD_STACK_DEFINE(child_stack, 512 + CONFIG_TEST_EXTRA_STACK_SIZE);
+static K_THREAD_STACK_DEFINE(child_stack, 512 + CONFIG_TEST_EXTRA_STACKSIZE);
 
 /* Special memory domain for test case purposes */
 static struct k_mem_domain test_domain;
 
-#if Z_LIBC_PARTITION_EXISTS
-#define PARTS_USED	3
-#else
 #define PARTS_USED	2
-#endif
 /* Maximum number of allowable memory partitions defined by the build */
 #define NUM_RW_PARTS	(CONFIG_MAX_DOMAIN_PARTITIONS - PARTS_USED)
 
@@ -44,18 +39,13 @@ static void zzz_entry(void *p1, void *p2, void *p3)
 	k_sleep(K_FOREVER);
 }
 
-static K_THREAD_DEFINE(zzz_thread, 256 + CONFIG_TEST_EXTRA_STACK_SIZE,
+static K_THREAD_DEFINE(zzz_thread, 256 + CONFIG_TEST_EXTRA_STACKSIZE,
 		       zzz_entry, NULL, NULL, NULL, 0, 0, 0);
 
 void test_mem_domain_setup(void)
 {
 	int max_parts = arch_mem_domain_max_partitions_get();
-	struct k_mem_partition *parts[] = {
-#if Z_LIBC_PARTITION_EXISTS
-		&z_libc_partition,
-#endif
-		&ro_part, &ztest_mem_partition
-	};
+	struct k_mem_partition *parts[] = { &ro_part, &ztest_mem_partition };
 
 	num_rw_parts = max_parts - PARTS_USED;
 	zassert_true(num_rw_parts <= NUM_RW_PARTS,
@@ -155,7 +145,7 @@ static void ro_write_entry(void *p1, void *p2, void *p3)
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST(mem_protect_domain, test_mem_domain_valid_access)
+void test_mem_domain_valid_access(void)
 {
 	spawn_child_thread(rw_part_access, &test_domain, false);
 	spawn_child_thread(ro_part_access, &test_domain, false);
@@ -166,7 +156,7 @@ ZTEST(mem_protect_domain, test_mem_domain_valid_access)
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST(mem_protect_domain, test_mem_domain_invalid_access)
+void test_mem_domain_invalid_access(void)
 {
 	/* child not added to test_domain, will fault for both */
 	spawn_child_thread(rw_part_access, NULL, true);
@@ -178,7 +168,7 @@ ZTEST(mem_protect_domain, test_mem_domain_invalid_access)
  *
  * @ingroup kernel_memgroup_tests
  */
-ZTEST(mem_protect_domain, test_mem_domain_no_writes_to_ro)
+void test_mem_domain_no_writes_to_ro(void)
 {
 	/* Show that trying to write to a read-only partition causes a fault */
 	spawn_child_thread(ro_write_entry, &test_domain, true);
@@ -193,7 +183,7 @@ ZTEST(mem_protect_domain, test_mem_domain_no_writes_to_ro)
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST(mem_protect_domain, test_mem_domain_remove_add_partition)
+void test_mem_domain_remove_add_partition(void)
 {
 	zassert_equal(
 		k_mem_domain_remove_partition(&test_domain, &rw_parts[0]),
@@ -260,7 +250,7 @@ static void mem_domain_add_thread_entry(void *p1, void *p2, void *p3)
  * @see k_mem_domain_init(), k_mem_domain_add_partition(),
  *	k_mem_domain_remove_partition(), k_mem_domain_add_thread()
  */
-ZTEST(mem_protect_domain, test_mem_domain_api_supervisor_only)
+void test_mem_domain_api_supervisor_only(void)
 {
 	/* All of these should fault when invoked from a user thread */
 	spawn_child_thread(mem_domain_init_entry, NULL, true);
@@ -278,7 +268,7 @@ ZTEST(mem_protect_domain, test_mem_domain_api_supervisor_only)
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST(mem_protect_domain, test_mem_domain_boot_threads)
+void test_mem_domain_boot_threads(void)
 {
 	/* Check that a static thread got put in the default memory domain */
 	zassert_true(zzz_thread->mem_domain_info.mem_domain ==
@@ -322,13 +312,13 @@ static void spin_entry(void *p1, void *p2, void *p3)
  * @see k_mem_domain_add_thread()
  */
 
-#if CONFIG_MP_MAX_NUM_CPUS > 1
+#if CONFIG_MP_NUM_CPUS > 1
 #define PRIO	K_PRIO_COOP(0)
 #else
 #define PRIO	K_PRIO_PREEMPT(1)
 #endif
 
-ZTEST(mem_protect_domain, test_mem_domain_migration)
+void test_mem_domain_migration(void)
 {
 	int ret;
 
@@ -400,7 +390,7 @@ ZTEST(mem_protect_domain, test_mem_domain_migration)
  *
  * @see k_mem_domain_add_partition()
  */
-ZTEST(mem_protect_domain, test_mem_part_overlap)
+void test_mem_part_overlap(void)
 {
 	set_fault_valid(false);
 
@@ -440,7 +430,7 @@ K_MEM_PARTITION_DEFINE(exceed_part, exceed_buf, sizeof(exceed_buf),
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST(mem_protect_domain, test_mem_part_assert_add_overmax)
+void test_mem_part_assert_add_overmax(void)
 {
 	int max_parts = num_rw_parts + PARTS_USED;
 
@@ -474,7 +464,7 @@ K_MEM_PARTITION_DEFINE(find_no_part, misc_buf, sizeof(misc_buf),
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST(mem_protect_domain, test_mem_domain_remove_part_fail)
+void test_mem_domain_remove_part_fail(void)
 {
 	struct k_mem_partition *no_parts = &find_no_part;
 
@@ -486,7 +476,7 @@ ZTEST(mem_protect_domain, test_mem_domain_remove_part_fail)
 		0, "should fail to remove memory partition");
 }
 #else
-ZTEST(mem_protect_domain, test_mem_domain_remove_part_fail)
+void test_mem_domain_remove_part_fail(void)
 {
 	ztest_test_skip();
 }
@@ -500,7 +490,7 @@ ZTEST(mem_protect_domain, test_mem_domain_remove_part_fail)
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST(mem_protect_domain, test_mem_domain_init_fail)
+void test_mem_domain_init_fail(void)
 {
 	struct k_mem_partition *no_parts[] = {&ro_part, 0};
 
@@ -522,7 +512,7 @@ ZTEST(mem_protect_domain, test_mem_domain_init_fail)
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST(mem_protect_domain, test_mem_part_add_error_null)
+void test_mem_part_add_error_null(void)
 {
 	/* add partition fail */
 	set_fault_valid(false);
@@ -544,7 +534,7 @@ K_MEM_PARTITION_DEFINE(nonsize_part, nosize_buf, sizeof(nosize_buf),
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST(mem_protect_domain, test_mem_part_add_error_zerosize)
+void test_mem_part_add_error_zerosize(void)
 {
 	struct k_mem_partition *nosize_part = &nonsize_part;
 
@@ -561,12 +551,12 @@ ZTEST(mem_protect_domain, test_mem_part_add_error_zerosize)
 /**
  * @brief Test error case of memory partition address wraparound
  *
- * @details Try to add a partition whose address is wraparound.
+ * @details Try to add a partition whose adddress is wraparound.
  * k_mem_domain_add_partition() should return error.
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST(mem_protect_domain, test_mem_part_error_wraparound)
+void test_mem_part_error_wraparound(void)
 {
 #ifdef CONFIG_64BIT
 	K_MEM_PARTITION_DEFINE(wraparound_part, 0xfffffffffffff800, 2048,
@@ -592,7 +582,7 @@ ZTEST(mem_protect_domain, test_mem_part_error_wraparound)
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST(mem_protect_domain, test_mem_part_remove_error_zerosize)
+void test_mem_part_remove_error_zerosize(void)
 {
 	struct k_mem_partition *no_parts = &find_no_part;
 
@@ -614,14 +604,3 @@ ZTEST(mem_protect_domain, test_mem_part_remove_error_zerosize)
 		k_mem_domain_remove_partition(&test_domain, no_parts),
 		0, "should fail to remove memory partition");
 }
-
-/* setup function */
-void *mem_domain_setup(void)
-{
-	test_mem_domain_setup();
-
-	return NULL;
-}
-
-ZTEST_SUITE(mem_protect_domain, NULL, mem_domain_setup, NULL,
-		NULL, NULL);

@@ -6,7 +6,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(ot_br, LOG_LEVEL_DBG);
 
 #define APP_BANNER "***** OpenThread NCP on Zephyr %s *****"

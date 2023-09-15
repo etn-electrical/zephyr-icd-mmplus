@@ -4,15 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/shell/shell.h>
-#include <zephyr/init.h>
+#include <shell/shell.h>
+#include <init.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
-#include <zephyr/storage/flash_map.h>
-#include <zephyr/logging/log.h>
-#include <zephyr/device.h>
+#include <storage/flash_map.h>
+#include <logging/log.h>
 
 #define LOG_LEVEL CONFIG_LOG_DEFAULT_LEVEL
 
@@ -24,17 +23,17 @@ static void fa_cb(const struct flash_area *fa, void *user_data)
 {
 	struct shell *shell = user_data;
 
-	shell_print(shell, "%2d   0x%0*"PRIxPTR"   %-26s  0x%-10x 0x%-12x",
-		    (int)fa->fa_id, sizeof(uintptr_t) * 2, (uintptr_t)fa->fa_dev, fa->fa_dev->name,
-		    (uint32_t) fa->fa_off, fa->fa_size);
+	shell_print(shell, "%-4d %-8d %-20s  0x%-10x 0x%-12x",
+		    fa->fa_id, fa->fa_device_id, fa->fa_dev_name,
+		    fa->fa_off, fa->fa_size);
 }
 
 static int cmd_flash_map_list(const struct shell *shell, size_t argc,
 			      char **argv)
 {
-	shell_print(shell, "ID | Device     | Device Name               "
-		    "|   Offset   |   Size");
-	shell_print(shell, "-----------------------------------------"
+	shell_print(shell, "ID | Device | Device Name"
+		    "       |   Offset   |   Size");
+	shell_print(shell, "-------------------------"
 		    "------------------------------");
 	flash_area_foreach(fa_cb, (struct shell *)shell);
 	return 0;

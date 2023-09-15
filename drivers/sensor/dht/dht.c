@@ -6,14 +6,14 @@
 
 #define DT_DRV_COMPAT aosong_dht
 
-#include <zephyr/device.h>
-#include <zephyr/drivers/gpio.h>
-#include <zephyr/sys/byteorder.h>
-#include <zephyr/sys/util.h>
-#include <zephyr/drivers/sensor.h>
+#include <device.h>
+#include <drivers/gpio.h>
+#include <sys/byteorder.h>
+#include <sys/util.h>
+#include <drivers/sensor.h>
 #include <string.h>
-#include <zephyr/kernel.h>
-#include <zephyr/logging/log.h>
+#include <zephyr.h>
+#include <logging/log.h>
 
 #include "dht.h"
 
@@ -29,8 +29,9 @@ LOG_MODULE_REGISTER(DHT, CONFIG_SENSOR_LOG_LEVEL);
  *         -1 if duration exceeds DHT_SIGNAL_MAX_WAIT_DURATION
  */
 static int8_t dht_measure_signal_duration(const struct device *dev,
-					  bool active)
+	       	                   bool active)
 {
+	struct dht_data *drv_data = dev->data;
 	const struct dht_config *cfg = dev->config;
 	uint32_t elapsed_cycles;
 	uint32_t max_wait_cycles = (uint32_t)(
@@ -42,7 +43,7 @@ static int8_t dht_measure_signal_duration(const struct device *dev,
 	int rc;
 
 	do {
-		rc = gpio_pin_get_dt(&cfg->dio_gpio);
+		rc = gpio_pin_get(drv_data->gpio, cfg->pin);
 		elapsed_cycles = k_cycle_get_32() - start_cycles;
 
 		if ((rc < 0)
@@ -70,14 +71,15 @@ static int dht_sample_fetch(const struct device *dev,
 	__ASSERT_NO_MSG(chan == SENSOR_CHAN_ALL);
 
 	/* assert to send start signal */
-	gpio_pin_set_dt(&cfg->dio_gpio, true);
+	gpio_pin_set(drv_data->gpio, cfg->pin, true);
 
 	k_busy_wait(DHT_START_SIGNAL_DURATION);
 
-	gpio_pin_set_dt(&cfg->dio_gpio, false);
+	gpio_pin_set(drv_data->gpio, cfg->pin, false);
 
 	/* switch to DIR_IN to read sensor signals */
-	gpio_pin_configure_dt(&cfg->dio_gpio, GPIO_INPUT);
+	gpio_pin_configure(drv_data->gpio, cfg->pin,
+			   GPIO_INPUT | cfg->flags);
 
 	/* wait for sensor active response */
 	if (dht_measure_signal_duration(dev, false) == -1) {
@@ -157,7 +159,8 @@ static int dht_sample_fetch(const struct device *dev,
 
 cleanup:
 	/* Switch to output inactive until next fetch. */
-	gpio_pin_configure_dt(&cfg->dio_gpio, GPIO_OUTPUT_INACTIVE);
+	gpio_pin_configure(drv_data->gpio, cfg->pin,
+			   GPIO_OUTPUT_INACTIVE | cfg->flags);
 
 	return ret;
 }
@@ -222,27 +225,28 @@ static const struct sensor_driver_api dht_api = {
 static int dht_init(const struct device *dev)
 {
 	int rc = 0;
+	struct dht_data *drv_data = dev->data;
 	const struct dht_config *cfg = dev->config;
 
-	if (!device_is_ready(cfg->dio_gpio.port)) {
-		LOG_ERR("GPIO device not ready");
-		return -ENODEV;
+	drv_data->gpio = device_get_binding(cfg->ctrl);
+	if (drv_data->gpio == NULL) {
+		LOG_ERR("Failed to get GPIO device %s.", cfg->ctrl);
+		return -EINVAL;
 	}
 
-	rc = gpio_pin_configure_dt(&cfg->dio_gpio, GPIO_OUTPUT_INACTIVE);
+	rc = gpio_pin_configure(drv_data->gpio, cfg->pin,
+				GPIO_OUTPUT_INACTIVE | cfg->flags);
 
 	return rc;
 }
 
-#define DHT_DEFINE(inst)								\
-	static struct dht_data dht_data_##inst;						\
-											\
-	static const struct dht_config dht_config_##inst = {				\
-		.dio_gpio = GPIO_DT_SPEC_INST_GET(inst, dio_gpios),			\
-	};										\
-											\
-	SENSOR_DEVICE_DT_INST_DEFINE(inst, &dht_init, NULL,				\
-			      &dht_data_##inst, &dht_config_##inst,			\
-			      POST_KERNEL, CONFIG_SENSOR_INIT_PRIORITY, &dht_api);	\
+static struct dht_data dht_data;
+static const struct dht_config dht_config = {
+	.ctrl = DT_INST_GPIO_LABEL(0, dio_gpios),
+	.flags = DT_INST_GPIO_FLAGS(0, dio_gpios),
+	.pin = DT_INST_GPIO_PIN(0, dio_gpios),
+};
 
-DT_INST_FOREACH_STATUS_OKAY(DHT_DEFINE)
+DEVICE_DT_INST_DEFINE(0, &dht_init, NULL,
+		    &dht_data, &dht_config,
+		    POST_KERNEL, CONFIG_SENSOR_INIT_PRIORITY, &dht_api);

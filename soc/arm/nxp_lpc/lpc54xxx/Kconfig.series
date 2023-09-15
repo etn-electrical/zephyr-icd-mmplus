@@ -11,6 +11,5 @@ config SOC_SERIES_LPC54XXX
 	select HAS_MCUX_SYSCON
 	select SOC_FAMILY_LPC
 	select CPU_CORTEX_M_HAS_SYSTICK
-	select PLATFORM_SPECIFIC_INIT
 	help
 	  Enable support for LPC LPC54XXX MCU series

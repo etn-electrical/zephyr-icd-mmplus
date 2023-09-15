@@ -4,12 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
-#include <zephyr/kernel.h>
+#include <ztest.h>
+#include <kernel.h>
 #include <cmsis_os2.h>
 
-#include <zephyr/irq_offload.h>
-#include <zephyr/kernel_structs.h>
+#include <irq_offload.h>
+#include <kernel_structs.h>
 
 #define TIMEOUT_TICKS   (10)
 #define FLAG1           (0x00000020)
@@ -86,7 +86,7 @@ static osThreadAttr_t thread2_attr = {
 	.priority = osPriorityHigh,
 };
 
-ZTEST(cmsis_thread_flags, test_thread_flags_no_wait_timeout)
+void test_thread_flags_no_wait_timeout(void)
 {
 	osThreadId_t id1;
 	uint32_t flags;
@@ -101,7 +101,7 @@ ZTEST(cmsis_thread_flags, test_thread_flags_no_wait_timeout)
 	osDelay(TIMEOUT_TICKS);
 }
 
-ZTEST(cmsis_thread_flags, test_thread_flags_signalled)
+void test_thread_flags_signalled(void)
 {
 	osThreadId_t id;
 	uint32_t flags;
@@ -158,7 +158,7 @@ static osThreadAttr_t thread3_attr = {
 	.priority = osPriorityHigh,
 };
 
-ZTEST(cmsis_thread_flags, test_thread_flags_isr)
+void test_thread_flags_isr(void)
 {
 	osThreadId_t id;
 
@@ -168,4 +168,3 @@ ZTEST(cmsis_thread_flags, test_thread_flags_isr)
 
 	osDelay(TIMEOUT_TICKS);
 }
-ZTEST_SUITE(cmsis_thread_flags, NULL, NULL, NULL, NULL, NULL);

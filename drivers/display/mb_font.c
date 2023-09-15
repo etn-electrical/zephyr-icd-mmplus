@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/display/mb_display.h>
+#include <display/mb_display.h>
 
 #include "mb_font.h"
 

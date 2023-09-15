@@ -4,12 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr.h>
 #include <string.h>
-#include <zephyr/display/cfb.h>
+#include <display/cfb.h>
 
 #define LOG_LEVEL CONFIG_CFB_LOG_LEVEL
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(cfb);
 
 extern const struct cfb_font __font_entry_start[];
@@ -57,7 +57,7 @@ struct char_framebuffer {
 	/** Font kerning */
 	int8_t kerning;
 
-	/** Inverted */
+	/** Invertedj*/
 	bool inverted;
 };
 
@@ -65,22 +65,13 @@ static struct char_framebuffer char_fb;
 
 static inline uint8_t *get_glyph_ptr(const struct cfb_font *fptr, char c)
 {
-	return (uint8_t *)fptr->data +
-	       (c - fptr->first_char) *
-	       (fptr->width * fptr->height / 8U);
-}
-
-static inline uint8_t get_glyph_byte(uint8_t *glyph_ptr, const struct cfb_font *fptr,
-				     uint8_t x, uint8_t y)
-{
 	if (fptr->caps & CFB_FONT_MONO_VPACKED) {
-		return glyph_ptr[x * (fptr->height / 8U) + y];
-	} else if (fptr->caps & CFB_FONT_MONO_HPACKED) {
-		return glyph_ptr[y * (fptr->width) + x];
+		return (uint8_t *)fptr->data +
+		       (c - fptr->first_char) *
+		       (fptr->width * fptr->height / 8U);
 	}
 
-	LOG_WRN("Unknown font type");
-	return 0;
+	return NULL;
 }
 
 /*
@@ -115,7 +106,7 @@ static uint8_t draw_char_vtmono(const struct char_framebuffer *fb,
 				return 0;
 			}
 
-			byte = get_glyph_byte(glyph_ptr, fptr, g_x, g_y);
+			byte = glyph_ptr[g_x * (fptr->height / 8U) + g_y];
 			if (need_reverse) {
 				byte = byte_reverse(byte);
 			}
@@ -134,14 +125,14 @@ int cfb_print(const struct device *dev, char *str, uint16_t x, uint16_t y)
 	const struct cfb_font *fptr;
 
 	if (!fb->fonts || !fb->buf) {
-		return -ENODEV;
+		return -1;
 	}
 
 	fptr = &(fb->fonts[fb->font_idx]);
 
 	if (fptr->height % 8) {
 		LOG_ERR("Wrong font size");
-		return -EINVAL;
+		return -1;
 	}
 
 	if ((fb->screen_info & SCREEN_INFO_MONO_VTILED) && !(y % 8)) {
@@ -156,42 +147,7 @@ int cfb_print(const struct device *dev, char *str, uint16_t x, uint16_t y)
 	}
 
 	LOG_ERR("Unsupported framebuffer configuration");
-	return -EINVAL;
-}
-
-int cfb_invert_area(const struct device *dev, uint16_t x, uint16_t y,
-		    uint16_t width, uint16_t height)
-{
-	const struct char_framebuffer *fb = &char_fb;
-
-	if (x >= fb->x_res || y >= fb->y_res) {
-		LOG_ERR("Coordinates outside of framebuffer");
-
-		return -EINVAL;
-	}
-
-	if ((fb->screen_info & SCREEN_INFO_MONO_VTILED) && !(y % 8)) {
-		if (x + width > fb->x_res) {
-			width = fb->x_res - x;
-		}
-
-		if (y + height > fb->y_res) {
-			height = fb->y_res - y;
-		}
-
-		for (size_t i = x; i < x + width; i++) {
-			for (size_t j = y / 8U; j < (y + height) / 8U; j++) {
-				size_t index = (j * fb->x_res) + i;
-
-				fb->buf[index] = ~fb->buf[index];
-			}
-		}
-
-		return 0;
-	}
-
-	LOG_ERR("Unsupported framebuffer configuration");
-	return -EINVAL;
+	return -1;
 }
 
 static int cfb_invert(const struct char_framebuffer *fb)
@@ -209,7 +165,7 @@ int cfb_framebuffer_clear(const struct device *dev, bool clear_display)
 	struct display_buffer_descriptor desc;
 
 	if (!fb || !fb->buf) {
-		return -ENODEV;
+		return -1;
 	}
 
 	desc.buf_size = fb->size;
@@ -227,7 +183,7 @@ int cfb_framebuffer_invert(const struct device *dev)
 	struct char_framebuffer *fb = &char_fb;
 
 	if (!fb || !fb->buf) {
-		return -ENODEV;
+		return -1;
 	}
 
 	fb->inverted = !fb->inverted;
@@ -242,7 +198,7 @@ int cfb_framebuffer_finalize(const struct device *dev)
 	struct display_buffer_descriptor desc;
 
 	if (!fb || !fb->buf) {
-		return -ENODEV;
+		return -1;
 	}
 
 	desc.buf_size = fb->size;
@@ -288,7 +244,7 @@ int cfb_framebuffer_set_font(const struct device *dev, uint8_t idx)
 	struct char_framebuffer *fb = &char_fb;
 
 	if (idx >= fb->numof_fonts) {
-		return -EINVAL;
+		return -1;
 	}
 
 	fb->font_idx = idx;
@@ -302,7 +258,7 @@ int cfb_get_font_size(const struct device *dev, uint8_t idx, uint8_t *width,
 	const struct char_framebuffer *fb = &char_fb;
 
 	if (idx >= fb->numof_fonts) {
-		return -EINVAL;
+		return -1;
 	}
 
 	if (width) {
@@ -312,13 +268,6 @@ int cfb_get_font_size(const struct device *dev, uint8_t idx, uint8_t *width,
 	if (height) {
 		*height = __font_entry_start[idx].height;
 	}
-
-	return 0;
-}
-
-int cfb_set_kerning(const struct device *dev, int8_t kerning)
-{
-	char_fb.kerning = kerning;
 
 	return 0;
 }
@@ -341,7 +290,7 @@ int cfb_framebuffer_init(const struct device *dev)
 	fb->numof_fonts = __font_entry_end - __font_entry_start;
 	LOG_DBG("number of fonts %d", fb->numof_fonts);
 	if (!fb->numof_fonts) {
-		return -ENODEV;
+		return -1;
 	}
 
 	fb->x_res = cfg.x_resolution;
@@ -350,6 +299,7 @@ int cfb_framebuffer_init(const struct device *dev)
 	fb->pixel_format = cfg.current_pixel_format;
 	fb->screen_info = cfg.screen_info;
 	fb->buf = NULL;
+	fb->font_idx = 0U;
 	fb->kerning = 0;
 	fb->inverted = false;
 
@@ -359,7 +309,7 @@ int cfb_framebuffer_init(const struct device *dev)
 	fb->size = fb->x_res * fb->y_res / fb->ppt;
 	fb->buf = k_malloc(fb->size);
 	if (!fb->buf) {
-		return -ENOMEM;
+		return -1;
 	}
 
 	memset(fb->buf, 0, fb->size);

@@ -12,4 +12,3 @@ supported:
   - uart
   - gpio
   - watchdog
-  - tcpc

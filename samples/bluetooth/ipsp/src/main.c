@@ -6,7 +6,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 
 #define LOG_LEVEL CONFIG_LOG_DEFAULT_LEVEL
 LOG_MODULE_REGISTER(ipsp);
@@ -14,16 +14,16 @@ LOG_MODULE_REGISTER(ipsp);
 /* Preventing log module registration in net_core.h */
 #define NET_LOG_ENABLED	0
 
-#include <zephyr/kernel.h>
-#include <zephyr/linker/sections.h>
+#include <zephyr.h>
+#include <linker/sections.h>
 #include <errno.h>
 #include <stdio.h>
 
-#include <zephyr/net/net_pkt.h>
-#include <zephyr/net/net_if.h>
-#include <zephyr/net/net_core.h>
-#include <zephyr/net/net_context.h>
-#include <zephyr/net/udp.h>
+#include <net/net_pkt.h>
+#include <net/net_if.h>
+#include <net/net_core.h>
+#include <net/net_context.h>
+#include <net/udp.h>
 
 /* Define my IP address where to expect messages */
 #define MY_IP6ADDR { { { 0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, \
@@ -138,7 +138,7 @@ static int build_reply(const char *name,
 	int reply_len = net_pkt_remaining_data(pkt);
 	int ret;
 
-	LOG_DBG("%s received %d bytes", name, reply_len);
+	LOG_DBG("%s received %d bytes", log_strdup(name), reply_len);
 
 	ret = net_pkt_read(pkt, buf, reply_len);
 	if (ret < 0) {
@@ -226,7 +226,7 @@ static void tcp_received(struct net_context *context,
 {
 	static char dbg[MAX_DBG_PRINT + 1];
 	sa_family_t family;
-	int ret, len;
+	int ret;
 
 	if (!pkt) {
 		/* EOF condition */
@@ -234,7 +234,6 @@ static void tcp_received(struct net_context *context,
 	}
 
 	family = net_pkt_family(pkt);
-	len = net_pkt_remaining_data(pkt);
 
 	snprintf(dbg, MAX_DBG_PRINT, "TCP IPv%c",
 		 family == AF_INET6 ? '6' : '4');
@@ -245,7 +244,6 @@ static void tcp_received(struct net_context *context,
 		return;
 	}
 
-	(void)net_context_update_recv_wnd(context, len);
 	net_pkt_unref(pkt);
 
 	ret = net_context_send(context, buf_tx, ret, pkt_sent,

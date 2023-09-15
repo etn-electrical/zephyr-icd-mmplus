@@ -4,9 +4,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 config DMA_MCUX_LPC
-	bool "MCUX LPC DMAC driver"
-	default y
-	depends on DT_HAS_NXP_LPC_DMA_ENABLED
+	bool "Enable MCUX LPC DMAC driver"
+	depends on HAS_MCUX_LPC_DMA
 	help
 	  DMA driver for MCUX LPC MCUs.
 

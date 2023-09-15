@@ -5,9 +5,9 @@
  */
 
 #include <soc.h>
-#include <zephyr/drivers/hwinfo.h>
+#include <drivers/hwinfo.h>
 #include <string.h>
-#include <zephyr/sys/byteorder.h>
+#include <sys/byteorder.h>
 
 struct imxrt_uid {
 	uint32_t id[2];

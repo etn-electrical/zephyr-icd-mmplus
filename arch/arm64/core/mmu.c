@@ -7,20 +7,20 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/cache.h>
-#include <zephyr/device.h>
-#include <zephyr/init.h>
-#include <zephyr/kernel.h>
+#include <cache.h>
+#include <device.h>
+#include <init.h>
+#include <kernel.h>
 #include <kernel_arch_func.h>
 #include <kernel_arch_interface.h>
 #include <kernel_internal.h>
-#include <zephyr/logging/log.h>
-#include <zephyr/arch/arm64/cpu.h>
-#include <zephyr/arch/arm64/lib_helpers.h>
-#include <zephyr/arch/arm64/mm.h>
-#include <zephyr/linker/linker-defs.h>
-#include <zephyr/spinlock.h>
-#include <zephyr/sys/util.h>
+#include <logging/log.h>
+#include <arch/arm64/cpu.h>
+#include <arch/arm64/lib_helpers.h>
+#include <arch/arm64/mm.h>
+#include <linker/linker-defs.h>
+#include <spinlock.h>
+#include <sys/util.h>
 
 #include "mmu.h"
 
@@ -332,17 +332,6 @@ static uint64_t *dup_table(uint64_t *src_table, unsigned int level)
 		  table_index(dst_table), dst_table);
 
 	for (i = 0; i < Ln_XLAT_NUM_ENTRIES; i++) {
-		/*
-		 * After the table duplication, each table can be independently
-		 *  updated. Thus, entries may become non-global.
-		 * To keep the invariants very simple, we thus force the non-global
-		 *  bit on duplication. Moreover, there is no process to revert this
-		 *  (e.g. in `globalize_table`). Could be improved in future work.
-		 */
-		if (!is_free_desc(src_table[i]) && !is_table_desc(src_table[i], level)) {
-			src_table[i] |= PTE_BLOCK_DESC_NG;
-		}
-
 		dst_table[i] = src_table[i];
 		if (is_table_desc(src_table[i], level)) {
 			table_usage(pte_desc_table(src_table[i]), 1);
@@ -427,16 +416,6 @@ static int privatize_page_range(struct arm_mmu_ptables *dst_pt,
 	return ret;
 }
 
-/*
- * GCC 12 and above may report a warning about the potential infinite recursion
- * in the `discard_table` function.
- */
-#if defined(__GNUC__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpragmas"
-#pragma GCC diagnostic ignored "-Winfinite-recursion"
-#endif
-
 static void discard_table(uint64_t *table, unsigned int level)
 {
 	unsigned int i;
@@ -453,10 +432,6 @@ static void discard_table(uint64_t *table, unsigned int level)
 	}
 	free_table(table);
 }
-
-#if defined(__GNUC__)
-#pragma GCC diagnostic pop
-#endif
 
 static int globalize_table(uint64_t *dst_table, uint64_t *src_table,
 			   uintptr_t virt, size_t size, unsigned int level)
@@ -610,11 +585,6 @@ static uint64_t get_region_desc(uint32_t attrs)
 			desc |= PTE_BLOCK_DESC_OUTER_SHARE;
 	}
 
-	/* non-Global bit */
-	if (attrs & MT_NG) {
-		desc |= PTE_BLOCK_DESC_NG;
-	}
-
 	return desc;
 }
 
@@ -663,7 +633,7 @@ static int remove_map(struct arm_mmu_ptables *ptables, const char *name,
 static void invalidate_tlb_all(void)
 {
 	__asm__ volatile (
-	"dsb ishst; tlbi vmalle1; dsb ish; isb"
+	"tlbi vmalle1; dsb sy; isb"
 	: : : "memory");
 }
 
@@ -789,19 +759,15 @@ static uint64_t get_tcr(int el)
 		 * that are translated using TTBR1_EL1.
 		 */
 		tcr |= TCR_EPD1_DISABLE;
-	} else {
+	} else
 		tcr = (tcr_ps_bits << TCR_EL3_PS_SHIFT);
-	}
 
 	tcr |= TCR_T0SZ(va_bits);
-
 	/*
 	 * Translation table walk is cacheable, inner/outer WBWA and
-	 * inner shareable.  Due to Cortex-A57 erratum #822227 we must
-	 * set TG1[1] = 4KB.
+	 * inner shareable
 	 */
-	tcr |= TCR_TG1_4K | TCR_TG0_4K | TCR_SHARED_INNER |
-	       TCR_ORGN_WBWA | TCR_IRGN_WBWA;
+	tcr |= TCR_TG0_4K | TCR_SHARED_INNER | TCR_ORGN_WBWA | TCR_IRGN_WBWA;
 
 	return tcr;
 }
@@ -820,7 +786,7 @@ static void enable_mmu_el1(struct arm_mmu_ptables *ptables, unsigned int flags)
 	isb();
 
 	/* Invalidate all data caches before enable them */
-	sys_cache_data_invd_all();
+	sys_cache_data_all(K_CACHE_INVD);
 
 	/* Enable the MMU and data cache */
 	val = read_sctlr_el1();
@@ -896,7 +862,7 @@ static void sync_domains(uintptr_t virt, size_t size)
 static int __arch_mem_map(void *virt, uintptr_t phys, size_t size, uint32_t flags)
 {
 	struct arm_mmu_ptables *ptables;
-	uint32_t entry_flags = MT_DEFAULT_SECURE_STATE | MT_P_RX_U_NA;
+	uint32_t entry_flags = MT_SECURE | MT_P_RX_U_NA;
 
 	/* Always map in the kernel page tables */
 	ptables = &kernel_ptables;
@@ -904,27 +870,15 @@ static int __arch_mem_map(void *virt, uintptr_t phys, size_t size, uint32_t flag
 	/* Translate flags argument into HW-recognized entry flags. */
 	switch (flags & K_MEM_CACHE_MASK) {
 	/*
-	 * K_MEM_CACHE_NONE, K_MEM_ARM_DEVICE_nGnRnE => MT_DEVICE_nGnRnE
+	 * K_MEM_CACHE_NONE => MT_DEVICE_nGnRnE
 	 *			(Device memory nGnRnE)
-	 * K_MEM_ARM_DEVICE_nGnRE => MT_DEVICE_nGnRE
-	 *			(Device memory nGnRE)
-	 * K_MEM_ARM_DEVICE_GRE => MT_DEVICE_GRE
-	 *			(Device memory GRE)
 	 * K_MEM_CACHE_WB   => MT_NORMAL
 	 *			(Normal memory Outer WB + Inner WB)
 	 * K_MEM_CACHE_WT   => MT_NORMAL_WT
 	 *			(Normal memory Outer WT + Inner WT)
 	 */
 	case K_MEM_CACHE_NONE:
-	/* K_MEM_CACHE_NONE equal to K_MEM_ARM_DEVICE_nGnRnE */
-	/* case K_MEM_ARM_DEVICE_nGnRnE: */
 		entry_flags |= MT_DEVICE_nGnRnE;
-		break;
-	case K_MEM_ARM_DEVICE_nGnRE:
-		entry_flags |= MT_DEVICE_nGnRE;
-		break;
-	case K_MEM_ARM_DEVICE_GRE:
-		entry_flags |= MT_DEVICE_GRE;
 		break;
 	case K_MEM_CACHE_WT:
 		entry_flags |= MT_NORMAL_WT;
@@ -945,7 +899,7 @@ static int __arch_mem_map(void *virt, uintptr_t phys, size_t size, uint32_t flag
 	}
 
 	if ((flags & K_MEM_PERM_USER) != 0U) {
-		entry_flags |= MT_RW_AP_ELx;
+		return -ENOTSUP;
 	}
 
 	return add_map(ptables, "generic", phys, (uintptr_t)virt, size, entry_flags);
@@ -984,7 +938,7 @@ int arch_page_phys_get(void *virt, uintptr_t *phys)
 	key = arch_irq_lock();
 	__asm__ volatile ("at S1E1R, %0" : : "r" (virt));
 	isb();
-	par = read_par_el1();
+	par = read_sysreg(PAR_EL1);
 	arch_irq_unlock(key);
 
 	if (par & BIT(0)) {
@@ -1022,14 +976,12 @@ size_t arch_virt_region_align(uintptr_t phys, size_t size)
 
 #ifdef CONFIG_USERSPACE
 
-static uint16_t next_asid = 1;
-
-static uint16_t get_asid(uint64_t ttbr0)
-{
-	return ttbr0 >> TTBR_ASID_SHIFT;
-}
-
 static void z_arm64_swap_ptables(struct k_thread *incoming);
+
+static inline bool is_ptable_active(struct arm_mmu_ptables *ptables)
+{
+	return read_sysreg(ttbr0_el1) == (uintptr_t)ptables->base_xlat_table;
+}
 
 int arch_mem_domain_max_partitions_get(void)
 {
@@ -1040,32 +992,16 @@ int arch_mem_domain_init(struct k_mem_domain *domain)
 {
 	struct arm_mmu_ptables *domain_ptables = &domain->arch.ptables;
 	k_spinlock_key_t key;
-	uint16_t asid;
 
 	MMU_DEBUG("%s\n", __func__);
 
 	key = k_spin_lock(&xlat_lock);
-
-	/*
-	 * Pick a new ASID. We use round-robin
-	 * Note: `next_asid` is an uint16_t and `VM_ASID_BITS` could
-	 *  be up to 16, hence `next_asid` might overflow to 0 below.
-	 */
-	asid = next_asid++;
-	if ((next_asid >= (1UL << VM_ASID_BITS)) || (next_asid == 0)) {
-		next_asid = 1;
-	}
-
 	domain_ptables->base_xlat_table =
 		dup_table(kernel_ptables.base_xlat_table, BASE_XLAT_LEVEL);
 	k_spin_unlock(&xlat_lock, key);
 	if (!domain_ptables->base_xlat_table) {
 		return -ENOMEM;
 	}
-
-	domain_ptables->ttbr0 =	(((uint64_t)asid) << TTBR_ASID_SHIFT) |
-		((uint64_t)(uintptr_t)domain_ptables->base_xlat_table);
-
 	sys_slist_append(&domain_list, &domain->arch.node);
 	return 0;
 }
@@ -1077,9 +1013,11 @@ static int private_map(struct arm_mmu_ptables *ptables, const char *name,
 
 	ret = privatize_page_range(ptables, &kernel_ptables, virt, size, name);
 	__ASSERT(ret == 0, "privatize_page_range() returned %d", ret);
-	ret = add_map(ptables, name, phys, virt, size, attrs | MT_NG);
+	ret = add_map(ptables, name, phys, virt, size, attrs);
 	__ASSERT(ret == 0, "add_map() returned %d", ret);
-	invalidate_tlb_all();
+	if (is_ptable_active(ptables)) {
+		invalidate_tlb_all();
+	}
 
 	return ret;
 }
@@ -1091,7 +1029,9 @@ static int reset_map(struct arm_mmu_ptables *ptables, const char *name,
 
 	ret = globalize_page_range(ptables, &kernel_ptables, addr, size, name);
 	__ASSERT(ret == 0, "globalize_page_range() returned %d", ret);
-	invalidate_tlb_all();
+	if (is_ptable_active(ptables)) {
+		invalidate_tlb_all();
+	}
 
 	return ret;
 }
@@ -1144,7 +1084,9 @@ int arch_mem_domain_thread_add(struct k_thread *thread)
 
 	thread->arch.ptables = domain_ptables;
 	if (thread == _current) {
-		z_arm64_swap_ptables(thread);
+		if (!is_ptable_active(domain_ptables)) {
+			z_arm64_swap_ptables(thread);
+		}
 	} else {
 #ifdef CONFIG_SMP
 		/* the thread could be running on another CPU right now */
@@ -1183,17 +1125,9 @@ int arch_mem_domain_thread_remove(struct k_thread *thread)
 static void z_arm64_swap_ptables(struct k_thread *incoming)
 {
 	struct arm_mmu_ptables *ptables = incoming->arch.ptables;
-	uint64_t curr_ttbr0 = read_ttbr0_el1();
-	uint64_t new_ttbr0 = ptables->ttbr0;
 
-	if (curr_ttbr0 == new_ttbr0) {
-		return; /* Already the right tables */
-	}
-
-	z_arm64_set_ttbr0(new_ttbr0);
-
-	if (get_asid(curr_ttbr0) == get_asid(new_ttbr0)) {
-		invalidate_tlb_all();
+	if (!is_ptable_active(ptables)) {
+		z_arm64_set_ttbr0((uintptr_t)ptables->base_xlat_table);
 	}
 }
 

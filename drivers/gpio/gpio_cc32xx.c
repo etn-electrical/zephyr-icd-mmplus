@@ -7,11 +7,11 @@
 #define DT_DRV_COMPAT ti_cc32xx_gpio
 #include <errno.h>
 
-#include <zephyr/device.h>
-#include <zephyr/drivers/gpio.h>
-#include <zephyr/init.h>
-#include <zephyr/kernel.h>
-#include <zephyr/sys/sys_io.h>
+#include <device.h>
+#include <drivers/gpio.h>
+#include <init.h>
+#include <kernel.h>
+#include <sys/sys_io.h>
 
 /* Driverlib includes */
 #include <inc/hw_types.h>
@@ -24,9 +24,8 @@
 #include <driverlib/gpio.h>
 #include <driverlib/rom_map.h>
 #include <driverlib/interrupt.h>
-#include <zephyr/irq.h>
 
-#include <zephyr/drivers/gpio/gpio_utils.h>
+#include "gpio_utils.h"
 
 /* Reserved */
 #define PIN_XX  0xFF

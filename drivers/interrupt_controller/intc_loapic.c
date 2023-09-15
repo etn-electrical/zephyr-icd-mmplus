@@ -7,21 +7,21 @@
  * driver for x86 CPU local APIC (as an interrupt controller)
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/kernel_structs.h>
-#include <zephyr/arch/cpu.h>
-#include <zephyr/pm/device.h>
+#include <kernel.h>
+#include <kernel_structs.h>
+#include <arch/cpu.h>
+#include <pm/device.h>
 #include <zephyr/types.h>
 #include <string.h>
-#include <zephyr/sys/__assert.h>
-#include <zephyr/arch/x86/msr.h>
+#include <sys/__assert.h>
+#include <arch/x86/msr.h>
 
-#include <zephyr/toolchain.h>
-#include <zephyr/linker/sections.h>
-#include <zephyr/drivers/interrupt_controller/loapic.h> /* public API declarations */
-#include <zephyr/device.h>
-#include <zephyr/drivers/interrupt_controller/sysapic.h>
-#include <zephyr/drivers/interrupt_controller/ioapic.h>
+#include <toolchain.h>
+#include <linker/sections.h>
+#include <drivers/interrupt_controller/loapic.h> /* public API declarations */
+#include <device.h>
+#include <drivers/interrupt_controller/sysapic.h>
+#include <drivers/interrupt_controller/ioapic.h>
 
 /* Local APIC Version Register Bits */
 
@@ -62,7 +62,7 @@
 #define LOPIC_SSPND_BITS_PER_IRQ  1  /* Just the one for enable disable*/
 #define LOPIC_SUSPEND_BITS_REQD (ROUND_UP((LOAPIC_IRQ_COUNT * LOPIC_SSPND_BITS_PER_IRQ), 32))
 #ifdef CONFIG_PM_DEVICE
-#include <zephyr/pm/device.h>
+#include <pm/device.h>
 __pinned_bss
 uint32_t loapic_suspend_buf[LOPIC_SUSPEND_BITS_REQD / 32] = {0};
 #endif
@@ -143,6 +143,9 @@ void z_loapic_enable(unsigned char cpu_number)
 
 	/* program Local Vector Table for the Virtual Wire Mode */
 
+	/* skip LINT0/LINT1 for Jailhouse guest case, because we won't
+	 * ever be waiting for interrupts on those
+	 */
 	/* set LINT0: extInt, high-polarity, edge-trigger, not-masked */
 
 	x86_write_loapic(LOAPIC_LINT0, (x86_read_loapic(LOAPIC_LINT0) &
@@ -323,7 +326,7 @@ int z_irq_controller_isr_vector_get(void)
 	 */
 	for (block = 7; likely(block > 0); block--) {
 		pReg = x86_read_loapic(LOAPIC_ISR + (block * 0x10));
-		if (pReg != 0) {
+		if (pReg) {
 			return (block * 32) + (find_msb_set(pReg) - 1);
 		}
 
@@ -419,7 +422,7 @@ static int loapic_pm_action(const struct device *dev,
 PM_DEVICE_DEFINE(loapic, loapic_pm_action);
 
 DEVICE_DEFINE(loapic, "loapic", loapic_init, PM_DEVICE_GET(loapic), NULL, NULL,
-	      PRE_KERNEL_1, CONFIG_INTC_INIT_PRIORITY, NULL);
+	      PRE_KERNEL_1, CONFIG_KERNEL_INIT_PRIORITY_DEFAULT, NULL);
 
 #if CONFIG_LOAPIC_SPURIOUS_VECTOR
 extern void z_loapic_spurious_handler(void);

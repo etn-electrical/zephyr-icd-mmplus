@@ -5,8 +5,8 @@
  */
 #include <string.h>
 
-#include <zephyr/init.h>
-#include <zephyr/kernel.h>
+#include <init.h>
+#include <kernel.h>
 
 #include "tls_internal.h"
 

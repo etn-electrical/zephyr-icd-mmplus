@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
-#include <zephyr/device.h>
+#include <ztest.h>
+#include <device.h>
 
 /* define subsystem common API for drivers */
 typedef int (*subsystem_do_this_t)(const struct device *device, int foo,

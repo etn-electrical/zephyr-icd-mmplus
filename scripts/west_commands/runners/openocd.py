@@ -20,8 +20,7 @@ from runners.core import ZephyrBinaryRunner
 DEFAULT_OPENOCD_TCL_PORT = 6333
 DEFAULT_OPENOCD_TELNET_PORT = 4444
 DEFAULT_OPENOCD_GDB_PORT = 3333
-DEFAULT_OPENOCD_RESET_HALT_CMD = 'reset init'
-DEFAULT_OPENOCD_TARGET_HANDLE = "_TARGETNAME"
+DEFAULT_OPENOCD_RESET_HALT_CMD = 'reset halt'
 
 class OpenOcdBinaryRunner(ZephyrBinaryRunner):
     '''Runner front-end for openocd.'''
@@ -34,8 +33,7 @@ class OpenOcdBinaryRunner(ZephyrBinaryRunner):
                  tcl_port=DEFAULT_OPENOCD_TCL_PORT,
                  telnet_port=DEFAULT_OPENOCD_TELNET_PORT,
                  gdb_port=DEFAULT_OPENOCD_GDB_PORT,
-                 gdb_init=None, no_load=False,
-                 target_handle=DEFAULT_OPENOCD_TARGET_HANDLE):
+                 gdb_init=None, no_load=False):
         super().__init__(cfg)
 
         support = path.join(cfg.board_dir, 'support')
@@ -84,7 +82,6 @@ class OpenOcdBinaryRunner(ZephyrBinaryRunner):
         self.use_elf = use_elf
         self.gdb_init = gdb_init
         self.load_arg = [] if no_load else ['-ex', 'load']
-        self.target_handle = target_handle
 
     @classmethod
     def name(cls):
@@ -142,11 +139,6 @@ class OpenOcdBinaryRunner(ZephyrBinaryRunner):
                             help='if given, no target issued in gdb server cmd')
         parser.add_argument('--no-load', action='store_true',
                             help='if given, no load issued in gdb server cmd')
-        parser.add_argument('--target-handle', default=DEFAULT_OPENOCD_TARGET_HANDLE,
-                            help=f'''Internal handle used in openocd targets cfg
-                            files, defaults to "{DEFAULT_OPENOCD_TARGET_HANDLE}".
-                            ''')
-
 
     @classmethod
     def do_create(cls, cfg, args):
@@ -160,8 +152,7 @@ class OpenOcdBinaryRunner(ZephyrBinaryRunner):
             use_elf=args.use_elf, no_halt=args.no_halt, no_init=args.no_init,
             no_targets=args.no_targets, tcl_port=args.tcl_port,
             telnet_port=args.telnet_port, gdb_port=args.gdb_port,
-            gdb_init=args.gdb_init, no_load=args.no_load,
-            target_handle=args.target_handle)
+            gdb_init=args.gdb_init, no_load=args.no_load)
 
     def print_gdbserver_message(self):
         if not self.thread_info_enabled:
@@ -278,30 +269,22 @@ class OpenOcdBinaryRunner(ZephyrBinaryRunner):
             pre_init_cmd.append("-c")
             pre_init_cmd.append(i)
 
-        pre_load_cmd = []
         load_image = []
         if not self.do_verify_only:
-            for i in self.pre_load:
-                pre_load_cmd.append("-c")
-                pre_load_cmd.append(i)
             load_image = ['-c', 'load_image ' + self.elf_name]
 
         verify_image = []
-        post_verify_cmd = []
         if self.do_verify or self.do_verify_only:
             verify_image = ['-c', 'verify_image ' + self.elf_name]
-            for i in self.post_verify:
-                post_verify_cmd.append("-c")
-                post_verify_cmd.append(i)
 
         prologue = ['-c', 'resume ' + ep_addr,
                     '-c', 'shutdown']
 
         cmd = (self.openocd_cmd + self.serial + self.cfg_cmd +
                pre_init_cmd + self.init_arg + self.targets_arg +
-               pre_load_cmd + ['-c', self.reset_halt_cmd] +
+               ['-c', self.reset_halt_cmd] +
                load_image +
-               verify_image + post_verify_cmd +
+               verify_image +
                prologue)
 
         self.check_call(cmd)
@@ -319,8 +302,7 @@ class OpenOcdBinaryRunner(ZephyrBinaryRunner):
 
         if self.thread_info_enabled and self.supports_thread_info():
             pre_init_cmd.append("-c")
-            rtos_command = '${} configure -rtos Zephyr'.format(self.target_handle)
-            pre_init_cmd.append(rtos_command)
+            pre_init_cmd.append("$_TARGETNAME configure -rtos Zephyr")
 
         server_cmd = (self.openocd_cmd + self.serial + self.cfg_cmd +
                       ['-c', 'tcl_port {}'.format(self.tcl_port),

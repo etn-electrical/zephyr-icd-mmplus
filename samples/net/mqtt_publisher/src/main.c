@@ -4,13 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(net_mqtt_publisher_sample, LOG_LEVEL_DBG);
 
-#include <zephyr/kernel.h>
-#include <zephyr/net/socket.h>
-#include <zephyr/net/mqtt.h>
-#include <zephyr/random/rand32.h>
+#include <zephyr.h>
+#include <net/socket.h>
+#include <net/mqtt.h>
+#include <random/rand32.h>
 
 #include <string.h>
 #include <errno.h>
@@ -18,7 +18,7 @@ LOG_MODULE_REGISTER(net_mqtt_publisher_sample, LOG_LEVEL_DBG);
 #include "config.h"
 
 #if defined(CONFIG_USERSPACE)
-#include <zephyr/app_memory/app_memdomain.h>
+#include <app_memory/app_memdomain.h>
 K_APPMEM_PARTITION_DEFINE(app_partition);
 struct k_mem_domain app_domain;
 #define APP_BMEM K_APP_BMEM(app_partition)
@@ -501,7 +501,7 @@ static int start_app(void)
 #if defined(CONFIG_USERSPACE)
 #define STACK_SIZE 2048
 
-#if defined(CONFIG_NET_TC_THREAD_COOPERATIVE)
+#if IS_ENABLED(CONFIG_NET_TC_THREAD_COOPERATIVE)
 #define THREAD_PRIORITY K_PRIO_COOP(CONFIG_NUM_COOP_PRIORITIES - 1)
 #else
 #define THREAD_PRIORITY K_PRIO_PREEMPT(8)

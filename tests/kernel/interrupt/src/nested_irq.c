@@ -5,8 +5,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
-#include <zephyr/interrupt_util.h>
+#include <ztest.h>
+#include <interrupt_util.h>
 
 /*
  * Run the nested interrupt test for the supported platforms only.
@@ -126,7 +126,7 @@ void isr0(const void *param)
  * 4. [isr0] Validate ISR 1 result token and return
  * 5. [thread] Validate ISR 0 result token
  */
-ZTEST(interrupt_feature, test_nested_isr)
+void test_nested_isr(void)
 {
 	/* Resolve test IRQ line numbers */
 #if defined(CONFIG_CPU_CORTEX_M)
@@ -154,7 +154,7 @@ ZTEST(interrupt_feature, test_nested_isr)
 	zassert_equal(isr0_result, ISR0_TOKEN, "isr0 did not execute");
 }
 #else
-ZTEST(interrupt_feature, test_nested_isr)
+void test_nested_isr(void)
 {
 	ztest_test_skip();
 }

@@ -9,4 +9,4 @@
  * @brief Linker script for the POSIX ARCH & INF_CLOCK SOC
  */
 
-#include <zephyr/arch/posix/linker.ld>
+#include <arch/posix/linker.ld>

@@ -5,8 +5,7 @@
 
 menuconfig I2S_STM32
 	bool "STM32 MCU I2S controller driver"
-	default y
-	depends on DT_HAS_ST_STM32_I2S_ENABLED
+	depends on SOC_SERIES_STM32F4X
 	select DMA
 	help
 	  Enable I2S support on the STM32 family of processors.
@@ -23,7 +22,7 @@ config I2S_STM32_TX_BLOCK_COUNT
 	default 4
 
 config I2S_STM32_USE_PLLI2S_ENABLE
-	bool "Use PLL"
+	bool "Enable usage of PLL"
 	help
 	  Enable it if I2S clock should be provided by the PLLI2S.
 	  If not enabled the clock will be provided by HSI/HSE.

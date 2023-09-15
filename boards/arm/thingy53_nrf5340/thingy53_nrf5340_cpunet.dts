@@ -6,7 +6,6 @@
 
 /dts-v1/;
 #include <nordic/nrf5340_cpunet_qkaa.dtsi>
-#include "thingy53_nrf5340_cpunet-pinctrl.dtsi"
 
 / {
 	model = "Nordic Thingy53 NRF5340 Network";
@@ -18,12 +17,9 @@
 		zephyr,uart-mcumgr = &uart0;
 		zephyr,bt-mon-uart = &uart0;
 		zephyr,bt-c2h-uart = &uart0;
-		zephyr,bt-hci-rpmsg-ipc = &ipc0;
-		nordic,802154-spinel-ipc = &ipc0;
 		zephyr,sram = &sram1;
 		zephyr,flash = &flash1;
 		zephyr,code-partition = &slot0_partition;
-		zephyr,ieee802154 = &ieee802154;
 	};
 
 	buttons {
@@ -60,7 +56,6 @@
 		mode-gpios  = <&gpio1 12 GPIO_ACTIVE_HIGH>;
 		pdn-gpios   = <&gpio1 10 GPIO_ACTIVE_HIGH>;
 		tx-en-gpios = <&gpio0 30 GPIO_ACTIVE_HIGH>;
-		supply-voltage-mv = <3000>;
 	};
 
 	aliases {
@@ -69,7 +64,6 @@
 		led0 = &red_led;
 		led1 = &green_led;
 		led2 = &blue_led;
-		watchdog0 = &wdt;
 	};
 };
 
@@ -85,13 +79,22 @@
 	status = "okay";
 };
 
+&i2c0 {
+	status = "disabled";
+};
+
+&spi0 {
+	status = "disabled";
+};
+
 &uart0 {
 	compatible = "nordic,nrf-uarte";
 	status = "disabled";
 	current-speed = <115200>;
-	pinctrl-0 = <&uart0_default>;
-	pinctrl-1 = <&uart0_sleep>;
-	pinctrl-names = "default", "sleep";
+	tx-pin = <12>;
+	rx-pin = <11>;
+	rts-pin = <10>;
+	cts-pin = <9>;
 };
 
 &timer0 {
@@ -134,10 +137,6 @@
 			reg = <0x0003a000 0x6000>;
 		};
 	};
-};
-
-&ieee802154 {
-	status = "okay";
 };
 
 /* Include shared RAM configuration file */

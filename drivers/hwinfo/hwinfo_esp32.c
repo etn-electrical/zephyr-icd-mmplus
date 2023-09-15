@@ -7,18 +7,13 @@
 
 #include <soc/efuse_reg.h>
 
-#include <zephyr/drivers/hwinfo.h>
+#include <drivers/hwinfo.h>
 #include <string.h>
 
 ssize_t z_impl_hwinfo_get_device_id(uint8_t *buffer, size_t length)
 {
-#ifdef CONFIG_SOC_ESP32C3
-	uint32_t rdata1 = sys_read32(EFUSE_RD_MAC_SPI_SYS_0_REG);
-	uint32_t rdata2 = sys_read32(EFUSE_RD_MAC_SPI_SYS_1_REG);
-#else
 	uint32_t rdata1 = sys_read32(EFUSE_BLK0_RDATA1_REG);
 	uint32_t rdata2 = sys_read32(EFUSE_BLK0_RDATA2_REG);
-#endif
 	uint8_t id[6];
 
 	/* The first word provides the lower 32 bits of the MAC

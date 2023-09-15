@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/device.h>
+#include <zephyr.h>
+#include <device.h>
 #include <hal/nrf_ipc.h>
-#include <zephyr/sys/printk.h>
-#include <zephyr/logging/log.h>
+#include <sys/printk.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(main);
 
 static void timeout_handler(struct k_timer *timer)

@@ -14,7 +14,7 @@
 #ifndef ZEPHYR_ARCH_ARM_INCLUDE_AARCH32_CORTEX_M_EXC_H_
 #define ZEPHYR_ARCH_ARM_INCLUDE_AARCH32_CORTEX_M_EXC_H_
 
-#include <zephyr/arch/cpu.h>
+#include <arch/cpu.h>
 
 #ifdef _ASMLANGUAGE
 
@@ -22,9 +22,9 @@
 
 #else
 
-#include <zephyr/arch/arm/aarch32/cortex_m/cmsis.h>
-#include <zephyr/arch/arm/aarch32/exc.h>
-#include <zephyr/irq_offload.h>
+#include <arch/arm/aarch32/cortex_m/cmsis.h>
+#include <arch/arm/aarch32/exc.h>
+#include <irq_offload.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -112,9 +112,7 @@ static ALWAYS_INLINE void z_arm_exc_setup(void)
 	NVIC_SetPriority(MemoryManagement_IRQn, _EXC_FAULT_PRIO);
 	NVIC_SetPriority(BusFault_IRQn, _EXC_FAULT_PRIO);
 	NVIC_SetPriority(UsageFault_IRQn, _EXC_FAULT_PRIO);
-#if defined(CONFIG_CORTEX_M_DEBUG_MONITOR_HOOK)
-	NVIC_SetPriority(DebugMonitor_IRQn, IRQ_PRIO_LOWEST);
-#elif defined(CONFIG_CPU_CORTEX_M_HAS_DWT)
+#if defined(CONFIG_CPU_CORTEX_M_HAS_DWT)
 	NVIC_SetPriority(DebugMonitor_IRQn, _EXC_FAULT_PRIO);
 #endif
 #if defined(CONFIG_ARM_SECURE_FIRMWARE)

@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/device.h>
-#include <zephyr/init.h>
+#include <device.h>
+#include <init.h>
 #include <soc.h>
-#include <zephyr/arch/cpu.h>
+#include <arch/cpu.h>
 
 /**
  * @brief Perform basic hardware initialization at boot.

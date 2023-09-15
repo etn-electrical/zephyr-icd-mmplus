@@ -13,10 +13,11 @@ and safety capability can be assured without influence from other
 VMs. The following figure from ACRN's official documentation shows
 how a hybrid scenario works:
 
-.. figure:: ACRN-Hybrid.jpg
+.. figure:: ACRN-Hybrid.png
     :align: center
     :alt: ACRN Hybrid User Scenario
     :figclass: align-center
+    :width: 80%
 
     ACRN Hybrid User Scenario
 
@@ -65,7 +66,7 @@ configuration files instead of small easily-merged configuration
 elements like kconfig defconfig files or devicetree includes.  You
 have to edit a big XML file to match your Zephyr configuration.
 Choose an ACRN host config that matches your hardware ("ehl-crb-b" in
-this case).  Then find the relevant file in
+this case).  Then find the relavent file in
 ``misc/config_tools/data/<platform>/hybrid.xml``.
 
 First, find the list of ``<vm>`` declarations.  Each has an ``id=``

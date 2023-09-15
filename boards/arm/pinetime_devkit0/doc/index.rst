@@ -7,6 +7,7 @@ Overview
 ********
 
 .. figure:: img/PineTime_leaflet.jpg
+   :width: 600px
    :align: center
    :alt: Pine64 PineTime
 
@@ -18,6 +19,7 @@ for an open source smartwatch in collaboration with wearable RTOS and Linux
 app developers/communities.
 
 .. figure:: img/PineTime_DevKit0.jpg
+   :width: 600px
    :align: center
    :alt: Pine64 PineTime
 
@@ -151,6 +153,7 @@ contact with the programming cable.
 The pinout is:
 
 .. figure:: img/PineTime_SWD_location.jpg
+   :width: 300px
    :align: center
    :alt: PineTime SWD location
 
@@ -182,7 +185,7 @@ Debugging
 Using Segger Ozone debugger, debugging and flashing is made easy.
 
 Simply load the .elf file containing the final firmware and
-setup the debugger to use SWD over USB for the chip nRF52832_xxAA.
+setup the debbuger to use SWD over USB for the chip nRF52832_xxAA.
 This setup can be done using the menu Tools/J-Link Settings. or by directly
 typing the following in the debugger console:
 

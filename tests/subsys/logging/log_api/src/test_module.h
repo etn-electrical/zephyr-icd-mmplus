@@ -7,14 +7,13 @@
 #ifndef TEST_MODULE_H
 #define TEST_MODULE_H
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 void test_func(void);
-void test_func2(void);
 
 #ifdef __cplusplus
 }

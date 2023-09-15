@@ -10,6 +10,7 @@ The SAM4E Xplained Pro evaluation kit is a development platform to evaluate the
 Atmel SAM4E series microcontrollers.
 
 .. image:: img/sam4e_xpro.jpg
+     :width: 500px
      :align: center
      :alt: SAM4E Xplained Pro
 
@@ -159,7 +160,7 @@ Visualizing the message
 
 #. Press reset button
 
-   You should see "Hello World! sam4e_xpro" in your terminal.
+   You should see "Hello World! arm" in your terminal.
 
 Debugging
 =========

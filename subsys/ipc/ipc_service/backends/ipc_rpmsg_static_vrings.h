@@ -7,7 +7,7 @@
 #include <openamp/virtio_ring.h>
 #include <openamp/rpmsg_virtio.h>
 
-#include <zephyr/ipc/ipc_static_vrings.h>
+#include <ipc/ipc_static_vrings.h>
 
 /*
  * Endpoint registration flow:
@@ -135,27 +135,27 @@
 #define VIRTQUEUE_ID_HOST	(0)
 #define VIRTQUEUE_ID_REMOTE	(1)
 
-#define ROLE_HOST		VIRTIO_DEV_DRIVER
-#define ROLE_REMOTE		VIRTIO_DEV_DEVICE
+#define ROLE_HOST		VIRTIO_DEV_MASTER
+#define ROLE_REMOTE		VIRTIO_DEV_SLAVE
 
-static inline size_t vq_ring_size(unsigned int num, unsigned int buf_size)
+static inline size_t vq_ring_size(unsigned int num)
 {
-	return (buf_size * num);
+	return (RPMSG_BUFFER_SIZE * num);
 }
 
-static inline size_t shm_size(unsigned int num, unsigned int buf_size)
+static inline size_t shm_size(unsigned int num)
 {
-	return (VDEV_STATUS_SIZE + (VRING_COUNT * vq_ring_size(num, buf_size)) +
+	return (VDEV_STATUS_SIZE + (VRING_COUNT * vq_ring_size(num)) +
 	       (VRING_COUNT * vring_size(num, VRING_ALIGNMENT)));
 }
 
-static inline unsigned int optimal_num_desc(size_t shm_size, unsigned int buf_size)
+static inline unsigned int optimal_num_desc(size_t shm_size)
 {
 	size_t available, single_alloc;
 	unsigned int num_desc;
 
 	available = shm_size - VDEV_STATUS_SIZE;
-	single_alloc = VRING_COUNT * (vq_ring_size(1, buf_size) + vring_size(1, VRING_ALIGNMENT));
+	single_alloc = VRING_COUNT * (vq_ring_size(1) + vring_size(1, VRING_ALIGNMENT));
 
 	num_desc = (unsigned int) (available / single_alloc);
 

@@ -13,10 +13,16 @@ properties:
   reg:
     required: true
 
-  clocks:
+  label:
+    required: true
+
+  rcu-periph-clock:
+    type: int
+    description: Reset Control Unit Peripheral Clock ID
     required: true
 
   enable-cps:
+    required: false
     type: boolean
     description: |
       Enable the I/O compensation cell. This option should be enabled when the

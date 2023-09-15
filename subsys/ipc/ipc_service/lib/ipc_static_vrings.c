@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ipc/ipc_static_vrings.h>
-#include <zephyr/cache.h>
+#include <ipc/ipc_static_vrings.h>
+#include <cache.h>
 
 #define SHM_DEVICE_NAME		"sram0.shm"
 
@@ -32,14 +32,15 @@ static void virtio_set_status(struct virtio_device *p_vdev, unsigned char status
 {
 	struct ipc_static_vrings *vr;
 
-	if (p_vdev->role != VIRTIO_DEV_DRIVER) {
+	if (p_vdev->role != VIRTIO_DEV_MASTER) {
 		return;
 	}
 
 	vr = CONTAINER_OF(p_vdev, struct ipc_static_vrings, vdev);
 
 	sys_write8(status, vr->status_reg_addr);
-	sys_cache_data_flush_range((void *) vr->status_reg_addr, sizeof(status));
+	sys_cache_data_range((void *) vr->status_reg_addr,
+			     sizeof(status), K_CACHE_WB);
 }
 
 static uint32_t virtio_get_features(struct virtio_device *vdev)
@@ -56,8 +57,9 @@ static unsigned char virtio_get_status(struct virtio_device *p_vdev)
 
 	ret = VIRTIO_CONFIG_STATUS_DRIVER_OK;
 
-	if (p_vdev->role == VIRTIO_DEV_DEVICE) {
-		sys_cache_data_invd_range((void *) vr->status_reg_addr, sizeof(ret));
+	if (p_vdev->role == VIRTIO_DEV_SLAVE) {
+		sys_cache_data_range((void *) vr->status_reg_addr,
+				     sizeof(ret), K_CACHE_INVD);
 		ret = sys_read8(vr->status_reg_addr);
 	}
 
@@ -101,17 +103,6 @@ static int libmetal_setup(struct ipc_static_vrings *vr)
 	return 0;
 }
 
-static int libmetal_teardown(struct ipc_static_vrings *vr)
-{
-	vr->shm_io = 0;
-
-	metal_device_close(&vr->shm_device);
-
-	metal_finish();
-
-	return 0;
-}
-
 static int vq_setup(struct ipc_static_vrings *vr, unsigned int role)
 {
 	vr->vq[RPMSG_VQ_0] = virtqueue_allocate(vr->vring_size);
@@ -145,19 +136,6 @@ static int vq_setup(struct ipc_static_vrings *vr, unsigned int role)
 	return 0;
 }
 
-static int vq_teardown(struct ipc_static_vrings *vr, unsigned int role)
-{
-	memset(&vr->vdev, 0, sizeof(struct virtio_device));
-
-	memset(&(vr->rvrings[RPMSG_VQ_1]), 0, sizeof(struct virtio_vring_info));
-	memset(&(vr->rvrings[RPMSG_VQ_0]), 0, sizeof(struct virtio_vring_info));
-
-	virtqueue_free(vr->vq[RPMSG_VQ_1]);
-	virtqueue_free(vr->vq[RPMSG_VQ_0]);
-
-	return 0;
-}
-
 int ipc_static_vrings_init(struct ipc_static_vrings *vr, unsigned int role)
 {
 	int err = 0;
@@ -179,23 +157,4 @@ int ipc_static_vrings_init(struct ipc_static_vrings *vr, unsigned int role)
 	}
 
 	return vq_setup(vr, role);
-}
-
-int ipc_static_vrings_deinit(struct ipc_static_vrings *vr, unsigned int role)
-{
-	int err;
-
-	err = vq_teardown(vr, role);
-	if (err != 0) {
-		return err;
-	}
-
-	err = libmetal_teardown(vr);
-	if (err != 0) {
-		return err;
-	}
-
-	metal_io_finish(vr->shm_device.regions);
-
-	return 0;
 }

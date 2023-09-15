@@ -4,16 +4,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/init.h>
-#include <zephyr/kernel.h>
-#include <zephyr/kernel_structs.h>
+#include <init.h>
+#include <kernel.h>
+#include <kernel_structs.h>
 #include <kernel_internal.h>
-#include <zephyr/sys/__assert.h>
+#include <sys/__assert.h>
 #include <stdbool.h>
-#include <zephyr/spinlock.h>
-#include <zephyr/sys/check.h>
-#include <zephyr/sys/libc-hooks.h>
-#include <zephyr/logging/log.h>
+#include <spinlock.h>
+#include <sys/check.h>
+#include <sys/libc-hooks.h>
+#include <logging/log.h>
 LOG_MODULE_DECLARE(os, CONFIG_KERNEL_LOG_LEVEL);
 
 struct k_spinlock z_mem_domain_lock;

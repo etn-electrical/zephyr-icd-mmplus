@@ -16,7 +16,7 @@ menuconfig ADC
 if ADC
 
 config ADC_SHELL
-	bool "ADC Shell"
+	bool "Enable ADC Shell"
 	default y
 	depends on SHELL
 	help
@@ -29,7 +29,7 @@ config ADC_CONFIGURABLE_INPUTS
 	bool
 
 config ADC_ASYNC
-	bool "Asynchronous call support"
+	bool "Enable asynchronous call support"
 	select POLL
 	help
 	  This option enables the asynchronous API calls.
@@ -44,8 +44,6 @@ module = ADC
 module-str = ADC
 source "subsys/logging/Kconfig.template.log_config"
 
-source "drivers/adc/Kconfig.b91"
-
 source "drivers/adc/Kconfig.it8xxx2"
 
 source "drivers/adc/Kconfig.mcux"
@@ -58,8 +56,6 @@ source "drivers/adc/Kconfig.sam0"
 
 source "drivers/adc/Kconfig.stm32"
 
-source "drivers/adc/Kconfig.esp32"
-
 source "drivers/adc/Kconfig.xec"
 
 source "drivers/adc/Kconfig.lmp90xxx"
@@ -70,20 +66,8 @@ source "drivers/adc/Kconfig.npcx"
 
 source "drivers/adc/Kconfig.cc32xx"
 
-source "drivers/adc/Kconfig.cc13xx_cc26xx"
-
 source "drivers/adc/Kconfig.adc_emul"
 
 source "drivers/adc/Kconfig.test"
-
-source "drivers/adc/Kconfig.ads1x1x"
-
-source "drivers/adc/Kconfig.gd32"
-
-source "drivers/adc/Kconfig.ads1119"
-
-source "drivers/adc/Kconfig.rpi_pico"
-
-source "drivers/adc/Kconfig.xmc4xxx"
 
 endif # ADC

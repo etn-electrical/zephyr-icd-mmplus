@@ -8,8 +8,7 @@
 
 / {
 	sram0: memory@20000000 {
-		/* SRAM1 + SRAM2 + SRAM3 */
-		reg = <0x20000000 DT_SIZE_K(768)>;
+		reg = <0x20000000 DT_SIZE_K(786)>;
 	};
 
 	soc {

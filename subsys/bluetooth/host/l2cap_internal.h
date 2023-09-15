@@ -8,7 +8,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/bluetooth/l2cap.h>
+#include <bluetooth/l2cap.h>
 
 enum l2cap_conn_list_action {
 	BT_L2CAP_CHAN_LOOKUP,
@@ -55,7 +55,7 @@ struct bt_l2cap_conn_req {
 	uint16_t scid;
 } __packed;
 
-/* command statuses in response */
+/* command statuses in reposnse */
 #define BT_L2CAP_CS_NO_INFO             0x0000
 #define BT_L2CAP_CS_AUTHEN_PEND         0x0001
 
@@ -209,8 +209,6 @@ struct bt_l2cap_ecred_conn_rsp {
 	uint16_t dcid[0];
 } __packed;
 
-#define L2CAP_ECRED_CHAN_MAX_PER_REQ 5
-
 #define BT_L2CAP_ECRED_RECONF_REQ       0x19
 struct bt_l2cap_ecred_reconf_req {
 	uint16_t mtu;
@@ -254,8 +252,6 @@ struct bt_l2cap_br_fixed_chan {
 				.accept = _accept,		\
 			}
 
-#define BR_CHAN(_ch) CONTAINER_OF(_ch, struct bt_l2cap_br_chan, chan)
-
 /* Notify L2CAP channels of a new connection */
 void bt_l2cap_connected(struct bt_conn *conn);
 
@@ -274,7 +270,7 @@ void bt_l2cap_chan_del(struct bt_l2cap_chan *chan);
 
 const char *bt_l2cap_chan_state_str(bt_l2cap_chan_state_t state);
 
-#if defined(CONFIG_BT_L2CAP_LOG_LEVEL_DBG)
+#if defined(CONFIG_BT_DEBUG_L2CAP)
 void bt_l2cap_chan_set_state_debug(struct bt_l2cap_chan *chan,
 				   bt_l2cap_chan_state_t state,
 				   const char *func, int line);
@@ -283,7 +279,7 @@ void bt_l2cap_chan_set_state_debug(struct bt_l2cap_chan *chan,
 #else
 void bt_l2cap_chan_set_state(struct bt_l2cap_chan *chan,
 			     bt_l2cap_chan_state_t state);
-#endif /* CONFIG_BT_L2CAP_LOG_LEVEL_DBG */
+#endif /* CONFIG_BT_DEBUG_L2CAP */
 
 /*
  * Notify L2CAP channels of a change in encryption state passing additionally
@@ -314,9 +310,6 @@ static inline int bt_l2cap_send(struct bt_conn *conn, uint16_t cid,
 {
 	return bt_l2cap_send_cb(conn, cid, buf, NULL, NULL);
 }
-
-int bt_l2cap_chan_send_cb(struct bt_l2cap_chan *chan, struct net_buf *buf, bt_conn_tx_cb_t cb,
-			  void *user_data);
 
 /* Receive a new L2CAP PDU from a connection */
 void bt_l2cap_recv(struct bt_conn *conn, struct net_buf *buf, bool complete);
@@ -358,8 +351,6 @@ int bt_l2cap_br_chan_connect(struct bt_conn *conn, struct bt_l2cap_chan *chan,
 
 /* Send packet data to connected peer */
 int bt_l2cap_br_chan_send(struct bt_l2cap_chan *chan, struct net_buf *buf);
-int bt_l2cap_br_chan_send_cb(struct bt_l2cap_chan *chan, struct net_buf *buf, bt_conn_tx_cb_t cb,
-			     void *user_data);
 
 /*
  * Handle security level changed on link passing HCI status of performed
@@ -369,15 +360,3 @@ void l2cap_br_encrypt_change(struct bt_conn *conn, uint8_t hci_status);
 
 /* Handle received data */
 void bt_l2cap_br_recv(struct bt_conn *conn, struct net_buf *buf);
-
-struct bt_l2cap_ecred_cb {
-	void (*ecred_conn_rsp)(struct bt_conn *conn, uint16_t result, uint8_t attempted,
-			       uint8_t succeeded, uint16_t psm);
-	void (*ecred_conn_req)(struct bt_conn *conn, uint16_t result, uint16_t psm);
-};
-
-/* Register callbacks for Enhanced Credit based Flow Control */
-void bt_l2cap_register_ecred_cb(const struct bt_l2cap_ecred_cb *cb);
-
-/* Returns a server if it exists for given psm. */
-struct bt_l2cap_server *bt_l2cap_server_lookup_psm(uint16_t psm);

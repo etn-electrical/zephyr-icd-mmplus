@@ -6,14 +6,18 @@
 
 #define DT_DRV_COMPAT intel_ibecc
 
-#include <zephyr/kernel.h>
-#include <zephyr/device.h>
-#include <zephyr/drivers/pcie/pcie.h>
+#include <zephyr.h>
+#include <device.h>
+#include <drivers/pcie/pcie.h>
 
-#include <zephyr/drivers/edac.h>
+#include <drivers/edac.h>
 #include "ibecc.h"
 
-#include <zephyr/logging/log.h>
+/**
+ * In the driver 64 bit registers are used and not all of then at the
+ * moment may be correctly logged.
+ */
+#include <logging/log.h>
 LOG_MODULE_REGISTER(edac_ibecc, CONFIG_EDAC_LOG_LEVEL);
 
 #define DEVICE_NODE DT_NODELABEL(ibecc)
@@ -194,11 +198,7 @@ static int inject_error_trigger(const struct device *dev)
 static int ecc_error_log_get(const struct device *dev, uint64_t *value)
 {
 	*value = ibecc_read_reg64(dev, IBECC_ECC_ERROR_LOG);
-	/**
-	 * The ECC Error log register is only valid when ECC_ERROR_CERRSTS
-	 * or ECC_ERROR_MERRSTS error status bits are set
-	 */
-	if ((*value & (ECC_ERROR_MERRSTS | ECC_ERROR_CERRSTS)) == 0) {
+	if (*value == 0) {
 		return -ENODATA;
 	}
 
@@ -249,7 +249,7 @@ static int notify_callback_set(const struct device *dev,
 			       edac_notify_callback_f cb)
 {
 	struct ibecc_data *data = dev->data;
-	unsigned int key = irq_lock();
+	int key = irq_lock();
 
 	data->cb = cb;
 	irq_unlock(key);
@@ -307,12 +307,6 @@ static int edac_ibecc_init(const struct device *dev)
 	case PCIE_ID(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_SKU11):
 		__fallthrough;
 	case PCIE_ID(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_SKU12):
-		__fallthrough;
-	case PCIE_ID(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_SKU13):
-		__fallthrough;
-	case PCIE_ID(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_SKU14):
-		__fallthrough;
-	case PCIE_ID(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_SKU15):
 		break;
 	default:
 		LOG_ERR("PCI Probe failed"); /* LCOV_EXCL_BR_LINE */
@@ -340,7 +334,7 @@ static int edac_ibecc_init(const struct device *dev)
 	/* Enable Host Bridge generated SERR event */
 	ibecc_errcmd_setup(bdf, true);
 
-	LOG_INF("IBECC driver initialized"); /* LCOV_EXCL_BR_LINE */
+	LOG_INF("IBECC driver initialized");
 
 	return 0;
 }
@@ -389,7 +383,7 @@ static bool handle_nmi(void)
 
 bool z_x86_do_kernel_nmi(const z_arch_esf_t *esf)
 {
-	const struct device *const dev = DEVICE_DT_GET(DEVICE_NODE);
+	const struct device *dev = DEVICE_DT_GET(DEVICE_NODE);
 	struct ibecc_data *data = dev->data;
 	struct ibecc_error error_data;
 	k_spinlock_key_t key;

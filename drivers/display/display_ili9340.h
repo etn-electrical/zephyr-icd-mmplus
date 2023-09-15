@@ -6,7 +6,7 @@
 #ifndef ZEPHYR_DRIVERS_DISPLAY_DISPLAY_ILI9340_H_
 #define ZEPHYR_DRIVERS_DISPLAY_DISPLAY_ILI9340_H_
 
-#include <zephyr/device.h>
+#include <device.h>
 
 /* Commands/registers. */
 #define ILI9340_GAMSET 0x26

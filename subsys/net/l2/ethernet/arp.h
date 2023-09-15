@@ -9,8 +9,8 @@
 
 #if defined(CONFIG_NET_ARP) && defined(CONFIG_NET_NATIVE)
 
-#include <zephyr/sys/slist.h>
-#include <zephyr/net/ethernet.h>
+#include <sys/slist.h>
+#include <net/ethernet.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -49,16 +49,15 @@ struct net_pkt *net_arp_prepare(struct net_pkt *pkt,
 enum net_verdict net_arp_input(struct net_pkt *pkt,
 			       struct net_eth_hdr *eth_hdr);
 
-int net_arp_clear_pending(struct net_if *iface,
-				struct in_addr *dst);
-
 struct arp_entry {
 	sys_snode_t node;
 	uint32_t req_start;
 	struct net_if *iface;
 	struct in_addr ip;
-	struct net_eth_addr eth;
-	struct k_fifo pending_queue;
+	union {
+		struct net_pkt *pending;
+		struct net_eth_addr eth;
+	};
 };
 
 typedef void (*net_arp_cb_t)(struct arp_entry *entry,
@@ -82,7 +81,6 @@ void net_arp_init(void);
 #define net_arp_clear_cache(...)
 #define net_arp_foreach(...) 0
 #define net_arp_init(...)
-#define net_arp_clear_pending(...) 0
 
 #endif /* CONFIG_NET_ARP */
 

@@ -10,12 +10,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(modem_cmd_handler, CONFIG_MODEM_LOG_LEVEL);
 
-#include <zephyr/kernel.h>
+#include <kernel.h>
 #include <stddef.h>
-#include <zephyr/net/buf.h>
+#include <net/buf.h>
 
 #include "modem_context.h"
 #include "modem_cmd_handler.h"
@@ -151,7 +151,7 @@ static int parse_params(struct modem_cmd_handler_data *data,  size_t match_len,
 		argv[*argc] = &data->match_buf[begin];
 		/* end parameter with NUL char
 		 * NOTE: if this is at the end of match_len will probably
-		 * be overwriting a NUL that's already there
+		 * be overwriting a NUL that's already ther
 		 */
 		data->match_buf[end] = '\0';
 		(*argc)++;
@@ -159,16 +159,7 @@ static int parse_params(struct modem_cmd_handler_data *data,  size_t match_len,
 
 	/* missing arguments */
 	if (*argc < cmd->arg_count_min) {
-		/* Do not return -EAGAIN here as there is no way new argument
-		 * can be parsed later because match_len is computed to be
-		 * the minimum of the distance to the first CRLF and the size
-		 * of the buffer.
-		 * Therefore, waiting more data on the interface won't change
-		 * match_len value, which mean there is no point in waiting
-		 * for more arguments, this will just end in a infinite loop
-		 * parsing data and finding that some arguments are missing.
-		 */
-		return -EINVAL;
+		return -EAGAIN;
 	}
 
 	/*
@@ -339,7 +330,7 @@ static void cmd_handler_process_rx_buf(struct modem_cmd_handler_data *data)
 				break;
 			} else if (ret > 0) {
 				LOG_DBG("match direct cmd [%s] (ret:%d)",
-					cmd->cmd, ret);
+					log_strdup(cmd->cmd), ret);
 				data->rx_buf = net_buf_skip(data->rx_buf, ret);
 			}
 
@@ -377,15 +368,11 @@ static void cmd_handler_process_rx_buf(struct modem_cmd_handler_data *data)
 		cmd = find_cmd_match(data);
 		if (cmd) {
 			LOG_DBG("match cmd [%s] (len:%zu)",
-				cmd->cmd, match_len);
+				log_strdup(cmd->cmd), match_len);
 
-			ret = process_cmd(cmd, match_len, data);
-			if (ret == -EAGAIN) {
+			if (process_cmd(cmd, match_len, data) == -EAGAIN) {
 				k_sem_give(&data->sem_parse_lock);
 				break;
-			} else if (ret < 0) {
-				LOG_ERR("process cmd [%s] (len:%zu, ret:%d)",
-					cmd->cmd, match_len, ret);
 			}
 
 			/*
@@ -569,6 +556,9 @@ int modem_cmd_handler_setup_cmds(struct modem_iface *iface,
 	size_t i;
 
 	for (i = 0; i < cmds_len; i++) {
+		if (i) {
+			k_sleep(K_MSEC(50));
+		}
 
 		if (cmds[i].handle_cmd.cmd && cmds[i].handle_cmd.func) {
 			ret = modem_cmd_send(iface, handler,
@@ -581,11 +571,9 @@ int modem_cmd_handler_setup_cmds(struct modem_iface *iface,
 					     sem, timeout);
 		}
 
-		k_sleep(K_MSEC(50));
-
 		if (ret < 0) {
 			LOG_ERR("command %s ret:%d",
-				cmds[i].send_cmd, ret);
+				log_strdup(cmds[i].send_cmd), ret);
 			break;
 		}
 	}
@@ -604,6 +592,9 @@ int modem_cmd_handler_setup_cmds_nolock(struct modem_iface *iface,
 	size_t i;
 
 	for (i = 0; i < cmds_len; i++) {
+		if (i) {
+			k_sleep(K_MSEC(50));
+		}
 
 		if (cmds[i].handle_cmd.cmd && cmds[i].handle_cmd.func) {
 			ret = modem_cmd_send_nolock(iface, handler,
@@ -616,11 +607,9 @@ int modem_cmd_handler_setup_cmds_nolock(struct modem_iface *iface,
 						    sem, timeout);
 		}
 
-		k_sleep(K_MSEC(50));
-
 		if (ret < 0) {
 			LOG_ERR("command %s ret:%d",
-				cmds[i].send_cmd, ret);
+				log_strdup(cmds[i].send_cmd), ret);
 			break;
 		}
 	}

@@ -6,7 +6,8 @@ Actinius Icarus Bee
 Overview
 ********
 
-.. figure:: img/icarus-bee.jpg
+.. figure:: img/icarus-bee.png
+     :width: 450px
      :align: center
      :alt: Icarus Bee
 
@@ -36,13 +37,15 @@ following devices (provided directly by Nordic):
 * :abbr:`WDT (Watchdog Timer)`
 * :abbr:`IDAU (Implementation Defined Attribution Unit)`
 
-.. figure:: img/icarus-bee-external-pins.jpg
+.. figure:: img/icarus-bee-external-pins.png
+     :width: 450px
      :align: center
      :alt: Icarus Bee w/ Pinouts
 
      Icarus Bee w/ Pinouts
 
-.. figure:: img/icarus-bee-peripherals-pins.jpg
+.. figure:: img/icarus-bee-peripherals-pins.png
+     :width: 200px
      :align: center
      :alt: Icarus Bee
 
@@ -87,11 +90,6 @@ hardware features:
 | ACCEL     | st         | lis2dh               |
 +-----------+------------+----------------------+
 
-SIM selection
-*************
-
-The sim choice (eSIM or nano-SIM) can be configured in Devicetree by adjusting
-the ``sim`` property in the ``sim_select`` node.
 
 Security components
 ===================

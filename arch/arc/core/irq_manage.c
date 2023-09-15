@@ -17,14 +17,14 @@
  * number from 16 to last IRQ number on the platform.
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/arch/cpu.h>
-#include <zephyr/sys/__assert.h>
-#include <zephyr/toolchain.h>
-#include <zephyr/linker/sections.h>
-#include <zephyr/sw_isr_table.h>
-#include <zephyr/irq.h>
-#include <zephyr/sys/printk.h>
+#include <kernel.h>
+#include <arch/cpu.h>
+#include <sys/__assert.h>
+#include <toolchain.h>
+#include <linker/sections.h>
+#include <sw_isr_table.h>
+#include <irq.h>
+#include <sys/printk.h>
 
 
 /*
@@ -32,7 +32,7 @@
  */
 #if defined(CONFIG_ARC_FIRQ_STACK)
 #if defined(CONFIG_SMP)
-K_KERNEL_STACK_ARRAY_DEFINE(_firq_interrupt_stack, CONFIG_MP_MAX_NUM_CPUS,
+K_KERNEL_STACK_ARRAY_DEFINE(_firq_interrupt_stack, CONFIG_MP_NUM_CPUS,
 			    CONFIG_ARC_FIRQ_STACK_SIZE);
 #else
 K_KERNEL_STACK_DEFINE(_firq_interrupt_stack, CONFIG_ARC_FIRQ_STACK_SIZE);
@@ -81,53 +81,6 @@ void z_arc_firq_stack_set(void)
 }
 #endif
 
-/*
- * ARC CPU interrupt controllers hierarchy.
- *
- * Single-core (UP) case:
- *
- *   --------------------------
- *   |  CPU core 0            |
- *   --------------------------
- *   |  core 0 (private)      |
- *   |  interrupt controller  |
- *   --------------------------
- *               |
- *      [internal interrupts]
- *      [external interrupts]
- *
- *
- * Multi-core (SMP) case:
- *
- *   --------------------------               --------------------------
- *   |  CPU core 0            |               |  CPU core 1            |
- *   --------------------------               --------------------------
- *   |  core 0 (private)      |               |  core 1 (private)      |
- *   |  interrupt controller  |               |  interrupt controller  |
- *   --------------------------               --------------------------
- *     |    |      |                                |     |      |
- *     |    | [core 0 private internal interrupts]  |     |   [core 1 private internal interrupts]
- *     |    |                                       |     |
- *     |    |                                       |     |
- *     |   -------------------------------------------    |
- *     |   |     IDU (Interrupt Distribution Unit)   |    |
- *     |   -------------------------------------------    |
- *     |                       |                          |
- *     |          [common (shared) interrupts]            |
- *     |                                                  |
- *     |                                                  |
- *   [core 0 private external interrupts]               [core 1 private external interrupts]
- *
- *
- *
- *  The interrupts are grouped in HW in the same order - firstly internal interrupts
- *  (with lowest line numbers in IVT), than common interrupts (if present), than external
- *  interrupts (with highest line numbers in IVT).
- *
- *  NOTE: in case of SMP system we currently support in Zephyr only private internal and common
- *  interrupts, so the core-private external interrupts are currently not supported for SMP.
- */
-
 /**
  * @brief Enable an interrupt line
  *
@@ -135,7 +88,11 @@ void z_arc_firq_stack_set(void)
  * line. After this call, the CPU will receive interrupts for the specified
  * @a irq.
  */
-void arch_irq_enable(unsigned int irq);
+
+void arch_irq_enable(unsigned int irq)
+{
+	z_arc_v2_irq_unit_int_enable(irq);
+}
 
 /**
  * @brief Disable an interrupt line
@@ -143,7 +100,11 @@ void arch_irq_enable(unsigned int irq);
  * Disable an interrupt line. After this call, the CPU will stop receiving
  * interrupts for the specified @a irq.
  */
-void arch_irq_disable(unsigned int irq);
+
+void arch_irq_disable(unsigned int irq)
+{
+	z_arc_v2_irq_unit_int_disable(irq);
+}
 
 /**
  * @brief Return IRQ enable state
@@ -151,55 +112,10 @@ void arch_irq_disable(unsigned int irq);
  * @param irq IRQ line
  * @return interrupt enable state, true or false
  */
-int arch_irq_is_enabled(unsigned int irq);
-
-#ifdef CONFIG_ARC_CONNECT
-
-#define IRQ_NUM_TO_IDU_NUM(id)		((id) - ARC_CONNECT_IDU_IRQ_START)
-#define IRQ_IS_COMMON(id)		((id) >= ARC_CONNECT_IDU_IRQ_START)
-
-void arch_irq_enable(unsigned int irq)
-{
-	if (IRQ_IS_COMMON(irq)) {
-		z_arc_connect_idu_set_mask(IRQ_NUM_TO_IDU_NUM(irq), 0x0);
-	} else {
-		z_arc_v2_irq_unit_int_enable(irq);
-	}
-}
-
-void arch_irq_disable(unsigned int irq)
-{
-	if (IRQ_IS_COMMON(irq)) {
-		z_arc_connect_idu_set_mask(IRQ_NUM_TO_IDU_NUM(irq), 0x1);
-	} else {
-		z_arc_v2_irq_unit_int_disable(irq);
-	}
-}
-
-int arch_irq_is_enabled(unsigned int irq)
-{
-	if (IRQ_IS_COMMON(irq)) {
-		return !z_arc_connect_idu_read_mask(IRQ_NUM_TO_IDU_NUM(irq));
-	} else {
-		return z_arc_v2_irq_unit_int_enabled(irq);
-	}
-}
-#else
-void arch_irq_enable(unsigned int irq)
-{
-	z_arc_v2_irq_unit_int_enable(irq);
-}
-
-void arch_irq_disable(unsigned int irq)
-{
-	z_arc_v2_irq_unit_int_disable(irq);
-}
-
 int arch_irq_is_enabled(unsigned int irq)
 {
 	return z_arc_v2_irq_unit_int_enabled(irq);
 }
-#endif /* CONFIG_ARC_CONNECT */
 
 /**
  * @internal
@@ -219,7 +135,7 @@ void z_irq_priority_set(unsigned int irq, unsigned int prio, uint32_t flags)
 
 	__ASSERT(prio < CONFIG_NUM_IRQ_PRIO_LEVELS,
 		 "invalid priority %d for irq %d", prio, irq);
-/* 0 -> CONFIG_NUM_IRQ_PRIO_LEVELS allocated to secure world
+/* 0 -> CONFIG_NUM_IRQ_PRIO_LEVELS allocted to secure world
  * left prio levels allocated to normal world
  */
 #if defined(CONFIG_ARC_SECURE_FIRMWARE)

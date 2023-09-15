@@ -4,19 +4,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/ztest_assert.h>
 #include <zephyr/types.h>
 #include <stddef.h>
 #include <string.h>
 #include <errno.h>
-#include <zephyr/net/net_pkt.h>
-#include <zephyr/net/net_if.h>
-#include <zephyr/net/net_ip.h>
-#include <zephyr/net/ethernet.h>
-#include <zephyr/random/rand32.h>
+#include <net/net_pkt.h>
+#include <net/net_if.h>
+#include <net/net_ip.h>
+#include <net/ethernet.h>
+#include <random/rand32.h>
 
-#include <zephyr/ztest.h>
+#include <ztest.h>
 
 static uint8_t mac_addr[sizeof(struct net_eth_addr)];
 static struct net_if *eth_if;
@@ -106,7 +104,8 @@ static void pkt_print_cursor(struct net_pkt *pkt)
 /*****************************\
  * HOW TO ALLOCATE - 2 TESTS *
 \*****************************/
-ZTEST(net_pkt_test_suite, test_net_pkt_allocate_wo_buffer)
+
+static void test_net_pkt_allocate_wo_buffer(void)
 {
 	struct net_pkt *pkt;
 
@@ -130,7 +129,7 @@ ZTEST(net_pkt_test_suite, test_net_pkt_allocate_wo_buffer)
 		     "Pkt not properly unreferenced");
 }
 
-ZTEST(net_pkt_test_suite, test_net_pkt_allocate_with_buffer)
+static void test_net_pkt_allocate_with_buffer(void)
 {
 	struct net_pkt *pkt;
 
@@ -201,42 +200,13 @@ ZTEST(net_pkt_test_suite, test_net_pkt_allocate_with_buffer)
 	net_pkt_unref(pkt);
 	zassert_true(atomic_get(&pkt->atomic_ref) == 0,
 		     "Pkt not properly unreferenced");
-
-	/* d) - with a zero payload but AF_INET family
-	 */
-	pkt = net_pkt_alloc_with_buffer(eth_if, 0,
-					AF_INET, 0, K_NO_WAIT);
-	zassert_true(pkt != NULL, "Pkt not allocated");
-
-	/* Did we get the requested size? */
-	zassert_true(pkt_is_of_size(pkt, NET_IPV4H_LEN),
-		     "Pkt size is not right");
-
-	/* Freeing the packet */
-	net_pkt_unref(pkt);
-	zassert_true(atomic_get(&pkt->atomic_ref) == 0,
-		     "Pkt not properly unreferenced");
-
-	/* e) - with a zero payload but AF_PACKET family
-	 */
-	pkt = net_pkt_alloc_with_buffer(eth_if, 0,
-					AF_PACKET, 0, K_NO_WAIT);
-	zassert_true(pkt != NULL, "Pkt not allocated");
-
-	/* Did we get the requested size? */
-	zassert_true(pkt_is_of_size(pkt, 0), "Pkt size is not right");
-
-	/* Freeing the packet */
-	net_pkt_unref(pkt);
-	zassert_true(atomic_get(&pkt->atomic_ref) == 0,
-		     "Pkt not properly unreferenced");
 }
 
 /********************************\
  * HOW TO R/W A PACKET -  TESTS *
 \********************************/
 
-ZTEST(net_pkt_test_suite, test_net_pkt_basics_of_rw)
+static void test_net_pkt_basics_of_rw(void)
 {
 	struct net_pkt_cursor backup;
 	struct net_pkt *pkt;
@@ -419,7 +389,7 @@ ZTEST(net_pkt_test_suite, test_net_pkt_basics_of_rw)
 		     "Pkt not properly unreferenced");
 }
 
-ZTEST(net_pkt_test_suite, test_net_pkt_advanced_basics)
+void test_net_pkt_advanced_basics(void)
 {
 	struct net_pkt_cursor backup;
 	struct net_pkt *pkt;
@@ -512,7 +482,7 @@ ZTEST(net_pkt_test_suite, test_net_pkt_advanced_basics)
 	 */
 }
 
-ZTEST(net_pkt_test_suite, test_net_pkt_easier_rw_usage)
+void test_net_pkt_easier_rw_usage(void)
 {
 	struct net_pkt *pkt;
 	int ret;
@@ -611,7 +581,7 @@ struct net_buf b1 = {
 	.__buf  = b1_data,
 };
 
-ZTEST(net_pkt_test_suite, test_net_pkt_copy)
+void test_net_pkt_copy(void)
 {
 	struct net_pkt *pkt_src;
 	struct net_pkt *pkt_dst;
@@ -668,7 +638,7 @@ ZTEST(net_pkt_test_suite, test_net_pkt_copy)
 
 #define PULL_TEST_PKT_DATA_SIZE 600
 
-ZTEST(net_pkt_test_suite, test_net_pkt_pull)
+void test_net_pkt_pull(void)
 {
 	const int PULL_AMOUNT = 8;
 	const int LARGE_PULL_AMOUNT = 200;
@@ -782,7 +752,7 @@ ZTEST(net_pkt_test_suite, test_net_pkt_pull)
 	net_pkt_unref(dummy_pkt);
 }
 
-ZTEST(net_pkt_test_suite, test_net_pkt_clone)
+void test_net_pkt_clone(void)
 {
 	uint8_t buf[26] = {"abcdefghijklmnopqrstuvwxyz"};
 	struct net_pkt *pkt;
@@ -805,16 +775,6 @@ ZTEST(net_pkt_test_suite, test_net_pkt_clone)
 	zassert_true(sizeof(buf) - 6 == net_pkt_remaining_data(pkt),
 		     "Pkt remaining data mismatch");
 
-	net_pkt_lladdr_src(pkt)->addr = pkt->buffer->data;
-	net_pkt_lladdr_src(pkt)->len = NET_LINK_ADDR_MAX_LENGTH;
-	net_pkt_lladdr_src(pkt)->type = NET_LINK_ETHERNET;
-	zassert_mem_equal(net_pkt_lladdr_src(pkt)->addr, buf, NET_LINK_ADDR_MAX_LENGTH);
-	net_pkt_lladdr_dst(pkt)->addr = net_pkt_cursor_get_pos(pkt);
-	net_pkt_lladdr_dst(pkt)->len = NET_LINK_ADDR_MAX_LENGTH;
-	net_pkt_lladdr_dst(pkt)->type = NET_LINK_ETHERNET;
-	zassert_mem_equal(net_pkt_lladdr_dst(pkt)->addr, &buf[6], NET_LINK_ADDR_MAX_LENGTH);
-
-	net_pkt_set_overwrite(pkt, false);
 	cloned_pkt = net_pkt_clone(pkt, K_NO_WAIT);
 	zassert_true(cloned_pkt != NULL, "Pkt not cloned");
 
@@ -827,27 +787,12 @@ ZTEST(net_pkt_test_suite, test_net_pkt_clone)
 	zassert_true(sizeof(buf) - 6 == net_pkt_remaining_data(cloned_pkt),
 		     "Cloned pkt remaining data mismatch");
 
-	zassert_false(net_pkt_is_being_overwritten(cloned_pkt),
-		     "Cloned pkt overwrite flag not restored");
-
-	zassert_false(net_pkt_is_being_overwritten(pkt),
-		     "Pkt overwrite flag not restored");
-
-	zassert_mem_equal(net_pkt_lladdr_src(cloned_pkt)->addr, buf, NET_LINK_ADDR_MAX_LENGTH);
-	zassert_true(net_pkt_lladdr_src(cloned_pkt)->addr == cloned_pkt->buffer->data,
-		     "Cloned pkt ll src addr mismatch");
-
-	zassert_mem_equal(net_pkt_lladdr_dst(cloned_pkt)->addr, &buf[6], NET_LINK_ADDR_MAX_LENGTH);
-	zassert_true(net_pkt_lladdr_dst(cloned_pkt)->addr == net_pkt_cursor_get_pos(cloned_pkt),
-		     "Cloned pkt ll dst addr mismatch");
-
 	net_pkt_unref(pkt);
 	net_pkt_unref(cloned_pkt);
 }
 
 NET_BUF_POOL_FIXED_DEFINE(test_net_pkt_headroom_pool, 4, 2, 4, NULL);
-
-ZTEST(net_pkt_test_suite, test_net_pkt_headroom)
+void test_net_pkt_headroom(void)
 {
 	struct net_pkt *pkt;
 	struct net_buf *frag1;
@@ -923,8 +868,7 @@ ZTEST(net_pkt_test_suite, test_net_pkt_headroom)
 }
 
 NET_BUF_POOL_FIXED_DEFINE(test_net_pkt_headroom_copy_pool, 2, 4, 4, NULL);
-
-ZTEST(net_pkt_test_suite, test_net_pkt_headroom_copy)
+void test_net_pkt_headroom_copy(void)
 {
 	struct net_pkt *pkt_src;
 	struct net_pkt *pkt_dst;
@@ -971,7 +915,7 @@ ZTEST(net_pkt_test_suite, test_net_pkt_headroom_copy)
 	net_pkt_unref(pkt_src);
 }
 
-ZTEST(net_pkt_test_suite, test_net_pkt_get_contiguous_len)
+static void test_net_pkt_get_contiguous_len(void)
 {
 	size_t cont_len;
 	int res;
@@ -1033,7 +977,7 @@ ZTEST(net_pkt_test_suite, test_net_pkt_get_contiguous_len)
 	net_pkt_unref(pkt);
 }
 
-ZTEST(net_pkt_test_suite, test_net_pkt_remove_tail)
+void test_net_pkt_remove_tail(void)
 {
 	struct net_pkt *pkt;
 	int err;
@@ -1117,126 +1061,24 @@ ZTEST(net_pkt_test_suite, test_net_pkt_remove_tail)
 	net_pkt_unref(pkt);
 }
 
-ZTEST(net_pkt_test_suite, test_net_pkt_shallow_clone_noleak_buf)
+void test_main(void)
 {
-	const int bufs_to_allocate = 3;
-	const size_t pkt_size = CONFIG_NET_BUF_DATA_SIZE * bufs_to_allocate;
-	struct net_pkt *pkt, *shallow_pkt;
-	struct net_buf_pool *tx_data;
+	eth_if = net_if_get_default();
 
-	pkt = net_pkt_alloc_with_buffer(NULL, pkt_size,
-					AF_UNSPEC, 0, K_NO_WAIT);
+	ztest_test_suite(net_pkt_tests,
+			 ztest_unit_test(test_net_pkt_allocate_wo_buffer),
+			 ztest_unit_test(test_net_pkt_allocate_with_buffer),
+			 ztest_unit_test(test_net_pkt_basics_of_rw),
+			 ztest_unit_test(test_net_pkt_advanced_basics),
+			 ztest_unit_test(test_net_pkt_easier_rw_usage),
+			 ztest_unit_test(test_net_pkt_copy),
+			 ztest_unit_test(test_net_pkt_pull),
+			 ztest_unit_test(test_net_pkt_clone),
+			 ztest_unit_test(test_net_pkt_headroom),
+			 ztest_unit_test(test_net_pkt_headroom_copy),
+			 ztest_unit_test(test_net_pkt_get_contiguous_len),
+			 ztest_unit_test(test_net_pkt_remove_tail)
+		);
 
-	zassert_true(pkt != NULL, "Pkt not allocated");
-
-	net_pkt_get_info(NULL, NULL, NULL, &tx_data);
-	zassert_equal(atomic_get(&tx_data->avail_count), tx_data->buf_count - bufs_to_allocate,
-		      "Incorrect net buf allocation");
-
-	shallow_pkt = net_pkt_shallow_clone(pkt, K_NO_WAIT);
-	zassert_true(shallow_pkt != NULL, "Pkt not allocated");
-	zassert_equal(atomic_get(&tx_data->avail_count), tx_data->buf_count - bufs_to_allocate,
-		      "Incorrect available net buf count");
-
-	net_pkt_unref(pkt);
-	zassert_equal(atomic_get(&tx_data->avail_count), tx_data->buf_count - bufs_to_allocate,
-		      "Incorrect available net buf count");
-
-	net_pkt_unref(shallow_pkt);
-	zassert_equal(atomic_get(&tx_data->avail_count), tx_data->buf_count,
-		      "Leak detected");
-
+	ztest_run_test_suite(net_pkt_tests);
 }
-
-void test_net_pkt_shallow_clone_append_buf(int extra_frag_refcounts)
-{
-	const int bufs_to_allocate = 3;
-	const int bufs_frag = 2;
-
-	zassert_true(bufs_frag + bufs_to_allocate < CONFIG_NET_BUF_DATA_SIZE,
-		     "Total bufs to allocate must less than available space");
-
-	const size_t pkt_size = CONFIG_NET_BUF_DATA_SIZE * bufs_to_allocate;
-
-	struct net_pkt *pkt, *shallow_pkt;
-	struct net_buf *frag_head;
-	struct net_buf *frag;
-	struct net_buf_pool *tx_data;
-
-	pkt = net_pkt_alloc_with_buffer(NULL, pkt_size, AF_UNSPEC, 0, K_NO_WAIT);
-	zassert_true(pkt != NULL, "Pkt not allocated");
-
-	net_pkt_get_info(NULL, NULL, NULL, &tx_data);
-	zassert_equal(atomic_get(&tx_data->avail_count), tx_data->buf_count
-		      - bufs_to_allocate, "Incorrect net buf allocation");
-
-	shallow_pkt = net_pkt_shallow_clone(pkt, K_NO_WAIT);
-	zassert_true(shallow_pkt != NULL, "Pkt not allocated");
-
-	/* allocate buffers for the frag */
-	for (int i = 0; i < bufs_frag; i++) {
-		frag = net_buf_alloc_len(tx_data, CONFIG_NET_BUF_DATA_SIZE, K_NO_WAIT);
-		zassert_true(frag != NULL, "Frag not allocated");
-		net_pkt_append_buffer(pkt, frag);
-		if (i == 0) {
-			frag_head = frag;
-		}
-	}
-
-	zassert_equal(atomic_get(&tx_data->avail_count), tx_data->buf_count
-		      - bufs_to_allocate - bufs_frag, "Incorrect net buf allocation");
-
-	/* Note: if the frag is appended to a net buf, then the nut buf */
-	/* takes ownership of one ref count. Otherwise net_buf_unref() must */
-	/* be called on the frag to free the buffers. */
-
-	for (int i = 0; i < extra_frag_refcounts; i++) {
-		frag_head = net_buf_ref(frag_head);
-	}
-
-	net_pkt_unref(pkt);
-
-	/* we shouldn't have freed any buffers yet */
-	zassert_equal(atomic_get(&tx_data->avail_count), tx_data->buf_count
-		      - bufs_to_allocate - bufs_frag,
-		      "Incorrect net buf allocation");
-
-	net_pkt_unref(shallow_pkt);
-
-	if (extra_frag_refcounts == 0) {
-		/* if no extra ref counts to frag were added then we should free */
-		/* all the buffers at this point */
-		zassert_equal(atomic_get(&tx_data->avail_count), tx_data->buf_count,
-			      "Leak detected");
-	} else {
-		/* otherwise only bufs_frag should be available, and frag could */
-		/* still used at this point */
-		zassert_equal(atomic_get(&tx_data->avail_count),
-			      tx_data->buf_count - bufs_frag, "Leak detected");
-	}
-
-	for (int i = 0; i < extra_frag_refcounts; i++) {
-		net_buf_unref(frag_head);
-	}
-
-	/* all the buffers should be freed now */
-	zassert_equal(atomic_get(&tx_data->avail_count), tx_data->buf_count,
-		      "Leak detected");
-}
-
-ZTEST(net_pkt_test_suite, test_net_pkt_shallow_clone_append_buf_0)
-{
-	test_net_pkt_shallow_clone_append_buf(0);
-}
-
-ZTEST(net_pkt_test_suite, test_net_pkt_shallow_clone_append_buf_1)
-{
-	test_net_pkt_shallow_clone_append_buf(2);
-}
-
-ZTEST(net_pkt_test_suite, test_net_pkt_shallow_clone_append_buf_2)
-{
-	test_net_pkt_shallow_clone_append_buf(2);
-}
-
-ZTEST_SUITE(net_pkt_test_suite, NULL, NULL, NULL, NULL, NULL);

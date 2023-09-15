@@ -5,8 +5,8 @@
  * Author: Saravanan Sekar <saravanan@linumiz.com>
  */
 
-#include <zephyr/init.h>
-#include <zephyr/kernel.h>
+#include <init.h>
+#include <kernel.h>
 
 void z_arm_platform_init(void)
 {

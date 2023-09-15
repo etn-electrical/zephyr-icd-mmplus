@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
+#include <ztest.h>
 
-#define STACK_SIZE	(1024 + CONFIG_TEST_EXTRA_STACK_SIZE)
+#define STACK_SIZE	(1024 + CONFIG_TEST_EXTRA_STACKSIZE)
 #define PIPE_LEN	(4 * 16)
 #define BYTES_TO_WRITE	16
 #define BYTES_TO_READ BYTES_TO_WRITE
@@ -54,7 +54,7 @@ static void tpipe_put(struct k_pipe *ppipe, k_timeout_t timeout)
 			BYTES_TO_WRITE : (PIPE_LEN - i);
 		zassert_false(k_pipe_put(ppipe, &data[i], to_wt,
 					 &wt_byte, 1, timeout), NULL);
-		zassert_true(wt_byte == to_wt || wt_byte == 1);
+		zassert_true(wt_byte == to_wt || wt_byte == 1, NULL);
 	}
 }
 
@@ -70,10 +70,10 @@ static void tpipe_get(struct k_pipe *ppipe, k_timeout_t timeout)
 			BYTES_TO_READ : (PIPE_LEN - i);
 		zassert_false(k_pipe_get(ppipe, &rx_data[i], to_rd,
 					 &rd_byte, 1, timeout), NULL);
-		zassert_true(rd_byte == to_rd || rd_byte == 1);
+		zassert_true(rd_byte == to_rd || rd_byte == 1, NULL);
 	}
 	for (int i = 0; i < PIPE_LEN; i++) {
-		zassert_equal(rx_data[i], data[i]);
+		zassert_equal(rx_data[i], data[i], NULL);
 	}
 }
 
@@ -131,7 +131,7 @@ static void tpipe_put_no_wait(struct k_pipe *ppipe)
 			BYTES_TO_WRITE : (PIPE_LEN - i);
 		zassert_false(k_pipe_put(ppipe, &data[i], to_wt,
 					&wt_byte, 1, K_NO_WAIT), NULL);
-		zassert_true(wt_byte == to_wt || wt_byte == 1);
+		zassert_true(wt_byte == to_wt || wt_byte == 1, NULL);
 	}
 }
 
@@ -184,16 +184,16 @@ static void tpipe_get_large_size(struct k_pipe *ppipe, k_timeout_t timeout)
  * with various parameters
  * @see k_pipe_alloc_init(), k_pipe_cleanup()
  */
-ZTEST(pipe_api_1cpu, test_pipe_alloc)
+void test_pipe_alloc(void)
 {
 	int ret;
 
-	zassert_false(k_pipe_alloc_init(&pipe_test_alloc, PIPE_LEN));
+	zassert_false(k_pipe_alloc_init(&pipe_test_alloc, PIPE_LEN), NULL);
 
 	tpipe_kthread_to_kthread(&pipe_test_alloc);
 	k_pipe_cleanup(&pipe_test_alloc);
 
-	zassert_false(k_pipe_alloc_init(&pipe_test_alloc, 0));
+	zassert_false(k_pipe_alloc_init(&pipe_test_alloc, 0), NULL);
 	k_pipe_cleanup(&pipe_test_alloc);
 
 	ret = k_pipe_alloc_init(&pipe_test_alloc, 2048);
@@ -206,11 +206,11 @@ static void thread_for_get_forever(void *p1, void *p2, void *p3)
 	tpipe_get((struct k_pipe *)p1, K_FOREVER);
 }
 
-ZTEST(pipe_api, test_pipe_cleanup)
+void test_pipe_cleanup(void)
 {
 	int ret;
 
-	zassert_false(k_pipe_alloc_init(&pipe_test_alloc, PIPE_LEN));
+	zassert_false(k_pipe_alloc_init(&pipe_test_alloc, PIPE_LEN), NULL);
 
 	/**TESTPOINT: test if a dynamically allocated buffer can be freed*/
 	ret = k_pipe_cleanup(&pipe_test_alloc);
@@ -222,7 +222,7 @@ ZTEST(pipe_api, test_pipe_cleanup)
 	zassert_true((ret == 0) && (kpipe.buffer != NULL),
 			"Static buffer should not be freed.");
 
-	zassert_false(k_pipe_alloc_init(&pipe_test_alloc, PIPE_LEN));
+	zassert_false(k_pipe_alloc_init(&pipe_test_alloc, PIPE_LEN), NULL);
 
 	k_tid_t tid = k_thread_create(&tdata, tstack, STACK_SIZE,
 			thread_for_get_forever, &pipe_test_alloc, NULL,
@@ -289,7 +289,7 @@ static void thread_handler(void *p1, void *p2, void *p3)
  * @see k_pipe_init(), k_pipe_put(), #K_PIPE_DEFINE(x)
  */
 
-ZTEST(pipe_api_1cpu, test_pipe_thread2thread)
+void test_pipe_thread2thread(void)
 {
 	/**TESTPOINT: test k_pipe_init pipe*/
 	k_pipe_init(&pipe, data, PIPE_LEN);
@@ -304,15 +304,15 @@ ZTEST(pipe_api_1cpu, test_pipe_thread2thread)
  * @brief Test data passing using pipes between user threads
  * @see k_pipe_init(), k_pipe_put(), #K_PIPE_DEFINE(x)
  */
-ZTEST_USER(pipe_api_1cpu, test_pipe_user_thread2thread)
+void test_pipe_user_thread2thread(void)
 {
 	/**TESTPOINT: test k_object_alloc pipe*/
 	struct k_pipe *p = k_object_alloc(K_OBJ_PIPE);
 
-	zassert_true(p != NULL);
+	zassert_true(p != NULL, NULL);
 
 	/**TESTPOINT: test k_pipe_alloc_init*/
-	zassert_false(k_pipe_alloc_init(p, PIPE_LEN));
+	zassert_false(k_pipe_alloc_init(p, PIPE_LEN), NULL);
 	tpipe_thread_thread(p);
 
 }
@@ -323,13 +323,13 @@ ZTEST_USER(pipe_api_1cpu, test_pipe_user_thread2thread)
  * @see k_heap_alloc()
  */
 #ifdef CONFIG_USERSPACE
-ZTEST(pipe_api, test_resource_pool_auto_free)
+void test_resource_pool_auto_free(void)
 {
 	/* Pool has 2 blocks, both should succeed if kernel object and pipe
 	 * buffer are auto-freed when the allocating threads exit
 	 */
-	zassert_true(k_heap_alloc(&test_pool, 64, K_NO_WAIT) != NULL);
-	zassert_true(k_heap_alloc(&test_pool, 64, K_NO_WAIT) != NULL);
+	zassert_true(k_heap_alloc(&test_pool, 64, K_NO_WAIT) != NULL, NULL);
+	zassert_true(k_heap_alloc(&test_pool, 64, K_NO_WAIT) != NULL, NULL);
 }
 #endif
 
@@ -347,7 +347,7 @@ static void tThread_half_pipe_get(void *p1, void *p2, void *p3)
  * @brief Test put/get with smaller pipe buffer
  * @see k_pipe_put(), k_pipe_get()
  */
-ZTEST(pipe_api, test_half_pipe_put_get)
+void test_half_pipe_put_get(void)
 {
 	unsigned char rx_data[PIPE_LEN];
 	size_t rd_byte = 0;
@@ -355,9 +355,9 @@ ZTEST(pipe_api, test_half_pipe_put_get)
 
 	/* TESTPOINT: min_xfer > bytes_to_read */
 	ret = k_pipe_put(&kpipe, &rx_data[0], 1, &rd_byte, 24, K_NO_WAIT);
-	zassert_true(ret == -EINVAL);
+	zassert_true(ret == -EINVAL, NULL);
 	ret = k_pipe_put(&kpipe, &rx_data[0], 24, NULL, 1, K_NO_WAIT);
-	zassert_true(ret == -EINVAL);
+	zassert_true(ret == -EINVAL, NULL);
 
 	/**TESTPOINT: thread-thread data passing via pipe*/
 	k_tid_t tid1 = k_thread_create(&tdata1, tstack1, STACK_SIZE,
@@ -378,7 +378,7 @@ ZTEST(pipe_api, test_half_pipe_put_get)
 	k_thread_abort(tid2);
 }
 
-ZTEST(pipe_api, test_pipe_get_put)
+void test_pipe_get_put(void)
 {
 	unsigned char rx_data[PIPE_LEN];
 	size_t rd_byte = 0;
@@ -386,9 +386,9 @@ ZTEST(pipe_api, test_pipe_get_put)
 
 	/* TESTPOINT: min_xfer > bytes_to_read */
 	ret = k_pipe_get(&kpipe, &rx_data[0], 1, &rd_byte, 24, K_NO_WAIT);
-	zassert_true(ret == -EINVAL);
+	zassert_true(ret == -EINVAL, NULL);
 	ret = k_pipe_get(&kpipe, &rx_data[0], 24, NULL, 1, K_NO_WAIT);
-	zassert_true(ret == -EINVAL);
+	zassert_true(ret == -EINVAL, NULL);
 
 	/**TESTPOINT: thread-thread data passing via pipe*/
 	k_tid_t tid1 = k_thread_create(&tdata1, tstack1, STACK_SIZE,
@@ -409,7 +409,7 @@ ZTEST(pipe_api, test_pipe_get_put)
 	k_thread_abort(tid2);
 }
 
-ZTEST(pipe_api, test_pipe_get_large)
+void test_pipe_get_large(void)
 {
 	/**TESTPOINT: thread-thread data passing via pipe*/
 	k_tid_t tid1 = k_thread_create(&tdata1, tstack1, STACK_SIZE,
@@ -435,7 +435,7 @@ ZTEST(pipe_api, test_pipe_get_large)
  * @brief Test pending reader in pipe
  * @see k_pipe_put(), k_pipe_get()
  */
-ZTEST(pipe_api, test_pipe_reader_wait)
+void test_pipe_reader_wait(void)
 {
 	/**TESTPOINT: test k_pipe_block_put with semaphore*/
 	k_tid_t tid = k_thread_create(&tdata, tstack, STACK_SIZE,

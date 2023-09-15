@@ -8,23 +8,26 @@ compatible: "snps,creg-gpio"
 include: [gpio-controller.yaml, base.yaml]
 
 properties:
-  reg:
-    required: true
+    reg:
+      required: true
 
-  bit_per_gpio:
-    type: int
-    required: true
+    label:
+      required: true
 
-  off_val:
-    type: int
-    required: true
+    bit_per_gpio:
+      type: int
+      required: true
 
-  on_val:
-    type: int
-    required: true
+    off_val:
+      type: int
+      required: true
 
-  "#gpio-cells":
-    const: 2
+    on_val:
+      type: int
+      required: true
+
+    "#gpio-cells":
+      const: 2
 
 gpio-cells:
   - pin

@@ -7,10 +7,9 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-#include <zephyr/toolchain.h>
+#include <toolchain.h>
 #include <zephyr/types.h>
-#include <zephyr/ztest.h>
-#include <zephyr/sys/util.h>
+#include <sys/util.h>
 
 #include "hal/cpu.h"
 #include "hal/ccm.h"
@@ -22,17 +21,15 @@
 #include "util/mfifo.h"
 #include "util/dbuf.h"
 
-#include "pdu_df.h"
-#include "lll/pdu_vendor.h"
 #include "pdu.h"
 
 #include "lll.h"
-#include "lll/lll_df_types.h"
+#include "lll_df_types.h"
 #include "lll_conn.h"
 
-#include "lll/lll_internal.h"
-#include "lll/lll_tim_internal.h"
-#include "lll/lll_prof_internal.h"
+#include "lll_internal.h"
+#include "lll_tim_internal.h"
+#include "lll_prof_internal.h"
 
 void lll_conn_flush(uint16_t handle, struct lll_conn *lll)
 {

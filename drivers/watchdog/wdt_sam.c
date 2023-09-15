@@ -19,12 +19,11 @@
  *   CONFIG_WDT_DISABLE_AT_BOOT must be unset in the app's config file
  */
 
-#include <zephyr/drivers/watchdog.h>
-#include <zephyr/irq.h>
+#include <drivers/watchdog.h>
 #include <soc.h>
 
 #define LOG_LEVEL CONFIG_WDT_LOG_LEVEL
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(wdt_sam);
 
 #define SAM_PRESCALAR   128
@@ -214,7 +213,7 @@ static int wdt_sam_feed(const struct device *dev, int channel_id)
 
 	/*
 	 * On watchdog restart the Watchdog counter is immediately
-	 * reloaded/fed with the 12-bit watchdog counter
+	 * reloaded/feeded with the 12-bit watchdog counter
 	 * value from WDT_MR and restarted
 	 */
 	Wdt * const wdt = config->regs;

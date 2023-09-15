@@ -4,19 +4,19 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(net_mgmt_sock_sample, LOG_LEVEL_DBG);
 
-#include <zephyr/kernel.h>
+#include <zephyr.h>
 #include <errno.h>
 #include <stdio.h>
-#include <zephyr/net/socket.h>
-#include <zephyr/net/socket_net_mgmt.h>
-#include <zephyr/net/net_if.h>
+#include <net/socket.h>
+#include <net/socket_net_mgmt.h>
+#include <net/net_if.h>
 
 #define MAX_BUF_LEN 64
 #define STACK_SIZE 1024
-#if defined(CONFIG_NET_TC_THREAD_COOPERATIVE)
+#if IS_ENABLED(CONFIG_NET_TC_THREAD_COOPERATIVE)
 #define THREAD_PRIORITY K_PRIO_COOP(CONFIG_NUM_COOP_PRIORITIES - 1)
 #else
 #define THREAD_PRIORITY K_PRIO_PREEMPT(8)

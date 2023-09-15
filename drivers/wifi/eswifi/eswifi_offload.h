@@ -7,7 +7,7 @@
 #ifndef ZEPHYR_DRIVERS_WIFI_ESWIFI_ESWIFI_OFFLOAD_H_
 #define ZEPHYR_DRIVERS_WIFI_ESWIFI_ESWIFI_OFFLOAD_H_
 
-#include <zephyr/net/net_offload.h>
+#include <net/net_offload.h>
 #include "eswifi.h"
 
 #define ESWIFI_OFFLOAD_MAX_SOCKETS 4

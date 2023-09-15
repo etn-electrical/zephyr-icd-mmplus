@@ -17,8 +17,8 @@
 
 #else
 
-#include <zephyr/net/socket.h>
-#include <zephyr/kernel.h>
+#include <net/socket.h>
+#include <kernel.h>
 
 #endif
 

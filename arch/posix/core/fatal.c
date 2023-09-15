@@ -5,13 +5,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/arch/cpu.h>
-#include <zephyr/kernel_structs.h>
-#include <zephyr/sys/printk.h>
+#include <kernel.h>
+#include <arch/cpu.h>
+#include <kernel_structs.h>
+#include <sys/printk.h>
 #include <inttypes.h>
-#include <zephyr/logging/log_ctrl.h>
-#include <zephyr/arch/posix/posix_soc_if.h>
+#include <logging/log_ctrl.h>
+#include <arch/posix/posix_soc_if.h>
 
 FUNC_NORETURN void arch_system_halt(unsigned int reason)
 {

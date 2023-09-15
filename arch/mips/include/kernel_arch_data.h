@@ -17,14 +17,14 @@
 #ifndef ZEPHYR_ARCH_MIPS_INCLUDE_KERNEL_ARCH_DATA_H_
 #define ZEPHYR_ARCH_MIPS_INCLUDE_KERNEL_ARCH_DATA_H_
 
-#include <zephyr/toolchain.h>
-#include <zephyr/arch/cpu.h>
+#include <toolchain.h>
+#include <arch/cpu.h>
 
 #ifndef _ASMLANGUAGE
-#include <zephyr/kernel.h>
+#include <kernel.h>
 #include <zephyr/types.h>
-#include <zephyr/sys/util.h>
-#include <zephyr/sys/dlist.h>
+#include <sys/util.h>
+#include <sys/dlist.h>
 
 #ifdef __cplusplus
 extern "C" {

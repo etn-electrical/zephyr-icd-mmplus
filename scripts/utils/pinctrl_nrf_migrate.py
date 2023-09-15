@@ -20,8 +20,6 @@ partially ported.
     Devicetree files will be converted correctly. **ADJUSTED/GENERATED FILES
     MUST BE MANUALLY REVIEWED**.
 
-Known limitations: All SPI nodes will be assumed to be a master device.
-
 Usage::
 
     python3 pinctrl_nrf_migrate.py
@@ -97,24 +95,17 @@ class PIN_CONFIG(enum.Enum):
     PULL_UP = "bias-pull-up"
     PULL_DOWN = "bias-pull-down"
     LOW_POWER = "low-power-enable"
-    NORDIC_INVERT = "nordic,invert"
 
 
 class Device(object):
     """Device configuration class"""
 
     def __init__(
-        self,
-        pattern: str,
-        callback: Callable,
-        signals: Dict[str, str],
-        needs_sleep: bool,
+        self, pattern: str, callback: Callable, signals: Dict[str, str]
     ) -> None:
         self.pattern = pattern
         self.callback = callback
         self.signals = signals
-        self.needs_sleep = needs_sleep
-        self.attrs = {}
 
 
 class SignalMapping(object):
@@ -281,7 +272,7 @@ def fmt_pinctrl_groups(groups: List[PinGroup]) -> str:
 
         # write psels entries
         for i, mapping in enumerate(group.pins):
-            prefix = "psels = " if i == 0 else "\t"
+            prefix = "psels = " if i == 0 else "       "
             suffix = ";" if i == len(group.pins) - 1 else ","
             pin = mapping.pin
             port = 0 if pin < 32 else 1
@@ -300,33 +291,24 @@ def fmt_pinctrl_groups(groups: List[PinGroup]) -> str:
     return content
 
 
-def fmt_states(device: str, indent: str, needs_sleep: bool) -> str:
+def fmt_states(device: str, indent: str) -> str:
     """Format state entries for the given device.
 
     Args:
         device: Device name.
-        indent: Indentation.
-        needs_sleep: If sleep entry is needed.
+        indent: Intentation.
 
     Returns:
         State entries to be appended to the device.
     """
 
-    if needs_sleep:
-        return "\n".join(
-            (
-                f"{indent}pinctrl-0 = <&{device}_default>;",
-                f"{indent}pinctrl-1 = <&{device}_sleep>;",
-                f'{indent}pinctrl-names = "default", "sleep";\n',
-            )
+    return "\n".join(
+        (
+            f"{indent}pinctrl-0 = <&{device}_default>;",
+            f"{indent}pinctrl-1 = <&{device}_sleep>;",
+            f'{indent}pinctrl-names = "default", "sleep";\n',
         )
-    else:
-        return "\n".join(
-            (
-                f"{indent}pinctrl-0 = <&{device}_default>;",
-                f'{indent}pinctrl-names = "default";\n',
-            )
-        )
+    )
 
 
 def insert_pinctrl_include(content: List[str], board: str) -> None:
@@ -383,7 +365,6 @@ def adjust_content(content: List[str], board: str) -> List[DeviceConfiguration]:
     configs: List[DeviceConfiguration] = []
     level = 0
     in_device = False
-    states_written = False
 
     new_content = []
 
@@ -403,11 +384,10 @@ def adjust_content(content: List[str], board: str) -> List[DeviceConfiguration]:
                         break
 
                 # we are now inside a device node
-                level = 1
                 in_device = True
-                states_written = False
+                level = 1
         else:
-            # entering subnode (must come after all properties)
+            # entering subnode
             if re.match(r"[^\/\*]*{.*", line):
                 level += 1
             # exiting subnode (or device node)
@@ -427,14 +407,10 @@ def adjust_content(content: List[str], board: str) -> List[DeviceConfiguration]:
 
             # process each device line, append states at the end
             if current_device:
-                if level == 1:
+                if in_device:
                     line = current_device.callback(config, current_device.signals, line)
-                if (level == 2 or not in_device) and not states_written:
-                    line = (
-                        fmt_states(config.name, indent, current_device.needs_sleep)
-                        + line
-                    )
-                    states_written = True
+                else:
+                    line = fmt_states(config.name, indent) + line
                     current_device = None
 
         if line:
@@ -455,7 +431,7 @@ def adjust_content(content: List[str], board: str) -> List[DeviceConfiguration]:
 
 def match_and_store_pin(
     config: DeviceConfiguration, signals: Dict[str, str], line: str
-) -> Optional[str]:
+) -> bool:
     """Match and store a pin mapping.
 
     Args:
@@ -464,23 +440,15 @@ def match_and_store_pin(
         line: Line containing potential pin mapping.
 
     Returns:
-        Line if found a pin mapping, None otherwise.
+        True if line contains a pin mapping, False otherwise.
     """
 
-    # handle qspi special case for io-pins (array case)
-    m = re.match(r"\s*io-pins\s*=\s*([\s<>,0-9]+).*", line)
-    if m:
-        pins = re.sub(r"[<>,]", "", m.group(1)).split()
-        for i, pin in enumerate(pins):
-            config.set_signal_pin(signals[f"io{i}"], int(pin))
-        return
-
-    m = re.match(r"\s*([a-z]+\d?)-pins?\s*=\s*<(\d+)>.*", line)
+    m = re.match(r"\s*([a-z]+)-pin\s*=\s*<(\d+)>.*", line)
     if m:
         config.set_signal_pin(signals[m.group(1)], int(m.group(2)))
-        return
+        return True
 
-    return line
+    return False
 
 
 #
@@ -492,52 +460,14 @@ def process_uart(config: DeviceConfiguration, signals, line: str) -> Optional[st
     """Process UART/UARTE devices."""
 
     # check if line specifies a pin
-    if not match_and_store_pin(config, signals, line):
-        return
+    if match_and_store_pin(config, signals, line):
+        return None
 
     # check if pull-up is specified
     m = re.match(r"\s*([a-z]+)-pull-up.*", line)
     if m:
         config.add_signal_config(signals[m.group(1)], PIN_CONFIG.PULL_UP)
-        return
-
-    return line
-
-
-def process_spi(config: DeviceConfiguration, signals, line: str) -> Optional[str]:
-    """Process SPI devices."""
-
-    # check if line specifies a pin
-    if not match_and_store_pin(config, signals, line):
-        return
-
-    # check if pull-up is specified
-    m = re.match(r"\s*miso-pull-up.*", line)
-    if m:
-        config.add_signal_config(signals["miso"], PIN_CONFIG.PULL_UP)
-        return
-
-    # check if pull-down is specified
-    m = re.match(r"\s*miso-pull-down.*", line)
-    if m:
-        config.add_signal_config(signals["miso"], PIN_CONFIG.PULL_DOWN)
-        return
-
-    return line
-
-
-def process_pwm(config: DeviceConfiguration, signals, line: str) -> Optional[str]:
-    """Process PWM devices."""
-
-    # check if line specifies a pin
-    if not match_and_store_pin(config, signals, line):
-        return
-
-    # check if channel inversion is specified
-    m = re.match(r"\s*([a-z0-9]+)-inverted.*", line)
-    if m:
-        config.add_signal_config(signals[m.group(1)], PIN_CONFIG.NORDIC_INVERT)
-        return
+        return None
 
     return line
 
@@ -552,81 +482,6 @@ DEVICES = [
             "rts": "UART_RTS",
             "cts": "UART_CTS",
         },
-        needs_sleep=True,
-    ),
-    Device(
-        r"i2c\d",
-        match_and_store_pin,
-        {
-            "sda": "TWIM_SDA",
-            "scl": "TWIM_SCL",
-        },
-        needs_sleep=True,
-    ),
-    Device(
-        r"spi\d",
-        process_spi,
-        {
-            "sck": "SPIM_SCK",
-            "miso": "SPIM_MISO",
-            "mosi": "SPIM_MOSI",
-        },
-        needs_sleep=True,
-    ),
-    Device(
-        r"pdm\d",
-        match_and_store_pin,
-        {
-            "clk": "PDM_CLK",
-            "din": "PDM_DIN",
-        },
-        needs_sleep=False,
-    ),
-    Device(
-        r"qdec",
-        match_and_store_pin,
-        {
-            "a": "QDEC_A",
-            "b": "QDEC_B",
-            "led": "QDEC_LED",
-        },
-        needs_sleep=True,
-    ),
-    Device(
-        r"qspi",
-        match_and_store_pin,
-        {
-            "sck": "QSPI_SCK",
-            "io0": "QSPI_IO0",
-            "io1": "QSPI_IO1",
-            "io2": "QSPI_IO2",
-            "io3": "QSPI_IO3",
-            "csn": "QSPI_CSN",
-        },
-        needs_sleep=True,
-    ),
-    Device(
-        r"pwm\d",
-        process_pwm,
-        {
-            "ch0": "PWM_OUT0",
-            "ch1": "PWM_OUT1",
-            "ch2": "PWM_OUT2",
-            "ch3": "PWM_OUT3",
-        },
-        needs_sleep=True,
-    ),
-    Device(
-        r"i2s\d",
-        match_and_store_pin,
-        {
-            "sck": "I2S_SCK_M",
-            "lrck": "I2S_LRCK_M",
-            "sdout": "I2S_SDOUT",
-            "sdin": "I2S_SDIN",
-            "mck": "I2S_MCK",
-        },
-        needs_sleep=False,
     ),
 ]
 """Supported devices and associated configuration"""
@@ -665,7 +520,7 @@ def main(input_file: Path, no_backup: bool, skip_nrf_check: bool, header: str) -
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser("pinctrl migration utility for nRF", allow_abbrev=False)
+    parser = argparse.ArgumentParser("pinctrl migration utility for nRF")
     parser.add_argument(
         "-i", "--input", type=Path, required=True, help="Board DTS file"
     )
@@ -678,7 +533,10 @@ if __name__ == "__main__":
         help="Skip checking if board is nRF-based",
     )
     parser.add_argument(
-        "--header", default="", type=str, help="Header to be prepended to pinctrl files"
+        "--header",
+        default="",
+        type=str,
+        help="Header to be prepended to pinctrl files"
     )
     args = parser.parse_args()
 

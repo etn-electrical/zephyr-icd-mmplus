@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/ztest.h>
-#include <zephyr/syscall_handler.h>
+#include <zephyr.h>
+#include <ztest.h>
+#include <syscall_handler.h>
 #include <kernel_internal.h>
 
 #include "test_syscall.h"
@@ -16,7 +16,7 @@
  */
 struct k_thread test_thread;
 #define NUM_STACKS	3
-#define STEST_STACKSIZE	(512 + CONFIG_TEST_EXTRA_STACK_SIZE)
+#define STEST_STACKSIZE	(512 + CONFIG_TEST_EXTRA_STACKSIZE)
 K_THREAD_STACK_DEFINE(user_stack, STEST_STACKSIZE);
 K_THREAD_STACK_ARRAY_DEFINE(user_stack_array, NUM_STACKS, STEST_STACKSIZE);
 K_KERNEL_STACK_DEFINE(kern_stack, STEST_STACKSIZE);
@@ -115,8 +115,7 @@ void stack_buffer_scenarios(void)
 	if (scenario_data.is_user) {
 		reserved = K_THREAD_STACK_RESERVED;
 		stack_buf = Z_THREAD_STACK_BUFFER(stack_obj);
-		/* always use the original size here */
-		alignment = Z_THREAD_STACK_OBJ_ALIGN(STEST_STACKSIZE);
+		alignment = Z_THREAD_STACK_OBJ_ALIGN(stack_size);
 	} else
 #endif
 	{
@@ -192,20 +191,6 @@ void stack_buffer_scenarios(void)
 		zassert_true(check_perms(stack_end, 1, 0),
 			     "user mode access to memory %p past end of stack object",
 			     obj_end);
-
-		/*
-		 * The reserved area, when it exists, is dropped at run time
-		 * when transitioning to user mode on RISC-V. Reinstate that
-		 * reserved area here for the next tests to work properly
-		 * with a static non-zero K_THREAD_STACK_RESERVED definition.
-		 */
-		if (IS_ENABLED(CONFIG_RISCV) &&
-		    IS_ENABLED(CONFIG_GEN_PRIV_STACKS) &&
-		    K_THREAD_STACK_RESERVED != 0) {
-			stack_start += reserved;
-			stack_size -= reserved;
-		}
-
 		zassert_true(stack_size <= obj_size - reserved,
 			      "bad stack size %zu in thread struct",
 			      stack_size);
@@ -383,7 +368,7 @@ void scenario_entry(void *stack_obj, size_t obj_size, size_t reported_size,
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST(userspace_thread_stack, test_stack_buffer)
+void test_stack_buffer(void)
 {
 	printk("Reserved space (thread stacks): %zu\n",
 	       K_THREAD_STACK_RESERVED);
@@ -391,10 +376,7 @@ ZTEST(userspace_thread_stack, test_stack_buffer)
 	       K_KERNEL_STACK_RESERVED);
 
 	printk("CONFIG_ISR_STACK_SIZE %zu\n", (size_t)CONFIG_ISR_STACK_SIZE);
-
-	unsigned int num_cpus = arch_num_cpus();
-
-	for (int i = 0; i < num_cpus; i++) {
+	for (int i = 0; i < CONFIG_MP_NUM_CPUS; i++) {
 		printk("irq stack %d: %p size %zu\n",
 		       i, &z_interrupt_stacks[i],
 		       sizeof(z_interrupt_stacks[i]));
@@ -458,7 +440,7 @@ void no_op_entry(void *p1, void *p2, void *p3)
  *
  * @ingroup kernel_memprotect_tests
  */
-ZTEST(userspace_thread_stack, test_idle_stack)
+void test_idle_stack(void)
 {
 	if (IS_ENABLED(CONFIG_KERNEL_COHERENCE)) {
 		/* Stacks on coherence platforms aren't coherent, and
@@ -503,12 +485,14 @@ ZTEST(userspace_thread_stack, test_idle_stack)
 
 }
 
-void *thread_setup(void)
+void test_main(void)
 {
 	k_thread_system_pool_assign(k_current_get());
 
-	return NULL;
+	/* Run a thread that self-exits, triggering idle cleanup */
+	ztest_test_suite(userspace_thread_stack,
+			 ztest_1cpu_unit_test(test_stack_buffer),
+			 ztest_1cpu_unit_test(test_idle_stack)
+			 );
+	ztest_run_test_suite(userspace_thread_stack);
 }
-
-ZTEST_SUITE(userspace_thread_stack, NULL, thread_setup,
-		ztest_simple_1cpu_before, ztest_simple_1cpu_after, NULL);

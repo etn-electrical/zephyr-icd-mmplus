@@ -4,16 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/init.h>
-#include <zephyr/kernel.h>
-#include <zephyr/arch/cpu.h>
-#include <zephyr/linker/linker-defs.h>
-
-#ifndef CONFIG_ASSERT
-#define LOG_LEVEL CONFIG_LOG_DEFAULT_LEVEL
-#include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(pma_init, LOG_LEVEL);
-#endif
+#include <init.h>
+#include <kernel.h>
+#include <arch/cpu.h>
+#include <linker/linker-defs.h>
 
 /* Programmable PMA mechanism is supported */
 #define MMSC_CFG_PPMA		(1 << 30)
@@ -60,9 +54,9 @@ LOG_MODULE_REGISTER(pma_init, LOG_LEVEL);
 
 /* Wrappers of inline assembly */
 #define read_csr(var, csr) \
-	({ __asm__ volatile ("csrr %0, %1" : "=r" (var) : "i" (csr)); })
+	__asm__ volatile ("csrr %0, %1" : "=r" (var) : "i" (csr))
 #define write_csr(csr, val) \
-	({ __asm__ volatile ("csrw %0, %1" :: "i" (csr), "r" (val)); })
+	__asm__ volatile ("csrw %0, %1" :: "i" (csr), "r" (val))
 
 struct pma_region_attr {
 	/* Attributes belonging to pmacfg{i} */
@@ -70,15 +64,15 @@ struct pma_region_attr {
 };
 
 struct pma_region {
-	unsigned long start;
-	unsigned long size;
+	ulong_t start;
+	ulong_t size;
 	struct pma_region_attr attr;
 };
 
 /*
  * Write value to CSRs pmaaddr{i}
  */
-static void write_pmaaddr_csr(const uint32_t index, unsigned long value)
+static void write_pmaaddr_csr(const uint32_t index, ulong_t value)
 {
 	switch (index) {
 	case 0:
@@ -125,7 +119,7 @@ static void write_pmacfg_entry(const uint32_t entry_index,
 	/* 1-byte pma{i}cfg entries are packed into XLEN-byte CSRs pmacfg{j} */
 	uint32_t index = PMACFG_NUM(entry_index);
 	uint8_t shift = PMACFG_SHIFT(entry_index);
-	unsigned long pmacfg = 0;
+	ulong_t pmacfg = 0;
 
 	switch (index) {
 	case 0:
@@ -164,7 +158,7 @@ static void write_pmacfg_entry(const uint32_t entry_index,
 static void region_init(const uint32_t index,
 	const struct pma_region *region_conf)
 {
-	unsigned long pmaaddr;
+	ulong_t pmaaddr;
 	uint8_t pmacfg;
 
 	if (region_conf->size == 4) {
@@ -197,30 +191,24 @@ static int pma_region_is_valid(const struct pma_region *region)
 		&&
 		((region->start & (region->size - 1)) == 0U);
 
-	if (!region_is_valid) {
-		return -EINVAL;
-	}
-
-	return 0;
+	return region_is_valid;
 }
 
 #ifdef CONFIG_NOCACHE_MEMORY
 static void configure_nocache_region(void)
 {
 	const struct pma_region nocache_region = {
-		.start = (unsigned long)&_nocache_ram_start,
-		.size = (unsigned long)&_nocache_ram_size,
+		.start = (ulong_t)&_nocache_ram_start,
+		.size = (ulong_t)&_nocache_ram_size,
 		.attr = {PMACFG_MTYPE_MEMORY_NOCACHE_BUFFERABLE},
 	};
 
-	if (nocache_region.size != 0) {
-		if (pma_region_is_valid(&nocache_region) == -EINVAL) {
-			__ASSERT(0, "Configuring PMA region of nocache region failed\n");
-		}
-
-		/* Initialize nocache region at PMA region 0 */
-		region_init(0, &nocache_region);
+	if (pma_region_is_valid(&nocache_region) == -EINVAL) {
+		__ASSERT(0, "Configuring PMA region of nocache region failed\n");
 	}
+
+	/* Initialize nocache region at PMA region 0 */
+	region_init(0, &nocache_region);
 }
 #endif /* CONFIG_NOCACHE_MEMORY */
 
@@ -240,7 +228,7 @@ void pma_init_per_core(void)
 
 static int pma_init(const struct device *arg)
 {
-	unsigned long mmsc_cfg;
+	ulong_t mmsc_cfg;
 
 	__asm__ volatile ("csrr %0, %1" : "=r" (mmsc_cfg) : "i" (NDS_MMSC_CFG));
 
@@ -249,10 +237,7 @@ static int pma_init(const struct device *arg)
 
 		__ASSERT(0, "CPU doesn't support PMA. "
 			    "Please disable CONFIG_SOC_ANDES_V5_PMA\n");
-#ifndef CONFIG_ASSERT
-		LOG_ERR("CPU doesn't support PMA. Please disable CONFIG_SOC_ANDES_V5_PMA");
-#endif
-		return -ENODEV;
+		return -1;
 	}
 
 	pma_init_per_core();

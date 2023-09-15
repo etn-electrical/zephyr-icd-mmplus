@@ -34,16 +34,14 @@
  *   "sleep/deep sleep" power state if CONFIG_PM is enabled.
  */
 
-#include <zephyr/device.h>
-#include <zephyr/drivers/clock_control.h>
-#include <zephyr/drivers/timer/system_timer.h>
-#include <zephyr/kernel.h>
-#include <zephyr/sys_clock.h>
-#include <zephyr/spinlock.h>
+#include <device.h>
+#include <drivers/clock_control.h>
+#include <drivers/timer/system_timer.h>
+#include <sys_clock.h>
+#include <spinlock.h>
 #include <soc.h>
 
-#include <zephyr/logging/log.h>
-#include <zephyr/irq.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(itim, LOG_LEVEL_ERR);
 
 #define NPCX_ITIM32_MAX_CNT 0xffffffff
@@ -297,10 +295,12 @@ void npcx_clock_compensate_system_timer(void)
 			sys_clock_hw_cycles_per_sec()) / EVT_CYCLES_PER_SEC;
 }
 
+#if defined(CONFIG_SOC_POWER_MANAGEMENT_TRACE)
 uint64_t npcx_clock_get_sleep_ticks(void)
 {
 	return  cyc_sys_compensated / SYS_CYCLES_PER_TICK;
 }
+#endif /* CONFIG_SOC_POWER_MANAGEMENT_TRACE */
 #endif /* CONFIG_PM */
 
 static int sys_clock_driver_init(const struct device *dev)
@@ -309,11 +309,6 @@ static int sys_clock_driver_init(const struct device *dev)
 	int ret;
 	uint32_t sys_tmr_rate;
 	const struct device *const clk_dev = DEVICE_DT_GET(NPCX_CLK_CTRL_NODE);
-
-	if (!device_is_ready(clk_dev)) {
-		LOG_ERR("clock control device not ready");
-		return -ENODEV;
-	}
 
 	/* Turn on all itim module clocks used for counting */
 	for (int i = 0; i < ARRAY_SIZE(itim_clk_cfg); i++) {

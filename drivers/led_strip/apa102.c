@@ -7,10 +7,10 @@
 #define DT_DRV_COMPAT apa_apa102
 
 #include <errno.h>
-#include <zephyr/drivers/led_strip.h>
-#include <zephyr/drivers/spi.h>
-#include <zephyr/drivers/gpio.h>
-#include <zephyr/sys/util.h>
+#include <drivers/led_strip.h>
+#include <drivers/spi.h>
+#include <drivers/gpio.h>
+#include <sys/util.h>
 
 struct apa102_config {
 	struct spi_dt_spec bus;
@@ -84,7 +84,7 @@ static int apa102_init(const struct device *dev)
 {
 	const struct apa102_config *config = dev->config;
 
-	if (!spi_is_ready_dt(&config->bus)) {
+	if (!spi_is_ready(&config->bus)) {
 		return -ENODEV;
 	}
 

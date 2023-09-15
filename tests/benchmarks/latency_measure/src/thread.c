@@ -3,11 +3,11 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#include <zephyr/kernel.h>
-#include <zephyr/timing/timing.h>
+#include <zephyr.h>
+#include <timing/timing.h>
 #include "utils.h"
 
-#define STACK_SIZE (512 + CONFIG_TEST_EXTRA_STACK_SIZE)
+#define STACK_SIZE (512 + CONFIG_TEST_EXTRA_STACKSIZE)
 /* stack used by the threads */
 static K_THREAD_STACK_DEFINE(t1_stack, STACK_SIZE);
 

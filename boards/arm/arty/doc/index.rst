@@ -14,7 +14,8 @@ Each board is equipped with on-board JTAG for FPGA programming and debugging,
 LEDs, switches, buttons, DDR3 RAM, and QSPI flash for storing the FPGA
 bitstream.
 
-.. figure:: arty_a7-35.jpg
+.. figure:: ./arty_a7-35.png
+   :width: 500px
    :align: center
    :alt: Digilent Arty A7-35
 
@@ -32,7 +33,7 @@ DesignStart FPGA`_ Xilinx edition reference designs from ARM. Zephyr supports
 both the Cortex-M1 and the Cortex-M3 reference designs. The Cortex-M1 design
 targets either the Spartan-7 or Artix-7 based Arty boards, whereas the Cortex-M3
 design only targets the Artix-7 based boards. Zephyr only supports the Artix-7
-targeted designs for now.
+targetted designs for now.
 
 For more information about the ARM Cortex-M1/M3 DesignStart FPGA, see the
 following websites:
@@ -183,7 +184,7 @@ the next time the FPGA is configured.
 
 The steps to persist the application within the FPGA bitstream are covered by
 the ARM Cortex-M1/M3 DesignStart FPGA Xilinx edition user guide. If the
-:kconfig:option:`CONFIG_BUILD_OUTPUT_BIN` is enabled and the `SiFive elf2hex`_ package
+:kconfig:`CONFIG_BUILD_OUTPUT_BIN` is enabled and the `SiFive elf2hex`_ package
 is available, the build system will automatically generate a Verilog memory hex
 dump :file:`zephyr.mem` file suitable for initialising the block RAM using
 `Xilinx Vivado`_.

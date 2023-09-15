@@ -10,17 +10,17 @@
 #include <stddef.h>
 #include <string.h>
 #include <errno.h>
-#include <zephyr/sys/printk.h>
-#include <zephyr/sys/byteorder.h>
-#include <zephyr/kernel.h>
+#include <sys/printk.h>
+#include <sys/byteorder.h>
+#include <zephyr.h>
 
-#include <zephyr/settings/settings.h>
+#include <settings/settings.h>
 
-#include <zephyr/bluetooth/bluetooth.h>
-#include <zephyr/bluetooth/hci.h>
-#include <zephyr/bluetooth/conn.h>
-#include <zephyr/bluetooth/uuid.h>
-#include <zephyr/bluetooth/gatt.h>
+#include <bluetooth/bluetooth.h>
+#include <bluetooth/hci.h>
+#include <bluetooth/conn.h>
+#include <bluetooth/uuid.h>
+#include <bluetooth/gatt.h>
 
 #include "hog.h"
 
@@ -137,10 +137,5 @@ void main(void)
 		return;
 	}
 
-	if (IS_ENABLED(CONFIG_SAMPLE_BT_USE_AUTHENTICATION)) {
-		bt_conn_auth_cb_register(&auth_cb_display);
-		printk("Bluetooth authentication callbacks registered.\n");
-	}
-
-	hog_button_loop();
+	bt_conn_auth_cb_register(&auth_cb_display);
 }

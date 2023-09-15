@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/init.h>
-#include <zephyr/drivers/gpio.h>
-#include <zephyr/devicetree.h>
-#include <zephyr/logging/log.h>
+#include <zephyr.h>
+#include <init.h>
+#include <drivers/gpio.h>
+#include <devicetree.h>
+#include <logging/log.h>
 #include <hal/nrf_gpio.h>
 
 LOG_MODULE_REGISTER(board_control, CONFIG_BOARD_NRF9160DK_LOG_LEVEL);
@@ -39,7 +39,7 @@ struct switch_cfg {
 	gpio_pin_t pin;
 	gpio_dt_flags_t flags;
 	bool on;
-#if defined(CONFIG_LOG)
+#if IS_ENABLED(CONFIG_LOG)
 	uint8_t port;
 	bool info;
 	const char *name;
@@ -175,7 +175,7 @@ static int init(const struct device *dev)
 		flags |= (cfg->on ? GPIO_OUTPUT_ACTIVE
 				  : GPIO_OUTPUT_INACTIVE);
 		rc = gpio_pin_configure(cfg->gpio, cfg->pin, flags);
-#if defined(CONFIG_LOG)
+#if IS_ENABLED(CONFIG_LOG)
 		LOG_DBG("Configuring P%d.%02d with flags: 0x%08x",
 			cfg->port, cfg->pin, flags);
 		if (rc) {

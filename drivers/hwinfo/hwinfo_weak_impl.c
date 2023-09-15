@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/drivers/hwinfo.h>
+#include <drivers/hwinfo.h>
 
 ssize_t __weak z_impl_hwinfo_get_device_id(uint8_t *buffer, size_t length)
 {

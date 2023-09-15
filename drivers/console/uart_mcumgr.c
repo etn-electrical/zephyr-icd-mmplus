@@ -10,13 +10,12 @@
  */
 
 #include <string.h>
-#include <zephyr/kernel.h>
-#include <zephyr/drivers/uart.h>
-#include <zephyr/mgmt/mcumgr/transport/serial.h>
-#include <zephyr/drivers/console/uart_mcumgr.h>
+#include <kernel.h>
+#include <drivers/uart.h>
+#include <mgmt/mcumgr/serial.h>
+#include <drivers/console/uart_mcumgr.h>
 
-static const struct device *const uart_mcumgr_dev =
-	DEVICE_DT_GET(DT_CHOSEN(zephyr_uart_mcumgr));
+static const struct device *uart_mcumgr_dev;
 
 /** Callback to execute when a valid fragment has been received. */
 static uart_mcumgr_recv_fn *uart_mgumgr_recv_cb;
@@ -34,9 +33,8 @@ static bool uart_mcumgr_ignoring;
 K_MEM_SLAB_DEFINE(uart_mcumgr_slab, sizeof(struct uart_mcumgr_rx_buf),
 		  CONFIG_UART_MCUMGR_RX_BUF_COUNT, 1);
 
-#if defined(CONFIG_MCUMGR_TRANSPORT_UART_ASYNC)
-uint8_t async_buffer[CONFIG_MCUMGR_TRANSPORT_UART_ASYNC_BUFS]
-		    [CONFIG_MCUMGR_TRANSPORT_UART_ASYNC_BUF_SIZE];
+#if defined(CONFIG_MCUMGR_SMP_UART_ASYNC)
+uint8_t async_buffer[CONFIG_MCUMGR_SMP_UART_ASYNC_BUFS][CONFIG_MCUMGR_SMP_UART_ASYNC_BUF_SIZE];
 static int async_current;
 #endif
 
@@ -64,7 +62,7 @@ void uart_mcumgr_free_rx_buf(struct uart_mcumgr_rx_buf *rx_buf)
 	k_mem_slab_free(&uart_mcumgr_slab, &block);
 }
 
-#if !defined(CONFIG_MCUMGR_TRANSPORT_UART_ASYNC)
+#if !defined(CONFIG_MCUMGR_SMP_UART_ASYNC)
 /**
  * Reads a chunk of received data from the UART.
  */
@@ -120,7 +118,7 @@ static struct uart_mcumgr_rx_buf *uart_mcumgr_rx_byte(uint8_t byte)
 	return NULL;
 }
 
-#if defined(CONFIG_MCUMGR_TRANSPORT_UART_ASYNC)
+#if defined(CONFIG_MCUMGR_SMP_UART_ASYNC)
 static void uart_mcumgr_async(const struct device *dev, struct uart_event *evt, void *user_data)
 {
 	struct uart_mcumgr_rx_buf *rx_buf;
@@ -156,7 +154,7 @@ static void uart_mcumgr_async(const struct device *dev, struct uart_event *evt, 
 		 * UART_RX_BUF_REQUEST is processed.
 		 */
 		++async_current;
-		async_current %= CONFIG_MCUMGR_TRANSPORT_UART_ASYNC_BUFS;
+		async_current %= CONFIG_MCUMGR_SMP_UART_ASYNC_BUFS;
 		uart_rx_buf_rsp(dev, async_buffer[async_current],
 				sizeof(async_buffer[async_current]));
 		break;
@@ -200,7 +198,7 @@ static void uart_mcumgr_isr(const struct device *unused, void *user_data)
 /**
  * Sends raw data over the UART.
  */
-static int uart_mcumgr_send_raw(const void *data, int len)
+static int uart_mcumgr_send_raw(const void *data, int len, void *arg)
 {
 	const uint8_t *u8p;
 
@@ -214,11 +212,11 @@ static int uart_mcumgr_send_raw(const void *data, int len)
 
 int uart_mcumgr_send(const uint8_t *data, int len)
 {
-	return mcumgr_serial_tx_pkt(data, len, uart_mcumgr_send_raw);
+	return mcumgr_serial_tx_pkt(data, len, uart_mcumgr_send_raw, NULL);
 }
 
 
-#if defined(CONFIG_MCUMGR_TRANSPORT_UART_ASYNC)
+#if defined(CONFIG_MCUMGR_SMP_UART_ASYNC)
 static void uart_mcumgr_setup(const struct device *uart)
 {
 	uart_callback_set(uart, uart_mcumgr_async, NULL);
@@ -247,6 +245,8 @@ static void uart_mcumgr_setup(const struct device *uart)
 void uart_mcumgr_register(uart_mcumgr_recv_fn *cb)
 {
 	uart_mgumgr_recv_cb = cb;
+
+	uart_mcumgr_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_uart_mcumgr));
 
 	if (device_is_ready(uart_mcumgr_dev)) {
 		uart_mcumgr_setup(uart_mcumgr_dev);

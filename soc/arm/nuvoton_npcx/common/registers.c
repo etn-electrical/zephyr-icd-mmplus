@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/device.h>
+#include <device.h>
 #include <soc.h>
 
 /* CDCG register structure check */
@@ -64,9 +64,7 @@ NPCX_REG_OFFSET_CHECK(twd_reg, WDCP, 0x010);
 /* ESPI register structure check */
 NPCX_REG_SIZE_CHECK(espi_reg, 0x500);
 NPCX_REG_OFFSET_CHECK(espi_reg, FLASHCFG, 0x034);
-NPCX_REG_OFFSET_CHECK(espi_reg, NPCX_ONLY_ESPI_REG1, 0x0f0);
 NPCX_REG_OFFSET_CHECK(espi_reg, VWEVMS, 0x140);
-NPCX_REG_OFFSET_CHECK(espi_reg, VWGPSM, 0x180);
 NPCX_REG_OFFSET_CHECK(espi_reg, VWCTL, 0x2fc);
 NPCX_REG_OFFSET_CHECK(espi_reg, OOBTXBUF, 0x380);
 NPCX_REG_OFFSET_CHECK(espi_reg, OOBCTL_DIRECT, 0x3fc);
@@ -121,10 +119,13 @@ NPCX_REG_SIZE_CHECK(smb_reg, 0x020);
 NPCX_REG_OFFSET_CHECK(smb_reg, SMBCTL1, 0x006);
 NPCX_REG_OFFSET_CHECK(smb_reg, SMBT_OUT, 0x00f);
 NPCX_REG_OFFSET_CHECK(smb_reg, SMBADDR6, 0x016);
-NPCX_REG_OFFSET_CHECK(smb_reg, SMBCST2, 0x018);
-NPCX_REG_OFFSET_CHECK(smb_reg, SMBTXF_STS, 0x01a);
 NPCX_REG_OFFSET_CHECK(smb_reg, SMBSCLHT, 0x01e);
-NPCX_REG_OFFSET_CHECK(smb_reg, SMBRXF_CTL, 0x01e);
+
+NPCX_REG_SIZE_CHECK(smb_fifo_reg, 0x020);
+NPCX_REG_OFFSET_CHECK(smb_fifo_reg, SMBT_OUT, 0x00f);
+NPCX_REG_OFFSET_CHECK(smb_fifo_reg, SMBCST2, 0x018);
+NPCX_REG_OFFSET_CHECK(smb_fifo_reg, SMBTXF_STS, 0x01a);
+NPCX_REG_OFFSET_CHECK(smb_fifo_reg, SMBRXF_CTL, 0x01e);
 
 /* ITIM register structure check */
 NPCX_REG_SIZE_CHECK(itim32_reg, 0x00c);
@@ -169,15 +170,3 @@ NPCX_REG_OFFSET_CHECK(fiu_reg, UMA_CTS, 0x01e);
 NPCX_REG_OFFSET_CHECK(fiu_reg, CRCCON, 0x026);
 NPCX_REG_OFFSET_CHECK(fiu_reg, FIU_RD_CMD, 0x030);
 NPCX_REG_OFFSET_CHECK(fiu_reg, FIU_EXT_CFG, 0x033);
-
-/* PECI register structure check */
-NPCX_REG_SIZE_CHECK(peci_reg, 0x050);
-NPCX_REG_OFFSET_CHECK(peci_reg, PECI_ADDR, 0x002);
-NPCX_REG_OFFSET_CHECK(peci_reg, PECI_WR_LENGTH, 0x007);
-NPCX_REG_OFFSET_CHECK(peci_reg, PECI_WR_FCS, 0x00b);
-
-/* KBS register structure check */
-NPCX_REG_SIZE_CHECK(kbs_reg, 0x010);
-NPCX_REG_OFFSET_CHECK(kbs_reg, KBSIN, 0x004);
-NPCX_REG_OFFSET_CHECK(kbs_reg, KBSOUT0, 0x006);
-NPCX_REG_OFFSET_CHECK(kbs_reg, KBS_BUF_INDX, 0x00a);

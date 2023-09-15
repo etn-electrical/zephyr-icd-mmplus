@@ -15,4 +15,3 @@ include:
       - ahb-prescaler
       - apb1-prescaler
       - apb2-prescaler
-      - undershoot-prevention

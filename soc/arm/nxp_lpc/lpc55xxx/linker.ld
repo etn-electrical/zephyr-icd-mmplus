@@ -11,10 +11,6 @@
  * This is the linker script for both standard images and XIP images.
  */
 
- /* The SDK CMIS SystemInit function sets VTOR equal to &__Vectors,
-  * so we create an alias for the symbol to Zephyr's vector table
-  */
- __Vectors = _vector_table;
+#include <autoconf.h>
 
-
-#include <zephyr/arch/arm/aarch32/cortex_m/scripts/linker.ld>
+#include <arch/arm/aarch32/cortex_m/scripts/linker.ld>

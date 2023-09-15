@@ -7,9 +7,9 @@
 #ifndef ZEPHYR_DRIVERS_I2C_I2C_PRIV_H_
 #define ZEPHYR_DRIVERS_I2C_I2C_PRIV_H_
 
-#include <zephyr/drivers/i2c.h>
-#include <zephyr/dt-bindings/i2c/i2c.h>
-#include <zephyr/logging/log.h>
+#include <drivers/i2c.h>
+#include <dt-bindings/i2c/i2c.h>
+#include <logging/log.h>
 
 #ifdef __cplusplus
 extern "C" {

@@ -8,7 +8,7 @@
 #define _TRACE_BACKEND_H
 
 #include <string.h>
-#include <zephyr/sys/util.h>
+#include <sys/util.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -69,8 +69,8 @@ static inline void tracing_backend_init(
  * @brief Output tracing packet with tracing backend.
  *
  * @param backend Pointer to tracing_backend instance.
- * @param data    Address of outputting buffer.
- * @param length  Length of outputting buffer.
+ * @param data    Address of outputing buffer.
+ * @param length  Length of outputing buffer.
  */
 static inline void tracing_backend_output(
 		const struct tracing_backend *backend,

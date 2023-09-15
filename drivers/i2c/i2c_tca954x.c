@@ -4,18 +4,19 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/device.h>
-#include <zephyr/devicetree.h>
-#include <zephyr/drivers/gpio.h>
-#include <zephyr/drivers/i2c.h>
-#include <zephyr/logging/log.h>
+#include <zephyr.h>
+#include <device.h>
+#include <devicetree.h>
+#include <drivers/gpio.h>
+#include <drivers/i2c.h>
+#include <logging/log.h>
 #include <stdint.h>
 
 LOG_MODULE_REGISTER(tca954x, CONFIG_I2C_LOG_LEVEL);
 
 struct tca954x_root_config {
-	struct i2c_dt_spec i2c;
+	const struct device *bus;
+	uint16_t slave_addr;
 	uint8_t nchans;
 	const struct gpio_dt_spec reset_gpios;
 };
@@ -51,7 +52,7 @@ static int tca954x_configure(const struct device *dev, uint32_t dev_config)
 	const struct tca954x_root_config *cfg =
 			get_root_config_from_channel(dev);
 
-	return i2c_configure(cfg->i2c.bus, dev_config);
+	return i2c_configure(cfg->bus, dev_config);
 }
 
 static int tca954x_set_channel(const struct device *dev, uint8_t select_mask)
@@ -62,7 +63,7 @@ static int tca954x_set_channel(const struct device *dev, uint8_t select_mask)
 
 	/* Only select the channel if its different from the last channel */
 	if (data->selected_chan != select_mask) {
-		res = i2c_write_dt(&cfg->i2c, &select_mask, 1);
+		res = i2c_write(cfg->bus, &select_mask, 1, cfg->slave_addr);
 		if (res == 0) {
 			data->selected_chan = select_mask;
 		} else {
@@ -93,7 +94,7 @@ static int tca954x_transfer(const struct device *dev,
 		goto end_trans;
 	}
 
-	res = i2c_transfer(config->i2c.bus, msgs, num_msgs, addr);
+	res = i2c_transfer(config->bus, msgs, num_msgs, addr);
 
 end_trans:
 	k_mutex_unlock(&data->lock);
@@ -105,8 +106,8 @@ static int tca954x_root_init(const struct device *dev)
 	struct tca954x_root_data *i2c_tca954x = dev->data;
 	const struct tca954x_root_config *config = dev->config;
 
-	if (!device_is_ready(config->i2c.bus)) {
-		LOG_ERR("I2C bus %s not ready", config->i2c.bus->name);
+	if (!device_is_ready(config->bus)) {
+		LOG_ERR("I2C bus %s not ready", config->bus->name);
 		return -ENODEV;
 	}
 
@@ -172,7 +173,8 @@ const struct i2c_driver_api tca954x_api_funcs = {
 
 #define TCA954x_ROOT_DEFINE(n, inst, ch)				          \
 	static const struct tca954x_root_config tca##n##a_cfg_##inst = {          \
-		.i2c = I2C_DT_SPEC_INST_GET(inst),				  \
+		.slave_addr = DT_REG_ADDR_BY_IDX(DT_INST(inst, ti_tca##n##a), 0), \
+		.bus = DEVICE_DT_GET(DT_BUS(DT_INST(inst, ti_tca##n##a))),	  \
 		.nchans = ch,							  \
 		.reset_gpios = GPIO_DT_SPEC_GET_OR(			          \
 				DT_INST(inst, ti_tca##n##a), reset_gpios, {0}),	  \

@@ -3,11 +3,11 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#include <zephyr/kernel.h>
+#include <kernel.h>
 #include <errno.h>
 #include <string.h>
-#include <zephyr/sys/printk.h>
-#include <zephyr/posix/time.h>
+#include <sys/printk.h>
+#include <posix/time.h>
 
 #define ACTIVE 1
 #define NOT_ACTIVE 0
@@ -50,7 +50,6 @@ static void zephyr_timer_wrapper(struct k_timer *ztimer)
 int timer_create(clockid_t clockid, struct sigevent *evp, timer_t *timerid)
 {
 	struct timer_obj *timer;
-	const k_timeout_t alloc_timeout = K_MSEC(CONFIG_TIMER_CREATE_WAIT);
 
 	if (clockid != CLOCK_MONOTONIC || evp == NULL ||
 	    (evp->sigev_notify != SIGEV_NONE &&
@@ -59,7 +58,7 @@ int timer_create(clockid_t clockid, struct sigevent *evp, timer_t *timerid)
 		return -1;
 	}
 
-	if (k_mem_slab_alloc(&posix_timer_slab, (void **)&timer, alloc_timeout) == 0) {
+	if (k_mem_slab_alloc(&posix_timer_slab, (void **)&timer, K_MSEC(100)) == 0) {
 		(void)memset(timer, 0, sizeof(struct timer_obj));
 	} else {
 		errno = ENOMEM;
@@ -158,7 +157,7 @@ int timer_settime(timer_t timerid, int flags, const struct itimerspec *value,
 	timer->interval.tv_sec = value->it_interval.tv_sec;
 	timer->interval.tv_nsec = value->it_interval.tv_nsec;
 
-	/* Calculate timer duration */
+	/* Calcaulte timer duration */
 	duration = _ts_to_ms(&(value->it_value));
 	if ((flags & TIMER_ABSTIME) != 0) {
 		current = k_timer_remaining_get(&timer->ztimer);

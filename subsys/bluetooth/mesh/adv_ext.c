@@ -6,15 +6,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/debug/stack.h>
+#include <zephyr.h>
+#include <debug/stack.h>
 
-#include <zephyr/net/buf.h>
-#include <zephyr/bluetooth/bluetooth.h>
-#include <zephyr/bluetooth/hci.h>
-#include <zephyr/bluetooth/mesh.h>
+#include <net/buf.h>
+#include <bluetooth/bluetooth.h>
+#include <bluetooth/mesh.h>
 
-#include "common/bt_str.h"
+#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_MESH_DEBUG_ADV)
+#define LOG_MODULE_NAME bt_mesh_adv_ext
+#include "common/log.h"
 
 #include "host/hci_core.h"
 
@@ -22,28 +23,16 @@
 #include "net.h"
 #include "proxy.h"
 
-#define LOG_LEVEL CONFIG_BT_MESH_ADV_LOG_LEVEL
-#include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(bt_mesh_adv_ext);
-
 /* Convert from ms to 0.625ms units */
 #define ADV_INT_FAST_MS    20
-
-#ifndef CONFIG_BT_MESH_RELAY_ADV_SETS
-#define CONFIG_BT_MESH_RELAY_ADV_SETS 0
-#endif
 
 enum {
 	/** Controller is currently advertising */
 	ADV_FLAG_ACTIVE,
-	/** Advertising sending completed */
-	ADV_FLAG_SENT,
 	/** Currently performing proxy advertising */
 	ADV_FLAG_PROXY,
 	/** The send-call has been scheduled. */
 	ADV_FLAG_SCHEDULED,
-	/** The send-call has been pending. */
-	ADV_FLAG_SCHEDULE_PENDING,
 	/** Custom adv params have been set, we need to update the parameters on
 	 *  the next send.
 	 */
@@ -64,20 +53,13 @@ struct bt_mesh_ext_adv {
 };
 
 static void send_pending_adv(struct k_work *work);
-static bool schedule_send(struct bt_mesh_ext_adv *adv);
 
 static STRUCT_SECTION_ITERABLE(bt_mesh_ext_adv, adv_main) = {
-	.tag = (
-#if !defined(CONFIG_BT_MESH_ADV_EXT_FRIEND_SEPARATE)
-		BT_MESH_FRIEND_ADV |
-#endif
+	.tag = (BT_MESH_LOCAL_ADV |
 #if !defined(CONFIG_BT_MESH_ADV_EXT_GATT_SEPARATE)
 		BT_MESH_PROXY_ADV |
 #endif /* !CONFIG_BT_MESH_ADV_EXT_GATT_SEPARATE */
-#if defined(CONFIG_BT_MESH_ADV_EXT_RELAY_USING_MAIN_ADV_SET)
-		BT_MESH_RELAY_ADV |
-#endif /* CONFIG_BT_MESH_ADV_EXT_RELAY_USING_MAIN_ADV_SET */
-		BT_MESH_LOCAL_ADV),
+		BT_MESH_RELAY_ADV),
 
 	.work = Z_WORK_DELAYABLE_INITIALIZER(send_pending_adv),
 };
@@ -91,27 +73,15 @@ static STRUCT_SECTION_ITERABLE(bt_mesh_ext_adv, adv_relay[CONFIG_BT_MESH_RELAY_A
 };
 #endif /* CONFIG_BT_MESH_RELAY_ADV_SETS */
 
-#if defined(CONFIG_BT_MESH_ADV_EXT_FRIEND_SEPARATE)
-#define ADV_EXT_FRIEND 1
-static STRUCT_SECTION_ITERABLE(bt_mesh_ext_adv, adv_friend) = {
-	.tag = BT_MESH_FRIEND_ADV,
-	.work = Z_WORK_DELAYABLE_INITIALIZER(send_pending_adv),
-};
-#else /* CONFIG_BT_MESH_ADV_EXT_FRIEND_SEPARATE */
-#define ADV_EXT_FRIEND 0
-#endif /* CONFIG_BT_MESH_ADV_EXT_FRIEND_SEPARATE */
-
 #if defined(CONFIG_BT_MESH_ADV_EXT_GATT_SEPARATE)
-#define ADV_EXT_GATT 1
+#define BT_MESH_ADV_COUNT			(1 + CONFIG_BT_MESH_RELAY_ADV_SETS + 1)
 static STRUCT_SECTION_ITERABLE(bt_mesh_ext_adv, adv_gatt) = {
 	.tag = BT_MESH_PROXY_ADV,
 	.work = Z_WORK_DELAYABLE_INITIALIZER(send_pending_adv),
 };
 #else /* CONFIG_BT_MESH_ADV_EXT_GATT_SEPARATE */
-#define ADV_EXT_GATT 0
+#define BT_MESH_ADV_COUNT			(1 + CONFIG_BT_MESH_RELAY_ADV_SETS)
 #endif /* CONFIG_BT_MESH_ADV_EXT_GATT_SEPARATE */
-
-#define BT_MESH_ADV_COUNT (1 + CONFIG_BT_MESH_RELAY_ADV_SETS + ADV_EXT_FRIEND + ADV_EXT_GATT)
 
 BUILD_ASSERT(CONFIG_BT_EXT_ADV_MAX_ADV_SET >= BT_MESH_ADV_COUNT,
 	     "Insufficient adv instances");
@@ -143,19 +113,19 @@ static int adv_start(struct bt_mesh_ext_adv *adv,
 	int err;
 
 	if (!adv->instance) {
-		LOG_ERR("Mesh advertiser not enabled");
+		BT_ERR("Mesh advertiser not enabled");
 		return -ENODEV;
 	}
 
 	if (atomic_test_and_set_bit(adv->flags, ADV_FLAG_ACTIVE)) {
-		LOG_ERR("Advertiser is busy");
+		BT_ERR("Advertiser is busy");
 		return -EBUSY;
 	}
 
 	if (atomic_test_bit(adv->flags, ADV_FLAG_UPDATE_PARAMS)) {
 		err = bt_le_ext_adv_update_param(adv->instance, param);
 		if (err) {
-			LOG_ERR("Failed updating adv params: %d", err);
+			BT_ERR("Failed updating adv params: %d", err);
 			atomic_clear_bit(adv->flags, ADV_FLAG_ACTIVE);
 			return err;
 		}
@@ -166,7 +136,7 @@ static int adv_start(struct bt_mesh_ext_adv *adv,
 
 	err = bt_le_ext_adv_set_data(adv->instance, ad, ad_len, sd, sd_len);
 	if (err) {
-		LOG_ERR("Failed setting adv data: %d", err);
+		BT_ERR("Failed setting adv data: %d", err);
 		atomic_clear_bit(adv->flags, ADV_FLAG_ACTIVE);
 		return err;
 	}
@@ -175,7 +145,7 @@ static int adv_start(struct bt_mesh_ext_adv *adv,
 
 	err = bt_le_ext_adv_start(adv->instance, start);
 	if (err) {
-		LOG_ERR("Advertising failed: err %d", err);
+		BT_ERR("Advertising failed: err %d", err);
 		atomic_clear_bit(adv->flags, ADV_FLAG_ACTIVE);
 	}
 
@@ -197,10 +167,11 @@ static int buf_send(struct bt_mesh_ext_adv *adv, struct net_buf *buf)
 	/* Upper boundary estimate: */
 	duration = start.num_events * (adv_int + 10);
 
-	LOG_DBG("type %u len %u: %s", BT_MESH_ADV(buf)->type, buf->len,
-		bt_hex(buf->data, buf->len));
-	LOG_DBG("count %u interval %ums duration %ums",
-		BT_MESH_TRANSMIT_COUNT(BT_MESH_ADV(buf)->xmit) + 1, adv_int, duration);
+	BT_DBG("type %u len %u: %s", BT_MESH_ADV(buf)->type,
+	       buf->len, bt_hex(buf->data, buf->len));
+	BT_DBG("count %u interval %ums duration %ums",
+	       BT_MESH_TRANSMIT_COUNT(BT_MESH_ADV(buf)->xmit) + 1, adv_int,
+	       duration);
 
 	ad.type = bt_mesh_adv_type[BT_MESH_ADV(buf)->type];
 	ad.data_len = buf->len;
@@ -223,21 +194,6 @@ static int buf_send(struct bt_mesh_ext_adv *adv, struct net_buf *buf)
 	return err;
 }
 
-static const char *adv_tag_to_str(enum bt_mesh_adv_tag tag)
-{
-	if (tag & BT_MESH_LOCAL_ADV) {
-		return "local adv";
-	} else if (tag & BT_MESH_PROXY_ADV) {
-		return "proxy adv";
-	} else if (tag & BT_MESH_RELAY_ADV) {
-		return "relay adv";
-	} else if (tag & BT_MESH_FRIEND_ADV) {
-		return "friend adv";
-	} else {
-		return "(unknown tag)";
-	}
-}
-
 static void send_pending_adv(struct k_work *work)
 {
 	struct bt_mesh_ext_adv *adv;
@@ -245,30 +201,6 @@ static void send_pending_adv(struct k_work *work)
 	int err;
 
 	adv = CONTAINER_OF(work, struct bt_mesh_ext_adv, work.work);
-
-	if (atomic_test_and_clear_bit(adv->flags, ADV_FLAG_SENT)) {
-		/* Calling k_uptime_delta on a timestamp moves it to the current time.
-		 * This is essential here, as schedule_send() uses the end of the event
-		 * as a reference to avoid sending the next advertisement too soon.
-		 */
-		int64_t duration = k_uptime_delta(&adv->timestamp);
-
-		LOG_DBG("Advertising stopped after %u ms for (%u) %s", (uint32_t)duration, adv->tag,
-		       adv_tag_to_str(adv->tag));
-
-		atomic_clear_bit(adv->flags, ADV_FLAG_ACTIVE);
-		atomic_clear_bit(adv->flags, ADV_FLAG_PROXY);
-
-		if (adv->buf) {
-			net_buf_unref(adv->buf);
-			adv->buf = NULL;
-		}
-
-		(void)schedule_send(adv);
-
-		return;
-	}
-
 	atomic_clear_bit(adv->flags, ADV_FLAG_SCHEDULED);
 
 	while ((buf = bt_mesh_adv_buf_get_by_tag(adv->tag, K_NO_WAIT))) {
@@ -288,25 +220,22 @@ static void send_pending_adv(struct k_work *work)
 		}
 	}
 
-	if (!IS_ENABLED(CONFIG_BT_MESH_GATT_SERVER) ||
-	    !(adv->tag & BT_MESH_PROXY_ADV)) {
+	if (IS_ENABLED(CONFIG_BT_MESH_GATT_SERVER) &&
+	    (adv->tag & BT_MESH_PROXY_ADV) &&
+	    !bt_mesh_adv_gatt_send()) {
+		atomic_set_bit(adv->flags, ADV_FLAG_PROXY);
 		return;
 	}
-
-	if (!bt_mesh_adv_gatt_send()) {
-		atomic_set_bit(adv->flags, ADV_FLAG_PROXY);
-	}
-
-	if (atomic_test_and_clear_bit(adv->flags, ADV_FLAG_SCHEDULE_PENDING)) {
-		schedule_send(adv);
-	}
-
 }
 
 static bool schedule_send(struct bt_mesh_ext_adv *adv)
 {
 	uint64_t timestamp;
 	int64_t delta;
+
+	if (!adv) {
+		return false;
+	}
 
 	timestamp = adv->timestamp;
 
@@ -315,25 +244,17 @@ static bool schedule_send(struct bt_mesh_ext_adv *adv)
 		atomic_clear_bit(adv->flags, ADV_FLAG_ACTIVE);
 	}
 
-	if (atomic_test_bit(adv->flags, ADV_FLAG_ACTIVE)) {
-		atomic_set_bit(adv->flags, ADV_FLAG_SCHEDULE_PENDING);
-		return false;
-	} else if (atomic_test_and_set_bit(adv->flags, ADV_FLAG_SCHEDULED)) {
+	if (atomic_test_bit(adv->flags, ADV_FLAG_ACTIVE) ||
+	    atomic_test_and_set_bit(adv->flags, ADV_FLAG_SCHEDULED)) {
 		return false;
 	}
 
-	atomic_clear_bit(adv->flags, ADV_FLAG_SCHEDULE_PENDING);
-
-	if (IS_ENABLED(CONFIG_BT_MESH_ADV_EXT_FRIEND_SEPARATE) && adv->tag & BT_MESH_FRIEND_ADV) {
-		k_work_reschedule(&adv->work, K_NO_WAIT);
-	} else {
-		/* The controller will send the next advertisement immediately.
-		 * Introduce a delay here to avoid sending the next mesh packet closer
-		 * to the previous packet than what's permitted by the specification.
-		 */
-		delta = k_uptime_delta(&timestamp);
-		k_work_reschedule(&adv->work, K_MSEC(ADV_INT_FAST_MS - delta));
-	}
+	/* The controller will send the next advertisement immediately.
+	 * Introduce a delay here to avoid sending the next mesh packet closer
+	 * to the previous packet than what's permitted by the specification.
+	 */
+	delta = k_uptime_delta(&timestamp);
+	k_work_reschedule(&adv->work, K_MSEC(ADV_INT_FAST_MS - delta));
 
 	return true;
 }
@@ -357,18 +278,6 @@ void bt_mesh_adv_buf_relay_ready(void)
 			return;
 		}
 	}
-
-	/* Attempt to use the main adv set for the sending of relay messages. */
-	if (IS_ENABLED(CONFIG_BT_MESH_ADV_EXT_RELAY_USING_MAIN_ADV_SET)) {
-		(void)schedule_send(&adv_main);
-	}
-}
-
-void bt_mesh_adv_buf_friend_ready(void)
-{
-#if defined(CONFIG_BT_MESH_ADV_EXT_FRIEND_SEPARATE)
-	(void)schedule_send(&adv_friend);
-#endif
 }
 
 void bt_mesh_adv_init(void)
@@ -403,17 +312,25 @@ static void adv_sent(struct bt_le_ext_adv *instance,
 	struct bt_mesh_ext_adv *adv = adv_instance_find(instance);
 
 	if (!adv) {
-		LOG_WRN("Unexpected adv instance");
+		BT_WARN("Unexpected adv instance");
 		return;
 	}
 
-	if (!atomic_test_bit(adv->flags, ADV_FLAG_ACTIVE)) {
-		return;
+	/* Calling k_uptime_delta on a timestamp moves it to the current time.
+	 * This is essential here, as schedule_send() uses the end of the event
+	 * as a reference to avoid sending the next advertisement too soon.
+	 */
+	int64_t duration = k_uptime_delta(&adv->timestamp);
+
+	BT_DBG("Advertising stopped after %u ms", (uint32_t)duration);
+
+	atomic_clear_bit(adv->flags, ADV_FLAG_ACTIVE);
+
+	if (!atomic_test_and_clear_bit(adv->flags, ADV_FLAG_PROXY)) {
+		net_buf_unref(adv->buf);
 	}
 
-	atomic_set_bit(adv->flags, ADV_FLAG_SENT);
-
-	k_work_submit(&adv->work.work);
+	(void)schedule_send(adv);
 }
 
 #if defined(CONFIG_BT_MESH_GATT_SERVER)
@@ -465,10 +382,10 @@ int bt_mesh_adv_gatt_start(const struct bt_le_adv_param *param,
 	struct bt_mesh_ext_adv *adv = gatt_adv_get();
 	struct bt_le_ext_adv_start_param start = {
 		/* Timeout is set in 10 ms steps, with 0 indicating "forever" */
-		.timeout = (duration == SYS_FOREVER_MS) ? 0 : MAX(1, duration / 10),
+		.timeout = (duration == SYS_FOREVER_MS) ? 0 : (duration / 10),
 	};
 
-	LOG_DBG("Start advertising %d ms", duration);
+	BT_DBG("Start advertising %d ms", duration);
 
 	atomic_set_bit(adv->flags, ADV_FLAG_UPDATE_PARAMS);
 

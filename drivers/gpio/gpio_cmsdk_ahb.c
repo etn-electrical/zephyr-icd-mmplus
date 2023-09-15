@@ -6,18 +6,17 @@
 
 #define DT_DRV_COMPAT arm_cmsdk_gpio
 
-#include <zephyr/kernel.h>
+#include <kernel.h>
 
-#include <zephyr/device.h>
+#include <device.h>
 #include <errno.h>
-#include <zephyr/drivers/gpio.h>
-#include <zephyr/init.h>
+#include <drivers/gpio.h>
+#include <init.h>
 #include <soc.h>
-#include <zephyr/drivers/clock_control/arm_clock_control.h>
-#include <zephyr/drivers/gpio/gpio_cmsdk_ahb.h>
-#include <zephyr/irq.h>
+#include <drivers/clock_control/arm_clock_control.h>
 
-#include <zephyr/drivers/gpio/gpio_utils.h>
+#include "gpio_cmsdk_ahb.h"
+#include "gpio_utils.h"
 
 /**
  * @brief GPIO driver for ARM CMSDK AHB GPIO
@@ -179,7 +178,7 @@ static int gpio_cmsdk_ahb_pin_interrupt_configure(const struct device *dev,
 			cfg->port->inttypeclr = BIT(pin);
 		}
 
-		/* Level High or Edge Rising */
+		/* Level High or Edge Risising */
 		if (trig == GPIO_INT_TRIG_HIGH) {
 			cfg->port->intpolset = BIT(pin);
 		} else {
@@ -239,11 +238,8 @@ static int gpio_cmsdk_ahb_init(const struct device *dev)
 
 #ifdef CONFIG_CLOCK_CONTROL
 	/* Enable clock for subsystem */
-	const struct device *const clk = DEVICE_DT_GET(DT_INST_CLOCKS_CTLR(0));
-
-	if (!device_is_ready(clk)) {
-		return -ENODEV;
-	}
+	const struct device *clk =
+		device_get_binding(CONFIG_ARM_CLOCK_CONTROL_DEV_NAME);
 
 #ifdef CONFIG_SOC_SERIES_BEETLE
 	clock_control_on(clk, (clock_control_subsys_t *) &cfg->gpio_cc_as);

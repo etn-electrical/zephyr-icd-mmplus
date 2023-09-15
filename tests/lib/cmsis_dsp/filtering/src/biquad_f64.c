@@ -5,8 +5,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
-#include <zephyr/kernel.h>
+#include <ztest.h>
+#include <zephyr.h>
 #include <stdlib.h>
 #include <arm_math.h>
 #include "../../common/test_common.h"
@@ -16,7 +16,7 @@
 #define SNR_ERROR_THRESH	((float64_t)98)
 #define REL_ERROR_THRESH	(1.2e-3)
 
-ZTEST(filtering_biquad_f64, test_arm_biquad_cascade_df2t_f64_default)
+static void test_arm_biquad_cascade_df2t_f64_default(void)
 {
 	size_t index;
 	size_t length = ARRAY_SIZE(ref_default);
@@ -66,7 +66,7 @@ ZTEST(filtering_biquad_f64, test_arm_biquad_cascade_df2t_f64_default)
 	free(output_buf);
 }
 
-ZTEST(filtering_biquad_f64, test_arm_biquad_cascade_df2t_f64_rand)
+static void test_arm_biquad_cascade_df2t_f64_rand(void)
 {
 	size_t sample_index, stage_count, block_size;
 	size_t sample_count = ARRAY_SIZE(in_rand_config) / 2;
@@ -124,4 +124,12 @@ ZTEST(filtering_biquad_f64, test_arm_biquad_cascade_df2t_f64_rand)
 	free(output_buf);
 }
 
-ZTEST_SUITE(filtering_biquad_f64, NULL, NULL, NULL, NULL, NULL);
+void test_filtering_biquad_f64(void)
+{
+	ztest_test_suite(filtering_biquad_f64,
+		ztest_unit_test(test_arm_biquad_cascade_df2t_f64_default),
+		ztest_unit_test(test_arm_biquad_cascade_df2t_f64_rand)
+		);
+
+	ztest_run_test_suite(filtering_biquad_f64);
+}

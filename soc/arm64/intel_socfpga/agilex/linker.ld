@@ -5,4 +5,4 @@
  *
  */
 
-#include <zephyr/arch/arm64/scripts/linker.ld>
+#include <arch/arm64/scripts/linker.ld>

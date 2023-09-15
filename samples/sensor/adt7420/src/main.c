@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/device.h>
-#include <zephyr/drivers/sensor.h>
+#include <zephyr.h>
+#include <device.h>
+#include <drivers/sensor.h>
 #include <stdio.h>
-#include <zephyr/sys/__assert.h>
+#include <sys/__assert.h>
 
 #define DELAY_WITH_TRIGGER K_SECONDS(5)
 #define DELAY_WITHOUT_TRIGGER K_SECONDS(1)
@@ -104,7 +104,7 @@ static void process(const struct device *dev)
 	int ret;
 	bool reset_window = false;
 
-	/* Set update rate to 240 mHz */
+	/* Set upddate rate to 240 mHz */
 	sensor_set_attribute(dev, SENSOR_CHAN_AMBIENT_TEMP,
 			     SENSOR_ATTR_SAMPLING_FREQUENCY, 240 * 1000);
 
@@ -171,10 +171,10 @@ static void process(const struct device *dev)
 
 void main(void)
 {
-	const struct device *const dev = DEVICE_DT_GET_ONE(adi_adt7420);
+	const struct device *dev = device_get_binding(DT_LABEL(DT_INST(0, adi_adt7420)));
 
-	if (!device_is_ready(dev)) {
-		printk("sensor: device not ready.\n");
+	if (dev == NULL) {
+		printf("Failed to get device binding\n");
 		return;
 	}
 

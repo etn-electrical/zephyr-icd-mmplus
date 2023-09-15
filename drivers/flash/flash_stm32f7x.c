@@ -5,11 +5,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/device.h>
+#include <kernel.h>
+#include <device.h>
 #include <string.h>
-#include <zephyr/drivers/flash.h>
-#include <zephyr/init.h>
+#include <drivers/flash.h>
+#include <init.h>
 #include <soc.h>
 
 #include "flash_stm32.h"
@@ -27,7 +27,7 @@ static inline void flush_cache(FLASH_TypeDef *regs)
 {
 	if (regs->ACR & FLASH_ACR_ARTEN) {
 		regs->ACR &= ~FLASH_ACR_ARTEN;
-		/* Reference manual:
+		/* Refernce manual:
 		 * The ART cache can be flushed only if the ART accelerator
 		 * is disabled (ARTEN = 0).
 		 */

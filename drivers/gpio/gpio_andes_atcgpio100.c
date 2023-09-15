@@ -10,16 +10,14 @@
 
 #include <errno.h>
 #include <stdbool.h>
-#include <zephyr/kernel.h>
-#include <zephyr/device.h>
+#include <kernel.h>
+#include <device.h>
 #include <soc.h>
-#include <zephyr/drivers/gpio.h>
-#include <zephyr/dt-bindings/gpio/andestech-atcgpio100.h>
-#include <zephyr/sys/util.h>
-#include <zephyr/sys/sys_io.h>
-#include <zephyr/irq.h>
+#include <drivers/gpio.h>
+#include <sys/util.h>
+#include <sys/sys_io.h>
 
-#include <zephyr/drivers/gpio/gpio_utils.h>
+#include "gpio_utils.h"
 
 #define DT_DRV_COMPAT andestech_atcgpio100
 
@@ -142,7 +140,7 @@ static int gpio_atcgpio100_config(const struct device *port,
 		key = k_spin_lock(&data->lock);
 
 		/* Set de-bounce */
-		if (flags & ATCGPIO100_GPIO_DEBOUNCE) {
+		if (flags & GPIO_INT_DEBOUNCE) {
 			/* Default settings: Filter out pulses which are
 			 *  less than 4 de-bounce clock period
 			 */

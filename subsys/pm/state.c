@@ -5,8 +5,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/pm/state.h>
-#include <zephyr/toolchain.h>
+#include <pm/state.h>
+#include <toolchain.h>
 
 BUILD_ASSERT(DT_NODE_EXISTS(DT_PATH(cpus)),
 	     "cpus node not defined in Devicetree");
@@ -23,7 +23,7 @@ BUILD_ASSERT(DT_NODE_EXISTS(DT_PATH(cpus)),
 					  min_residency_us, 0U) >=	       \
 		DT_PROP_BY_PHANDLE_IDX_OR(node_id, cpu_power_states, i,	       \
 					  exit_latency_us, 0U),		       \
-		"Found CPU power state with min_residency < exit_latency")
+		"Found CPU power state with min_residency < exit_latency");
 
 /**
  * @brief Check CPU power states consistency
@@ -33,27 +33,29 @@ BUILD_ASSERT(DT_NODE_EXISTS(DT_PATH(cpus)),
  * @param node_id A CPU node identifier.
  */
 #define CHECK_POWER_STATES_CONSISTENCY(node_id)				       \
-	LISTIFY(DT_NUM_CPU_POWER_STATES(node_id),			       \
-		CHECK_POWER_STATE_CONSISTENCY, (;), node_id);		       \
+	UTIL_LISTIFY(DT_NUM_CPU_POWER_STATES(node_id),			       \
+		     CHECK_POWER_STATE_CONSISTENCY, node_id)		       \
 
 /* Check that all power states are consistent */
 DT_FOREACH_CHILD(DT_PATH(cpus), CHECK_POWER_STATES_CONSISTENCY)
 
+#define NUM_CPU_STATES(n) DT_NUM_CPU_POWER_STATES(n),
+
 #define DEFINE_CPU_STATES(n) \
 	static const struct pm_state_info pmstates_##n[] \
 		= PM_STATE_INFO_LIST_FROM_DT_CPU(n);
-#define CPU_STATE_REF(n) pmstates_##n
+#define CPU_STATE_REF(n) pmstates_##n,
 
 DT_FOREACH_CHILD(DT_PATH(cpus), DEFINE_CPU_STATES);
 
 /** CPU power states information for each CPU */
 static const struct pm_state_info *cpus_states[] = {
-	DT_FOREACH_CHILD_SEP(DT_PATH(cpus), CPU_STATE_REF, (,))
+	DT_FOREACH_CHILD(DT_PATH(cpus), CPU_STATE_REF)
 };
 
 /** Number of states for each CPU */
 static const uint8_t states_per_cpu[] = {
-	DT_FOREACH_CHILD_SEP(DT_PATH(cpus), DT_NUM_CPU_POWER_STATES, (,))
+	DT_FOREACH_CHILD(DT_PATH(cpus), NUM_CPU_STATES)
 };
 
 uint8_t pm_state_cpu_get_all(uint8_t cpu, const struct pm_state_info **states)

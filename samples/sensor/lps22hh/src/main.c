@@ -5,11 +5,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/device.h>
-#include <zephyr/drivers/sensor.h>
+#include <zephyr.h>
+#include <device.h>
+#include <drivers/sensor.h>
 #include <stdio.h>
-#include <zephyr/sys/util.h>
+#include <sys/util.h>
 
 static void process_sample(const struct device *dev)
 {
@@ -50,10 +50,10 @@ static void lps22hh_handler(const struct device *dev,
 
 void main(void)
 {
-	const struct device *const dev = DEVICE_DT_GET_ONE(st_lps22hh);
+	const struct device *dev = device_get_binding("LPS22HH");
 
-	if (!device_is_ready(dev)) {
-		printk("sensor: device not ready.\n");
+	if (dev == NULL) {
+		printf("Could not get LPS22HH device\n");
 		return;
 	}
 

@@ -6,11 +6,10 @@
 
 #define DT_DRV_COMPAT st_stm32_fmc_sdram
 
-#include <zephyr/device.h>
-#include <zephyr/kernel.h>
+#include <device.h>
 #include <soc.h>
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(memc_stm32_sdram, CONFIG_MEMC_LOG_LEVEL);
 
 /** SDRAM controller register offset. */

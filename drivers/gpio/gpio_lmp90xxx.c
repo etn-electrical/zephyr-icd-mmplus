@@ -11,16 +11,16 @@
 
 #define DT_DRV_COMPAT ti_lmp90xxx_gpio
 
-#include <zephyr/drivers/gpio.h>
-#include <zephyr/kernel.h>
+#include <drivers/gpio.h>
+#include <zephyr.h>
 
 #define LOG_LEVEL CONFIG_GPIO_LOG_LEVEL
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(gpio_lmp90xxx);
 
-#include <zephyr/drivers/adc/lmp90xxx.h>
+#include <drivers/adc/lmp90xxx.h>
 
-#include <zephyr/drivers/gpio/gpio_utils.h>
+#include "gpio_utils.h"
 
 struct gpio_lmp90xxx_config {
 	/* gpio_driver_config needs to be first */

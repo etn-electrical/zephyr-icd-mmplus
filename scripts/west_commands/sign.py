@@ -22,7 +22,7 @@ from zcmake import CMakeCache
 from zephyr_ext_common import Forceable, ZEPHYR_SCRIPTS
 
 # This is needed to load edt.pickle files.
-sys.path.insert(0, str(ZEPHYR_SCRIPTS / 'dts' / 'python-devicetree' / 'src'))
+sys.path.append(str(ZEPHYR_SCRIPTS / 'dts' / 'python-devicetree' / 'src'))
 
 SIGN_DESCRIPTION = '''\
 This command automates some of the drudgery of creating signed Zephyr
@@ -333,35 +333,34 @@ class ImgtoolSigner(Signer):
         flash = edt.chosen_node('zephyr,flash')
         if not flash:
             log.die('devicetree has no chosen zephyr,flash node;',
-                    "can't infer flash write block or slot0_partition slot sizes")
+                    "can't infer flash write block or image-0 slot sizes")
 
         return flash
 
     @staticmethod
     def edt_flash_params(flash):
         # Get the flash device's write alignment and offset from the
-        # slot0_partition and the size from slot1_partition , out of the
-        # build directory's devicetree. slot1_partition size is used,
+        # image-0 partition and the size from image-1 partition, out of the
+        # build directory's devicetree. image-1 partition size is used,
         # when available, because in swap-move mode it can be one sector
-        # smaller. When not available, fallback to slot0_partition (single slot dfu).
+        # smaller. When not available, fallback to image-0 (single image dfu).
 
         # The node must have a "partitions" child node, which in turn
-        # must have child nodes with label slot0_partition and may have a child node
-        # with label slot1_partition. By convention, the slots for consumption by
+        # must have child node labeled "image-0" and may have a child node
+        # named "image-1". By convention, the slots for consumption by
         # imgtool are linked into these partitions.
         if 'partitions' not in flash.children:
             log.die("DT zephyr,flash chosen node has no partitions,",
                     "can't find partitions for MCUboot slots")
 
         partitions = flash.children['partitions']
-        slots = {
-            label: node for node in partitions.children.values()
-                        for label in node.labels
-                        if label in set(['slot0_partition', 'slot1_partition'])
+        images = {
+            node.label: node for node in partitions.children.values()
+            if node.label in set(['image-0', 'image-1'])
         }
 
-        if 'slot0_partition' not in slots:
-            log.die("DT zephyr,flash chosen node has no slot0_partition partition,",
+        if 'image-0' not in images:
+            log.die("DT zephyr,flash chosen node has no image-0 partition,",
                     "can't determine its address")
 
         # Die on missing or zero alignment or slot_size.
@@ -374,18 +373,18 @@ class ImgtoolSigner(Signer):
                     'DT flash device write-block-size {}'.format(align))
 
         # The partitions node, and its subnode, must provide
-        # the size of slot1_partition or slot0_partition partition via the regs property.
-        slot_key = 'slot0_partition' if 'slot1_partition' in slots else 'slot0_partition'
-        if not slots[slot_key].regs:
-            log.die(f'{slot_key} flash partition has no regs property;',
-                    "can't determine size of slot")
+        # the size of image-1 or image-0 partition via the regs property.
+        image_key = 'image-1' if 'image-1' in images else 'image-0'
+        if not images[image_key].regs:
+            log.die(f'{image_key} flash partition has no regs property;',
+                    "can't determine size of image")
 
-        # always use addr of slot0_partition, which is where slots are run
-        addr = slots['slot0_partition'].regs[0].addr
+        # always use addr of image-0, which is where images are run
+        addr = images['image-0'].regs[0].addr
 
-        size = slots[slot_key].regs[0].size
+        size = images[image_key].regs[0].size
         if size == 0:
-            log.die('expected nonzero slot size for {}'.format(slot_key))
+            log.die('expected nonzero slot size for {}'.format(image_key))
 
         return (align, addr, size)
 
@@ -405,17 +404,15 @@ class RimageSigner(Signer):
                 log.die('rimage not found; either install it',
                         'or provide --tool-path')
 
-        #### -c sof/rimage/config/signing_schema.toml  ####
-
         b = pathlib.Path(build_dir)
         cache = CMakeCache.from_build_dir(build_dir)
 
-        # warning: RIMAGE_TARGET is a duplicate of CONFIG_RIMAGE_SIGNING_SCHEMA
         target = cache.get('RIMAGE_TARGET')
         if not target:
             log.die('rimage target not defined')
 
-        cmake_toml = target + '.toml'
+        conf = target + '.toml'
+        log.inf('Signing for SOC target ' + target + ' using ' + conf)
 
         if not args.quiet:
             log.inf('Signing with tool {}'.format(tool_path))
@@ -431,32 +428,17 @@ class RimageSigner(Signer):
             out_bin = str(b / 'zephyr' / 'zephyr.ri')
             out_xman = str(b / 'zephyr' / 'zephyr.ri.xman')
             out_tmp = str(b / 'zephyr' / 'zephyr.rix')
-
         conf_path_cmd = []
-
-        if '-c' in args.tool_args:
-            # Precedence to the -- rimage command line
-            conf_path_cmd = []
-            if args.tool_data:
-                log.wrn('--tool-data ' + args.tool_data + ' ignored, overridden by -c')
-            # For logging only
-            conf_path = args.tool_args[args.tool_args.index('-c') + 1]
+        if cache.get('RIMAGE_CONFIG_PATH') and not args.tool_data:
+            rimage_conf = pathlib.Path(cache['RIMAGE_CONFIG_PATH'])
+            conf_path = str(rimage_conf / conf)
+            conf_path_cmd = ['-c', conf_path]
         elif args.tool_data:
             conf_dir = pathlib.Path(args.tool_data)
-            conf_path = str(conf_dir / cmake_toml)
-            conf_path_cmd = ['-c', conf_path]
-        elif cache.get('RIMAGE_CONFIG_PATH'):
-            rimage_conf = pathlib.Path(cache['RIMAGE_CONFIG_PATH'])
-            conf_path = str(rimage_conf / cmake_toml)
+            conf_path = str(conf_dir / conf)
             conf_path_cmd = ['-c', conf_path]
         else:
-            log.die('-c configuration not found')
-
-        log.inf('Signing for SOC target ' + target + ' using ' + conf_path)
-
-        # FIXME: deprecate --no-manifest and replace it with a much
-        # simpler and more direct `-- -e` which the user can _already_
-        # pass today! With unclear consequences right now...
+            log.die('Configuration not found')
         if '--no-manifest' in args.tool_args:
             no_manifest = True
             args.tool_args.remove('--no-manifest')
@@ -464,19 +446,13 @@ class RimageSigner(Signer):
             no_manifest = False
 
         if no_manifest:
-            extra_ri_args = [ ]
+            extra_ri_args = ['-i', '3']
         else:
-            extra_ri_args = ['-e']
-
-        sign_base = [tool_path]
-
-        # Sub-command arg '-q' takes precedence over west '-v'
-        if not args.quiet and args.verbose:
-            sign_base += ['-v'] * args.verbose
+            extra_ri_args = ['-i', '3', '-e']
 
         components = [ ] if (target in ('imx8', 'imx8m')) else [ bootloader ]
         components += [ kernel ]
-        sign_base += (args.tool_args +
+        sign_base = ([tool_path] + args.tool_args +
                      ['-o', out_bin] + conf_path_cmd + extra_ri_args +
                      components)
 
@@ -488,8 +464,6 @@ class RimageSigner(Signer):
             filenames = [out_bin]
         else:
             filenames = [out_xman, out_bin]
-            if not args.quiet:
-                log.inf('Prefixing ' + out_bin + ' with manifest ' + out_xman)
         with open(out_tmp, 'wb') as outfile:
             for fname in filenames:
                 with open(fname, 'rb') as infile:

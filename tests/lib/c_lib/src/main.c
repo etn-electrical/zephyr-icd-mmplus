@@ -15,9 +15,9 @@
  * it guarantee that ALL functionality provided is working correctly.
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/sys/__assert.h>
-#include <zephyr/ztest.h>
+#include <zephyr.h>
+#include <sys/__assert.h>
+#include <ztest.h>
 
 #include <limits.h>
 #include <sys/types.h>
@@ -31,12 +31,9 @@
 #include <stdarg.h>
 #include <ctype.h>
 #include <time.h>
-#include <zephyr/ztest_error_hook.h>
-#ifdef CONFIG_PICOLIBC
-#include <unistd.h>
-#endif
+#include <ztest_error_hook.h>
 
-#define STACK_SIZE (512 + CONFIG_TEST_EXTRA_STACK_SIZE)
+#define STACK_SIZE (512 + CONFIG_TEST_EXTRA_STACKSIZE)
 #define LIST_LEN 2
 
 static K_THREAD_STACK_DEFINE(tstack, STACK_SIZE);
@@ -50,8 +47,6 @@ static struct k_thread tdata;
 #if defined(__GNUC__) && __GNUC__ >= 8
 #pragma GCC diagnostic ignored "-Wstringop-truncation"
 #endif
-
-ZTEST_SUITE(test_c_lib, NULL, NULL, NULL, NULL, NULL);
 
 /*
  * variables used during limits library testing; must be marked as "volatile"
@@ -70,10 +65,10 @@ volatile long long_one = 1L;
  *
  */
 
-ZTEST(test_c_lib, test_limits)
+void test_limits(void)
 {
 
-	zassert_true((long_max + long_one == LONG_MIN));
+	zassert_true((long_max + long_one == LONG_MIN), NULL);
 }
 
 static ssize_t foobar(void)
@@ -81,9 +76,9 @@ static ssize_t foobar(void)
 	return -1;
 }
 
-ZTEST(test_c_lib, test_ssize_t)
+void test_ssize_t(void)
 {
-	zassert_true(foobar() < 0);
+	zassert_true(foobar() < 0, NULL);
 }
 
 /**
@@ -91,7 +86,7 @@ ZTEST(test_c_lib, test_ssize_t)
  * @brief Test boolean types and values library
  *
  */
-ZTEST(test_c_lib, test_stdbool)
+void test_stdbool(void)
 {
 
 	zassert_true((true == 1), "true value");
@@ -111,7 +106,7 @@ volatile size_t size_of_long_variable = sizeof(long_variable);
  * @brief Test standard type definitions library
  *
  */
-ZTEST(test_c_lib, test_stddef)
+void test_stddef(void)
 {
 #ifdef CONFIG_64BIT
 	zassert_true((size_of_long_variable == 8), "sizeof");
@@ -133,9 +128,9 @@ volatile uint32_t unsigned_int = 0xffffff00;
  * @brief Test integer types library
  *
  */
-ZTEST(test_c_lib, test_stdint)
+void test_stdint(void)
 {
-	zassert_true((unsigned_int + unsigned_byte + 1u == 0U));
+	zassert_true((unsigned_int + unsigned_byte + 1u == 0U), NULL);
 
 #if (UINT8_C(1) == 1)			\
 	&& (INT8_C(-1) == -1)		\
@@ -147,7 +142,7 @@ ZTEST(test_c_lib, test_stdint)
 	&& (INT64_C(-8) == -8)		\
 	&& (UINTMAX_C(11) == 11)	\
 	&& (INTMAX_C(-11) == -11)
-	zassert_true(true);
+	zassert_true(true, NULL);
 #else
 	zassert_true(false, "const int expr values ...");
 #endif
@@ -166,7 +161,7 @@ char buffer[BUFSIZE];
  * @brief Test string memset
  *
  */
-ZTEST(test_c_lib, test_memset)
+void test_memset(void)
 {
 	int i, ret;
 	const char set = 'a';
@@ -188,7 +183,7 @@ ZTEST(test_c_lib, test_memset)
  * @see strlen(), strnlen().
  *
  */
-ZTEST(test_c_lib, test_strlen)
+void test_strlen(void)
 {
 	(void)memset(buffer, '\0', BUFSIZE);
 	(void)memset(buffer, 'b', 5); /* 5 is BUFSIZE / 2 */
@@ -205,7 +200,7 @@ ZTEST(test_c_lib, test_strlen)
  * @see strcmp(), strncasecmp().
  *
  */
-ZTEST(test_c_lib, test_strcmp)
+void test_strcmp(void)
 {
 	strcpy(buffer, "eeeee");
 	char test = 0;
@@ -226,7 +221,7 @@ ZTEST(test_c_lib, test_strcmp)
  *
  * @see strncmp().
  */
-ZTEST(test_c_lib, test_strncmp)
+void test_strncmp(void)
 {
 	static const char pattern[] = "eeeeeeeeeeee";
 
@@ -253,7 +248,7 @@ ZTEST(test_c_lib, test_strncmp)
  *
  * @see strcpy().
  */
-ZTEST(test_c_lib, test_strcpy)
+void test_strcpy(void)
 {
 	(void)memset(buffer, '\0', BUFSIZE);
 	strcpy(buffer, "10 chars!\0");
@@ -267,7 +262,7 @@ ZTEST(test_c_lib, test_strcpy)
  *
  * @see strncpy().
  */
-ZTEST(test_c_lib, test_strncpy)
+void test_strncpy(void)
 {
 	int ret;
 
@@ -286,7 +281,7 @@ ZTEST(test_c_lib, test_strncpy)
  *
  * @see strchr().
  */
-ZTEST(test_c_lib, test_strchr)
+void test_strchr(void)
 {
 	char *rs = NULL;
 	int ret;
@@ -310,7 +305,7 @@ ZTEST(test_c_lib, test_strchr)
  *
  * @see strspn(),strcspn().
  */
-ZTEST(test_c_lib, test_strxspn)
+void test_strxspn(void)
 {
 	const char *empty = "";
 	const char *cset = "abc";
@@ -334,7 +329,7 @@ ZTEST(test_c_lib, test_strxspn)
  *
  * @see memcmp()
  */
-ZTEST(test_c_lib, test_memcmp)
+void test_memcmp(void)
 {
 	int ret;
 	unsigned char m1[] = "a\0$def";
@@ -365,7 +360,7 @@ int cmp_func(const void *a, const void *b)
 	return (*(int *)a - *(int *)b);
 }
 
-ZTEST(test_c_lib, test_bsearch)
+void test_bsearch(void)
 {
 	void *result = NULL;
 	int arr[5] = { 2, 5, 20, 50, 60 };
@@ -386,7 +381,7 @@ ZTEST(test_c_lib, test_bsearch)
  *
  * @see abs()
  */
-ZTEST(test_c_lib, test_abs)
+void test_abs(void)
 {
 	int val = -5, value = 5;
 
@@ -400,7 +395,7 @@ ZTEST(test_c_lib, test_abs)
  *
  * @see atoi()
  */
-ZTEST(test_c_lib, test_atoi)
+void test_atoi(void)
 {
 	zassert_equal(atoi("123"), 123, "atoi error");
 	zassert_equal(atoi("2c5"), 2, "atoi error");
@@ -424,7 +419,7 @@ ZTEST(test_c_lib, test_atoi)
  * isprint(), isspace(), isupper(), isxdigit().
  *
  */
-ZTEST(test_c_lib, test_checktype)
+void test_checktype(void)
 {
 	static const char exp_alnum[] =
 		"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
@@ -443,72 +438,64 @@ ZTEST(test_c_lib, test_checktype)
 	char *ptr = buf;
 
 	for (int i = 0; i < 128; i++) {
-		if (isalnum(i)) {
+		if (isalnum(i))
 			*ptr++ = i;
-		}
 	}
 	*ptr = '\0';
 	zassert_equal(strcmp(buf, exp_alnum), 0, "isalnum error");
 
 	ptr = buf;
 	for (int i = 0; i < 128; i++) {
-		if (isalpha(i)) {
+		if (isalpha(i))
 			*ptr++ = i;
-		}
 	}
 	*ptr = '\0';
 	zassert_equal(strcmp(buf, exp_alpha), 0, "isalpha error");
 
 	ptr = buf;
 	for (int i = 0; i < 128; i++) {
-		if (isdigit(i)) {
+		if (isdigit(i))
 			*ptr++ = i;
-		}
 	}
 	*ptr = '\0';
 	zassert_equal(strcmp(buf, exp_digit), 0, "isdigit error");
 
 	ptr = buf;
 	for (int i = 0; i < 128; i++) {
-		if (isgraph(i)) {
+		if (isgraph(i))
 			*ptr++ = i;
-		}
 	}
 	*ptr = '\0';
 	zassert_equal(strcmp(buf, exp_graph), 0, "isgraph error");
 
 	ptr = buf;
 	for (int i = 0; i < 128; i++) {
-		if (isprint(i)) {
+		if (isprint(i))
 			*ptr++ = i;
-		}
 	}
 	*ptr = '\0';
 	zassert_equal(strcmp(buf, exp_print), 0, "isprint error");
 
 	ptr = buf;
 	for (int i = 0; i < 128; i++) {
-		if (isupper(i)) {
+		if (isupper(i))
 			*ptr++ = i;
-		}
 	}
 	*ptr = '\0';
 	zassert_equal(strcmp(buf, exp_upper), 0, "isupper error");
 
 	ptr = buf;
 	for (int i = 0; i < 128; i++) {
-		if (isspace(i)) {
+		if (isspace(i))
 			*ptr++ = i;
-		}
 	}
 	*ptr = '\0';
 	zassert_equal(strcmp(buf, exp_space), 0, "isspace error");
 
 	ptr = buf;
 	for (int i = 0; i < 128; i++) {
-		if (isxdigit(i)) {
+		if (isxdigit(i))
 			*ptr++ = i;
-		}
 	}
 	*ptr = '\0';
 	zassert_equal(strcmp(buf, exp_xdigit), 0, "isxdigit error");
@@ -519,7 +506,7 @@ ZTEST(test_c_lib, test_checktype)
  *
  * @see memchr().
  */
-ZTEST(test_c_lib, test_memchr)
+void test_memchr(void)
 {
 	static const char str[] = "testfunction";
 
@@ -538,7 +525,7 @@ ZTEST(test_c_lib, test_memchr)
  *
  * @see memcpy().
  */
-ZTEST(test_c_lib, test_memcpy)
+void test_memcpy(void)
 {
 	/* make sure the buffer is word aligned */
 	uintptr_t mem_dest[4] = {0};
@@ -588,7 +575,7 @@ ZTEST(test_c_lib, test_memcpy)
  *
  * @see memmove().
  */
-ZTEST(test_c_lib, test_memmove)
+void test_memmove(void)
 {
 	char move_buffer[6] = "12123";
 	char move_new[6] = {0};
@@ -614,7 +601,7 @@ ZTEST(test_c_lib, test_memmove)
  * @see strcat(), strcspn(), strncat().
  *
  */
-ZTEST(test_c_lib, test_str_operate)
+void test_str_operate(void)
 {
 	char str1[10] = "aabbcc", ncat[10] = "ddee";
 	char *str2 = "b";
@@ -632,14 +619,7 @@ ZTEST(test_c_lib, test_str_operate)
 
 	zassert_true(strncat(ncat, str1, 2), "strncat failed");
 	zassert_not_null(strncat(str1, str3, 2), "strncat failed");
-#if defined(__GNUC__) && __GNUC__ >= 7
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wstringop-overflow"
-#endif
 	zassert_not_null(strncat(str1, str3, 1), "strncat failed");
-#if defined(__GNUC__) && __GNUC__ >= 7
-#pragma GCC diagnostic pop
-#endif
 	zassert_equal(strcmp(ncat, "ddeeaa"), 0, "strncat failed");
 
 	zassert_is_null(strrchr(ncat, 'z'),
@@ -666,7 +646,7 @@ ZTEST(test_c_lib, test_str_operate)
  * @see strtol().
  *
  */
-ZTEST(test_c_lib, test_strtol)
+void test_strtol(void)
 {
 	static const char buf1[] = "+10379aegi";
 	static const char buf2[] = "   -10379aegi";
@@ -755,7 +735,7 @@ ZTEST(test_c_lib, test_strtol)
  * @see strtoul().
  *
  */
-ZTEST(test_c_lib, test_strtoul)
+void test_strtoul(void)
 {
 	static const char buf1[] = "+10379aegi";
 	static const char buf2[] = "   -10379aegi";
@@ -834,167 +814,10 @@ ZTEST(test_c_lib, test_strtoul)
 
 /**
  *
- * @brief test strtoll function
- *
- * @see strtoll().
- *
- */
-void test_strtoll(void)
-{
-	static const char buf1[] = "+10379aegi";
-	static const char buf2[] = "   -10379aegi";
-	static const char buf3[] = "-010379aegi";
-	static const char buf4[] = "0x10379aegi";
-	static const char buf5[] = "0X10379aegi";
-	static const char buf6[] = "01037aegi";
-	static const char buf7[] = "1037aegi";
-	static const char buf8[] = "++1037aegi";
-	static const char buf9[] = "A1037aegi";
-	static const char buf10[] = "a1037aegi";
-	static const char str_normal[] = "-1011 This stopped it";
-	static const char str_abnormal[] = "ABCDEFGH";
-	char *stop = NULL;
-	long long ret;
-
-	/* test function strtoll() */
-	ret = strtoll(buf3, NULL, 8);
-	zassert_equal(ret, -543, "strtoll base = 8 failed");
-	ret = strtoll(buf1, NULL, 10);
-	zassert_equal(ret, 10379, "strtoll base = 10 failed");
-	ret = strtoll(buf2, NULL, 10);
-	zassert_equal(ret, -10379, "strtoll base = 10 failed");
-	ret = strtoll(buf4, NULL, 16);
-	zassert_equal(ret, 17004974, "strtoll base = 16 failed");
-	ret = strtoll(buf4, NULL, 0);
-	zassert_equal(ret, 17004974, "strtoll base = 16 failed");
-	ret = strtoll(buf5, NULL, 0);
-	zassert_equal(ret, 17004974, "strtoll base = 16 failed");
-	ret = strtoll(buf6, NULL, 0);
-	zassert_equal(ret, 543, "strtoll base = 8 failed");
-	ret = strtoll(buf7, NULL, 0);
-	zassert_equal(ret, 1037, "strtoll base = 10 failed");
-	ret = strtoll(buf8, NULL, 10);
-	zassert_not_equal(ret, 1037, "strtoll base = 10 failed");
-	ret = strtoll(buf9, NULL, 10);
-	zassert_not_equal(ret, 1037, "strtoll base = 10 failed");
-	ret = strtoll(buf10, NULL, 10);
-	zassert_not_equal(ret, 1037, "strtoll base = 10 failed");
-
-	ret = strtoll(str_normal, &stop, 10);
-	zassert_equal(ret, -1011, "strtoll base = 10 failed");
-	zassert_true((strcmp(stop, " This stopped it") == 0), "strtoll get stop failed");
-
-	ret = strtoll(str_abnormal, &stop, 0);
-	zassert_equal(ret, 0, "strtoll base = 0 failed");
-	zassert_true((strcmp(stop, "ABCDEFGH") == 0), "strtoll get stop failed");
-
-	char border1[] = "-9223372036854775808";
-	char border2[] = "+9223372036854775807";
-	char border3[] = "+9223372036854775806";
-	char border4[] = "922337203685477580000000";
-	char border5[] = "0x0000000000000000000000000000000000001";
-	char border6[] = "10000000000000000000000000000000000001";
-	char border7[] = "-10000000000000000000000000000000000001";
-
-	ret = strtoll(border1, NULL, 10);
-	zassert_equal(ret, LLONG_MIN, "strtoll base = 10 failed");
-	ret = strtoll(border2, NULL, 10);
-	zassert_equal(ret, LLONG_MAX, "strtoll base = 10 failed");
-	ret = strtoll(border3, NULL, 10);
-	zassert_equal(ret, 9223372036854775806, "strtoll base = 10 failed");
-	ret = strtoll(border4, NULL, 10);
-	zassert_equal(ret, LLONG_MAX, "strtoll base = 10 failed");
-	ret = strtoull(border5, NULL, 16);
-	zassert_equal(ret, 1, "strtoull base = 16 failed, %s != 0x%x", border5, ret);
-	ret = strtoull(border6, NULL, 10);
-	zassert_equal(errno, ERANGE, "strtoull base = 10 failed, %s != %lld", border6, ret);
-	ret = strtoull(border7, NULL, 10);
-	zassert_equal(errno, ERANGE, "strtoull base = 10 failed, %s != %lld", border7, ret);
-}
-
-/**
- *
- * @brief test strtoull function
- *
- * @see strtoull().
- *
- */
-void test_strtoull(void)
-{
-	static const char buf1[] = "+10379aegi";
-	static const char buf2[] = "   -10379aegi";
-	static const char buf3[] = "-010379aegi";
-	static const char buf4[] = "0x10379aegi";
-	static const char buf5[] = "0X10379aegi";
-	static const char buf6[] = "01037aegi";
-	static const char buf7[] = "1037aegi";
-	static const char buf8[] = "++1037aegi";
-	static const char buf9[] = "A1037aegi";
-	static const char buf10[] = "a1037aegi";
-	static const char str_normal[] = "-1011 This stopped it";
-	static const char str_abnormal[] = "ABCDEFGH";
-	char *stop = NULL;
-	unsigned long long ret;
-
-	/* test function strtoull() */
-	ret = strtoull(buf3, NULL, 8);
-	zassert_equal(ret, -543, "strtoull base = 8 failed");
-	ret = strtoull(buf1, NULL, 10);
-	zassert_equal(ret, 10379, "strtoull base = 10 failed");
-	ret = strtoull(buf2, NULL, 10);
-	zassert_equal(ret, -10379, "strtoull base = 10 failed");
-	ret = strtoull(buf4, NULL, 16);
-	zassert_equal(ret, 17004974, "strtoull base = 16 failed");
-	ret = strtoull(buf4, NULL, 0);
-	zassert_equal(ret, 17004974, "strtoull base = 16 failed");
-	ret = strtoull(buf5, NULL, 0);
-	zassert_equal(ret, 17004974, "strtoull base = 16 failed");
-	ret = strtoull(buf6, NULL, 0);
-	zassert_equal(ret, 543, "strtoull base = 8 failed");
-	ret = strtoull(buf7, NULL, 0);
-	zassert_equal(ret, 1037, "strtoull base = 10 failed");
-	ret = strtoull(buf8, NULL, 10);
-	zassert_not_equal(ret, 1037, "strtoull base = 10 failed");
-	ret = strtoull(buf9, NULL, 10);
-	zassert_not_equal(ret, 1037, "strtoull base = 10 failed");
-	ret = strtoull(buf10, NULL, 10);
-	zassert_not_equal(ret, 1037, "strtoull base = 10 failed");
-
-	ret = strtoull(str_normal, &stop, 10);
-	zassert_equal(ret, -1011, "strtoull base = 10 failed");
-	zassert_true((strcmp(stop, " This stopped it") == 0), "strtoull get stop failed");
-
-	ret = strtoull(str_abnormal, &stop, 0);
-	zassert_equal(ret, 0, "strtoull base = 0 failed");
-	zassert_true((strcmp(stop, "ABCDEFGH") == 0), "strtoull get stop failed");
-
-	char border1[] = "+18446744073709551615";
-	char border2[] = "-18446744073709551615000";
-	char border3[] = "+18446744073709551619";
-	char border4[] = "0x0000000000000000000000000000000000001";
-	char border5[] = "10000000000000000000000000000000000001";
-	char border6[] = "-10000000000000000000000000000000000001";
-
-	ret = strtoull(border1, NULL, 10);
-	zassert_equal(ret, ULLONG_MAX, "strtoull base = 10 failed");
-	ret = strtoull(border2, NULL, 10);
-	zassert_equal(ret, ULLONG_MAX, "strtoull base = 10 failed");
-	ret = strtoull(border3, NULL, 10);
-	zassert_equal(ret, ULLONG_MAX, "strtoull base = 10 failed");
-	ret = strtoull(border4, NULL, 16);
-	zassert_equal(ret, 1, "strtoull base = 16 failed, %s != 0x%x", border4, ret);
-	ret = strtoull(border5, NULL, 10);
-	zassert_equal(errno, ERANGE, "strtoull base = 10 failed, %s != %lld", border5, ret);
-	ret = strtoull(border6, NULL, 10);
-	zassert_equal(errno, ERANGE, "strtoull base = 10 failed, %s != %lld", border6, ret);
-}
-
-/**
- *
  * @brief test convert function
  *
  */
-ZTEST(test_c_lib, test_tolower_toupper)
+void test_tolower_toupper(void)
 {
 	static const char test[] = "Az09Za{#!";
 	static const char toup[] = "AZ09ZA{#!";
@@ -1038,7 +861,7 @@ void test_strtok_r_do(char *str, char *sep, int tlen,
 	}
 }
 
-ZTEST(test_c_lib, test_strtok_r)
+void test_strtok_r(void)
 {
 	static const char * const tc01[] = { "1", "2", "3", "4", "5" };
 
@@ -1059,7 +882,7 @@ ZTEST(test_c_lib, test_strtok_r)
  *
  * @see gmtime(),gmtime_r().
  */
-ZTEST(test_c_lib, test_time)
+void test_time(void)
 {
 	time_t tests1 = 0;
 	time_t tests2 = -5;
@@ -1081,17 +904,13 @@ ZTEST(test_c_lib, test_time)
  * @brief Test rand function
  *
  */
-ZTEST(test_c_lib, test_rand)
+void test_rand(void)
 {
-#ifndef CONFIG_PICOLIBC
 	int a;
 
 	a = rand();
 	/* The default seed is 1 */
 	zassert_equal(a, 1103527590, "rand failed");
-#else
-	ztest_test_skip();
-#endif
 }
 
 /**
@@ -1099,9 +918,8 @@ ZTEST(test_c_lib, test_rand)
  * @brief Test srand function
  *
  */
-ZTEST(test_c_lib, test_srand)
+void test_srand(void)
 {
-#ifndef CONFIG_PICOLIBC
 	int a;
 
 	srand(0);
@@ -1123,9 +941,6 @@ ZTEST(test_c_lib, test_srand)
 	srand(UINT_MAX);
 	a = rand();
 	zassert_equal(a, 1043980748, "srand with seed UINT_MAX failed");
-#else
-	ztest_test_skip();
-#endif
 }
 
 /**
@@ -1133,9 +948,8 @@ ZTEST(test_c_lib, test_srand)
  * @brief Test rand function for reproducibility
  *
  */
-ZTEST(test_c_lib, test_rand_reproducibility)
+void test_rand_reproducibility(void)
 {
-#ifndef CONFIG_PICOLIBC
 	int a;
 	int b;
 	int c;
@@ -1189,9 +1003,6 @@ ZTEST(test_c_lib, test_rand_reproducibility)
 	srand(UINT_MAX);
 	c = rand();
 	zassert_equal(c, 1043980748, "srand with seed UINT_MAX failed (3rd)");
-#else
-	ztest_test_skip();
-#endif
 }
 
 /**
@@ -1200,7 +1011,7 @@ ZTEST(test_c_lib, test_rand_reproducibility)
  *
  * @see abort().
  */
-ZTEST(test_c_lib, test_abort)
+void test_abort(void)
 {
 	int a = 0;
 
@@ -1219,7 +1030,7 @@ static void exit_program(void *p1, void *p2, void *p3)
 	_exit(1);
 }
 
-ZTEST(test_c_lib, test_exit)
+void test_exit(void)
 {
 	int a = 0;
 
@@ -1228,4 +1039,56 @@ ZTEST(test_c_lib, test_exit)
 	k_sleep(K_MSEC(10));
 	k_thread_abort(tid);
 	zassert_equal(a, 0, "exit failed");
+}
+
+/**
+ *
+ * @brief Test qsort function
+ *
+ * @see qsort()
+ */
+extern void test_qsort(void);
+
+/**
+ * @}
+ */
+
+void test_main(void)
+{
+	ztest_test_suite(test_c_lib,
+			 ztest_unit_test(test_limits),
+			 ztest_unit_test(test_ssize_t),
+			 ztest_unit_test(test_stdbool),
+			 ztest_unit_test(test_stddef),
+			 ztest_unit_test(test_stdint),
+			 ztest_unit_test(test_memcmp),
+			 ztest_unit_test(test_strchr),
+			 ztest_unit_test(test_strcpy),
+			 ztest_unit_test(test_strncpy),
+			 ztest_unit_test(test_memset),
+			 ztest_unit_test(test_strlen),
+			 ztest_unit_test(test_strcmp),
+			 ztest_unit_test(test_strxspn),
+			 ztest_unit_test(test_bsearch),
+			 ztest_unit_test(test_abs),
+			 ztest_unit_test(test_atoi),
+			 ztest_unit_test(test_strncmp),
+			 ztest_unit_test(test_strtol),
+			 ztest_unit_test(test_strtoul),
+			 ztest_unit_test(test_checktype),
+			 ztest_unit_test(test_memchr),
+			 ztest_unit_test(test_memcpy),
+			 ztest_unit_test(test_memmove),
+			 ztest_unit_test(test_time),
+			 ztest_unit_test(test_rand),
+			 ztest_unit_test(test_srand),
+			 ztest_unit_test(test_rand_reproducibility),
+			 ztest_unit_test(test_abort),
+			 ztest_unit_test(test_exit),
+			 ztest_unit_test(test_str_operate),
+			 ztest_unit_test(test_tolower_toupper),
+			 ztest_unit_test(test_strtok_r),
+			 ztest_unit_test(test_qsort)
+			 );
+	ztest_run_test_suite(test_c_lib);
 }

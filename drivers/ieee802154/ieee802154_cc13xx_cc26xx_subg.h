@@ -8,9 +8,8 @@
 #ifndef ZEPHYR_DRIVERS_IEEE802154_IEEE802154_CC13XX_CC26XX_SUBG_H_
 #define ZEPHYR_DRIVERS_IEEE802154_IEEE802154_CC13XX_CC26XX_SUBG_H_
 
-#include <zephyr/kernel.h>
-#include <zephyr/net/net_if.h>
-#include <zephyr/net/ieee802154.h>
+#include <kernel.h>
+#include <net/net_if.h>
 
 #include <ti/drivers/rf/RF.h>
 
@@ -27,6 +26,7 @@
 #define IEEE802154_SUN_PHY_2FSK_200K_SYMBOLS_PER_SECOND 200000
 
 /* IEEE 802.15.4-2006 PHY constants (6.4.1) */
+#define IEEE802154_MAX_PHY_PACKET_SIZE 127
 #define IEEE802154_TURNAROUND_TIME 12
 
 /* IEEE 802.15.4-2006 PHY PIB attributes (6.4.2) */
@@ -48,6 +48,9 @@
 #define IEEE802154_MAC_ACK_WAIT_DURATION			    \
 	(IEEE802154_TURNAROUND_TIME + IEEE802154_PHY_SHR_DURATION + \
 	 IEEE802154_ACK_FRAME_OCTETS * IEEE802154_PHY_SYMBOLS_PER_OCTET)
+
+/* Reserve two bytes for 16-bit CRC */
+#define IEEE802154_MTU (IEEE802154_MAX_PHY_PACKET_SIZE - 2)
 
 #define CC13XX_CC26XX_RAT_CYCLES_PER_SECOND 4000000
 
@@ -87,6 +90,7 @@ struct ieee802154_cc13xx_cc26xx_subg_data {
 	volatile rfc_CMD_FS_t cmd_fs;
 
 	/* Sub-GHz Radio Commands */
+	volatile rfc_CMD_PROP_RADIO_DIV_SETUP_t cmd_prop_radio_div_setup;
 	volatile rfc_CMD_PROP_RX_ADV_t cmd_prop_rx_adv;
 	volatile rfc_CMD_PROP_TX_ADV_t cmd_prop_tx_adv;
 	volatile rfc_propRxOutput_t cmd_prop_rx_adv_output;

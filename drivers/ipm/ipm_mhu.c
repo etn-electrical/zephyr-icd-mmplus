@@ -7,9 +7,8 @@
 #define DT_DRV_COMPAT arm_mhu
 
 #include <errno.h>
-#include <zephyr/device.h>
+#include <device.h>
 #include <soc.h>
-#include <zephyr/irq.h>
 #include "ipm_mhu.h"
 
 #define IPM_MHU_REGS(dev) \

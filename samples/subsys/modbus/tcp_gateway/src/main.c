@@ -5,12 +5,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/sys/util.h>
-#include <zephyr/modbus/modbus.h>
-#include <zephyr/net/socket.h>
+#include <zephyr.h>
+#include <sys/util.h>
+#include <modbus/modbus.h>
+#include <net/socket.h>
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(tcp_gateway, LOG_LEVEL_INF);
 
 #define MODBUS_TCP_PORT 502
@@ -27,16 +27,14 @@ const static struct modbus_iface_param backend_param = {
 	},
 };
 
-#define MODBUS_NODE DT_COMPAT_GET_ANY_STATUS_OKAY(zephyr_modbus_serial)
-
 static int init_backend_iface(void)
 {
-	const char bend_name[] = {DEVICE_DT_NAME(MODBUS_NODE)};
+	const char bend_name[] = {DT_PROP(DT_INST(0, zephyr_modbus_serial), label)};
 
 	backend = modbus_iface_get_by_name(bend_name);
 	if (backend < 0) {
 		LOG_ERR("Failed to get iface index for %s",
-			bend_name);
+			log_strdup(bend_name));
 		return -ENODEV;
 	}
 
@@ -140,7 +138,7 @@ void main(void)
 		inet_ntop(client_addr.sin_family, &client_addr.sin_addr,
 			  addr_str, sizeof(addr_str));
 		LOG_INF("Connection #%d from %s",
-			counter++, addr_str);
+			counter++, log_strdup(addr_str));
 
 		do {
 			rc = modbus_tcp_connection(client);
@@ -148,6 +146,6 @@ void main(void)
 
 		close(client);
 		LOG_INF("Connection from %s closed, errno %d",
-			addr_str, rc);
+			log_strdup(addr_str), rc);
 	}
 }

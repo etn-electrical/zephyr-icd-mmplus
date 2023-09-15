@@ -7,12 +7,12 @@
 #define DT_DRV_COMPAT nxp_imx_ccm_rev2
 #include <errno.h>
 #include <soc.h>
-#include <zephyr/drivers/clock_control.h>
-#include <zephyr/dt-bindings/clock/imx_ccm_rev2.h>
+#include <drivers/clock_control.h>
+#include <dt-bindings/clock/imx_ccm_rev2.h>
 #include <fsl_clock.h>
 
 #define LOG_LEVEL CONFIG_CLOCK_CONTROL_LOG_LEVEL
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(clock_control);
 
 static int mcux_ccm_on(const struct device *dev,
@@ -55,9 +55,8 @@ static int mcux_ccm_get_subsys_rate(const struct device *dev,
 		break;
 #endif
 
-#if CONFIG_IMX_USDHC
+#if DT_NODE_HAS_STATUS(DT_NODELABEL(usdhc1), okay) && CONFIG_DISK_DRIVER_SDMMC
 	case IMX_CCM_USDHC1_CLK:
-	case IMX_CCM_USDHC2_CLK:
 		clock_root = kCLOCK_Root_Usdhc1 + instance;
 		break;
 #endif

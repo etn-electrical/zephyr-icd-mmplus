@@ -17,12 +17,12 @@
  */
 
 #include <string.h>
-#include <zephyr/ztest.h>
+#include <ztest.h>
 #include "testfs_tests.h"
 #include "testfs_lfs.h"
 #include <lfs.h>
 
-#include <zephyr/fs/littlefs.h>
+#include <fs/littlefs.h>
 
 #define HELLO "hello"
 #define GOODBYE "goodbye"
@@ -585,7 +585,7 @@ static int num_dirs(struct fs_mount_t *mp)
 	return TC_PASS;
 }
 
-ZTEST(littlefs, test_lfs_basic)
+void test_lfs_basic(void)
 {
 	struct fs_mount_t *mp = &testfs_small_mnt;
 

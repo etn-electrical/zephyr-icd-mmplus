@@ -11,7 +11,7 @@
 #define PEER_PORT 4242
 
 #if defined(CONFIG_USERSPACE)
-#include <zephyr/app_memory/app_memdomain.h>
+#include <app_memory/app_memdomain.h>
 extern struct k_mem_partition app_partition;
 extern struct k_mem_domain app_domain;
 #define APP_BMEM K_APP_BMEM(app_partition)
@@ -21,7 +21,7 @@ extern struct k_mem_domain app_domain;
 #define APP_DMEM
 #endif
 
-#if defined(CONFIG_NET_TC_THREAD_PREEMPTIVE)
+#if IS_ENABLED(CONFIG_NET_TC_THREAD_PREEMPTIVE)
 #define THREAD_PRIORITY K_PRIO_PREEMPT(8)
 #else
 #define THREAD_PRIORITY K_PRIO_COOP(CONFIG_NUM_COOP_PRIORITIES - 1)

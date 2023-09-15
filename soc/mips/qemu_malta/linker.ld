@@ -4,4 +4,4 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/arch/mips/linker.ld>
+#include <arch/mips/linker.ld>

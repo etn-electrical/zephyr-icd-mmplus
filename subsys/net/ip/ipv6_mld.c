@@ -8,15 +8,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_DECLARE(net_ipv6, CONFIG_NET_IPV6_LOG_LEVEL);
 
 #include <errno.h>
-#include <zephyr/net/net_core.h>
-#include <zephyr/net/net_pkt.h>
-#include <zephyr/net/net_stats.h>
-#include <zephyr/net/net_context.h>
-#include <zephyr/net/net_mgmt.h>
+#include <net/net_core.h>
+#include <net/net_pkt.h>
+#include <net/net_stats.h>
+#include <net/net_context.h>
+#include <net/net_mgmt.h>
 #include "net_private.h"
 #include "connection.h"
 #include "icmpv6.h"
@@ -194,10 +194,6 @@ int net_ipv6_mld_join(struct net_if *iface, const struct in6_addr *addr)
 		}
 	}
 
-	if (!net_if_is_up(iface)) {
-		return -ENETDOWN;
-	}
-
 	ret = mld_send_generic(iface, addr, NET_IPV6_MLDv2_MODE_IS_EXCLUDE);
 	if (ret < 0) {
 		return ret;
@@ -293,8 +289,8 @@ drop:
 #define dbg_addr(action, pkt_str, src, dst)				\
 	do {								\
 		NET_DBG("%s %s from %s to %s", action, pkt_str,         \
-			net_sprint_ipv6_addr(src),		\
-			net_sprint_ipv6_addr(dst));		\
+			log_strdup(net_sprint_ipv6_addr(src)),		\
+			log_strdup(net_sprint_ipv6_addr(dst)));		\
 	} while (0)
 
 #define dbg_addr_recv(pkt_str, src, dst)	\

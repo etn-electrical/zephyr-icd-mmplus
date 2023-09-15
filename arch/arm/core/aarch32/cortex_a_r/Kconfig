@@ -7,11 +7,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # NOTE: We have the specific core implementations first and outside of the
-# if CPU_AARCH32_CORTEX_A / if CPU_AARCH32_CORTEX_R block so that SoCs can
-# select which core they are using without having to select all the options
-# related to that core. Everything else is captured inside the if
-# CPU_AARCH32_CORTEX_A / if CPU_AARCH32_CORTEX_R blocks so they are not
-# exposed if one selects a different ARM Cortex Family (Cortex-M).
+# if CPU_AARCH32_CORTEX_A / if CPU_CORTEX_R block so that SoCs can select
+# which core they are using without having to select all the options related
+# to that core. Everything else is captured inside the if CPU_CORTEX_A / if
+# CPU_CORTEX_R blocks so they are not exposed if one selects a different ARM
+# Cortex Family (Cortex-M).
 
 config CPU_CORTEX_A9
 	bool
@@ -61,17 +61,11 @@ config GEN_ISR_TABLES
 config GEN_IRQ_VECTOR_TABLE
 	default n
 
-config DCACHE_LINE_SIZE
-	default 32
-
-config ICACHE_LINE_SIZE
-	default 32
-
 endif # CPU_AARCH32_CORTEX_A
 
 config CPU_CORTEX_R4
 	bool
-	select CPU_AARCH32_CORTEX_R
+	select CPU_CORTEX_R
 	select ARMV7_R
 	select ARMV7_R_FP if CPU_HAS_FPU
 	help
@@ -79,7 +73,7 @@ config CPU_CORTEX_R4
 
 config CPU_CORTEX_R5
 	bool
-	select CPU_AARCH32_CORTEX_R
+	select CPU_CORTEX_R
 	select ARMV7_R
 	select ARMV7_R_FP if CPU_HAS_FPU
 	help
@@ -87,22 +81,13 @@ config CPU_CORTEX_R5
 
 config CPU_CORTEX_R7
 	bool
-	select CPU_AARCH32_CORTEX_R
+	select CPU_CORTEX_R
 	select ARMV7_R
 	select ARMV7_R_FP if CPU_HAS_FPU
 	help
 	  This option signifies the use of a Cortex-R7 CPU
 
-config CPU_CORTEX_R52
-	bool
-	select CPU_AARCH32_CORTEX_R
-	select AARCH32_ARMV8_R
-	select CPU_HAS_ICACHE
-	select CPU_HAS_DCACHE
-	help
-	  This option signifies the use of a Cortex-R52 CPU
-
-if CPU_AARCH32_CORTEX_R
+if CPU_CORTEX_R
 
 config ARMV7_R
 	bool
@@ -125,19 +110,6 @@ config ARMV7_R_FP
 	help
 	  This option signifies the use of an ARMv7-R processor
 	  implementation supporting the Floating-Point Extension.
-
-config AARCH32_ARMV8_R
-	bool
-	select ATOMIC_OPERATIONS_BUILTIN
-	help
-	  This option signifies the use of an ARMv8-R AArch32 processor
-	  implementation.
-
-	  From https://developer.arm.com/products/architecture/cpu-architecture/r-profile:
-	  The Armv8-R architecture targets at the Real-time profile. It introduces
-	  virtualization at the highest security level while retaining the
-	  Protected Memory System Architecture (PMSA) based on a Memory Protection
-	  Unit (MPU). It supports the A32 and T32 instruction sets.
 
 config ARMV7_EXCEPTION_STACK_SIZE
 	int "Undefined Instruction and Abort stack size (in bytes)"
@@ -178,12 +150,4 @@ config DISABLE_TCM_ECC
 	help
 	  This option disables ECC checks on Tightly Coupled Memory.
 
-config DCACHE_LINE_SIZE
-	default 64 if CPU_CORTEX_R52
-	default 32
-
-config ICACHE_LINE_SIZE
-	default 64 if CPU_CORTEX_R52
-	default 32
-
-endif # CPU_AARCH32_CORTEX_R
+endif # CPU_CORTEX_R

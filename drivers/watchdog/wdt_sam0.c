@@ -8,11 +8,10 @@
 #define DT_DRV_COMPAT atmel_sam0_watchdog
 
 #include <soc.h>
-#include <zephyr/drivers/watchdog.h>
+#include <drivers/watchdog.h>
 
 #define LOG_LEVEL CONFIG_WDT_LOG_LEVEL
-#include <zephyr/logging/log.h>
-#include <zephyr/irq.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(wdt_sam0);
 
 #define WDT_REGS ((Wdt *)DT_INST_REG_ADDR(0))

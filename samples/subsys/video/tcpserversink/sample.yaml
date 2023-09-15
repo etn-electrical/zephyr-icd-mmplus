@@ -6,5 +6,3 @@ tests:
     tags: video net socket
     platform_allow: mimxrt1064_evk
     depends_on: video netif
-    integration_platforms:
-      - mimxrt1064_evk

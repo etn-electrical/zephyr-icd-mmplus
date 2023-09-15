@@ -110,7 +110,7 @@ config SOC_GECKO_TRNG
 	  Set if the SoC has a True Random Number Generator (TRNG) module.
 
 config SOC_GECKO_EMU_DCDC
-	bool "SoC DC/DC regulator"
+	bool "Enable SoC DC/DC regulator"
 	select SOC_GECKO_EMU
 	help
 	  Enable the on chip DC/DC regulator
@@ -133,28 +133,6 @@ choice SOC_GECKO_EMU_DCDC_MODE
 	config SOC_GECKO_EMU_DCDC_MODE_BYPASS
 		bool "Bypass"
 endchoice
-
-config CRYPTO_ACC_GECKO_TRNG
-	bool
-	help
-	  Enable Entropy driver based on the CRYPTO_ACC module for Silicon Labs
-	  Gecko chips.
-
-config SOC_GECKO_DEV_INIT
-	bool
-	help
-	  Use the device initialization routines from the device_init service
-	  in Silicon Labs HAL. These routines initialize and tune HFXOs,
-	  configures DPLLs and manages the Energy Management Unit.
-
-	  Disabling these services may negatively impact counter and timer
-	  routines in EXX32 series SoCs.
-
-config COUNTER_GECKO_STIMER
-	bool
-	help
-	  Enable counter driver based on RTCC module for Silicon Labs Gecko
-	  chips.
 
 config SOC_GECKO_CMU
 	bool

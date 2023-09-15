@@ -48,7 +48,8 @@ static int init_callback(const struct device *dev,
 
 	if (rc == 0) {
 		/* 2. configure PIN_IN callback, but don't enable */
-		rc = gpio_pin_configure(dev, PIN_IN, GPIO_INPUT);
+		rc = gpio_pin_configure(dev, PIN_IN,
+					GPIO_INPUT | GPIO_INT_DEBOUNCE);
 	}
 
 	if (rc == 0) {
@@ -83,7 +84,7 @@ static void trigger_callback(const struct device *dev, int enable_cb)
 
 static int test_callback_add_remove(void)
 {
-	const struct device *const dev = DEVICE_DT_GET(DEV);
+	const struct device *dev = device_get_binding(DEV_NAME);
 
 	/* SetUp: initialize environment */
 	int rc = init_callback(dev, callback_1, callback_2);
@@ -132,7 +133,7 @@ err_exit:
 static int test_callback_self_remove(void)
 {
 	int res = TC_FAIL;
-	const struct device *const dev = DEVICE_DT_GET(DEV);
+	const struct device *dev = device_get_binding(DEV_NAME);
 
 	/* SetUp: initialize environment */
 	int rc = init_callback(dev, callback_1, callback_remove_self);
@@ -184,7 +185,7 @@ err_exit:
 
 static int test_callback_enable_disable(void)
 {
-	const struct device *const dev = DEVICE_DT_GET(DEV);
+	const struct device *dev = device_get_binding(DEV_NAME);
 
 	/* SetUp: initialize environment */
 	int rc = init_callback(dev, callback_1, callback_2);
@@ -229,19 +230,19 @@ err_exit:
 	return TC_FAIL;
 }
 
-ZTEST(gpio_port_cb_mgmt, test_gpio_callback_add_remove)
+void test_gpio_callback_add_remove(void)
 {
 	zassert_equal(test_callback_add_remove(), TC_PASS,
 		     NULL);
 }
 
-ZTEST(gpio_port_cb_mgmt, test_gpio_callback_self_remove)
+void test_gpio_callback_self_remove(void)
 {
 	zassert_equal(test_callback_self_remove(), TC_PASS,
 		     NULL);
 }
 
-ZTEST(gpio_port_cb_mgmt, test_gpio_callback_enable_disable)
+void test_gpio_callback_enable_disable(void)
 {
 	zassert_equal(test_callback_enable_disable(), TC_PASS,
 		     NULL);

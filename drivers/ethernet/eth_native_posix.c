@@ -14,25 +14,25 @@
 #define LOG_MODULE_NAME eth_posix
 #define LOG_LEVEL CONFIG_ETHERNET_LOG_LEVEL
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 
 #include <stdio.h>
 
-#include <zephyr/kernel.h>
+#include <kernel.h>
 #include <stdbool.h>
 #include <errno.h>
 #include <stddef.h>
 
-#include <zephyr/net/net_pkt.h>
-#include <zephyr/net/net_core.h>
-#include <zephyr/net/net_if.h>
-#include <zephyr/net/ethernet.h>
+#include <net/net_pkt.h>
+#include <net/net_core.h>
+#include <net/net_if.h>
+#include <net/ethernet.h>
 #include <ethernet/eth_stats.h>
 
-#include <zephyr/drivers/ptp_clock.h>
-#include <zephyr/net/gptp.h>
-#include <zephyr/net/lldp.h>
+#include <drivers/ptp_clock.h>
+#include <net/gptp.h>
+#include <net/lldp.h>
 
 #include "eth_native_posix_priv.h"
 #include "eth.h"
@@ -71,9 +71,9 @@ struct eth_context {
 #define DEFINE_RX_THREAD(x, _)						\
 	K_KERNEL_STACK_DEFINE(rx_thread_stack_##x,			\
 			      CONFIG_ARCH_POSIX_RECOMMENDED_STACK_SIZE);\
-	static struct k_thread rx_thread_data_##x
+	static struct k_thread rx_thread_data_##x;
 
-LISTIFY(CONFIG_ETH_NATIVE_POSIX_INTERFACE_COUNT, DEFINE_RX_THREAD, (;), _);
+UTIL_LISTIFY(CONFIG_ETH_NATIVE_POSIX_INTERFACE_COUNT, DEFINE_RX_THREAD, _)
 
 #if defined(CONFIG_NET_GPTP)
 static bool need_timestamping(struct gptp_hdr *hdr)
@@ -436,7 +436,7 @@ static void eth_iface_init(struct net_if *iface)
 
 	ctx->init_done = true;
 
-#if defined(CONFIG_ETH_NATIVE_POSIX_RANDOM_MAC)
+#if IS_ENABLED(CONFIG_ETH_NATIVE_POSIX_RANDOM_MAC)
 	/* 00-00-5E-00-53-xx Documentation RFC 7042 */
 	gen_random_mac(ctx->mac_addr, 0x00, 0x00, 0x5E);
 
@@ -473,7 +473,7 @@ static void eth_iface_init(struct net_if *iface)
 		ctx->if_name = ETH_NATIVE_POSIX_DRV_NAME;
 	}
 
-	LOG_DBG("Interface %p using \"%s\"", iface, ctx->if_name);
+	LOG_DBG("Interface %p using \"%s\"", iface, log_strdup(ctx->if_name));
 
 	net_if_set_link_addr(iface, ll_addr->addr, ll_addr->len,
 			     NET_LINK_ETHERNET);
@@ -559,11 +559,6 @@ static int set_config(const struct device *dev,
 
 		ret = eth_promisc_mode(context->if_name,
 				       context->promisc_mode);
-	} else if (type == ETHERNET_CONFIG_TYPE_MAC_ADDRESS) {
-		struct eth_context *context = dev->data;
-
-		memcpy(context->mac_addr, config->mac_address.addr,
-		       sizeof(context->mac_addr));
 	}
 
 	return ret;
@@ -632,9 +627,9 @@ static const struct ethernet_api eth_if_api = {
 		.rx_thread = &rx_thread_data_##x,			     \
 		.rx_stack = rx_thread_stack_##x,			     \
 		.rx_stack_size = K_KERNEL_STACK_SIZEOF(rx_thread_stack_##x), \
-	}
+	};
 
-LISTIFY(CONFIG_ETH_NATIVE_POSIX_INTERFACE_COUNT, DEFINE_ETH_DEV_DATA, (;), _);
+UTIL_LISTIFY(CONFIG_ETH_NATIVE_POSIX_INTERFACE_COUNT, DEFINE_ETH_DEV_DATA, _)
 
 #define DEFINE_ETH_DEVICE(x, _)						\
 	ETH_NET_DEVICE_INIT(eth_native_posix_##x,			\
@@ -644,13 +639,13 @@ LISTIFY(CONFIG_ETH_NATIVE_POSIX_INTERFACE_COUNT, DEFINE_ETH_DEV_DATA, (;), _);
 			    NULL,					\
 			    CONFIG_KERNEL_INIT_PRIORITY_DEFAULT,	\
 			    &eth_if_api,				\
-			    NET_ETH_MTU)
+			    NET_ETH_MTU);
 
-LISTIFY(CONFIG_ETH_NATIVE_POSIX_INTERFACE_COUNT, DEFINE_ETH_DEVICE, (;), _);
+UTIL_LISTIFY(CONFIG_ETH_NATIVE_POSIX_INTERFACE_COUNT, DEFINE_ETH_DEVICE, _)
 
 #if defined(CONFIG_ETH_NATIVE_POSIX_PTP_CLOCK)
 
-#if defined(CONFIG_NET_GPTP)
+#if IS_ENABLED(CONFIG_NET_GPTP)
 BUILD_ASSERT(								\
 	CONFIG_ETH_NATIVE_POSIX_INTERFACE_COUNT == CONFIG_NET_GPTP_NUM_PORTS, \
 	"Number of network interfaces must match gPTP port count");
@@ -661,9 +656,9 @@ struct ptp_context {
 };
 
 #define DEFINE_PTP_DEV_DATA(x, _) \
-	static struct ptp_context ptp_context_##x
+	static struct ptp_context ptp_context_##x;
 
-LISTIFY(CONFIG_ETH_NATIVE_POSIX_INTERFACE_COUNT, DEFINE_PTP_DEV_DATA, (;), _);
+UTIL_LISTIFY(CONFIG_ETH_NATIVE_POSIX_INTERFACE_COUNT, DEFINE_PTP_DEV_DATA, _)
 
 static int ptp_clock_set_native_posix(const struct device *clk,
 				      struct net_ptp_time *tm)
@@ -722,7 +717,7 @@ static const struct ptp_clock_driver_api api = {
 #define PTP_INIT_FUNC(x, _)						\
 	static int ptp_init_##x(const struct device *port)			\
 	{								\
-		const struct device *const eth_dev = DEVICE_GET(eth_native_posix_##x); \
+		const struct device *eth_dev = DEVICE_GET(eth_native_posix_##x); \
 		struct eth_context *context = eth_dev->data;	\
 		struct ptp_context *ptp_context = port->data;	\
 									\
@@ -732,7 +727,7 @@ static const struct ptp_clock_driver_api api = {
 		return 0;						\
 	}
 
-LISTIFY(CONFIG_ETH_NATIVE_POSIX_INTERFACE_COUNT, PTP_INIT_FUNC, (), _)
+UTIL_LISTIFY(CONFIG_ETH_NATIVE_POSIX_INTERFACE_COUNT, PTP_INIT_FUNC, _)
 
 #define DEFINE_PTP_DEVICE(x, _)						\
 	DEVICE_DEFINE(eth_native_posix_ptp_clock_##x,			\
@@ -743,8 +738,8 @@ LISTIFY(CONFIG_ETH_NATIVE_POSIX_INTERFACE_COUNT, PTP_INIT_FUNC, (), _)
 			    NULL,					\
 			    POST_KERNEL,				\
 			    CONFIG_KERNEL_INIT_PRIORITY_DEFAULT,	\
-			    &api)
+			    &api);
 
-LISTIFY(CONFIG_ETH_NATIVE_POSIX_INTERFACE_COUNT, DEFINE_PTP_DEVICE, (;), _);
+UTIL_LISTIFY(CONFIG_ETH_NATIVE_POSIX_INTERFACE_COUNT, DEFINE_PTP_DEVICE, _)
 
 #endif /* CONFIG_ETH_NATIVE_POSIX_PTP_CLOCK */

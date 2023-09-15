@@ -4,16 +4,18 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(net_lldp_sample, LOG_LEVEL_DBG);
 
-#include <zephyr/kernel.h>
+#include <zephyr.h>
+
+#include <zephyr.h>
 #include <errno.h>
 
-#include <zephyr/net/net_core.h>
-#include <zephyr/net/net_l2.h>
-#include <zephyr/net/net_if.h>
-#include <zephyr/net/ethernet.h>
+#include <net/net_core.h>
+#include <net/net_l2.h>
+#include <net/net_if.h>
+#include <net/ethernet.h>
 
 static struct lldp_system_name_tlv {
 	uint16_t type_length;

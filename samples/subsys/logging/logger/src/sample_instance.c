@@ -9,7 +9,7 @@
 /* Note: no name is defined because only instance logging is used.
  * Instances are registered as logging sources not module.
  */
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 
 LOG_LEVEL_SET(LOG_LEVEL_INF);
 

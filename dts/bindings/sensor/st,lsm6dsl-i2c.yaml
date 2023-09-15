@@ -5,9 +5,10 @@ description: STMicroelectronics LSM6DSL 6-axis accelerometer and gyrometer
 
 compatible: "st,lsm6dsl"
 
-include: [sensor-device.yaml, i2c-device.yaml]
+include: i2c-device.yaml
 
 properties:
-  irq-gpios:
-    # This signal is active high when produced by the sensor
-    type: phandle-array
+    irq-gpios:
+      # This signal is active high when produced by the sensor
+      type: phandle-array
+      required: false

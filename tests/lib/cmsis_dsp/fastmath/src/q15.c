@@ -5,8 +5,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
-#include <zephyr/kernel.h>
+#include <ztest.h>
+#include <zephyr.h>
 #include <stdlib.h>
 #include <arm_math.h>
 #include "../../common/test_common.h"
@@ -16,9 +16,7 @@
 #define SNR_ERROR_THRESH	((float32_t)70)
 #define ABS_ERROR_THRESH	((q15_t)10)
 
-ZTEST_SUITE(fastmath_q15, NULL, NULL, NULL, NULL, NULL);
-
-ZTEST(fastmath_q15, test_arm_cos_q15)
+static void test_arm_cos_q15(void)
 {
 	size_t index;
 	size_t length = ARRAY_SIZE(in_angles);
@@ -46,7 +44,7 @@ ZTEST(fastmath_q15, test_arm_cos_q15)
 	free(output);
 }
 
-ZTEST(fastmath_q15, test_arm_sin_q15)
+static void test_arm_sin_q15(void)
 {
 	size_t index;
 	size_t length = ARRAY_SIZE(in_angles);
@@ -74,7 +72,7 @@ ZTEST(fastmath_q15, test_arm_sin_q15)
 	free(output);
 }
 
-ZTEST(fastmath_q15, test_arm_sqrt_q15)
+static void test_arm_sqrt_q15(void)
 {
 	size_t index;
 	size_t length = ARRAY_SIZE(in_sqrt);
@@ -114,7 +112,7 @@ ZTEST(fastmath_q15, test_arm_sqrt_q15)
 	free(output);
 }
 
-ZTEST(fastmath_q15, test_arm_divide_q15)
+static void test_arm_divide_q15(void)
 {
 	size_t index;
 	size_t length = ARRAY_SIZE(ref_divide);
@@ -154,4 +152,16 @@ ZTEST(fastmath_q15, test_arm_divide_q15)
 	/* Free output buffer */
 	free(output);
 	free(shift);
+}
+
+void test_fastmath_q15(void)
+{
+	ztest_test_suite(fastmath_q15,
+		ztest_unit_test(test_arm_cos_q15),
+		ztest_unit_test(test_arm_sin_q15),
+		ztest_unit_test(test_arm_sqrt_q15),
+		ztest_unit_test(test_arm_divide_q15)
+		);
+
+	ztest_run_test_suite(fastmath_q15);
 }

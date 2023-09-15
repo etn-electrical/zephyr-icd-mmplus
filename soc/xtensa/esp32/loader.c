@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr.h>
 #include <soc.h>
-#include <zephyr/storage/flash_map.h>
+#include <storage/flash_map.h>
 #include <esp_log.h>
 
 #include <esp32/rom/cache.h>
@@ -26,7 +26,7 @@ static HDR_ATTR void (*_entry_point)(void) = &__start;
 static int map_rom_segments(void)
 {
 	int rc = 0;
-	size_t _partition_offset = FIXED_PARTITION_OFFSET(slot0_partition);
+	size_t _partition_offset = FLASH_AREA_OFFSET(image_0);
 	uint32_t _app_irom_start = _partition_offset +
 		(uint32_t)&_image_irom_start;
 	uint32_t _app_irom_size = (uint32_t)&_image_irom_size;

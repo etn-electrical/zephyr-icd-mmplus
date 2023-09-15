@@ -19,7 +19,7 @@ config NRF_802154_SOURCE_HAL_NORDIC
 endchoice
 
 menuconfig NRF_802154_RADIO_DRIVER
-	bool "NRF IEEE 802.15.4 radio driver"
+	bool "Enable nRF IEEE 802.15.4 radio driver"
 	depends on HAS_HW_NRF_RADIO_IEEE802154
 	select DYNAMIC_INTERRUPTS
 	select ENTROPY_GENERATOR
@@ -138,8 +138,7 @@ endif # NRF_802154_RADIO_DRIVER
 
 config NRF_802154_SERIALIZATION
 	bool
-	select IPC_SERVICE
-	select MBOX
+	select RPMSG_SERVICE
 	help
 	  This helper symbol indicates that the nRF 802.15.4 serialization is available.
 
@@ -169,10 +168,14 @@ if NRF_802154_SER_RADIO
 
 config NRF_802154_SER_RADIO_INIT_PRIO
 	int "nRF52 IEEE 802.15.4 serialization initialization priority"
-	default 51
+	default 47
 	help
 	  Set the initialization priority number. Do not mess with it unless
 	  you know what you are doing.
+
+choice RPMSG_SERVICE_MODE
+	default RPMSG_SERVICE_MODE_REMOTE
+endchoice
 
 endif
 
@@ -201,16 +204,13 @@ config NRF_802154_RX_BUFFERS
 	  Number of buffers in nRF 802.15.4 driver serialization host's receive queue.
 	  If this value is modified, its remote counterpart must be set to the exact same value.
 
+choice RPMSG_SERVICE_MODE
+	default RPMSG_SERVICE_MODE_MASTER
+endchoice
+
 endif
 
 endmenu # NRF_802154_SER_HOST || NRF_802154_SER_RADIO
-
-config NRF_802154_CARRIER_FUNCTIONS
-	bool "nRF 802.15.4 carrier functions"
-	depends on NRF_802154_RADIO_DRIVER || NRF_802154_SERIALIZATION
-	help
-	  This option enables functions such as modulated carrier and continuous carrier.
-	  If this option is modified on a multicore SoC, its remote counterpart must be set to the exact same value.
 
 endmenu # HAS_NORDIC_DRIVERS
 

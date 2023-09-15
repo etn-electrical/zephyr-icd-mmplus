@@ -5,10 +5,13 @@ compatible: "xlnx,ttcps"
 include: base.yaml
 
 properties:
-  reg:
-    required: true
+    label:
+      required: true
 
-  clock-frequency:
-    type: int
-    required: true
-    description: Clock frequency information for Timer operation
+    reg:
+      required: true
+
+    clock-frequency:
+      type: int
+      required: true
+      description: Clock frequency information for Timer operation

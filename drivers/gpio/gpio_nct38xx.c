@@ -6,15 +6,15 @@
 
 #define DT_DRV_COMPAT nuvoton_nct38xx_gpio
 
-#include <zephyr/device.h>
-#include <zephyr/drivers/gpio.h>
-#include <zephyr/drivers/gpio/gpio_nct38xx.h>
-#include <zephyr/kernel.h>
-#include <zephyr/sys/util_macro.h>
+#include <device.h>
+#include <drivers/gpio.h>
+#include <drivers/gpio/gpio_nct38xx.h>
+#include <kernel.h>
+#include <sys/util_macro.h>
 
 #include "gpio_nct38xx.h"
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(gpio_ntc38xx, CONFIG_GPIO_LOG_LEVEL);
 
 void nct38xx_gpio_alert_handler(const struct device *dev)
@@ -76,10 +76,11 @@ static int nct38xx_gpio_init(const struct device *dev)
 	return 0;
 }
 
+#define GPIO_DEV_AND_COMMA(node_id) DEVICE_DT_GET(node_id),
+
 #define GPIO_NCT38XX_DEVICE_INSTANCE(inst)                                                         \
-	static const struct device *sub_gpio_dev_##inst[] = {                                      \
-		DT_INST_FOREACH_CHILD_STATUS_OKAY_SEP(inst, DEVICE_DT_GET, (,))                    \
-	};                                                                                         \
+	static const struct device *sub_gpio_dev_##inst[] = { DT_FOREACH_CHILD_STATUS_OKAY(        \
+		DT_DRV_INST(inst), GPIO_DEV_AND_COMMA) };                                          \
 	static const struct gpio_nct38xx_config gpio_nct38xx_cfg_##inst = {                        \
 		.i2c_dev = I2C_DT_SPEC_INST_GET(inst),                                             \
 		.sub_gpio_dev = sub_gpio_dev_##inst,                                               \

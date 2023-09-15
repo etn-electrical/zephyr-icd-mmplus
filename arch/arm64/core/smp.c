@@ -10,19 +10,19 @@
  * @brief codes required for AArch64 multicore and Zephyr smp support
  */
 
-#include <zephyr/cache.h>
-#include <zephyr/device.h>
-#include <zephyr/devicetree.h>
-#include <zephyr/kernel.h>
-#include <zephyr/kernel_structs.h>
+#include <cache.h>
+#include <device.h>
+#include <devicetree.h>
+#include <kernel.h>
+#include <kernel_structs.h>
 #include <ksched.h>
-#include <zephyr/init.h>
-#include <zephyr/arch/arm64/mm.h>
-#include <zephyr/arch/cpu.h>
-#include <zephyr/drivers/interrupt_controller/gic.h>
-#include <zephyr/drivers/pm_cpu_ops.h>
-#include <zephyr/sys/arch_interface.h>
-#include <zephyr/irq.h>
+#include <soc.h>
+#include <init.h>
+#include <arch/arm64/mm.h>
+#include <arch/cpu.h>
+#include <drivers/interrupt_controller/gic.h>
+#include <drivers/pm_cpu_ops.h>
+#include <sys/arch_interface.h>
 #include "boot.h"
 
 #define SGI_SCHED_IPI	0
@@ -45,8 +45,10 @@ volatile struct boot_params __aligned(L1_CACHE_BYTES) arm64_cpu_boot_params = {
 	.mpid = -1,
 };
 
+#define CPU_REG_ID(cpu_node_id) DT_REG_ADDR(cpu_node_id),
+
 static const uint64_t cpu_node_list[] = {
-	DT_FOREACH_CHILD_STATUS_OKAY_SEP(DT_PATH(cpus), DT_REG_ADDR, (,))
+	DT_FOREACH_CHILD_STATUS_OKAY(DT_PATH(cpus), CPU_REG_ID)
 };
 
 extern void z_arm64_mm_init(bool is_primary_core);
@@ -64,8 +66,8 @@ void arch_start_cpu(int cpu_num, k_thread_stack_t *stack, int sz,
 	master_core_mpid = MPIDR_TO_CORE(GET_MPIDR());
 
 	cpu_count = ARRAY_SIZE(cpu_node_list);
-	__ASSERT(cpu_count == CONFIG_MP_MAX_NUM_CPUS,
-		"The count of CPU Cores nodes in dts is not equal to CONFIG_MP_MAX_NUM_CPUS\n");
+	__ASSERT(cpu_count == CONFIG_MP_NUM_CPUS,
+		"The count of CPU Cores nodes in dts is not equal to CONFIG_MP_NUM_CPUS\n");
 
 	for (i = 0, j = 0; i < cpu_count; i++) {
 		if (cpu_node_list[i] == master_core_mpid) {
@@ -82,7 +84,7 @@ void arch_start_cpu(int cpu_num, k_thread_stack_t *stack, int sz,
 		return;
 	}
 
-	arm64_cpu_boot_params.sp = Z_KERNEL_STACK_BUFFER(stack) + sz;
+	arm64_cpu_boot_params.sp = Z_THREAD_STACK_BUFFER(stack) + sz;
 	arm64_cpu_boot_params.fn = fn;
 	arm64_cpu_boot_params.arg = arg;
 	arm64_cpu_boot_params.cpu_num = cpu_num;
@@ -92,8 +94,9 @@ void arch_start_cpu(int cpu_num, k_thread_stack_t *stack, int sz,
 	/* store mpid last as this is our synchronization point */
 	arm64_cpu_boot_params.mpid = cpu_mpid;
 
-	sys_cache_data_invd_range((void *)&arm64_cpu_boot_params,
-				  sizeof(arm64_cpu_boot_params));
+	arch_dcache_range((void *)&arm64_cpu_boot_params,
+			  sizeof(arm64_cpu_boot_params),
+			  K_CACHE_WB_INVD);
 
 	if (pm_cpu_on(cpu_mpid, (uint64_t)&__start)) {
 		printk("Failed to boot secondary CPU core %d (MPID:%#llx)\n",
@@ -154,23 +157,13 @@ void z_arm64_secondary_start(void)
 
 static void broadcast_ipi(unsigned int ipi)
 {
-	uint64_t mpidr = MPIDR_TO_CORE(GET_MPIDR());
+	const uint64_t mpidr = GET_MPIDR();
 
 	/*
 	 * Send SGI to all cores except itself
+	 * Note: Assume only one Cluster now.
 	 */
-	unsigned int num_cpus = arch_num_cpus();
-
-	for (int i = 0; i < num_cpus; i++) {
-		uint64_t target_mpidr = cpu_node_list[i];
-		uint8_t aff0 = MPIDR_AFFLVL(target_mpidr, 0);
-
-		if (mpidr == target_mpidr) {
-			continue;
-		}
-
-		gic_raise_sgi(ipi, target_mpidr, 1 << aff0);
-	}
+	gic_raise_sgi(ipi, mpidr, SGIR_TGT_MASK & ~(1 << MPIDR_TO_CORE(mpidr)));
 }
 
 void sched_ipi_handler(const void *unused)
@@ -216,10 +209,9 @@ void flush_fpu_ipi_handler(const void *unused)
 
 void z_arm64_flush_fpu_ipi(unsigned int cpu)
 {
-	const uint64_t mpidr = cpu_node_list[cpu];
-	uint8_t aff0 = MPIDR_AFFLVL(mpidr, 0);
+	const uint64_t mpidr = GET_MPIDR();
 
-	gic_raise_sgi(SGI_FPU_IPI, mpidr, 1 << aff0);
+	gic_raise_sgi(SGI_FPU_IPI, mpidr, (1 << cpu));
 }
 #endif
 

@@ -18,6 +18,3 @@ supported:
   - watchdog
   - adc
   - dac
-  - pwm
-  - rng
-  - eeprom

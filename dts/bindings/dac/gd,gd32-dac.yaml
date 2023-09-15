@@ -5,30 +5,30 @@ description: GigaDevice GD32 series DAC module
 
 compatible: "gd,gd32-dac"
 
-include: [dac-controller.yaml, reset-device.yaml, pinctrl-device.yaml]
+include: [dac-controller.yaml, pinctrl-device.yaml]
 
 properties:
-  reg:
-    required: true
+    reg:
+      required: true
 
-  resets:
-    required: true
+    rcu-periph-clock:
+      type: int
+      description: Reset Control Unit Peripheral Clock ID
+      required: true
 
-  clocks:
-    required: true
+    num-channels:
+      type: int
+      description: Number of DAC output channels
+      required: true
 
-  num-channels:
-    type: int
-    description: Number of DAC output channels
-    required: true
+    reset-val:
+      type: int
+      default: 0
+      description: Reset value of DAC output. Defaults to 0, the SoC default.
+      required: false
 
-  reset-val:
-    type: int
-    default: 0
-    description: Reset value of DAC output. Defaults to 0, the SoC default.
-
-  "#io-channel-cells":
-    const: 1
+    "#io-channel-cells":
+      const: 1
 
 io-channel-cells:
-  - output
+    - output

@@ -12,7 +12,7 @@
 /* @brief Min supported length of antenna switching pattern */
 #define LLL_DF_MIN_ANT_PATTERN_LEN 3
 
-/* @brief Macros to name constants informing where CTEInfo may be found within a PDU depending on
+/* @brief Mactros to name constants informing where CTEInfo may be found within a PDU depending on
  * a PDU type.
  */
 #define CTE_INFO_IN_S1_BYTE true
@@ -70,24 +70,18 @@ struct lll_df_adv_cfg {
  * It is not defined by Bluetooth Core specification. This is the vendor specific value.
  *
  * Nordic Semiconductor Radio peripheral provides 16 bit wide IQ samples.
- * BT 5.3 Core specification Vol 4, Part E sections 7.7.65.21 and 7.7.65.22 limit size of
+ * BT 5.3 Core specification Vol 4, Part E sectons 7.7.65.21 and 7.7.65.22 limit size of
  * IQ samples to 8 bits.
- * To mitigate the limited accuracy and losing information about saturated IQ samples a 0x80 value
+ * To mitigate the limited accuratcy and losing information about saturated IQ samples a 0x80 value
  * is selected to serve the purpose.
  */
-#define IQ_SAMPLE_SATURATED_16_BIT ((int16_t)0x8000)
-#define IQ_SAMPLE_SATURATED_8_BIT ((int8_t)0x80)
+#define IQ_SAMPLE_STATURATED_16_BIT 0x8000
+#define IQ_SAMPLE_STATURATED_8_BIT 0x80
 
-#if defined(CONFIG_BT_CTLR_DF_IQ_SAMPLES_CONVERT_4_BITS_SHIFT)
-#define IQ_SAMPLE_CONVERT_12_TO_8_BIT(x) ((int16_t)((x) >> 4))
-#elif defined(CONFIG_BT_CTLR_DF_IQ_SAMPLES_CONVERT_2_BITS_SHIFT)
-#define IQ_SAMPLE_CONVERT_12_TO_8_BIT(x) ((int16_t)((x) >> 2))
-#elif defined(CONFIG_BT_CTLR_DF_IQ_SAMPLES_CONVERT_USE_8_LSB)
-#define IQ_SAMPLE_CONVERT_12_TO_8_BIT(x) ((int8_t)(x))
-#elif defined(CODNFIG_BT_CTLR_DF)
-#error "Unsupported IQ samples conversion"
-#endif
-
+#define IQ_SHIFT_12_TO_8_BIT(x) ((int8_t)((x) >> 4))
+#define IQ_CONVERT_12_TO_8_BIT(x)                                                                  \
+	(((x) == IQ_SAMPLE_STATURATED_16_BIT) ? IQ_SAMPLE_STATURATED_8_BIT :                       \
+						      IQ_SHIFT_12_TO_8_BIT((x)))
 /* Structure to store an single IQ sample */
 struct iq_sample {
 	int16_t i;
@@ -96,10 +90,6 @@ struct iq_sample {
 
 /* Receive node aimed to report collected IQ samples during CTE receive */
 struct node_rx_iq_report {
-	/* hdr member must be a first member of the structure. It can't be moved because
-	 * it is expected to be in the beginning of a node memory for common handling of
-	 * all node_rx_xxx types.
-	 */
 	struct node_rx_hdr hdr;
 	uint8_t sample_count;
 	struct pdu_cte_info cte_info;
@@ -107,7 +97,6 @@ struct node_rx_iq_report {
 	uint8_t packet_status;
 	uint8_t rssi_ant_id;
 	uint8_t chan_idx;
-	uint16_t event_counter;
 	union {
 		uint8_t pdu[0] __aligned(4);
 		struct iq_sample sample[0];

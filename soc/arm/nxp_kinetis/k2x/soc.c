@@ -15,15 +15,15 @@
  * hardware for the fsl_frdm_k22f platform.
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/device.h>
-#include <zephyr/init.h>
+#include <kernel.h>
+#include <device.h>
+#include <init.h>
 #include <soc.h>
-#include <zephyr/drivers/uart.h>
+#include <drivers/uart.h>
 #include <fsl_common.h>
 #include <fsl_clock.h>
-#include <zephyr/arch/cpu.h>
-#include <zephyr/arch/arm/aarch32/cortex_m/cmsis.h>
+#include <arch/cpu.h>
+#include <arch/arm/aarch32/cortex_m/cmsis.h>
 
 #define TIMESRC_OSCERCLK        (2)
 
@@ -100,7 +100,7 @@ static ALWAYS_INLINE void clock_init(void)
 
 	CLOCK_SetSimConfig(&simConfig);
 
-#if CONFIG_USB_KINETIS || CONFIG_UDC_KINETIS
+#if CONFIG_USB_KINETIS
 	CLOCK_EnableUsbfs0Clock(kCLOCK_UsbSrcPll0,
 				CONFIG_SYS_CLOCK_HW_CYCLES_PER_SEC);
 #endif
@@ -141,14 +141,5 @@ static int fsl_frdm_k22f_init(const struct device *arg)
 	irq_unlock(oldLevel);
 	return 0;
 }
-
-#ifdef CONFIG_PLATFORM_SPECIFIC_INIT
-
-void z_arm_platform_init(void)
-{
-	SystemInit();
-}
-
-#endif /* CONFIG_PLATFORM_SPECIFIC_INIT */
 
 SYS_INIT(fsl_frdm_k22f_init, PRE_KERNEL_1, 0);

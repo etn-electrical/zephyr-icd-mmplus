@@ -1,17 +1,6 @@
 identifier: esp32s2_saola
-name: ESP32-S2 Saola
+name: ESP32-S2
 type: mcu
 arch: xtensa
 toolchain:
-  - zephyr
-supported:
-  - adc
-  - dac
-  - gpio
-  - i2c
-  - watchdog
-  - uart
-testing:
-  ignore_tags:
-    - net
-    - bluetooth
+  - espressif

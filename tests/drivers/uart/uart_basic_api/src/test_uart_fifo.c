@@ -45,7 +45,6 @@ static void uart_fifo_callback(const struct device *dev, void *user_data)
 {
 	uint8_t recvData;
 	static int tx_data_idx;
-	int ret;
 
 	ARG_UNUSED(user_data);
 
@@ -65,15 +64,10 @@ static void uart_fifo_callback(const struct device *dev, void *user_data)
 		 * be able to put at least one byte into a FIFO. If not,
 		 * well, we'll fail test.
 		 */
-		ret = uart_fifo_fill(dev, (uint8_t *)&fifo_data[tx_data_idx],
-				     DATA_SIZE - char_sent);
-		if (ret > 0) {
+		if (uart_fifo_fill(dev,
+				   (uint8_t *)&fifo_data[tx_data_idx++], 1) > 0) {
 			data_transmitted = true;
-			char_sent += ret;
-			tx_data_idx += ret;
-		} else {
-			uart_irq_tx_disable(dev);
-			return;
+			char_sent++;
 		}
 
 		if (tx_data_idx == DATA_SIZE) {
@@ -98,7 +92,7 @@ static void uart_fifo_callback(const struct device *dev, void *user_data)
 
 static int test_fifo_read(void)
 {
-	const struct device *const uart_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_console));
+	const struct device *uart_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_console));
 
 	if (!device_is_ready(uart_dev)) {
 		TC_PRINT("UART device not ready\n");
@@ -128,7 +122,7 @@ static int test_fifo_read(void)
 
 static int test_fifo_fill(void)
 {
-	const struct device *const uart_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_console));
+	const struct device *uart_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_console));
 
 	if (!device_is_ready(uart_dev)) {
 		TC_PRINT("UART device not ready\n");
@@ -161,26 +155,12 @@ static int test_fifo_fill(void)
 
 }
 
-#if CONFIG_SHELL
 void test_uart_fifo_fill(void)
-#else
-ZTEST(uart_basic_api, test_uart_fifo_fill)
-#endif
 {
-#ifndef CONFIG_UART_INTERRUPT_DRIVEN
-	ztest_test_skip();
-#endif
-	zassert_true(test_fifo_fill() == TC_PASS);
+	zassert_true(test_fifo_fill() == TC_PASS, NULL);
 }
 
-#if CONFIG_SHELL
 void test_uart_fifo_read(void)
-#else
-ZTEST(uart_basic_api, test_uart_fifo_read)
-#endif
 {
-#ifndef CONFIG_UART_INTERRUPT_DRIVEN
-	ztest_test_skip();
-#endif
-	zassert_true(test_fifo_read() == TC_PASS);
+	zassert_true(test_fifo_read() == TC_PASS, NULL);
 }

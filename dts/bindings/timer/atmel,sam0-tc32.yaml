@@ -5,9 +5,7 @@ description: Atmel SAM0 basic timer counter (TC) operating in 32-bit wide mode
 
 compatible: "atmel,sam0-tc32"
 
-include:
-  - name: base.yaml
-  - name: pinctrl-device.yaml
+include: base.yaml
 
 properties:
   reg:
@@ -22,8 +20,12 @@ properties:
   clock-names:
     required: true
 
+  label:
+    required: true
+
   prescaler:
     type: int
+    required: false
     description: Timer prescaler
     enum:
       - 1

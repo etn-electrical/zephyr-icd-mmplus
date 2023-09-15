@@ -21,13 +21,7 @@ zephyr_cc_option(-ffunction-sections -fdata-sections)
 
 zephyr_linker_sources_ifdef(CONFIG_GEN_ISR_TABLES
   SECTIONS
-  ${ZEPHYR_BASE}/include/zephyr/linker/intlist.ld
-)
-
-zephyr_linker_sources_ifdef(CONFIG_GEN_IRQ_VECTOR_TABLE
-  ROM_START
-  SORT_KEY 0x0vectors
-  ${ZEPHYR_BASE}/include/zephyr/linker/irq-vector-table-section.ld
+  ${ZEPHYR_BASE}/include/linker/intlist.ld
 )
 
 if(CONFIG_GEN_ISR_TABLES)
@@ -73,5 +67,3 @@ if(CONFIG_COVERAGE)
   zephyr_compile_options($<TARGET_PROPERTY:compiler,coverage>)
   zephyr_link_libraries($<TARGET_PROPERTY:linker,coverage>)
 endif()
-
-zephyr_sources_ifdef(CONFIG_SEMIHOST semihost.c)

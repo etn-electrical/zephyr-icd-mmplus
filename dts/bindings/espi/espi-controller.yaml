@@ -6,3 +6,7 @@
 include: base.yaml
 
 bus: espi
+
+properties:
+    label:
+      required: true

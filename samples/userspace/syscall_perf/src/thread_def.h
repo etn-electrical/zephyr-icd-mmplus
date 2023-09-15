@@ -7,7 +7,7 @@
 #ifndef THREAD_DEF_H
 #define THREAD_DEF_H
 
-#include <zephyr/kernel.h>
+#include <kernel.h>
 
 #define THREAD_STACKSIZE	2048
 

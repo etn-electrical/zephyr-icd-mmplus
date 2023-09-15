@@ -9,11 +9,11 @@
  * This file contains the main testing module that invokes all the tests.
  */
 
-#include <zephyr/timestamp.h>
+#include <timestamp.h>
 #include "utils.h"
-#include <zephyr/tc_util.h>
+#include <tc_util.h>
 
-#define STACK_SIZE (1024 + CONFIG_TEST_EXTRA_STACK_SIZE)
+#define STACK_SIZE (1024 + CONFIG_TEST_EXTRA_STACKSIZE)
 
 uint32_t tm_off; /* time necessary to read the time */
 int error_count; /* track number of errors */

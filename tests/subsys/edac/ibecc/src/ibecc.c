@@ -4,31 +4,33 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/device.h>
-#include <zephyr/ztest.h>
-#include <zephyr/tc_util.h>
+#include <zephyr.h>
+#include <device.h>
+#include <ztest.h>
+#include <tc_util.h>
 
-#include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(test, CONFIG_LOG_DEFAULT_LEVEL);
-
-#include <zephyr/drivers/edac.h>
+#include <drivers/edac.h>
 #include <ibecc.h>
 
+#define DEVICE_NAME		DT_LABEL(DT_NODELABEL(ibecc))
+
+#if defined(CONFIG_EDAC_ERROR_INJECT)
 #define TEST_ADDRESS1		0x1000
 #define TEST_ADDRESS2		0x2000
 #define TEST_DATA		0xface
 #define TEST_ADDRESS_MASK	INJ_ADDR_BASE_MASK_MASK
 #define DURATION		100
+#endif
 
-ZTEST(ibecc, test_ibecc_driver_initialized)
+static void test_ibecc_initialized(void)
 {
 	const struct device *dev;
 
-	LOG_DBG("Test ibecc driver is initialized");
+	dev = device_get_binding(DEVICE_NAME);
+	zassert_not_null(dev, "Device not found");
 
-	dev = DEVICE_DT_GET(DT_NODELABEL(ibecc));
-	zassert_true(device_is_ready(dev), "Device is not ready");
+	TC_PRINT("Test ibecc driver is initialized\n");
+
 }
 
 K_APPMEM_PARTITION_DEFINE(default_part);
@@ -37,9 +39,6 @@ K_APP_BMEM(default_part) static volatile int interrupt;
 K_APP_BMEM(default_part) static volatile uint32_t error_type;
 K_APP_BMEM(default_part) static volatile uint64_t error_address;
 K_APP_BMEM(default_part) static volatile uint16_t error_syndrome;
-
-/* Keep track or correctable and uncorrectable errors */
-static unsigned int errors_correctable, errors_uncorrectable;
 
 static void callback(const struct device *d, void *data)
 {
@@ -51,18 +50,16 @@ static void callback(const struct device *d, void *data)
 	error_syndrome = error_data->syndrome;
 }
 
-ZTEST(ibecc, test_ibecc_api)
+static void test_ibecc_api(void)
 {
 	const struct device *dev;
 	uint64_t value;
 	int ret;
 
-	LOG_DBG("Test IBECC API");
-
 	/* Error log API */
 
-	dev = DEVICE_DT_GET(DT_NODELABEL(ibecc));
-	zassert_true(device_is_ready(dev), "Device is not ready");
+	dev = device_get_binding(DEVICE_NAME);
+	zassert_not_null(dev, "Device not found");
 
 	ret = edac_ecc_error_log_get(dev, &value);
 	zassert_equal(ret, -ENODATA, "edac_ecc_error_log_get failed");
@@ -79,12 +76,10 @@ ZTEST(ibecc, test_ibecc_api)
 	/* Error stat API */
 
 	ret = edac_errors_cor_get(dev);
-	zassert_equal(ret, errors_correctable,
-		      "Error correctable count does not match");
+	zassert_equal(ret, 0, "Error correctable count not zero");
 
 	ret = edac_errors_uc_get(dev);
-	zassert_equal(ret, errors_uncorrectable,
-		      "Error uncorrectable count does mot match");
+	zassert_equal(ret, 0, "Error uncorrectable count not zero");
 
 	/* Notification API */
 
@@ -92,19 +87,16 @@ ZTEST(ibecc, test_ibecc_api)
 	zassert_equal(ret, 0, "Error setting notification callback");
 }
 
-ZTEST(ibecc, test_ibecc_error_inject_api)
+#if defined(CONFIG_EDAC_ERROR_INJECT)
+static void test_ibecc_error_inject_api(void)
 {
 	const struct device *dev;
 	uint32_t test_value;
 	uint64_t val;
 	int ret;
 
-	Z_TEST_SKIP_IFNDEF(CONFIG_EDAC_ERROR_INJECT);
-
-	LOG_DBG("Test IBECC Inject API");
-
-	dev = DEVICE_DT_GET(DT_NODELABEL(ibecc));
-	zassert_true(device_is_ready(dev), "Device is not ready");
+	dev = device_get_binding(DEVICE_NAME);
+	zassert_not_null(dev, "Device not found");
 
 	/* Verify default parameters */
 
@@ -162,7 +154,14 @@ ZTEST(ibecc, test_ibecc_error_inject_api)
 	zassert_equal(ret, 0, "Error getting param2");
 	zassert_equal(val, 0, "Read back value differs");
 }
+#else
+static void test_ibecc_error_inject_api(void)
+{
+	ztest_test_skip();
+}
+#endif
 
+#if defined(CONFIG_EDAC_ERROR_INJECT)
 static void test_inject(const struct device *dev, uint64_t addr, uint64_t mask,
 			uint8_t type)
 {
@@ -201,18 +200,18 @@ static void test_inject(const struct device *dev, uint64_t addr, uint64_t mask,
 	zassert_equal(ret, 0, "Error setting ctrl");
 
 	device_map((mm_reg_t *)&test_addr, addr, 0x100, K_MEM_CACHE_NONE);
-	LOG_DBG("Mapped 0x%llx to 0x%llx", addr, test_addr);
+	TC_PRINT("Mapped 0x%llx to 0x%llx\n", addr, test_addr);
 
 	test_value = sys_read32(test_addr);
-	LOG_DBG("Read value 0x%llx: 0x%x", test_addr, test_value);
+	TC_PRINT("Read value 0x%llx: 0x%x\n", test_addr, test_value);
 
 	/* Write to this test address some data */
 	sys_write32(TEST_DATA, test_addr);
-	LOG_DBG("Wrote value 0x%x at 0x%llx", TEST_DATA, test_addr);
+	TC_PRINT("Wrote value 0x%x at 0x%llx\n", TEST_DATA, test_addr);
 
 	/* Read back, triggering interrupt and notification */
 	test_value = sys_read32(test_addr);
-	LOG_DBG("Read value 0x%llx: 0x%x", test_addr, test_value);
+	TC_PRINT("Read value 0x%llx: 0x%x\n", test_addr, test_value);
 
 	/* Wait for interrupt if needed */
 	k_busy_wait(USEC_PER_MSEC * DURATION);
@@ -225,9 +224,9 @@ static void test_inject(const struct device *dev, uint64_t addr, uint64_t mask,
 		      "Interrupt handler executed more than once! (%d)\n",
 		      num_int);
 
-	LOG_DBG("Interrupt %d", num_int);
-	LOG_DBG("Error: type %u, address 0x%llx, syndrome %u",
-		error_type, error_address, error_syndrome);
+	TC_PRINT("Interrupt %d\n", num_int);
+	TC_PRINT("Error: type %u, address 0x%llx, syndrome %u\n",
+		 error_type, error_address, error_syndrome);
 
 	/* Check statistic information */
 
@@ -235,31 +234,13 @@ static void test_inject(const struct device *dev, uint64_t addr, uint64_t mask,
 	zassert_equal(ret, type == EDAC_ERROR_TYPE_DRAM_COR ?
 		      errors_cor + 1 : errors_cor,
 		      "Incorrect correctable count");
-	LOG_DBG("Correctable error count %d", ret);
-
-	errors_correctable = ret;
+	TC_PRINT("Correctable error count %d\n", ret);
 
 	ret = edac_errors_uc_get(dev);
 	zassert_equal(ret, type == EDAC_ERROR_TYPE_DRAM_UC ?
 		      errors_uc + 1 : errors_uc,
 		      "Incorrect uncorrectable count");
-	LOG_DBG("Uncorrectable error count %d", ret);
-
-	errors_uncorrectable = ret;
-
-	/* Clear */
-
-	ret = edac_inject_set_error_type(dev, 0);
-	zassert_equal(ret, 0, "Error setting inject error type");
-
-	ret = edac_inject_set_param1(dev, 0);
-	zassert_equal(ret, 0, "Error setting inject address");
-
-	ret = edac_inject_set_param2(dev, 0);
-	zassert_equal(ret, 0, "Error setting inject address mask");
-
-	ret = edac_inject_error_trigger(dev);
-	zassert_equal(ret, 0, "Error setting ctrl");
+	TC_PRINT("Uncorrectable error count %d\n", ret);
 }
 
 static int check_values(void *p1, void *p2, void *p3)
@@ -269,7 +250,7 @@ static int check_values(void *p1, void *p2, void *p3)
 	intptr_t addr, errtype;
 
 #if defined(CONFIG_USERSPACE)
-	LOG_DBG("Test communication in user mode thread");
+	TC_PRINT("Test communication in user mode thread\n");
 	zassert_true(k_is_user_context(), "thread left in kernel mode");
 #endif
 
@@ -289,8 +270,8 @@ static void ibecc_error_inject_test(uint64_t addr, uint64_t mask, uint64_t type)
 	const struct device *dev;
 	int ret;
 
-	dev = DEVICE_DT_GET(DT_NODELABEL(ibecc));
-	zassert_true(device_is_ready(dev), "Device is not ready");
+	dev = device_get_binding(DEVICE_NAME);
+	zassert_not_null(dev, "Device not found");
 
 	ret = edac_notify_callback_set(dev, callback);
 	zassert_equal(ret, 0, "Error setting notification callback");
@@ -308,38 +289,62 @@ static void ibecc_error_inject_test(uint64_t addr, uint64_t mask, uint64_t type)
 #endif
 }
 
-ZTEST(ibecc, test_ibecc_error_inject_test_cor)
+static void test_ibecc_error_inject_test_cor(void)
 {
-	Z_TEST_SKIP_IFNDEF(CONFIG_EDAC_ERROR_INJECT);
-
-	LOG_DBG("Test IBECC injection correctable error");
-
 	ibecc_error_inject_test(TEST_ADDRESS1, TEST_ADDRESS_MASK,
 				EDAC_ERROR_TYPE_DRAM_COR);
 }
 
-ZTEST(ibecc, test_ibecc_error_inject_test_uc)
+static void test_ibecc_error_inject_test_uc(void)
 {
-	Z_TEST_SKIP_IFNDEF(CONFIG_EDAC_ERROR_INJECT);
-
-	LOG_DBG("Test IBECC injection uncorrectable error");
-
 	ibecc_error_inject_test(TEST_ADDRESS2, TEST_ADDRESS_MASK,
 				EDAC_ERROR_TYPE_DRAM_UC);
 }
+#else /* CONFIG_EDAC_ERROR_INJECT */
+static void test_ibecc_error_inject_test_cor(void)
+{
+	ztest_test_skip();
+}
 
-static void *setup_ibecc(void)
+static void test_ibecc_error_inject_test_uc(void)
+{
+	ztest_test_skip();
+}
+#endif
+
+/* Used only for code coverage */
+
+bool z_x86_do_kernel_nmi(const z_arch_esf_t *esf);
+
+static void test_trigger_nmi_handler(void)
+{
+	bool ret;
+
+	ret = z_x86_do_kernel_nmi(NULL);
+	zassert_false(ret, "Test that NMI handling fails");
+}
+
+void test_edac_dummy_api(void);
+
+void test_main(void)
 {
 #if defined(CONFIG_USERSPACE)
 	int ret = k_mem_domain_add_partition(&k_mem_domain_default,
 					     &default_part);
 	if (ret != 0) {
-		LOG_ERR("Failed to add to mem domain (%d)", ret);
-		LOG_ERR("Running test setup function second time?");
-		ztest_test_fail();
+		TC_PRINT("Failed to add to mem domain (%d)", ret);
+		k_oops();
 	}
 #endif
-	return NULL;
-}
 
-ZTEST_SUITE(ibecc, NULL, setup_ibecc, NULL, NULL, NULL);
+	ztest_test_suite(ibecc,
+			 ztest_unit_test(test_trigger_nmi_handler),
+			 ztest_unit_test(test_ibecc_initialized),
+			 ztest_unit_test(test_ibecc_api),
+			 ztest_unit_test(test_edac_dummy_api),
+			 ztest_unit_test(test_ibecc_error_inject_api),
+			 ztest_unit_test(test_ibecc_error_inject_test_cor),
+			 ztest_unit_test(test_ibecc_error_inject_test_uc)
+			);
+	ztest_run_test_suite(ibecc);
+}

@@ -8,10 +8,10 @@
  */
 
 #include <stddef.h>
-#include <zephyr/sys/printk.h>
+#include <sys/printk.h>
 
-#include <zephyr/bluetooth/bluetooth.h>
-#include <zephyr/bluetooth/conn.h>
+#include <bluetooth/bluetooth.h>
+#include <bluetooth/conn.h>
 
 static struct k_work work_adv_start;
 static uint8_t volatile conn_count;
@@ -99,7 +99,6 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
 	printk("Disconnected %s (reason 0x%02x)\n", addr, reason);
 
 	if ((conn_count == 1U) && is_disconnecting) {
-		is_disconnecting = false;
 		k_work_submit(&work_adv_start);
 	}
 	conn_count--;
@@ -257,7 +256,7 @@ int init_peripheral(uint8_t iterations)
 
 	/* wait for connection attempts on all identities */
 	do {
-		k_sleep(K_MSEC(10));
+		k_sleep(K_MSEC(100));
 
 		id_count = 0xFF;
 		bt_id_get(NULL, &id_count);
@@ -280,9 +279,10 @@ int init_peripheral(uint8_t iterations)
 
 			printk("Wait for disconnections...\n");
 			is_disconnecting = true;
-			while (is_disconnecting) {
+			while (conn_count != 0) {
 				k_sleep(K_MSEC(10));
 			}
+			is_disconnecting = false;
 			printk("All disconnected.\n");
 
 			continue;
@@ -296,11 +296,11 @@ int init_peripheral(uint8_t iterations)
 
 			continue;
 		} else {
-			uint16_t wait = 6200U;
+			uint16_t wait = 1200U;
 
-			/* Maximum duration without connection count change,
-			 * central waiting before disconnecting all its
-			 * connections plus few seconds of margin.
+			/* Maximum duration without connection count change, central
+			 * waiting before disconnecting all its connections plus few
+			 * seconds of margin.
 			 */
 			while ((prev_count == conn_count) && wait) {
 				wait--;

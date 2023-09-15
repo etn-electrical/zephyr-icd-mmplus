@@ -37,10 +37,6 @@ config SERIAL_INIT_PRIORITY
 	help
 	  Serial driver device initialization priority.
 
-module = UART
-module-str = uart
-source "subsys/logging/Kconfig.template.log_config"
-
 config SERIAL_SUPPORT_WIDE_DATA
 	bool
 	help
@@ -49,7 +45,7 @@ config SERIAL_SUPPORT_WIDE_DATA
 	  than 8-bit.
 
 config UART_USE_RUNTIME_CONFIGURE
-	bool "Runtime configuration for UART controllers"
+	bool "Enable runtime configuration for UART controllers"
 	default y
 	help
 	  Enable runtime configuration of UART controllers.
@@ -64,20 +60,20 @@ config UART_USE_RUNTIME_CONFIGURE
 	  applications that do not require runtime UART configuration.
 
 config UART_ASYNC_API
-	bool "Asynchronous UART API"
+	bool "Enable asynchronous UART API"
 	depends on SERIAL_SUPPORT_ASYNC
 	help
 	  This option enables asynchronous UART API.
 
 config UART_INTERRUPT_DRIVEN
-	bool "UART Interrupt support"
+	bool "Enable UART Interrupt support"
 	depends on SERIAL_SUPPORT_INTERRUPT
 	help
 	  This option enables interrupt support for UART allowing console
 	  input and other UART based drivers.
 
 config UART_LINE_CTRL
-	bool "Serial Line Control API"
+	bool "Enable Serial Line Control API"
 	help
 	  This enables the API for apps to control the serial line,
 	  such as baud rate, CTS and RTS.
@@ -87,7 +83,7 @@ config UART_LINE_CTRL
 	  Says no if not sure.
 
 config UART_DRV_CMD
-	bool "Driver commands API"
+	bool "Enable driver commands API"
 	help
 	  This enables the API to send extra commands to drivers.
 	  This allows drivers to expose hardware specific functions.
@@ -95,20 +91,11 @@ config UART_DRV_CMD
 	  Says no if not sure.
 
 config UART_WIDE_DATA
-	bool "API to support data longer than 8-bit"
+	bool "Enable API to support data longer than 8-bit"
 	help
 	  This enables the API to process data longer than 8-bit.
 	  This is up to the driver to implement the necessary functions
 	  to properly support this.
-
-config UART_PIPE
-	bool "Pipe UART driver"
-	select UART_INTERRUPT_DRIVEN
-	help
-	  Enable pipe UART driver. This driver allows application to communicate
-	  over UART with custom defined protocol. Driver doesn't inspect received
-	  data (as contrary to console UART driver) and all aspects of received
-	  protocol data are handled by application provided callback.
 
 comment "Serial Drivers"
 
@@ -170,8 +157,6 @@ source "drivers/serial/Kconfig.psoc6"
 
 source "drivers/serial/Kconfig.pl011"
 
-source "drivers/serial/Kconfig.ql_usbserialport_s3b"
-
 source "drivers/serial/Kconfig.rv32m1_lpuart"
 
 source "drivers/serial/Kconfig.rpi_pico"
@@ -201,17 +186,5 @@ source "drivers/serial/Kconfig.test"
 source "drivers/serial/Kconfig.neorv32"
 
 source "drivers/serial/Kconfig.xen"
-
-source "drivers/serial/Kconfig.ifx_cat1"
-
-source "drivers/serial/Kconfig.smartbond"
-
-source "drivers/serial/Kconfig.nxp_s32"
-
-source "drivers/serial/Kconfig.cdns"
-
-source "drivers/serial/Kconfig.opentitan"
-
-source "drivers/serial/Kconfig.altera"
 
 endif # SERIAL

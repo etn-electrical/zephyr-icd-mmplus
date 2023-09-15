@@ -6,18 +6,18 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/device.h>
+#include <kernel.h>
+#include <device.h>
 
 #define DT_DRV_COMPAT st_stm32_flash_controller
 
 #include <string.h>
-#include <zephyr/drivers/flash.h>
-#include <zephyr/init.h>
+#include <drivers/flash.h>
+#include <init.h>
 #include <soc.h>
 #include <stm32_ll_bus.h>
 #include <stm32_ll_rcc.h>
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 
 #include "flash_stm32.h"
 #include "stm32_hsem.h"
@@ -83,9 +83,6 @@ static int flash_stm32_check_status(const struct device *dev)
 		LOG_DBG("Status: 0x%08lx",
 			FLASH_STM32_REGS(dev)->FLASH_STM32_SR &
 							FLASH_STM32_SR_ERRORS);
-		/* Clear errors to unblock usage of the flash */
-		FLASH_STM32_REGS(dev)->FLASH_STM32_SR = FLASH_STM32_REGS(dev)->FLASH_STM32_SR &
-							FLASH_STM32_SR_ERRORS;
 		return -EIO;
 	}
 
@@ -125,8 +122,7 @@ static void flash_stm32_flush_caches(const struct device *dev,
 				     off_t offset, size_t len)
 {
 #if defined(CONFIG_SOC_SERIES_STM32F0X) || defined(CONFIG_SOC_SERIES_STM32F3X) || \
-	defined(CONFIG_SOC_SERIES_STM32G0X) || defined(CONFIG_SOC_SERIES_STM32L5X) || \
-	defined(CONFIG_SOC_SERIES_STM32U5X)
+	defined(CONFIG_SOC_SERIES_STM32G0X) || defined(CONFIG_SOC_SERIES_STM32L5X)
 	ARG_UNUSED(dev);
 	ARG_UNUSED(offset);
 	ARG_UNUSED(len);
@@ -260,9 +256,9 @@ static int flash_stm32_write_protection(const struct device *dev, bool enable)
 
 #if defined(FLASH_SECURITY_NS)
 	if (enable) {
-		regs->NSCR |= FLASH_STM32_NSLOCK;
+		regs->NSCR |= FLASH_NSCR_NSLOCK;
 	} else {
-		if (regs->NSCR & FLASH_STM32_NSLOCK) {
+		if (regs->NSCR & FLASH_NSCR_NSLOCK) {
 			regs->NSKEYR = FLASH_KEY1;
 			regs->NSKEYR = FLASH_KEY2;
 		}
@@ -340,12 +336,12 @@ static const struct flash_driver_api flash_stm32_api = {
 static int stm32_flash_init(const struct device *dev)
 {
 	int rc;
-	/* Below is applicable to F0, F1, F3, G0, G4, L1, L4, L5, U5 & WB55 series.
+	/* Below is applicable to F0, F1, F3, G0, G4, L1, L4, L5 & WB55 series.
 	 * For F2, F4, F7 & H7 series, this is not applicable.
 	 */
 #if DT_INST_NODE_HAS_PROP(0, clocks)
 	struct flash_stm32_priv *p = FLASH_STM32_PRIV(dev);
-	const struct device *const clk = DEVICE_DT_GET(STM32_CLOCK_CONTROL_NODE);
+	const struct device *clk = DEVICE_DT_GET(STM32_CLOCK_CONTROL_NODE);
 
 	/*
 	 * On STM32 F0, F1, F3 & L1 series, flash interface clock source is
@@ -360,11 +356,6 @@ static int stm32_flash_init(const struct device *dev)
 	while (!LL_RCC_HSI_IsReady()) {
 	}
 #endif
-
-	if (!device_is_ready(clk)) {
-		LOG_ERR("clock control device not ready");
-		return -ENODEV;
-	}
 
 	/* enable clock */
 	if (clock_control_on(clk, (clock_control_subsys_t *)&p->pclken) != 0) {
@@ -399,7 +390,7 @@ static int stm32_flash_init(const struct device *dev)
 	}
 #endif
 
-	return 0;
+	return flash_stm32_write_protection(dev, false);
 }
 
 DEVICE_DT_INST_DEFINE(0, stm32_flash_init, NULL,

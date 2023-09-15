@@ -4,13 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/irq_offload.h>
-#include <zephyr/ztest.h>
+#include <zephyr.h>
+#include <irq_offload.h>
+#include <ztest.h>
 #include <limits.h>
 
 #define MSGQ_LEN (2)
-#define STACK_SIZE (512 + CONFIG_TEST_EXTRA_STACK_SIZE)
+#define STACK_SIZE (512 + CONFIG_TEST_EXTRA_STACKSIZE)
 #define NUM_SERVICES 2
 #define TIMEOUT K_MSEC(100)
 
@@ -194,13 +194,13 @@ static void client_entry(void *p1, void *p2, void *p3)
 	/* query services */
 	k_msgq_put(&manager_q, client_data, K_NO_WAIT);
 	ret = k_msgq_get(&client_msgq, service_data, K_FOREVER);
-	zassert_equal(ret, 0);
+	zassert_equal(ret, 0, NULL);
 
 	service1q = (struct k_msgq *)service_data[0];
 	service2q = (struct k_msgq *)service_data[1];
 	/* all services should be running */
-	zassert_equal(service1q, &service1_msgq);
-	zassert_equal(service2q, &service2_msgq);
+	zassert_equal(service1q, &service1_msgq, NULL);
+	zassert_equal(service2q, &service2_msgq, NULL);
 	/* let the test thread continue */
 	k_sem_give(&test_continue);
 
@@ -259,7 +259,7 @@ static void start_client(void)
 				  0, K_NO_WAIT);
 }
 
-ZTEST(msgq_usage, test_msgq_usage)
+void test_msgq_usage(void)
 {
 	start_service_manager();
 	register_service();
@@ -267,7 +267,7 @@ ZTEST(msgq_usage, test_msgq_usage)
 	/* waiting to continue */
 	k_sem_take(&test_continue, K_FOREVER);
 
-	/* rather than schedule this thread by k_msleep(), use semaphore with
+	/* rather than schedule this thread by k_msleep(), use semaphor with
 	 * a timeout value, so there is no give operation over service_sema
 	 */
 	TC_PRINT("try to kill service1\n");
@@ -284,4 +284,8 @@ ZTEST(msgq_usage, test_msgq_usage)
 	k_thread_abort(tservice_manager);
 }
 
-ZTEST_SUITE(msgq_usage, NULL, NULL, NULL, NULL, NULL);
+void test_main(void)
+{
+	ztest_test_suite(msgq_usage, ztest_unit_test(test_msgq_usage));
+	ztest_run_test_suite(msgq_usage);
+}

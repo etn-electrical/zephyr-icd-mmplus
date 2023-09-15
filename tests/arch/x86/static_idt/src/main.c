@@ -10,10 +10,10 @@
  *  Ensures interrupt and exception stubs are installed correctly.
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/ztest.h>
-#include <zephyr/tc_util.h>
-#include <zephyr/arch/x86/ia32/segmentation.h>
+#include <zephyr.h>
+#include <ztest.h>
+#include <tc_util.h>
+#include <arch/x86/ia32/segmentation.h>
 
 #include <kernel_internal.h>
 #if defined(__GNUC__)
@@ -106,7 +106,7 @@ extern void *_EXCEPTION_STUB_NAME(exc_divide_error_handler, IV_DIVIDE_ERROR);
  * and exception stubs are installed at the correct place.
  *
  */
-ZTEST(static_idt, test_idt_stub)
+void test_idt_stub(void)
 {
 	struct segment_descriptor *p_idt_entry;
 	uint32_t offset;
@@ -153,8 +153,7 @@ void idt_spur_task(void *arg1, void *arg2, void *arg3)
  * and spurious interrupt using various method, the registered handler
  * should get called
  */
-
-ZTEST(static_idt, test_static_idt)
+void test_static_idt(void)
 {
 	volatile int error;     /* used to create a divide by zero error */
 
@@ -175,12 +174,7 @@ ZTEST(static_idt, test_static_idt)
 	 * issuing a 'divide by zero' warning.
 	 */
 	error = 32;     /* avoid static checker uninitialized warnings */
-
-	__asm__ volatile ("movl $0x0, %%edx\n\t"
-			  "movl %0, %%eax\n\t"
-			  "movl %1, %%ebx\n\t"
-			  "idivl %%ebx;" : : "g" (error), "g" (exc_handler_executed) :
-			  "eax", "edx");
+	error = error / exc_handler_executed;
 
 	zassert_not_equal(exc_handler_executed, 0,
 			  "Exception handler did not execute");
@@ -203,4 +197,11 @@ ZTEST(static_idt, test_static_idt)
 			  "Spurious handler did not execute as expected");
 }
 
-ZTEST_SUITE(static_idt, NULL, NULL, NULL, NULL, NULL);
+void test_main(void)
+{
+	ztest_test_suite(static_idt,
+			 ztest_unit_test(test_idt_stub),
+			 ztest_unit_test(test_static_idt)
+			 );
+	ztest_run_test_suite(static_idt);
+}

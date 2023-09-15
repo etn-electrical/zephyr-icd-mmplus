@@ -7,7 +7,7 @@
 #ifndef PINCTRL_CYPRESS_PSOC6_H_
 #define PINCTRL_CYPRESS_PSOC6_H_
 
-#include <zephyr/dt-bindings/dt-util.h>
+#include <dt-bindings/dt-util.h>
 
 /**
  * Functions are defined using HSIOM SEL

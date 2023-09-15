@@ -53,23 +53,20 @@ The board configuration supports the following hardware features:
      - Kconfig option
      - Devicetree compatible
    * - GPIO
-     - :kconfig:option:`CONFIG_GPIO`
+     - :kconfig:`CONFIG_GPIO`
      - :dtcompatible:`gd,gd32-gpio`
    * - Machine timer
-     - :kconfig:option:`CONFIG_RISCV_MACHINE_TIMER`
+     - :kconfig:`CONFIG_RISCV_MACHINE_TIMER`
      - :dtcompatible:`riscv,machine-timer`
    * - Nuclei ECLIC Interrupt Controller
-     - :kconfig:option:`CONFIG_NUCLEI_ECLIC`
+     - :kconfig:`CONFIG_NUCLEI_ECLIC`
      - :dtcompatible:`nuclei,eclic`
    * - PWM
-     - :kconfig:option:`CONFIG_PWM`
+     - :kconfig:`CONFIG_PWM`
      - :dtcompatible:`gd,gd32-pwm`
    * - USART
-     - :kconfig:option:`CONFIG_SERIAL`
+     - :kconfig:`CONFIG_SERIAL`
      - :dtcompatible:`gd,gd32-usart`
-   * - ADC
-     - :kconfig:option:`CONFIG_ADC`
-     - :dtcompatible:`gd,gd32-adc`
 
 Serial Port
 ===========
@@ -93,12 +90,20 @@ The GD32VF103V-EVAL includes an onboard programmer/debugger (GD-Link) which
 allows flash programming and debugging over USB. There is also a JTAG header
 (JP1) which can be used with tools like Segger J-Link.
 
+.. note::
+
+   The OpenOCD shipped with Zephyr SDK does not support GD32VF103. You will need
+   to build the `riscv-openocd fork <https://github.com/riscv/riscv-openocd>`_.
+   Note that compared with OpenOCD, J-Link offers a better programming and
+   debugging experience on this board.
+
 #. Build the Zephyr kernel and the :ref:`hello_world` sample application:
 
    .. zephyr-app-commands::
       :zephyr-app: samples/hello_world
       :board: gd32vf103v_eval
       :goals: build
+      :gen-args: -DOPENOCD=<path/to/riscv-openocd/bin/openocd> -DOPENOCD_DEFAULT_PATH=<path/to/riscv-openocd/share/openocd/scripts>
       :compact:
 
 #. Run your favorite terminal program to listen for output. On Linux the
@@ -142,7 +147,7 @@ allows flash programming and debugging over USB. There is also a JTAG header
    https://www.gigadevice.com/datasheet/gd32vf103xxxx-datasheet/
 
 .. _GD32VF103 User Manual:
-   https://www.gd32mcu.com/data/documents/userManual/GD32VF103_User_Manual_Rev1.4.pdf
+   https://gd32mcu.21ic.com/data/documents/shujushouce/GD32VF103_User_Manual_EN_V1.2.pdf
 
 .. _GD32VF103V-EVAL Documents:
    https://github.com/riscv-mcu/GD32VF103_Demo_Suites/tree/master/GD32VF103V_EVAL_Demo_Suites/Docs

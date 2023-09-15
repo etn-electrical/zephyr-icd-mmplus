@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
-#include <zephyr/kernel.h>
-#include <zephyr/sys/fdtable.h>
+#include <ztest.h>
+#include <zephyr.h>
+#include <sys/fdtable.h>
 #include <errno.h>
 
 /* The thread will test that the refcounting of fd object will
@@ -19,10 +19,10 @@ static struct fd_op_vtable fd_vtable = { 0 };
 
 #define VTABLE_INIT (&fd_vtable)
 
-K_THREAD_STACK_DEFINE(fd_thread_stack, CONFIG_ZTEST_STACK_SIZE +
-		      CONFIG_TEST_EXTRA_STACK_SIZE);
+K_THREAD_STACK_DEFINE(fd_thread_stack, CONFIG_ZTEST_STACKSIZE +
+		      CONFIG_TEST_EXTRA_STACKSIZE);
 
-ZTEST(fdtable, test_z_reserve_fd)
+void test_z_reserve_fd(void)
 {
 	int fd = z_reserve_fd(); /* function being tested */
 
@@ -31,7 +31,7 @@ ZTEST(fdtable, test_z_reserve_fd)
 	z_free_fd(fd);
 }
 
-ZTEST(fdtable, test_z_get_fd_obj_and_vtable)
+void test_z_get_fd_obj_and_vtable(void)
 {
 	const struct fd_op_vtable *vtable;
 
@@ -47,7 +47,7 @@ ZTEST(fdtable, test_z_get_fd_obj_and_vtable)
 	z_free_fd(fd);
 }
 
-ZTEST(fdtable, test_z_get_fd_obj)
+void test_z_get_fd_obj(void)
 {
 	int fd = z_reserve_fd();
 	zassert_true(fd >= 0, "fd < 0");
@@ -81,12 +81,12 @@ ZTEST(fdtable, test_z_get_fd_obj)
 	z_free_fd(fd);
 }
 
-ZTEST(fdtable, test_z_finalize_fd)
+void test_z_finalize_fd(void)
 {
 	const struct fd_op_vtable *vtable;
 
 	int fd = z_reserve_fd();
-	zassert_true(fd >= 0);
+	zassert_true(fd >= 0, NULL);
 
 	int *obj = z_get_fd_obj_and_vtable(fd, &vtable, NULL);
 
@@ -103,13 +103,13 @@ ZTEST(fdtable, test_z_finalize_fd)
 	z_free_fd(fd);
 }
 
-ZTEST(fdtable, test_z_alloc_fd)
+void test_z_alloc_fd(void)
 {
 	const struct fd_op_vtable *vtable = NULL;
 	int *obj = NULL;
 
 	int fd = z_alloc_fd(obj, vtable); /* function being tested */
-	zassert_true(fd >= 0);
+	zassert_true(fd >= 0, NULL);
 
 	obj = z_get_fd_obj_and_vtable(fd, &vtable, NULL);
 
@@ -119,12 +119,12 @@ ZTEST(fdtable, test_z_alloc_fd)
 	z_free_fd(fd);
 }
 
-ZTEST(fdtable, test_z_free_fd)
+void test_z_free_fd(void)
 {
 	const struct fd_op_vtable *vtable = NULL;
 
 	int fd = z_reserve_fd();
-	zassert_true(fd >= 0);
+	zassert_true(fd >= 0, NULL);
 
 	z_free_fd(fd); /* function being tested */
 
@@ -151,7 +151,7 @@ static void test_cb(void *fd_ptr)
 	zassert_equal(errno, EBADF, "fd was found");
 }
 
-ZTEST(fdtable, test_z_fd_multiple_access)
+void test_z_fd_multiple_access(void)
 {
 	const struct fd_op_vtable *vtable = VTABLE_INIT;
 	void *obj = (void *)vtable;
@@ -175,4 +175,16 @@ ZTEST(fdtable, test_z_fd_multiple_access)
 	zassert_equal(errno, EBADF, "fd was found");
 }
 
-ZTEST_SUITE(fdtable, NULL, NULL, NULL, NULL, NULL);
+void test_main(void)
+{
+	ztest_test_suite(test_fdtable,
+			 ztest_unit_test(test_z_reserve_fd),
+			 ztest_unit_test(test_z_get_fd_obj_and_vtable),
+			 ztest_unit_test(test_z_get_fd_obj),
+			 ztest_unit_test(test_z_finalize_fd),
+			 ztest_unit_test(test_z_alloc_fd),
+			 ztest_unit_test(test_z_free_fd),
+			 ztest_unit_test(test_z_fd_multiple_access)
+		);
+	ztest_run_test_suite(test_fdtable);
+}

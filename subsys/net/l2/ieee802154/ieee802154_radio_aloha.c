@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(net_ieee802154_aloha, CONFIG_NET_L2_IEEE802154_LOG_LEVEL);
 
-#include <zephyr/net/net_core.h>
-#include <zephyr/net/net_if.h>
+#include <net/net_core.h>
+#include <net/net_if.h>
 
 #include <errno.h>
 

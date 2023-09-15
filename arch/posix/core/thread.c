@@ -13,13 +13,13 @@
  * architecture
  */
 
-#include <zephyr/toolchain.h>
-#include <zephyr/kernel_structs.h>
+#include <toolchain.h>
+#include <kernel_structs.h>
 #include <ksched.h>
-#include <zephyr/wait_q.h>
+#include <wait_q.h>
 
 #include "posix_core.h"
-#include <zephyr/arch/posix/posix_soc_if.h>
+#include <arch/posix/posix_soc_if.h>
 
 /* Note that in this arch we cheat quite a bit: we use as stack a normal
  * pthreads stack and therefore we ignore the stack size

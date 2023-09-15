@@ -18,12 +18,7 @@ struct ll_sync_set {
 
 	uint16_t skip;
 	uint16_t timeout;
-	/* Non-zero when sync is setup. It can be in two sub-stated:
-	 * - Waiting for first AUX_SYNC_IND, before sync established was notified to Host.
-	 *   If sync establishment is in progress node_rx_sync_estab is not NULL.
-	 * - sync is already established, node_rx_sync_estab is NULL.
-	 */
-	uint16_t volatile timeout_reload;
+	uint16_t volatile timeout_reload; /* Non-zero when sync established */
 	uint16_t timeout_expire;
 
 	/* Member to store periodic advertising sync prepare.
@@ -54,7 +49,7 @@ struct ll_sync_set {
 	uint8_t is_term:1;
 #endif /* CONFIG_BT_CTLR_SYNC_PERIODIC_CTE_TYPE_FILTERING && !CONFIG_BT_CTLR_CTEINLINE_SUPPORT */
 
-	uint8_t is_stop:1; /* sync terminate or cancel requested */
+	uint8_t is_stop:1; /* sync terminate requested */
 	uint8_t sync_expire:3; /* countdown of 6 before fail to establish */
 
 #if defined(CONFIG_BT_CTLR_CHECK_SAME_PEER_SYNC)
@@ -73,9 +68,6 @@ struct ll_sync_set {
 		};
 	} node_rx_lost;
 
-	/* Not-Null when sync was setup and Controller is waiting for first AUX_SYNC_IND PDU.
-	 * It means the sync was not estalished yet.
-	 */
 	struct node_rx_hdr *node_rx_sync_estab;
 
 #if defined(CONFIG_BT_CTLR_SYNC_ISO)
@@ -108,13 +100,10 @@ struct ll_sync_iso_set {
 	/* Periodic Advertising Sync that contained the BIGInfo */
 	struct ll_sync_set *sync;
 
-	/* Periodic Advertising Sync timeout */
 	uint16_t timeout;
-	uint16_t volatile timeout_reload; /* Non-zero when sync established */
-	uint16_t timeout_expire; /* timeout countdown */
 
-	/* Encryption */
-	uint8_t gltk[16];
+	uint16_t volatile timeout_reload; /* Non-zero when sync established */
+	uint16_t timeout_expire;
 
 	/* node rx type with memory aligned storage for sync lost reason.
 	 * HCI will reference the value using the pdu member of

@@ -5,9 +5,7 @@
 
 menuconfig LSM9DS0_GYRO
 	bool "LSM9DS0 I2C gyroscope Chip"
-	default y
-	depends on DT_HAS_ST_LSM9DS0_GYRO_ENABLED
-	select I2C
+	depends on I2C
 	help
 	  Enable driver for LSM9DS0 I2C-based gyroscope sensor.
 
@@ -33,7 +31,7 @@ config LSM9DS0_GYRO_FULLSCALE_2000
 endchoice
 
 config LSM9DS0_GYRO_FULLSCALE_RUNTIME
-	bool "Dynamic full-scale"
+	bool "Enable dynamic full-scale"
 	help
 	  Enable alteration of full-scale attribute at runtime.
 
@@ -58,14 +56,14 @@ config LSM9DS0_GYRO_SAMPLING_RATE_760
 endchoice
 
 config LSM9DS0_GYRO_SAMPLING_RATE_RUNTIME
-	bool "Dynamic sampling rate"
+	bool "Enable dynamic sampling rate"
 	help
 	  Enable alteration of sampling rate frequency at runtime.
 
 endmenu
 
 config LSM9DS0_GYRO_TRIGGERS
-	bool "Triggers"
+	bool "Enable triggers"
 	depends on GPIO
 
 config LSM9DS0_GYRO_THREAD_STACK_SIZE
@@ -76,7 +74,7 @@ config LSM9DS0_GYRO_THREAD_STACK_SIZE
 	  Specify the internal thread stack size.
 
 config LSM9DS0_GYRO_TRIGGER_DRDY
-	bool "Data ready trigger"
+	bool "Enable data ready trigger"
 	depends on LSM9DS0_GYRO_TRIGGERS
 
 endif # LSM9DS0_GYRO

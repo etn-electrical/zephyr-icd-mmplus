@@ -599,7 +599,7 @@ def parse_args():
 
     parser = argparse.ArgumentParser(
         description=__doc__,
-        formatter_class=argparse.RawDescriptionHelpFormatter, allow_abbrev=False)
+        formatter_class=argparse.RawDescriptionHelpFormatter)
 
     parser.add_argument("-k", "--kernel", required=True,
                         help="path to prebuilt kernel ELF binary")
@@ -608,7 +608,7 @@ def parse_args():
     parser.add_argument("--map", action='append',
                         help=textwrap.dedent('''\
                             Map extra memory:
-                            <physical address>,<size>[,<flags:LUWXD>[,<virtual address>]]
+                            <physical address>,<size>[,<flags:LUWXD>[,<virtual adderss>]]
                             where flags can be empty or combination of:
                                 L - Large page (2MB or 4MB),
                                 U - Userspace accessible,

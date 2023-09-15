@@ -4,13 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr.h>
 #include <stddef.h>
-#include <zephyr/ztest.h>
+#include <ztest.h>
 
-#include <zephyr/bluetooth/bluetooth.h>
-#include <zephyr/bluetooth/hci.h>
-#include <zephyr/sys/byteorder.h>
+#include <bluetooth/bluetooth.h>
+#include <bluetooth/hci.h>
+#include <sys/byteorder.h>
 #include <host/hci_core.h>
 
 #include "util/util.h"
@@ -18,11 +18,7 @@
 #include "util/mem.h"
 #include "util/dbuf.h"
 
-#include "pdu_df.h"
-#include "lll/pdu_vendor.h"
 #include "pdu.h"
-
-#include "hal/ccm.h"
 
 #include "lll.h"
 #include "lll/lll_adv_types.h"
@@ -46,7 +42,7 @@
 /* It does not matter for purpose of this tests what is the type or length of CTE used. */
 #define TEST_CTE_TYPE BT_HCI_LE_AOD_CTE_2US
 
-ZTEST(test_add_cte_to_per_adv_chain, test_add_number_of_cte_to_sigle_pdu_chain)
+void test_add_number_of_cte_to_sigle_pdu_chain(void)
 {
 	struct ll_adv_set *adv;
 	uint8_t handle;
@@ -62,7 +58,7 @@ ZTEST(test_add_cte_to_per_adv_chain, test_add_number_of_cte_to_sigle_pdu_chain)
 
 	err = ll_df_set_cl_cte_tx_enable(handle, true);
 	zassert_equal(err, 0,
-		      "Unexpected error while enabling CTE for periodic advertising chain, err: %d",
+		      "Unexpected error while enabling CTE for periodic avertising chain, err: %d",
 		      err);
 
 	/* Validate result */
@@ -71,7 +67,7 @@ ZTEST(test_add_cte_to_per_adv_chain, test_add_number_of_cte_to_sigle_pdu_chain)
 	common_teardown(adv);
 }
 
-ZTEST(test_add_cte_to_per_adv_chain, test_add_cte_for_each_pdu_in_chain)
+void test_add_cte_for_each_pdu_in_chain(void)
 {
 	struct ll_adv_set *adv;
 	uint8_t handle;
@@ -88,7 +84,7 @@ ZTEST(test_add_cte_to_per_adv_chain, test_add_cte_for_each_pdu_in_chain)
 
 	err = ll_df_set_cl_cte_tx_enable(handle, true);
 	zassert_equal(err, 0,
-		      "Unexpected error while enabling CTE for periodic advertising chain, err: %d",
+		      "Unexpected error while enabling CTE for periodic avertising chain, err: %d",
 		      err);
 
 	/* Validate result */
@@ -97,7 +93,7 @@ ZTEST(test_add_cte_to_per_adv_chain, test_add_cte_for_each_pdu_in_chain)
 	common_teardown(adv);
 }
 
-ZTEST(test_add_cte_to_per_adv_chain, test_add_cte_for_not_all_pdu_in_chain)
+void test_add_cte_for_not_all_pdu_in_chain(void)
 {
 	struct ll_adv_set *adv;
 	uint8_t handle;
@@ -114,7 +110,7 @@ ZTEST(test_add_cte_to_per_adv_chain, test_add_cte_for_not_all_pdu_in_chain)
 
 	err = ll_df_set_cl_cte_tx_enable(handle, true);
 	zassert_equal(err, 0,
-		      "Unexpected error while enabling CTE for periodic advertising chain, err: %d",
+		      "Unexpected error while enabling CTE for periodic avertising chain, err: %d",
 		      err);
 
 	/* Validate result */
@@ -123,7 +119,7 @@ ZTEST(test_add_cte_to_per_adv_chain, test_add_cte_for_not_all_pdu_in_chain)
 	common_teardown(adv);
 }
 
-ZTEST(test_add_cte_to_per_adv_chain, test_add_cte_to_not_all_pdus_in_chain_enqueued_to_lll)
+void test_add_cte_to_not_all_pdus_in_chain_enqueued_to_lll(void)
 {
 	struct pdu_adv *pdu_prev, *pdu_new;
 	struct ll_adv_set *adv;
@@ -151,7 +147,7 @@ ZTEST(test_add_cte_to_per_adv_chain, test_add_cte_to_not_all_pdus_in_chain_enque
 
 	err = ll_df_set_cl_cte_tx_enable(handle, true);
 	zassert_equal(err, 0,
-		      "Unexpected error while enabling CTE for periodic advertising chain, err: %d",
+		      "Unexpected error while enabling CTE for periodic avertising chain, err: %d",
 		      err);
 
 	/* Validate result */
@@ -160,7 +156,7 @@ ZTEST(test_add_cte_to_per_adv_chain, test_add_cte_to_not_all_pdus_in_chain_enque
 	common_teardown(adv);
 }
 
-ZTEST(test_add_cte_to_per_adv_chain, test_add_cte_for_single_pdu_chain)
+void test_add_cte_for_single_pdu_chain(void)
 {
 	struct ll_adv_set *adv;
 	uint8_t handle;
@@ -177,7 +173,7 @@ ZTEST(test_add_cte_to_per_adv_chain, test_add_cte_for_single_pdu_chain)
 
 	err = ll_df_set_cl_cte_tx_enable(handle, true);
 	zassert_equal(err, 0,
-		      "Unexpected error while enabling CTE for periodic advertising chain, err: %d",
+		      "Unexpected error while enabling CTE for periodic avertising chain, err: %d",
 		      err);
 
 	/* Validate result */
@@ -186,4 +182,13 @@ ZTEST(test_add_cte_to_per_adv_chain, test_add_cte_for_single_pdu_chain)
 	common_teardown(adv);
 }
 
-ZTEST_SUITE(test_add_cte_to_per_adv_chain, NULL, NULL, NULL, NULL, NULL);
+void run_add_cte_to_per_adv_chain_tests(void)
+{
+	ztest_test_suite(test_add_cte_to_per_adv_chain,
+			 ztest_unit_test(test_add_number_of_cte_to_sigle_pdu_chain),
+			 ztest_unit_test(test_add_cte_for_each_pdu_in_chain),
+			 ztest_unit_test(test_add_cte_for_not_all_pdu_in_chain),
+			 ztest_unit_test(test_add_cte_to_not_all_pdus_in_chain_enqueued_to_lll),
+			 ztest_unit_test(test_add_cte_for_single_pdu_chain));
+	ztest_run_test_suite(test_add_cte_to_per_adv_chain);
+}

@@ -6,13 +6,13 @@
 
 #define DT_DRV_COMPAT nxp_gpt_hw_timer
 
-#include <zephyr/device.h>
-#include <zephyr/drivers/timer/system_timer.h>
+#include <device.h>
+#include <drivers/timer/system_timer.h>
 #include <fsl_gpt.h>
-#include <zephyr/sys_clock.h>
-#include <zephyr/spinlock.h>
-#include <zephyr/sys/time_units.h>
-#include <zephyr/irq.h>
+#include <sys_clock.h>
+#include <spinlock.h>
+#include <sys/time_units.h>
+
 
 
 /* GPT is a 32 bit counter, but we use a lower value to avoid integer overflow */
@@ -133,11 +133,14 @@ static uint32_t elapsed(void)
 /* Interrupt fires every time GPT timer reaches set value.
  * GPT timer will reset to 0x0.
  *
+ * Note: we use a direct ISR for latency concerns.
  */
-void mcux_imx_gpt_isr(const void *arg)
+ISR_DIRECT_DECLARE(mcux_imx_gpt_isr)
 {
-	ARG_UNUSED(arg);
-
+	/* Note: we do not call PM hooks in this function,
+	 * GPT timer does not need PM
+	 */
+	ISR_DIRECT_HEADER();
 	/* Update the value of 'wrapped_cycles' */
 	elapsed();
 
@@ -164,6 +167,8 @@ void mcux_imx_gpt_isr(const void *arg)
 	/* If system is tickful, interrupt will fire again at next tick */
 	sys_clock_announce(1);
 #endif
+	ISR_DIRECT_FOOTER(1);
+	return 1;
 }
 
 /* Next needed call to sys_clock_announce will not be until the specified number
@@ -313,8 +318,8 @@ int sys_clock_driver_init(const struct device *dev)
 
 	ARG_UNUSED(dev);
 	/* Configure ISR. Use instance 0 of the GPT timer */
-	IRQ_CONNECT(DT_IRQN(GPT_INST), DT_IRQ(GPT_INST, priority),
-		    mcux_imx_gpt_isr, NULL, 0);
+	IRQ_DIRECT_CONNECT(DT_IRQN(GPT_INST), DT_IRQ(GPT_INST, priority),
+		    mcux_imx_gpt_isr, 0);
 
 	base = (GPT_Type *)DT_REG_ADDR(GPT_INST);
 

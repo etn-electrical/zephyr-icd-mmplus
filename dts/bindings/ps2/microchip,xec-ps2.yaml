@@ -5,23 +5,21 @@ description: Microchip XEC PS/2 controller
 
 compatible: "microchip,xec-ps2"
 
-include: [ps2.yaml, pinctrl-device.yaml]
+include: ps2.yaml
 
 properties:
-  reg:
-    required: true
+    reg:
+      required: true
 
-  interrupts:
-    required: true
+    interrupts:
+      required: true
 
-  girqs:
-    type: array
-    required: true
-    description: |
-      Array of GIRQ and bit position pairs for each interrupt
-      signal the block generates.
+    girq:
+      type: int
+      required: true
+      description: GIRQ for this device
 
-  pcrs:
-    type: array
-    required: true
-    description: PS2 PCR register index and bit position
+    girq-bit:
+      type: int
+      required: true
+      description: Bit position in GIRQ for this device

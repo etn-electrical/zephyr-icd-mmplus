@@ -1,6 +1,6 @@
 .. _bluetooth_unicast_audio_client:
 
-Bluetooth: Unicast Audio Client
+Bluetooth: Unicast Audio CLient
 ###############################
 
 Overview

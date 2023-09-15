@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/device.h>
-#include <zephyr/drivers/flash.h>
+#include <zephyr.h>
+#include <device.h>
+#include <drivers/flash.h>
 #include <jesd216.h>
 #include <stdio.h>
 #include <inttypes.h>
@@ -16,10 +16,6 @@
 #define FLASH_NODE DT_COMPAT_GET_ANY_STATUS_OKAY(jedec_spi_nor)
 #elif DT_HAS_COMPAT_STATUS_OKAY(nordic_qspi_nor)
 #define FLASH_NODE DT_COMPAT_GET_ANY_STATUS_OKAY(nordic_qspi_nor)
-#elif DT_HAS_COMPAT_STATUS_OKAY(st_stm32_qspi_nor)
-#define FLASH_NODE DT_COMPAT_GET_ANY_STATUS_OKAY(st_stm32_qspi_nor)
-#elif DT_HAS_COMPAT_STATUS_OKAY(st_stm32_ospi_nor)
-#define FLASH_NODE DT_COMPAT_GET_ANY_STATUS_OKAY(st_stm32_ospi_nor)
 #else
 #error Unsupported flash driver
 #define FLASH_NODE DT_INVALID_NODE
@@ -278,7 +274,7 @@ static void dump_bytes(const struct jesd216_param_header *php,
 
 void main(void)
 {
-	const struct device *const dev = DEVICE_DT_GET(FLASH_NODE);
+	const struct device *dev = DEVICE_DT_GET(FLASH_NODE);
 
 	if (!device_is_ready(dev)) {
 		printf("%s: device not ready\n", dev->name);

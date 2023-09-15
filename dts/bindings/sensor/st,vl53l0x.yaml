@@ -5,8 +5,9 @@ description: STMicroelectronics VL53L0X Time of Flight sensor
 
 compatible: "st,vl53l0x"
 
-include: [sensor-device.yaml, i2c-device.yaml]
+include: i2c-device.yaml
 
 properties:
-  xshut-gpios:
-    type: phandle-array
+    xshut-gpios:
+      type: phandle-array
+      required: false

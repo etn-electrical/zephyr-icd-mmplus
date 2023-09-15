@@ -6,24 +6,24 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(net_config, CONFIG_NET_CONFIG_LOG_LEVEL);
 
-#include <zephyr/kernel.h>
-#include <zephyr/init.h>
+#include <zephyr.h>
+#include <init.h>
 #include <string.h>
 #include <errno.h>
 #include <stdlib.h>
 
-#include <zephyr/logging/log_backend.h>
-#include <zephyr/net/net_core.h>
-#include <zephyr/net/net_ip.h>
-#include <zephyr/net/net_if.h>
-#include <zephyr/net/dhcpv4.h>
-#include <zephyr/net/net_mgmt.h>
-#include <zephyr/net/dns_resolve.h>
+#include <logging/log_backend.h>
+#include <net/net_core.h>
+#include <net/net_ip.h>
+#include <net/net_if.h>
+#include <net/dhcpv4.h>
+#include <net/net_mgmt.h>
+#include <net/dns_resolve.h>
 
-#include <zephyr/net/net_config.h>
+#include <net/net_config.h>
 
 #include "ieee802154_settings.h"
 #include "bt_settings.h"
@@ -76,19 +76,19 @@ static void ipv4_addr_add_handler(struct net_mgmt_event_callback *cb,
 
 #if CONFIG_NET_CONFIG_LOG_LEVEL >= LOG_LEVEL_INF
 		NET_INFO("IPv4 address: %s",
-			 net_addr_ntop(AF_INET,
-					&if_addr->address.in_addr,
-					hr_addr, sizeof(hr_addr)));
+			 log_strdup(net_addr_ntop(AF_INET,
+						  &if_addr->address.in_addr,
+						  hr_addr, sizeof(hr_addr))));
 		NET_INFO("Lease time: %u seconds",
 			 iface->config.dhcpv4.lease_time);
 		NET_INFO("Subnet: %s",
-			 net_addr_ntop(AF_INET,
+			 log_strdup(net_addr_ntop(AF_INET,
 				       &iface->config.ip.ipv4->netmask,
-				       hr_addr, sizeof(hr_addr)));
+				       hr_addr, sizeof(hr_addr))));
 		NET_INFO("Router: %s",
-			 net_addr_ntop(AF_INET,
-					&iface->config.ip.ipv4->gw,
-					hr_addr, sizeof(hr_addr)));
+			 log_strdup(net_addr_ntop(AF_INET,
+						  &iface->config.ip.ipv4->gw,
+						  hr_addr, sizeof(hr_addr))));
 #endif
 		break;
 	}
@@ -153,7 +153,8 @@ static void setup_ipv4(struct net_if *iface)
 
 #if CONFIG_NET_CONFIG_LOG_LEVEL >= LOG_LEVEL_INF
 	NET_INFO("IPv4 address: %s",
-		 net_addr_ntop(AF_INET, &addr, hr_addr, sizeof(hr_addr)));
+		 log_strdup(net_addr_ntop(AF_INET, &addr, hr_addr,
+					  sizeof(hr_addr))));
 #endif
 
 	if (sizeof(CONFIG_NET_CONFIG_MY_IPV4_NETMASK) > 1) {
@@ -231,7 +232,8 @@ static void ipv6_event_handler(struct net_mgmt_event_callback *cb,
 
 #if CONFIG_NET_CONFIG_LOG_LEVEL >= LOG_LEVEL_INF
 		NET_INFO("IPv6 address: %s",
-			 net_addr_ntop(AF_INET6, &laddr, hr_addr, NET_IPV6_ADDR_LEN));
+			 log_strdup(net_addr_ntop(AF_INET6, &laddr, hr_addr,
+						  NET_IPV6_ADDR_LEN)));
 #endif
 
 		services_notify_ready(NET_CONFIG_NEED_IPV6);
@@ -342,7 +344,7 @@ int net_config_init_by_iface(struct net_if *iface, const char *app_info,
 	int count;
 
 	if (app_info) {
-		NET_INFO("%s", app_info);
+		NET_INFO("%s", log_strdup(app_info));
 	}
 
 	if (!iface) {
@@ -376,17 +378,20 @@ int net_config_init_by_iface(struct net_if *iface, const char *app_info,
 #if defined(CONFIG_NET_NATIVE)
 		net_mgmt_del_event_callback(&mgmt_iface_cb);
 #endif
+
+		/* Network interface did not come up. We will not try
+		 * to setup things in that case.
+		 */
+		if (timeout > 0 && count < 0) {
+			NET_ERR("Timeout while waiting network %s",
+				"interface");
+			return -ENETDOWN;
+		}
 	}
 
 	setup_ipv4(iface);
 	setup_dhcpv4(iface);
 	setup_ipv6(iface, flags);
-
-	/* Network interface did not come up. */
-	if (timeout > 0 && count < 0) {
-		NET_ERR("Timeout while waiting network %s", "interface");
-		return -ENETDOWN;
-	}
 
 	/* Loop here until we are ready to continue. As we might need
 	 * to wait multiple events, sleep smaller amounts of data.
@@ -434,13 +439,13 @@ int net_config_init_app(const struct device *dev, const char *app_info)
 		}
 	}
 
+#if defined(CONFIG_NET_IPV6)
+	/* IEEE 802.15.4 is only usable if IPv6 is enabled */
 	ret = z_net_config_ieee802154_setup();
 	if (ret < 0) {
 		NET_ERR("Cannot setup IEEE 802.15.4 interface (%d)", ret);
 	}
 
-#if defined(CONFIG_NET_IPV6)
-	/* Bluetooth is only usable if IPv6 is enabled */
 	ret = z_net_config_bt_setup();
 	if (ret < 0) {
 		NET_ERR("Cannot setup Bluetooth interface (%d)", ret);

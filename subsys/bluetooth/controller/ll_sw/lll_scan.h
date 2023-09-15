@@ -35,9 +35,6 @@ struct lll_scan {
 	uint8_t  phy:3;
 	uint8_t  is_adv_ind:1;
 	uint8_t  is_aux_sched:1;
-#if defined(CONFIG_BT_CTLR_SYNC_PERIODIC)
-	uint8_t  is_sync:1;
-#endif /* CONFIG_BT_CTLR_SYNC_PERIODIC */
 #endif /* CONFIG_BT_CTLR_ADV_EXT */
 
 #if defined(CONFIG_BT_CENTRAL)
@@ -90,4 +87,3 @@ void lll_scan_prepare(void *param);
 
 extern uint8_t ull_scan_lll_handle_get(struct lll_scan *lll);
 extern struct lll_scan *ull_scan_lll_is_valid_get(struct lll_scan *lll);
-extern struct lll_scan_aux *ull_scan_aux_lll_is_valid_get(struct lll_scan_aux *lll);

@@ -4,14 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/tc_util.h>
-#include <zephyr/ztest.h>
+#include <zephyr.h>
+#include <tc_util.h>
+#include <ztest.h>
 
 int test_frequency(void)
 {
-	volatile uint32_t start, end;
-	uint32_t delta, pct;
+	uint32_t start, end, delta, pct;
 
 	TC_PRINT("Testing system tick frequency\n");
 
@@ -40,7 +39,7 @@ int test_frequency(void)
  * Validates monotonic timer's clock calibration.
  *
  * It reads the System clock’s h/w timer frequency value continuously
- * using k_cycle_get_32() to verify its working and correctness.
+ * using k_cycle_get_32() to verify its working and correctiveness.
  * It also checks system tick frequency by checking the delta error
  * between generated and system clock provided HW cycles per sec values.
  *
@@ -48,10 +47,9 @@ int test_frequency(void)
  *
  * @see k_cycle_get_32(), sys_clock_hw_cycles_per_sec()
  */
-ZTEST(timer_fn, test_timer)
+void test_timer(void)
 {
-	volatile uint32_t t_last, t_now;
-	uint32_t i, errors;
+	uint32_t t_last, t_now, i, errors;
 	int32_t diff;
 
 	errors = 0U;
@@ -82,4 +80,8 @@ ZTEST(timer_fn, test_timer)
 	zassert_false(test_frequency(), "test frequency failed");
 }
 
-ZTEST_SUITE(timer_fn, NULL, NULL, NULL, NULL, NULL);
+void test_main(void)
+{
+	ztest_test_suite(timer_fn, ztest_unit_test(test_timer));
+	ztest_run_test_suite(timer_fn);
+}

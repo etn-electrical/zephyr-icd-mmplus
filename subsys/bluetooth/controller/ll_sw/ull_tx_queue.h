@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/sys/slist.h>
+#include <sys/slist.h>
 
 struct ull_tx_q {
 	uint8_t pause_data; /* Data pause state of the tx queue */

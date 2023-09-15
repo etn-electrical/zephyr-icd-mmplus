@@ -356,7 +356,7 @@
  * or reception of a PDU on air. In case of regular PDU it is generated when last bit of CRC is
  * received or transmitted.
  *
- * When direction finding is enabled a PDU may include Constant Tone Extension at its end. For PDU
+ * When direction finding is enabled a PDU may include Constant Tone Extensio at its end. For PDU
  * including CTE EVENTS_PHYEND event is generated at very end of a PDU. In case there is no CTE in
  * a PDU the EVENTS_PHYEND event is generated in the same instant as EVENTS_END event.
  */
@@ -387,24 +387,9 @@
 #endif /* !CONFIG_BT_CTLR_SW_SWITCH_SINGLE_TIMER */
 #endif /* !CONFIG_BT_CTLR_TIFS_HW */
 
-/* SoC specific NRF_RADIO power-on reset value. Refer to Product Specification,
- * RADIO Registers section for the documented reset values.
- *
- * NOTE: Only implementation used values defined here.
- *       In the future if MDK or nRFx header include these, use them instead.
- */
-#define HAL_RADIO_RESET_VALUE_DFEMODE       0x00000000UL
-#define HAL_RADIO_RESET_VALUE_CTEINLINECONF 0x00002800UL
-
 static inline void hal_radio_reset(void)
 {
 
-}
-
-static inline void hal_radio_stop(void)
-{
-	/* TODO: Add any required cleanup of actions taken in hal_radio_reset()
-	 */
 }
 
 static inline void hal_radio_ram_prio_setup(void)

@@ -11,7 +11,7 @@
 #ifndef PROTOCOL_H__
 #define PROTOCOL_H__
 
-#include <zephyr/net/socket.h>
+#include <net/socket.h>
 
 void mqtt_startup(char *hostname, int port);
 

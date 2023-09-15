@@ -7,7 +7,7 @@
 #ifndef _SOC__H_
 #define _SOC__H_
 
-#include <zephyr/sys/util.h>
+#include <sys/util.h>
 
 #ifdef __cplusplus
 extern "C" {

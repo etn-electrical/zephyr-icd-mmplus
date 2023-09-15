@@ -11,9 +11,8 @@
  * hardware for the GigaDevice GD32 SoC.
  */
 
-#include <zephyr/device.h>
-#include <zephyr/init.h>
-#include <zephyr/irq.h>
+#include <device.h>
+#include <init.h>
 
 /**
  * @brief Perform basic hardware initialization at boot.

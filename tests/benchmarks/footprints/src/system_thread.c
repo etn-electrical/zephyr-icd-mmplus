@@ -10,7 +10,8 @@
  * @brief Measure time
  *
  */
-#include <zephyr/kernel.h>
+#include <kernel.h>
+#include <zephyr.h>
 #include <ksched.h>
 
 #include "footprint.h"

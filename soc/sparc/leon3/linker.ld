@@ -11,7 +11,8 @@
  * Linker script for LEON3
  */
 
-#include <zephyr/devicetree.h>
+#include <autoconf.h>
+#include <devicetree.h>
 
 MEMORY
 {
@@ -30,4 +31,4 @@ REGION_ALIAS("REGION_BSS", RAM);
 #define ROMABLE_REGION RAM
 #define RAMABLE_REGION RAM
 
-#include <zephyr/arch/sparc/linker.ld>
+#include <arch/sparc/linker.ld>

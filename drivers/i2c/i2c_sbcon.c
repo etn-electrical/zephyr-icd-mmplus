@@ -14,9 +14,9 @@
  * hardware state of two-bit serial interfaces like I2C.
  */
 
-#include <zephyr/device.h>
+#include <device.h>
 #include <errno.h>
-#include <zephyr/drivers/i2c.h>
+#include <drivers/i2c.h>
 #include "i2c_bitbang.h"
 
 /* SBCon hardware registers layout */

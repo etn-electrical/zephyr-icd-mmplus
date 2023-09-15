@@ -11,14 +11,14 @@
 #ifndef ZEPHYR_DRIVERS_GPIO_GPIO_MCP23XXX_H_
 #define ZEPHYR_DRIVERS_GPIO_GPIO_MCP23XXX_H_
 
-#include <zephyr/kernel.h>
+#include <kernel.h>
 
-#include <zephyr/drivers/gpio.h>
+#include <drivers/gpio.h>
 #ifdef CONFIG_GPIO_MCP230XX
-#include <zephyr/drivers/i2c.h>
+#include <drivers/i2c.h>
 #endif /* CONFIG_GPIO_MCP230XX */
 #ifdef CONFIG_GPIO_MCP23SXX
-#include <zephyr/drivers/spi.h>
+#include <drivers/spi.h>
 #endif /* CONFIG_GPIO_MCP23SXX */
 
 /* Register definitions */

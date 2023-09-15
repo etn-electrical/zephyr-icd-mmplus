@@ -8,15 +8,6 @@
 
 / {
 	soc {
-		clocks {
-			clk_hsi48: clk-hsi48 {
-				#clock-cells = <0>;
-				compatible = "fixed-clock";
-				clock-frequency = <DT_FREQ_M(48)>;
-				status = "disabled";
-			};
-		};
-
 		pinctrl: pin-controller@48000000 {
 			gpiod: gpio@48000c00 {
 				compatible = "st,stm32-gpio";
@@ -24,6 +15,7 @@
 				#gpio-cells = <2>;
 				reg = <0x48000c00 0x400>;
 				clocks = <&rcc STM32_CLOCK_BUS_AHB2 0x00000008>;
+				label = "GPIOD";
 			};
 
 			gpioe: gpio@48001000 {
@@ -32,12 +24,8 @@
 				#gpio-cells = <2>;
 				reg = <0x48001000 0x400>;
 				clocks = <&rcc STM32_CLOCK_BUS_AHB2 0x00000010>;
+				label = "GPIOE";
 			};
-		};
-
-		rng: rng@50060800 {
-			clocks = <&rcc STM32_CLOCK_BUS_AHB2 0x00040000>,
-				 <&rcc STM32_SRC_HSI48 CLK48_SEL(0)>;
 		};
 
 		usb: usb@40006800 {
@@ -49,9 +37,9 @@
 			ram-size = <1024>;
 			maximum-speed = "full-speed";
 			phys = <&usb_fs_phy>;
-			clocks = <&rcc STM32_CLOCK_BUS_APB1 0x04000000>,
-				 <&rcc STM32_SRC_HSI48 CLK48_SEL(0)>;
+			clocks = <&rcc STM32_CLOCK_BUS_APB1 0x04000000>;
 			status = "disabled";
+			label = "USB";
 		};
 
 		i2c2: i2c@40005800 {
@@ -64,6 +52,7 @@
 			interrupts = <33 0>, <34 0>;
 			interrupt-names = "event", "error";
 			status = "disabled";
+			label= "I2C_2";
 		};
 
 		i2c4: i2c@40008400 {
@@ -76,6 +65,7 @@
 			interrupts = <83 0>, <84 0>;
 			interrupt-names = "event", "error";
 			status = "disabled";
+			label= "I2C_4";
 		};
 
 		spi2: spi@40003800 {
@@ -86,6 +76,7 @@
 			clocks = <&rcc STM32_CLOCK_BUS_APB1 0x00004000>;
 			interrupts = <36 5>;
 			status = "disabled";
+			label = "SPI_2";
 		};
 
 		spi3: spi@40003c00 {
@@ -96,45 +87,42 @@
 			clocks = <&rcc STM32_CLOCK_BUS_APB1 0x00008000>;
 			interrupts = <51 5>;
 			status = "disabled";
+			label = "SPI_3";
 		};
 
 		usart3: serial@40004800 {
 			compatible = "st,stm32-usart", "st,stm32-uart";
 			reg = <0x40004800 0x400>;
 			clocks = <&rcc STM32_CLOCK_BUS_APB1 0x00040000>;
-			resets = <&rctl STM32_RESET(APB1L, 18U)>;
 			interrupts = <39 0>;
 			status = "disabled";
+			label = "UART_3";
 		};
 
 		uart4: serial@40004c00 {
 			compatible = "st,stm32-uart";
 			reg = <0x40004c00 0x400>;
 			clocks = <&rcc STM32_CLOCK_BUS_APB1 0x00080000>;
-			resets = <&rctl STM32_RESET(APB1L, 19U)>;
 			interrupts = <52 0>;
 			status = "disabled";
+			label = "UART_4";
 		};
 
 		timers3: timers@40000400 {
 			compatible = "st,stm32-timers";
 			reg = <0x40000400 0x400>;
 			clocks = <&rcc STM32_CLOCK_BUS_APB1 0x00000002>;
-			resets = <&rctl STM32_RESET(APB1L, 1U)>;
 			interrupts = <29 0>;
 			interrupt-names = "global";
 			st,prescaler = <0>;
 			status = "disabled";
+			label = "TIMERS_3";
 
 			pwm {
 				compatible = "st,stm32-pwm";
 				status = "disabled";
+				label = "PWM_3";
 				#pwm-cells = <3>;
-			};
-
-			counter {
-				compatible = "st,stm32-counter";
-				status = "disabled";
 			};
 		};
 
@@ -143,6 +131,7 @@
 			reg = <0x40007400 0x400>;
 			clocks = <&rcc STM32_CLOCK_BUS_APB1 0x20000000>;
 			status = "disabled";
+			label = "DAC_1";
 			#io-channel-cells = <1>;
 		};
 
@@ -153,31 +142,18 @@
 			interrupt-names = "TX", "RX0", "RX1", "SCE";
 			clocks = <&rcc STM32_CLOCK_BUS_APB1 0x02000000>; //RCC_APB1ENR1_CAN1EN
 			status = "disabled";
+			label = "CAN_1";
+			bus-speed = <125000>;
 			sjw = <1>;
-			sample-point = <875>;
-		};
-
-		sdmmc1: sdmmc@40012800 {
-			compatible = "st,stm32-sdmmc";
-			reg = <0x40012800 0x400>;
-			clocks = <&rcc STM32_CLOCK_BUS_APB2 0x00000400>,
-				 <&rcc STM32_SRC_HSI48 CLK48_SEL(0)>;
-			resets = <&rctl STM32_RESET(APB2, 10U)>;
-			interrupts = <49 0>;
-			status = "disabled";
-		};
-
-		rtc@40002800 {
-			bbram: backup_regs {
-				compatible = "st,stm32-bbram";
-				st,backup-regs = <32>;
-				status = "disabled";
-			};
+			prop-seg = <0>;
+			phase-seg1 = <4>;
+			phase-seg2 = <5>;
 		};
 	};
 
 	usb_fs_phy: usbphy {
 		compatible = "usb-nop-xceiv";
 		#phy-cells = <0>;
+		label = "USB_FS_PHY";
 	};
 };

@@ -24,7 +24,7 @@
  */
 
 #include <zephyr/types.h>
-#include <zephyr/toolchain.h>
+#include <toolchain.h>
 #include "vector_table.h"
 
 struct vector_table {

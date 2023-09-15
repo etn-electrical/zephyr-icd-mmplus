@@ -11,10 +11,10 @@
  * used in latency measurement.
  */
 
-#include <zephyr/timing/timing.h>
-#include <zephyr/sys/printk.h>
+#include <timing/timing.h>
+#include <sys/printk.h>
 #include <stdio.h>
-#include <zephyr/timestamp.h>
+#include "timestamp.h"
 
 #define INT_IMM8_OFFSET   1
 #define IRQ_PRIORITY      3

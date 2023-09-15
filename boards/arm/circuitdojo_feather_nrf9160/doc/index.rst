@@ -3,7 +3,8 @@
 nRF9160 Feather
 ###############
 
-.. figure:: img/circuitdojo_feather_nrf9160.jpg
+.. figure:: img/circuitdojo_feather_nrf9160.png
+     :width: 711px
      :align: center
      :alt: Circuit Dojo nRF9160 Feather
 
@@ -39,7 +40,8 @@ More information about the board can be found at the
 Hardware
 ********
 
-.. figure:: img/nrf9160-feather-v31-features.jpg
+.. figure:: img/nrf9160-feather-v31-features.png
+   :width: 711px
    :align: center
    :alt: nRF9160 Feather Features
 
@@ -94,13 +96,9 @@ Building an application
 =======================
 
 In most cases you'll want to use the ``ns`` target with any of the Zephyr
-or Nordic based examples.
-
-.. note::
-   Trusted Firmware-M (TF-M) and building the ``ns`` target is not supported for this board.
-
-Some of the examples do not use secure mode, so they do not require the
-``ns`` suffix. A great example of this is the `hello_world` below.
+or Nordic based examples. Some of the examples do not use secure mode,
+so they do not required the ``ns`` suffix. A great example of this is the
+`hello_world` below:
 
 Flashing
 ========

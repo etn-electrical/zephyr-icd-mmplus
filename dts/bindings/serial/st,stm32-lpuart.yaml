@@ -2,4 +2,20 @@ description: STM32 LPUART
 
 compatible: "st,stm32-lpuart"
 
-include: st,stm32-uart-base.yaml
+include: [uart-controller.yaml, pinctrl-device.yaml]
+
+properties:
+    reg:
+      required: true
+
+    interrupts:
+      required: true
+
+    clocks:
+      required: true
+
+    pinctrl-0:
+      required: true
+
+    pinctrl-names:
+      required: true

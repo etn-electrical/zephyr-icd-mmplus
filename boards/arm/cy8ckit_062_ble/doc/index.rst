@@ -31,6 +31,7 @@ The Cortex-M0+ is a primary core on the board's SoC. It starts first and
 enables the CM4 core.
 
 .. image:: img/cy8ckit-062-ble.jpg
+     :width: 887px
      :align: center
      :alt: CY8CKIT_062_BLE
 
@@ -245,10 +246,10 @@ are only possible after rework the board and using the revision 1.0.0.
       :goals: build
       :compact:
 
-#. The differences from version 0.0.0 to 1.0.0:
+#. The diferences from version 0.0.0 to 1.0.0:
 
 +-------------+------------+------------+
-| Connection  | 0.0.0      | 1.0.0      |
+| Connecion   | 0.0.0      | 1.0.0      |
 +=============+============+============+
 | CDC-COM RX  | P5_0       | P9_0       |
 +-------------+------------+------------+

@@ -3,10 +3,10 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#include <zephyr/kernel.h>
-#include <zephyr/pm/pm.h>
+#include <zephyr.h>
+#include <pm/pm.h>
 #include <soc.h>
-#include <zephyr/init.h>
+#include <init.h>
 
 #include <stm32wbxx_ll_utils.h>
 #include <stm32wbxx_ll_bus.h>
@@ -16,7 +16,9 @@
 #include <clock_control/clock_stm32_ll_common.h>
 #include "stm32_hsem.h"
 
-#include <zephyr/logging/log.h>
+#include <bluetooth/hci.h>
+
+#include <logging/log.h>
 LOG_MODULE_DECLARE(soc, CONFIG_SOC_LOG_LEVEL);
 
 /*
@@ -55,10 +57,41 @@ static void lpm_hsem_lock(void)
 	}
 }
 
-/* Invoke Low Power/System Off specific Tasks */
-__weak void pm_state_set(enum pm_state state, uint8_t substate_id)
+#define ACI_HAL_STACK_RESET 0xFC3B
+
+static void send_stack_reset(void)
 {
-	if (state == PM_STATE_SOFT_OFF) {
+	struct net_buf *rsp;
+	int err = 0;
+
+	err = bt_hci_cmd_send_sync(ACI_HAL_STACK_RESET, NULL, &rsp);
+
+	net_buf_unref(rsp);
+
+	if (err) {
+		LOG_ERR("M0 BLE stack reset issue");
+	}
+}
+
+
+static void shutdown_ble_stack(void)
+{
+	send_stack_reset();
+
+	/* Wait till C2DS set */
+	while (LL_PWR_IsActiveFlag_C2DS() == 0) {
+	};
+}
+
+/* Invoke Low Power/System Off specific Tasks */
+__weak void pm_power_state_set(struct pm_state_info info)
+{
+	if (info.state == PM_STATE_SOFT_OFF) {
+
+		if (IS_ENABLED(CONFIG_BT)) {
+			shutdown_ble_stack();
+		}
+
 		lpm_hsem_lock();
 
 		/* Clear all Wake-Up flags */
@@ -66,14 +99,14 @@ __weak void pm_state_set(enum pm_state state, uint8_t substate_id)
 
 		LL_PWR_SetPowerMode(LL_PWR_MODE_SHUTDOWN);
 
-	} else if (state == PM_STATE_SUSPEND_TO_IDLE) {
+	} else if (info.state == PM_STATE_SUSPEND_TO_IDLE) {
 
 		lpm_hsem_lock();
 
 		/* ensure HSI is the wake-up system clock */
 		LL_RCC_SetClkAfterWakeFromStop(LL_RCC_STOP_WAKEUPCLOCK_HSI);
 
-		switch (substate_id) {
+		switch (info.substate_id) {
 		case 1:
 			/* enter STOP0 mode */
 			LL_PWR_SetPowerMode(LL_PWR_MODE_STOP0);
@@ -89,12 +122,12 @@ __weak void pm_state_set(enum pm_state state, uint8_t substate_id)
 		default:
 			/* Release RCC semaphore */
 			z_stm32_hsem_unlock(CFG_HW_RCC_SEMID);
-			LOG_DBG("Unsupported power substate-id %u", substate_id);
+			LOG_DBG("Unsupported power substate-id %u", info.substate_id);
 			return;
 		}
 
 	} else {
-		LOG_DBG("Unsupported power state %u", state);
+		LOG_DBG("Unsupported power state %u", info.state);
 		return;
 	}
 
@@ -108,17 +141,17 @@ __weak void pm_state_set(enum pm_state state, uint8_t substate_id)
 }
 
 /* Handle SOC specific activity after Low Power Mode Exit */
-__weak void pm_state_exit_post_ops(enum pm_state state, uint8_t substate_id)
+__weak void pm_power_state_exit_post_ops(struct pm_state_info info)
 {
 	/* Implementation of STM32 AN5289 algorithm to enter/exit lowpower */
 	/* Release ENTRY_STOP_MODE semaphore */
 	LL_HSEM_ReleaseLock(HSEM, CFG_HW_ENTRY_STOP_MODE_SEMID, 0);
 	z_stm32_hsem_lock(CFG_HW_RCC_SEMID, HSEM_LOCK_WAIT_FOREVER);
 
-	if (state != PM_STATE_SUSPEND_TO_IDLE) {
-		LOG_DBG("Unsupported power state %u", state);
+	if (info.state != PM_STATE_SUSPEND_TO_IDLE) {
+		LOG_DBG("Unsupported power state %u", info.state);
 	} else {
-		switch (substate_id) {
+		switch (info.substate_id) {
 		case 1:	/* STOP0 */
 			__fallthrough;
 		case 2:	/* STOP1 */
@@ -129,7 +162,7 @@ __weak void pm_state_exit_post_ops(enum pm_state state, uint8_t substate_id)
 			break;
 		default:
 			LOG_DBG("Unsupported power substate-id %u",
-				substate_id);
+				info.substate_id);
 			break;
 		}
 		/* need to restore the clock */

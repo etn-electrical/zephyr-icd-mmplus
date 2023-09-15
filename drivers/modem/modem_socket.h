@@ -13,9 +13,9 @@
 #ifndef ZEPHYR_INCLUDE_DRIVERS_MODEM_MODEM_SOCKET_H_
 #define ZEPHYR_INCLUDE_DRIVERS_MODEM_MODEM_SOCKET_H_
 
-#include <zephyr/kernel.h>
-#include <zephyr/net/net_ip.h>
-#include <zephyr/net/socket.h>
+#include <kernel.h>
+#include <net/net_ip.h>
+#include <net/socket.h>
 
 #include "sockets_internal.h"
 
@@ -29,11 +29,7 @@ __net_socket struct modem_socket {
 	int ip_proto;
 	struct sockaddr src;
 	struct sockaddr dst;
-
-	/** The number identifying the socket handle inside the modem */
 	int id;
-
-	/** The file descriptor identifying the socket in the fdtable */
 	int sock_fd;
 
 	/** packet data */

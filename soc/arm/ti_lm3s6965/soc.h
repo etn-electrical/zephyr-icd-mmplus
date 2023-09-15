@@ -15,7 +15,7 @@
 #ifndef _BOARD__H_
 #define _BOARD__H_
 
-#include <zephyr/sys/util.h>
+#include <sys/util.h>
 
 /* default system clock */
 

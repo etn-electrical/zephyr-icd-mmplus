@@ -44,7 +44,9 @@ power consumption, and features.
 
 
 .. image:: img/nucleo_wl55jc.jpg
+   :width: 426px
    :align: center
+   :height: 683px
    :alt: Nucleo WL55JC
 
 More information about the board can be found at the `Nucleo WL55JC website`_.
@@ -204,10 +206,6 @@ features:
 +-----------+------------+-------------------------------------+
 | ADC       | on-chip    | ADC Controller                      |
 +-----------+------------+-------------------------------------+
-| DAC       | on-chip    | DAC Controller                      |
-+-----------+------------+-------------------------------------+
-| die-temp  | on-chip    | die temperature sensor              |
-+-----------+------------+-------------------------------------+
 
 Other hardware features are not yet supported on this Zephyr port.
 
@@ -236,7 +234,6 @@ Default Zephyr Peripheral Mapping:
 - SPI_1_MISO : PA6 (arduino_spi)
 - SPI_1_MOSI : PA7 (arduino_spi)
 - ADC1_IN5 : PB1 (Arduino pin A0)
-- DAC1_OUT1 : PA10 (Arduino pin A2)
 
 System Clock
 ------------

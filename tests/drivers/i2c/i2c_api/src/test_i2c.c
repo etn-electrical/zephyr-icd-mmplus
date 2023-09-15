@@ -12,30 +12,30 @@
  * @}
  */
 
-#include <zephyr/drivers/i2c.h>
-#include <zephyr/kernel.h>
-#include <zephyr/ztest.h>
+#include <drivers/i2c.h>
+#include <zephyr.h>
+#include <ztest.h>
 
 #if DT_NODE_HAS_STATUS(DT_ALIAS(i2c_0), okay)
-#define I2C_DEV_NODE	DT_ALIAS(i2c_0)
+#define I2C_DEV_NAME	DT_LABEL(DT_ALIAS(i2c_0))
 #elif DT_NODE_HAS_STATUS(DT_ALIAS(i2c_1), okay)
-#define I2C_DEV_NODE	DT_ALIAS(i2c_1)
+#define I2C_DEV_NAME	DT_LABEL(DT_ALIAS(i2c_1))
 #elif DT_NODE_HAS_STATUS(DT_ALIAS(i2c_2), okay)
-#define I2C_DEV_NODE	DT_ALIAS(i2c_2)
+#define I2C_DEV_NAME	DT_LABEL(DT_ALIAS(i2c_2))
 #else
 #error "Please set the correct I2C device"
 #endif
 
-uint32_t i2c_cfg = I2C_SPEED_SET(I2C_SPEED_STANDARD) | I2C_MODE_CONTROLLER;
+uint32_t i2c_cfg = I2C_SPEED_SET(I2C_SPEED_STANDARD) | I2C_MODE_MASTER;
 
 static int test_gy271(void)
 {
 	unsigned char datas[6];
-	const struct device *const i2c_dev = DEVICE_DT_GET(I2C_DEV_NODE);
+	const struct device *i2c_dev = device_get_binding(I2C_DEV_NAME);
 	uint32_t i2c_cfg_tmp;
 
-	if (!device_is_ready(i2c_dev)) {
-		TC_PRINT("I2C device is not ready\n");
+	if (!i2c_dev) {
+		TC_PRINT("Cannot get I2C device\n");
 		return TC_FAIL;
 	}
 
@@ -97,11 +97,11 @@ static int test_gy271(void)
 static int test_burst_gy271(void)
 {
 	unsigned char datas[6];
-	const struct device *const i2c_dev = DEVICE_DT_GET(I2C_DEV_NODE);
+	const struct device *i2c_dev = device_get_binding(I2C_DEV_NAME);
 	uint32_t i2c_cfg_tmp;
 
-	if (!device_is_ready(i2c_dev)) {
-		TC_PRINT("I2C device is not ready\n");
+	if (!i2c_dev) {
+		TC_PRINT("Cannot get I2C device\n");
 		return TC_FAIL;
 	}
 
@@ -149,14 +149,12 @@ static int test_burst_gy271(void)
 	return TC_PASS;
 }
 
-ZTEST(i2c_gy271, test_i2c_gy271)
+void test_i2c_gy271(void)
 {
-	zassert_true(test_gy271() == TC_PASS);
+	zassert_true(test_gy271() == TC_PASS, NULL);
 }
 
-ZTEST(i2c_gy271, test_i2c_burst_gy271)
+void test_i2c_burst_gy271(void)
 {
-	zassert_true(test_burst_gy271() == TC_PASS);
+	zassert_true(test_burst_gy271() == TC_PASS, NULL);
 }
-
-ZTEST_SUITE(i2c_gy271, NULL, NULL, NULL, NULL, NULL);

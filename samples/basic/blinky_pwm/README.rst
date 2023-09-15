@@ -28,6 +28,13 @@ controlling this LED must be configured using the ``pwm_led0`` :ref:`devicetree
 <dt-guide>` alias, usually in the :ref:`BOARD.dts file
 <devicetree-in-out-files>`.
 
+You will see this error if you try to build this sample for an unsupported
+board:
+
+.. code-block:: none
+
+   Unsupported board: pwm_led0 devicetree alias is not defined
+
 Wiring
 ******
 
@@ -53,12 +60,6 @@ In these other cases, however, manual wiring is necessary:
      - connect PWM1 (PA8) to an LED
    * - :ref:`nucleo_wb55rg_board`
      - connect PWM1 (PA8) to an LED
-   * - :ref:`esp32`
-     - connect GPIO2 to an LED
-   * - :ref:`esp32s2_saola`
-     - connect GPIO2 to an LED
-   * - :ref:`esp32c3_devkitm`
-     - connect GPIO2 to an LED
 
 Building and Running
 ********************

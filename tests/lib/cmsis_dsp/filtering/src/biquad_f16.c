@@ -5,8 +5,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
-#include <zephyr/kernel.h>
+#include <ztest.h>
+#include <zephyr.h>
 #include <stdlib.h>
 #include <arm_math_f16.h>
 #include "../../common/test_common.h"
@@ -17,7 +17,7 @@
 #define REL_ERROR_THRESH	(5.0e-2)
 #define ABS_ERROR_THRESH	(1.0e-1)
 
-ZTEST(filtering_biquad_f16, test_arm_biquad_cascade_df1_f16_default)
+static void test_arm_biquad_cascade_df1_f16_default(void)
 {
 	size_t index;
 	size_t length = ARRAY_SIZE(ref_default);
@@ -27,31 +27,20 @@ ZTEST(filtering_biquad_f16, test_arm_biquad_cascade_df1_f16_default)
 	const float16_t *ref = (const float16_t *)ref_default;
 	float16_t *state, *output_buf, *output;
 	arm_biquad_casd_df1_inst_f16 inst;
-#if defined(CONFIG_ARMV8_1_M_MVEF) && defined(CONFIG_FPU)
-	arm_biquad_mod_coef_f16 *coeff_mod;
-#endif
 
 	/* Allocate buffers */
-	state = calloc(128, sizeof(float16_t));
+	state = malloc(128 * sizeof(float16_t));
 	zassert_not_null(state, ASSERT_MSG_BUFFER_ALLOC_FAILED);
 
-#if defined(CONFIG_ARMV8_1_M_MVEF) && defined(CONFIG_FPU)
-	coeff_mod = calloc(47, sizeof(arm_biquad_mod_coef_f16)); /* 47 stages */
-	zassert_not_null(coeff_mod, ASSERT_MSG_BUFFER_ALLOC_FAILED);
-#endif
-
-	/* FIXME: `length + 2` is required here because of ARM-software/CMSIS_5#1475 */
-	output_buf = calloc(length + 2, sizeof(float16_t));
+	output_buf = malloc(length * sizeof(float16_t));
 	zassert_not_null(output_buf, ASSERT_MSG_BUFFER_ALLOC_FAILED);
 
 	output = output_buf;
 
 	/* Initialise instance */
-#if defined(CONFIG_ARMV8_1_M_MVEF) && defined(CONFIG_FPU)
-	arm_biquad_cascade_df1_mve_init_f16(&inst, 3, coeff, coeff_mod, state);
-#else
 	arm_biquad_cascade_df1_init_f16(&inst, 3, coeff, state);
-#endif
+
+	/* TODO: Add MVEF support */
 
 	/* Enumerate blocks */
 	for (index = 0; index < 2; index++) {
@@ -78,7 +67,7 @@ ZTEST(filtering_biquad_f16, test_arm_biquad_cascade_df1_f16_default)
 	free(output_buf);
 }
 
-ZTEST(filtering_biquad_f16, test_arm_biquad_cascade_df2t_f16_default)
+static void test_arm_biquad_cascade_df2t_f16_default(void)
 {
 	size_t index;
 	size_t length = ARRAY_SIZE(ref_default);
@@ -128,7 +117,7 @@ ZTEST(filtering_biquad_f16, test_arm_biquad_cascade_df2t_f16_default)
 	free(output_buf);
 }
 
-ZTEST(filtering_biquad_f16, test_arm_biquad_cascade_df1_f16_rand)
+static void test_arm_biquad_cascade_df1_f16_rand(void)
 {
 	size_t sample_index, stage_count, block_size;
 	size_t sample_count = ARRAY_SIZE(in_rand_config) / 2;
@@ -139,20 +128,12 @@ ZTEST(filtering_biquad_f16, test_arm_biquad_cascade_df1_f16_rand)
 	const float16_t *ref = (const float16_t *)ref_rand_mono;
 	float16_t *state, *output_buf, *output;
 	arm_biquad_casd_df1_inst_f16 inst;
-#if defined(CONFIG_ARMV8_1_M_MVEF) && defined(CONFIG_FPU)
-	arm_biquad_mod_coef_f16 *coeff_mod;
-#endif
 
 	/* Allocate buffers */
-	state = calloc(128, sizeof(float16_t));
+	state = malloc(128 * sizeof(float16_t));
 	zassert_not_null(state, ASSERT_MSG_BUFFER_ALLOC_FAILED);
 
-#if defined(CONFIG_ARMV8_1_M_MVEF) && defined(CONFIG_FPU)
-	coeff_mod = calloc(47, sizeof(arm_biquad_mod_coef_f16)); /* 47 stages */
-	zassert_not_null(coeff_mod, ASSERT_MSG_BUFFER_ALLOC_FAILED);
-#endif
-
-	output_buf = calloc(length, sizeof(float16_t));
+	output_buf = malloc(length * sizeof(float16_t));
 	zassert_not_null(output_buf, ASSERT_MSG_BUFFER_ALLOC_FAILED);
 
 	output = output_buf;
@@ -164,11 +145,10 @@ ZTEST(filtering_biquad_f16, test_arm_biquad_cascade_df1_f16_rand)
 		block_size = config[1];
 
 		/* Initialise instance */
-#if defined(CONFIG_ARMV8_1_M_MVEF) && defined(CONFIG_FPU)
-		arm_biquad_cascade_df1_mve_init_f16(&inst, stage_count, coeff, coeff_mod, state);
-#else
-		arm_biquad_cascade_df1_init_f16(&inst, stage_count, coeff, state);
-#endif
+		arm_biquad_cascade_df1_init_f16(
+			&inst, stage_count, coeff, state);
+
+		/* TODO: Add MVEF support */
 
 		/* Run test function */
 		arm_biquad_cascade_df1_f16(&inst, input, output, block_size);
@@ -195,7 +175,7 @@ ZTEST(filtering_biquad_f16, test_arm_biquad_cascade_df1_f16_rand)
 	free(output_buf);
 }
 
-ZTEST(filtering_biquad_f16, test_arm_biquad_cascade_df2t_f16_rand)
+static void test_arm_biquad_cascade_df2t_f16_rand(void)
 {
 	size_t sample_index, stage_count, block_size;
 	size_t sample_count = ARRAY_SIZE(in_rand_config) / 2;
@@ -253,7 +233,7 @@ ZTEST(filtering_biquad_f16, test_arm_biquad_cascade_df2t_f16_rand)
 	free(output_buf);
 }
 
-ZTEST(filtering_biquad_f16, test_arm_biquad_cascade_stereo_df2t_f16_rand)
+static void test_arm_biquad_cascade_stereo_df2t_f16_rand(void)
 {
 	size_t sample_index, stage_count, block_size;
 	size_t sample_count = ARRAY_SIZE(in_rand_config) / 2;
@@ -310,4 +290,15 @@ ZTEST(filtering_biquad_f16, test_arm_biquad_cascade_stereo_df2t_f16_rand)
 	free(output_buf);
 }
 
-ZTEST_SUITE(filtering_biquad_f16, NULL, NULL, NULL, NULL, NULL);
+void test_filtering_biquad_f16(void)
+{
+	ztest_test_suite(filtering_biquad_f16,
+		ztest_unit_test(test_arm_biquad_cascade_df1_f16_default),
+		ztest_unit_test(test_arm_biquad_cascade_df2t_f16_default),
+		ztest_unit_test(test_arm_biquad_cascade_df1_f16_rand),
+		ztest_unit_test(test_arm_biquad_cascade_df2t_f16_rand),
+		ztest_unit_test(test_arm_biquad_cascade_stereo_df2t_f16_rand)
+		);
+
+	ztest_run_test_suite(filtering_biquad_f16);
+}

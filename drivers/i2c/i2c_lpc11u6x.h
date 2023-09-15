@@ -7,10 +7,6 @@
 #ifndef ZEPHYR_DRIVERS_I2C_I2C_LPC11U6X_H_
 #define ZEPHYR_DRIVERS_I2C_I2C_LPC11U6X_H_
 
-#include <zephyr/drivers/pinctrl.h>
-
-#define PINCTRL_STATE_FAST_PLUS PINCTRL_STATE_PRIV_START
-
 #define LPC11U6X_I2C_CONTROL_AA           (1 << 2)
 #define LPC11U6X_I2C_CONTROL_SI           (1 << 3)
 #define LPC11U6X_I2C_CONTROL_STOP         (1 << 4)
@@ -69,10 +65,15 @@ struct lpc11u6x_i2c_regs {
 
 struct lpc11u6x_i2c_config {
 	struct lpc11u6x_i2c_regs *base;
-	const struct device *clock_dev;
+	char *clock_drv;
+	char *scl_pinmux_drv;
+	char *sda_pinmux_drv;
 	void (*irq_config_func)(const struct device *dev);
 	uint32_t clkid;
-	const struct pinctrl_dev_config *pincfg;
+	uint32_t scl_flags;
+	uint32_t sda_flags;
+	uint8_t scl_pin;
+	uint8_t sda_pin;
 };
 
 struct lpc11u6x_i2c_current_transfer {
@@ -86,7 +87,7 @@ struct lpc11u6x_i2c_current_transfer {
 
 struct lpc11u6x_i2c_data {
 	struct lpc11u6x_i2c_current_transfer transfer;
-	struct i2c_target_config *slave;
+	struct i2c_slave_config *slave;
 	struct k_sem completion;
 	struct k_mutex mutex;
 };

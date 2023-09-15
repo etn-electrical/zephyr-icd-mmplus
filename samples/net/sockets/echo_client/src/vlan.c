@@ -4,12 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_DECLARE(net_echo_client_sample, LOG_LEVEL_DBG);
 
-#include <zephyr/kernel.h>
+#include <zephyr.h>
 
-#include <zephyr/net/ethernet.h>
+#include <net/ethernet.h>
 
 /* User data for the interface callback */
 struct ud {

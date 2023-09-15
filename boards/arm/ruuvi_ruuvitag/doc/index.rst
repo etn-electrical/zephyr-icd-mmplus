@@ -11,6 +11,7 @@ enabled sensor beacon platform capable of sending temperature, humidity,
 pressure, and motion information over Bluetooth Low Energy.
 
 .. figure:: img/ruuvitag.jpg
+     :width: 442px
      :align: center
      :alt: RUUVI RuuviTag
 
@@ -88,6 +89,7 @@ Pin descriptions
 ----------------
 
 .. figure:: img/pinout.jpg
+     :width: 442px
      :align: center
      :alt: RUUVI Pinout
 
@@ -147,7 +149,7 @@ Build and flash applications as usual (see :ref:`build_an_application` and
 The easiest way to flash Zephyr onto a RuuviTag requires an external Ruuvi DEVKIT. More information about the board can be found at the
 `ruuvitag devkit`_.
 
-Once your tag is connected to the DEVKIT and connected to your PC, build and flash the application in the usual way.
+Once your tag is conencted to the DEVKIT and conencted to your PC, build and flash the application in the usual way.
 
 .. zephyr-app-commands::
    :zephyr-app: samples/basic/blinky

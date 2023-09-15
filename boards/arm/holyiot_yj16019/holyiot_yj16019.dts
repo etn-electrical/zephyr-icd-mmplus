@@ -6,7 +6,6 @@
 
 /dts-v1/;
 #include <nordic/nrf52832_qfaa.dtsi>
-#include "holyiot_yj16019-pinctrl.dtsi"
 
 / {
 	model = "Holyiot YJ-16019";
@@ -38,7 +37,6 @@
 	aliases {
 		sw0 = &button0;
 		led0 = &led0;
-		watchdog0 = &wdt0;
 	};
 };
 
@@ -52,9 +50,7 @@
 
 &pwm0 {
 	status = "okay";
-	pinctrl-0 = <&pwm0_default>;
-	pinctrl-1 = <&pwm0_sleep>;
-	pinctrl-names = "default", "sleep";
+	ch0-pin = <29>;
 };
 
 &flash0 {
@@ -66,7 +62,7 @@
 
 		boot_partition: partition@0 {
 			label = "mcuboot";
-			reg = <0x00000000 0x0000C000>;
+			reg = <0x000000000 0x0000C000>;
 		};
 		slot0_partition: partition@c000 {
 			label = "image-0";

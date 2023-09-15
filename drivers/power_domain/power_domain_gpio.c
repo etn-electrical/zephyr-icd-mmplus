@@ -7,13 +7,13 @@
 
 #define DT_DRV_COMPAT power_domain_gpio
 
-#include <zephyr/kernel.h>
-#include <zephyr/drivers/gpio.h>
-#include <zephyr/pm/device.h>
-#include <zephyr/pm/device_runtime.h>
+#include <kernel.h>
+#include <drivers/gpio.h>
+#include <pm/device.h>
+#include <pm/device_runtime.h>
 
-#include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(power_domain_gpio, CONFIG_POWER_DOMAIN_LOG_LEVEL);
+#include <logging/log.h>
+LOG_MODULE_REGISTER(power_domain_gpio, LOG_LEVEL_INF);
 
 struct pd_gpio_config {
 	struct gpio_dt_spec enable;
@@ -22,65 +22,37 @@ struct pd_gpio_config {
 };
 
 struct pd_gpio_data {
-	k_timeout_t next_boot;
+	k_timeout_t last_boot;
 };
 
-struct pd_visitor_context {
-	const struct device *domain;
-	enum pm_device_action action;
+const char *actions[] = {
+	[PM_DEVICE_ACTION_RESUME] = "RESUME",
+	[PM_DEVICE_ACTION_SUSPEND] = "SUSPEND",
+	[PM_DEVICE_ACTION_TURN_ON] = "TURN ON",
+	[PM_DEVICE_ACTION_TURN_OFF] = "TURN OFF"
 };
 
-static int pd_on_domain_visitor(const struct device *dev, void *context)
-{
-	struct pd_visitor_context *visitor_context = context;
-
-	/* Only run action if the device is on the specified domain */
-	if (!dev->pm || (dev->pm->domain != visitor_context->domain)) {
-		return 0;
-	}
-
-	(void)pm_device_action_run(dev, visitor_context->action);
-	return 0;
-}
 
 static int pd_gpio_pm_action(const struct device *dev,
 			     enum pm_device_action action)
 {
 	const struct pd_gpio_config *cfg = dev->config;
-	struct pd_gpio_data *data = dev->data;
-	struct pd_visitor_context context = {.domain = dev};
-	int64_t next_boot_ticks;
 	int rc = 0;
-
-	/* Validate that blocking API's can be used */
-	if (!k_can_yield()) {
-		LOG_ERR("Blocking actions cannot run in this context");
-		return -ENOTSUP;
-	}
 
 	switch (action) {
 	case PM_DEVICE_ACTION_RESUME:
-		/* Wait until we can boot again */
-		k_sleep(data->next_boot);
 		/* Switch power on */
 		gpio_pin_set_dt(&cfg->enable, 1);
-		LOG_INF("%s is now ON", dev->name);
-		/* Wait for domain to come up */
-		k_sleep(K_USEC(cfg->startup_delay_us));
-		/* Notify devices on the domain they are now powered */
-		context.action = PM_DEVICE_ACTION_TURN_ON;
-		(void)device_supported_foreach(dev, pd_on_domain_visitor, &context);
+		LOG_DBG("%s is now ON", dev->name);
+		/* Notify supported devices they are now powered */
+		pm_device_children_action_run(dev, PM_DEVICE_ACTION_TURN_ON, NULL);
 		break;
 	case PM_DEVICE_ACTION_SUSPEND:
-		/* Notify devices on the domain that power is going down */
-		context.action = PM_DEVICE_ACTION_TURN_OFF;
-		(void)device_supported_foreach(dev, pd_on_domain_visitor, &context);
+		/* Notify supported devices power is going down */
+		pm_device_children_action_run(dev, PM_DEVICE_ACTION_TURN_OFF, NULL);
 		/* Switch power off */
 		gpio_pin_set_dt(&cfg->enable, 0);
-		LOG_INF("%s is now OFF", dev->name);
-		/* Store next time we can boot */
-		next_boot_ticks = k_uptime_ticks() + k_us_to_ticks_ceil32(cfg->off_on_delay_us);
-		data->next_boot = K_TIMEOUT_ABS_TICKS(next_boot_ticks);
+		LOG_DBG("%s is now OFF and powered", dev->name);
 		break;
 	case PM_DEVICE_ACTION_TURN_ON:
 		/* Actively control the enable pin now that the device is powered */
@@ -102,22 +74,19 @@ static int pd_gpio_pm_action(const struct device *dev,
 static int pd_gpio_init(const struct device *dev)
 {
 	const struct pd_gpio_config *cfg = dev->config;
-	struct pd_gpio_data *data = dev->data;
 	int rc;
 
 	if (!device_is_ready(cfg->enable.port)) {
 		LOG_ERR("GPIO port %s is not ready", cfg->enable.port->name);
 		return -ENODEV;
 	}
-	/* We can't know how long the domain has been off for before boot */
-	data->next_boot = K_TIMEOUT_ABS_US(cfg->off_on_delay_us);
 
 	if (pm_device_on_power_domain(dev)) {
 		/* Device is unpowered */
-		pm_device_init_off(dev);
+		pm_device_runtime_init_off(dev);
 		rc = gpio_pin_configure_dt(&cfg->enable, GPIO_DISCONNECTED);
 	} else {
-		pm_device_init_suspended(dev);
+		pm_device_runtime_init_suspended(dev);
 		rc = gpio_pin_configure_dt(&cfg->enable, GPIO_OUTPUT_INACTIVE);
 	}
 

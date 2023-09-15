@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
-#include <zephyr/arch/cpu.h>
-#include <zephyr/arch/arm/aarch32/cortex_m/cmsis.h>
+#include <ztest.h>
+#include <arch/cpu.h>
+#include <arch/arm/aarch32/cortex_m/cmsis.h>
 
 static volatile int test_flag;
 static volatile int expected_reason = -1;
@@ -151,7 +151,7 @@ void set_regs_with_known_pattern(void)
 	);
 }
 
-ZTEST(arm_interrupt, test_arm_esf_collection)
+void test_arm_esf_collection(void)
 {
 	int test_validation_rv;
 
@@ -197,15 +197,7 @@ void arm_isr_handler(const void *args)
 	 * to prevent from having the interrupt line set to pending again,
 	 * in case FPU IRQ is selected by the test as "Available IRQ line"
 	 */
-#if defined(CONFIG_ARMV8_1_M_MAINLINE)
-	/*
-	 * For ARMv8.1-M with FPU, the FPSCR[18:16] LTPSIZE field must be set
-	 * to 0b100 for "Tail predication not applied" as it's reset value
-	 */
-	__set_FPSCR(4 << FPU_FPDSCR_LTPSIZE_Pos);
-#else
 	__set_FPSCR(0);
-#endif
 #endif
 
 	test_flag++;
@@ -236,7 +228,7 @@ void arm_isr_handler(const void *args)
 	}
 }
 
-ZTEST(arm_interrupt, test_arm_interrupt)
+void test_arm_interrupt(void)
 {
 	/* Determine an NVIC IRQ line that is not currently in use. */
 	int i;
@@ -377,7 +369,7 @@ ZTEST(arm_interrupt, test_arm_interrupt)
 }
 
 #if defined(CONFIG_USERSPACE)
-#include <zephyr/syscall_handler.h>
+#include <syscall_handler.h>
 #include "test_syscalls.h"
 
 void z_impl_test_arm_user_interrupt_syscall(void)
@@ -395,7 +387,7 @@ void z_impl_test_arm_user_interrupt_syscall(void)
 		first_call = 0;
 
 		/* Lock IRQs in supervisor mode */
-		unsigned int key = irq_lock();
+		int key = irq_lock();
 
 		/* Verify that IRQs were not already locked */
 		zassert_false(key, "IRQs locked in system call\n");
@@ -412,7 +404,7 @@ static inline void z_vrfy_test_arm_user_interrupt_syscall(void)
 }
 #include <syscalls/test_arm_user_interrupt_syscall_mrsh.c>
 
-ZTEST_USER(arm_interrupt, test_arm_user_interrupt)
+void test_arm_user_interrupt(void)
 {
 	/* Test thread executing in user mode */
 	zassert_true(arch_is_user_context(),
@@ -448,7 +440,7 @@ ZTEST_USER(arm_interrupt, test_arm_user_interrupt)
 #endif
 }
 #else
-ZTEST_USER(arm_interrupt, test_arm_user_interrupt)
+void test_arm_user_interrupt(void)
 {
 	TC_PRINT("Skipped\n");
 }
@@ -458,7 +450,7 @@ ZTEST_USER(arm_interrupt, test_arm_user_interrupt)
 #pragma GCC push_options
 #pragma GCC optimize("O0")
 /* Avoid compiler optimizing null pointer de-referencing. */
-ZTEST(arm_interrupt, test_arm_null_pointer_exception)
+void test_arm_null_pointer_exception(void)
 {
 	int reason;
 
@@ -479,7 +471,7 @@ ZTEST(arm_interrupt, test_arm_null_pointer_exception)
 }
 #pragma GCC pop_options
 #else
-ZTEST(arm_interrupt, test_arm_null_pointer_exception)
+void test_arm_null_pointer_exception(void)
 {
 	TC_PRINT("Skipped\n");
 }

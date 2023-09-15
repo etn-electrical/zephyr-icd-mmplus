@@ -4,14 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
-#include <zephyr/device.h>
+#include <ztest.h>
+#include <device.h>
 #include "abstract_driver.h"
 
 #define MY_DRIVER_A	"my_driver_A"
 #define MY_DRIVER_B	"my_driver_B"
 
-/* define individual driver A */
+/* define indivial driver A */
 static int my_driver_A_do_this(const struct device *device, int foo, int bar)
 {
 	return foo + bar;
@@ -33,7 +33,7 @@ int common_driver_init(const struct device *dev)
 	return 0;
 }
 
-/* define individual driver B */
+/* define indivial driver B */
 static int my_driver_B_do_this(const struct device *device, int foo, int bar)
 {
 	return foo - bar;

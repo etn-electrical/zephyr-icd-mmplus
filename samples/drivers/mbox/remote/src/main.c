@@ -6,8 +6,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <zephyr/kernel.h>
-#include <zephyr/drivers/mbox.h>
+#include <zephyr.h>
+#include <drivers/mbox.h>
 
 #define TX_ID (0)
 #define RX_ID (1)

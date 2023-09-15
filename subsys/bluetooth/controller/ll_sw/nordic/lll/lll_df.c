@@ -6,7 +6,7 @@
 
 #include <stdint.h>
 #include <soc.h>
-#include <zephyr/bluetooth/hci.h>
+#include <bluetooth/hci.h>
 
 #include "util/util.h"
 #include "util/memq.h"
@@ -14,22 +14,21 @@
 #include "util/dbuf.h"
 
 #include "hal/cpu.h"
-#include "hal/ccm.h"
 #include "hal/radio_df.h"
 
-#include "pdu_df.h"
-#include "pdu_vendor.h"
 #include "pdu.h"
 
 #include "lll.h"
 #include "lll_adv_types.h"
 #include "lll_adv.h"
 #include "lll_adv_pdu.h"
-#include "lll_df_types.h"
-#include "lll_sync.h"
 #include "lll_df.h"
+#include "lll_df_types.h"
 #include "lll_df_internal.h"
 
+#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_CTLR_DF_DEBUG_ENABLE)
+#define LOG_MODULE_NAME bt_ctlr_lll_df
+#include "common/log.h"
 #include <soc.h>
 #include "hal/debug.h"
 
@@ -112,18 +111,23 @@ void lll_df_cte_tx_enable(struct lll_adv_sync *lll_sync, const struct pdu_adv *p
 			*cte_len_us = CTE_LEN_US(df_cfg->cte_length);
 		} else {
 			if (lll_sync->cte_started) {
-				lll_df_cte_tx_disable();
+				lll_df_conf_cte_tx_disable();
 				lll_sync->cte_started = 0U;
 			}
 			*cte_len_us = 0U;
 		}
 	} else {
 		if (lll_sync->cte_started) {
-			lll_df_cte_tx_disable();
+			lll_df_conf_cte_tx_disable();
 			lll_sync->cte_started = 0U;
 		}
 		*cte_len_us = 0U;
 	}
+}
+
+void lll_df_conf_cte_tx_disable(void)
+{
+	radio_df_reset();
 }
 #endif /* CONFIG_BT_CTLR_DF_ADV_CTE_TX */
 
@@ -213,23 +217,22 @@ struct lll_df_sync_cfg *lll_df_sync_cfg_latest_get(struct lll_df_sync *df_cfg,
  * @param chan_idx          Channel used to receive PDU with CTE
  * @param cte_info_in_s1    Inform if CTEInfo is in S1 byte for conn. PDU or in extended advertising
  *                          header of per. adv. PDU.
- * @param phy               Current PHY
  *
  * In case of AoA mode ant_num and ant_ids parameters are not used.
  */
-int lll_df_conf_cte_rx_enable(uint8_t slot_duration, uint8_t ant_num, const uint8_t *ant_ids,
-			      uint8_t chan_idx, bool cte_info_in_s1, uint8_t phy)
+void lll_df_conf_cte_rx_enable(uint8_t slot_duration, uint8_t ant_num, const uint8_t *ant_ids,
+			       uint8_t chan_idx, bool cte_info_in_s1)
 {
 	struct node_rx_iq_report *node_rx;
 
 	/* ToDo change to appropriate HCI constant */
 #if defined(CONFIG_BT_CTLR_DF_ANT_SWITCH_1US)
 	if (slot_duration == 0x1) {
-		radio_df_cte_rx_2us_switching(cte_info_in_s1, phy);
+		radio_df_cte_rx_2us_switching(cte_info_in_s1);
 	} else
 #endif /* CONFIG_BT_CTLR_DF_ANT_SWITCH_1US */
 	{
-		radio_df_cte_rx_4us_switching(cte_info_in_s1, phy);
+		radio_df_cte_rx_4us_switching(cte_info_in_s1);
 	}
 
 #if defined(CONFIG_BT_CTLR_DF_ANT_SWITCH_RX)
@@ -238,85 +241,13 @@ int lll_df_conf_cte_rx_enable(uint8_t slot_duration, uint8_t ant_num, const uint
 	radio_df_ant_switch_pattern_set(ant_ids, ant_num);
 #endif /* CONFIG_BT_CTLR_DF_ANT_SWITCH_RX */
 
-	/* Could be moved up, if Radio setup is not needed if we are not going to report IQ data */
 	node_rx = ull_df_iq_report_alloc_peek(1);
-	if (!node_rx) {
-		return -ENOMEM;
-	}
+	LL_ASSERT(node_rx);
 
 	radio_df_iq_data_packet_set(node_rx->pdu, IQ_SAMPLE_TOTAL_CNT);
 	node_rx->chan_idx = chan_idx;
-
-	return 0;
 }
 #endif /* CONFIG_BT_CTLR_DF_SCAN_CTE_RX || CONFIG_BT_CTLR_DF_CONN_CTE_RX */
-
-#if defined(CONFIG_BT_CTLR_DF_SCAN_CTE_RX)
-/**
- * @brief Function allocates additional IQ report node for Host notification about
- * insufficient resources to sample all CTE in a periodic synchronization event.
- *
- * @param sync_lll Pointer to periodic synchronization object
- *
- * @return -ENOMEM in case there is no free node for IQ Data report
- * @return -ENOBUFS in case there are no free nodes for report of insufficient resources as well as
- * IQ data report
- * @return zero in case of success
- */
-int lll_df_iq_report_no_resources_prepare(struct lll_sync *sync_lll)
-{
-	struct node_rx_iq_report *cte_incomplete;
-	int err;
-
-	/* Allocate additional node for a sync context only once. This is an additional node to
-	 * report there is no more memory to store IQ data, hence some of CTEs are not going
-	 * to be sampled.
-	 */
-	if (!sync_lll->node_cte_incomplete && !sync_lll->is_cte_incomplete) {
-		/* Check if there are free nodes for:
-		 * - storage of IQ data collcted during a PDU reception
-		 * - Host notification about insufficient resources for IQ data
-		 */
-		cte_incomplete = ull_df_iq_report_alloc_peek(2);
-		if (!cte_incomplete) {
-			/* Check if there is a free node to report insufficient resources only.
-			 * There will be no IQ Data collection.
-			 */
-			cte_incomplete = ull_df_iq_report_alloc_peek(1);
-			if (!cte_incomplete) {
-				/* No free nodes at all */
-				return -ENOBUFS;
-			}
-
-			/* No memory for IQ data report */
-			err = -ENOMEM;
-		} else {
-			err = 0;
-		}
-
-		/* Do actual allocation and store the node for futher processing after a PDU
-		 * reception,
-		 */
-		ull_df_iq_report_alloc();
-
-		/* Store the node in lll_sync object. This is a place where the node may be stored
-		 * until processing afte reception of a PDU to report no IQ data or hand over
-		 * to aux objects for usage in ULL. If there is not enough memory for IQ data
-		 * there is no node to use for temporary storage as it is done for PDUs.
-		 */
-		sync_lll->node_cte_incomplete = cte_incomplete;
-
-		/* Reset the state every time the prepare is called. IQ report node may be unchanged
-		 * from former synchronization event.
-		 */
-		sync_lll->is_cte_incomplete = false;
-	} else {
-		err = 0;
-	}
-
-	return err;
-}
-#endif /* CONFIG_BT_CTLR_DF_SCAN_CTE_RX  */
 
 #if defined(CONFIG_BT_CTLR_DF_CONN_CTE_RX)
 /**
@@ -330,10 +261,8 @@ void lll_df_conf_cte_info_parsing_enable(void)
 	/* Use of mandatory 2 us switching and sampling slots for CTEInfo parsing.
 	 * The configuration here does not matter for actual IQ sampling.
 	 * The collected data will not be reported to host.
-	 * Also sampling offset does not matter so, provided PHY is legacy to setup
-	 * the offset to default zero value.
 	 */
-	radio_df_cte_rx_4us_switching(true, PHY_LEGACY);
+	radio_df_cte_rx_4us_switching(true);
 
 #if defined(CONFIG_BT_CTLR_DF_ANT_SWITCH_RX)
 	/* Use PDU_ANTENNA so no actual antenna change will be done. */
@@ -392,10 +321,5 @@ void lll_df_cte_tx_configure(uint8_t cte_type, uint8_t cte_length, uint8_t num_a
 		radio_df_ant_switch_pattern_set(ant_ids, num_ant_ids);
 	}
 #endif /* CONFIG_BT_CTLR_DF_ANT_SWITCH_TX */
-}
-
-void lll_df_cte_tx_disable(void)
-{
-	radio_df_reset();
 }
 #endif /* CONFIG_BT_CTLR_DF_ADV_CTE_TX || CONFIG_BT_CTLR_DF_CONN_CTE_TX */

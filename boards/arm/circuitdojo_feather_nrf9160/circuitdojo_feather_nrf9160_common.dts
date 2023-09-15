@@ -4,7 +4,6 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#include "circuitdojo_feather_nrf9160_common-pinctrl.dtsi"
 
 / {
 	model = "Circuit Dojo nRF9160 Feather";
@@ -27,7 +26,7 @@
 	pwmleds {
 		compatible = "pwm-leds";
 		pwm_led0: pwm_led_0 {
-			pwms = <&pwm0 0 PWM_MSEC(20) PWM_POLARITY_INVERTED>;
+			pwms = <&pwm0 3>;
 		};
 	};
 
@@ -45,11 +44,6 @@
 		bootloader-led0 = &blue_led;
 		pwm-led0 = &pwm_led0;
 		sw0 = &button0;
-		mcuboot-button0 = &button0;
-		mcuboot-led0 = &blue_led;
-		watchdog0 = &wdt0;
-		spi-flash0 = &w25q32jv;
-		accel0 = &lis2dh;
 	};
 
 	/* Used for accessing other pins */
@@ -80,13 +74,6 @@
 				<1 0 &gpio0 14 0>,   /* ADC1 = AIN2 */
 				<0 0 &gpio0 13 0>;   /* ADC0 = AIN1 */
 	};
-
-	nrf-ps-en {
-		compatible = "regulator-fixed";
-		regulator-name = "nrf_ps_en";
-		enable-gpios = <&gpio0 31 GPIO_ACTIVE_HIGH>;
-		regulator-boot-on;
-	};
 };
 
 &adc {
@@ -104,38 +91,36 @@
 &uart0 {
 	status = "okay";
 	current-speed = <115200>;
-	pinctrl-0 = <&uart0_default>;
-	pinctrl-1 = <&uart0_sleep>;
-	pinctrl-names = "default", "sleep";
+	tx-pin = <6>;
+	rx-pin = <5>;
 };
 
 &uart1 {
 	current-speed = <115200>;
-	pinctrl-0 = <&uart1_default>;
-	pinctrl-1 = <&uart1_sleep>;
-	pinctrl-names = "default", "sleep";
+	tx-pin = <0>;
+	rx-pin = <1>;
 };
 
 &uart2 {
-	pinctrl-0 = <&uart2_default>;
-	pinctrl-1 = <&uart2_sleep>;
-	pinctrl-names = "default", "sleep";
+	tx-pin = <24>;
+	rx-pin = <23>;
 };
 
 &i2c1 {
 	compatible = "nordic,nrf-twim";
 	status = "okay";
+	sda-pin = <26>;
+	scl-pin = <27>;
 
-	pinctrl-0 = <&i2c1_default>;
-	pinctrl-1 = <&i2c1_sleep>;
-	pinctrl-names = "default", "sleep";
 	pcf85063a@51 {
 		compatible = "nxp,pcf85063a";
+		label = "PCF85063A";
 		reg = <0x51>;
 	};
 
-	lis2dh: lis2dh@18 {
+	lis2dh@18 {
 		compatible = "st,lis2dh";
+		label = "LIS2DH";
 		reg = <0x18>;
 		irq-gpios = <&gpio0 29 GPIO_ACTIVE_HIGH>;
 		disconnect-sdo-sa0-pull-up;
@@ -145,20 +130,19 @@
 
 &pwm0 {
 	status = "okay";
-	pinctrl-0 = <&pwm0_default>;
-	pinctrl-1 = <&pwm0_sleep>;
-	pinctrl-names = "default", "sleep";
+	ch0-pin = <3>;
 };
 
 &spi3 {
 	compatible = "nordic,nrf-spim";
 	status = "okay";
+	sck-pin = < 11 >;
+	mosi-pin = < 9 >;
+	miso-pin = < 28 >;
 	cs-gpios = < &gpio0 7 GPIO_ACTIVE_LOW >;
-	pinctrl-0 = <&spi3_default>;
-	pinctrl-1 = <&spi3_sleep>;
-	pinctrl-names = "default", "sleep";
 	w25q32jv: w25q32jv@0 {
 		compatible = "jedec,spi-nor";
+		label = "W25Q32JV";
 		reg = < 0 >;
 		spi-max-frequency = < 40000000 >;
 		wp-gpios = < &gpio0 8 GPIO_ACTIVE_LOW >;

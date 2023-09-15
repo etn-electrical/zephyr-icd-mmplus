@@ -10,4 +10,3 @@ config SOC_XILINX_ZYNQMP_RPU
 	select GIC_V1
 	select PLATFORM_SPECIFIC_INIT
 	select CPU_HAS_ARM_MPU
-	select VFP_DP_D16

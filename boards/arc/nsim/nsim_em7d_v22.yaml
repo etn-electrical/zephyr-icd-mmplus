@@ -1,12 +1,10 @@
 identifier: nsim_em7d_v22
 name: EM Nsim simulator
-type: sim
+type: mcu
 simulation: nsim
-simulation_exec: nsimdrv
 arch: arc
 toolchain:
   - zephyr
-  - cross-compile
 testing:
   ignore_tags:
     - net

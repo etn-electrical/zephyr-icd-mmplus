@@ -8,7 +8,6 @@
 #define ZEPHYR_DRIVERS_SENSOR_SBS_GAUGE_H_
 
 #include <stdint.h>
-#include <zephyr/drivers/i2c.h>
 
 /*** Standard Commands ***/
 #define SBS_GAUGE_CMD_MANUFACTURER_ACCESS   0x00 /* ManufacturerAccess */
@@ -74,7 +73,8 @@ struct sbs_gauge_data {
 };
 
 struct sbs_gauge_config {
-	struct i2c_dt_spec i2c;
+	const struct device *i2c_dev;
+	uint8_t i2c_addr;
 };
 
 #endif

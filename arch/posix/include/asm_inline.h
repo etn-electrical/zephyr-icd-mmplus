@@ -16,7 +16,7 @@
 
 #if defined(__GNUC__)
 #include <asm_inline_gcc.h> /* The empty one.. */
-#include <zephyr/arch/posix/asm_inline_gcc.h>
+#include <arch/posix/asm_inline_gcc.h>
 #else
 #include <asm_inline_other.h>
 #endif /* __GNUC__ */

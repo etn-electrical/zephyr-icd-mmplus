@@ -8,14 +8,20 @@
 
 #include <zephyr/types.h>
 #include <stddef.h>
-#include <zephyr/sys/printk.h>
-#include <zephyr/ztest.h>
+#include <sys/printk.h>
+#include <ztest.h>
 
-#include <zephyr/bluetooth/bluetooth.h>
+#include <bluetooth/bluetooth.h>
 
-ZTEST_SUITE(test_bluetooth, NULL, NULL, NULL, NULL, NULL);
-
-ZTEST(test_bluetooth, test_ctrl_sw_privacy)
+void test_ctrl_sw_privacy(void)
 {
 	zassert_false(bt_enable(NULL), "%s failed", __func__);
+}
+
+/* test case main entry */
+void test_main(void)
+{
+	ztest_test_suite(test_bluetooth,
+			ztest_unit_test(test_ctrl_sw_privacy));
+	ztest_run_test_suite(test_bluetooth);
 }

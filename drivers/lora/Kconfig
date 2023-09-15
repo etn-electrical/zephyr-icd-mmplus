@@ -8,6 +8,7 @@
 
 menuconfig LORA
 	bool "LoRa support [EXPERIMENTAL]"
+	select REQUIRES_FULL_LIBC
 	select POLL
 	select EXPERIMENTAL
 	help
@@ -20,7 +21,7 @@ module-str = lora
 source "subsys/logging/Kconfig.template.log_config"
 
 config LORA_SHELL
-	bool "LoRa Shell"
+	bool "Enable LoRa Shell"
 	default y
 	depends on SHELL
 	help

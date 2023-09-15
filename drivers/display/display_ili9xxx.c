@@ -8,11 +8,11 @@
 
 #include "display_ili9xxx.h"
 
-#include <zephyr/dt-bindings/display/ili9xxx.h>
-#include <zephyr/drivers/display.h>
-#include <zephyr/sys/byteorder.h>
+#include <dt-bindings/display/ili9xxx.h>
+#include <drivers/display.h>
+#include <sys/byteorder.h>
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(display_ili9xxx, CONFIG_DISPLAY_LOG_LEVEL);
 
 struct ili9xxx_data {
@@ -351,7 +351,7 @@ static int ili9xxx_init(const struct device *dev)
 
 	int r;
 
-	if (!spi_is_ready_dt(&config->spi)) {
+	if (!spi_is_ready(&config->spi)) {
 		LOG_ERR("SPI device is not ready");
 		return -ENODEV;
 	}
@@ -447,10 +447,10 @@ static const struct display_driver_api ili9xxx_api = {
 	DEVICE_DT_DEFINE(INST_DT_ILI9XXX(n, t), ili9xxx_init,                  \
 			    NULL, &ili9xxx_data_##n,                           \
 			    &ili9xxx_config_##n, POST_KERNEL,                  \
-			    CONFIG_DISPLAY_INIT_PRIORITY, &ili9xxx_api)
+			    CONFIG_DISPLAY_INIT_PRIORITY, &ili9xxx_api);
 
 #define DT_INST_FOREACH_ILI9XXX_STATUS_OKAY(t)                                 \
-	LISTIFY(DT_NUM_INST_STATUS_OKAY(ilitek_ili##t), ILI9XXX_INIT, (;), t)
+	UTIL_LISTIFY(DT_NUM_INST_STATUS_OKAY(ilitek_ili##t), ILI9XXX_INIT, t)
 
 #ifdef CONFIG_ILI9340
 #include "display_ili9340.h"

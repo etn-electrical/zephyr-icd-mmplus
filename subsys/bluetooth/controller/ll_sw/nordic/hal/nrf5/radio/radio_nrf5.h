@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022 Nordic Semiconductor ASA
+ * Copyright (c) 2018 Nordic Semiconductor ASA
  * Copyright (c) 2018 Ioannis Glaropoulos
  *
  * SPDX-License-Identifier: Apache-2.0
@@ -24,17 +24,15 @@
  */
 #define NRF_RADIO_SHORTS_PDU_END_DISABLE RADIO_SHORTS_END_DISABLE_Msk
 
+#if defined(CONFIG_BT_CTLR_DF_PHYEND_OFFSET_COMPENSATION_ENABLE)
 /* Delay of EVENTS_PHYEND event on receive PDU without CTE inclded when CTEINLINE is enabled */
 #define RADIO_EVENTS_PHYEND_DELAY_US 16
-
-/* Delay of CCM TASKS_CRYPT start in number of bits for Radio Bit counter */
-#define CCM_TASKS_CRYPT_DELAY_BITS 3
+#endif /* CONFIG_BT_CTLR_DF_PHYEND_OFFSET_COMPENSATION_ENABLE */
 
 /* EVENTS_TIMER capture register used for sampling TIMER time-stamps. */
 #define HAL_EVENT_TIMER_SAMPLE_CC_OFFSET 3
 #define HAL_EVENT_TIMER_SAMPLE_TASK NRF_TIMER_TASK_CAPTURE3
 
-/* Define to reset PPI registration */
 #define NRF_PPI_NONE 0
 
 #if defined(CONFIG_SOC_SERIES_BSIM_NRFXX)
@@ -54,10 +52,8 @@
 #elif defined(CONFIG_SOC_NRF52833)
 #include "radio_nrf52833.h"
 #elif defined(CONFIG_SOC_NRF52840)
-#include <nrf52_erratas.h>
 #include "radio_nrf52840.h"
 #elif defined(CONFIG_SOC_NRF5340_CPUNET)
-#include <hal/nrf_vreqctrl.h>
 #include "radio_nrf5340.h"
 #elif
 #error "Unsupported SoC."
@@ -81,13 +77,4 @@
 #else
 #error "PPI or DPPI abstractions missing."
 #endif
-
 #include "radio_nrf5_txp.h"
-
-/* Common NRF_RADIO power-on reset value. Refer to Product Specification,
- * RADIO Registers section for the documented reset values.
- *
- * NOTE: Only implementation used values defined here.
- *       In the future if MDK or nRFx header include these, use them instead.
- */
-#define HAL_RADIO_RESET_VALUE_PCNF1 0x00000000UL

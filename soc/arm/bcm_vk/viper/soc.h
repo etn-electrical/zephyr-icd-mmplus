@@ -7,8 +7,8 @@
 #ifndef SOC_H
 #define SOC_H
 
-#include <zephyr/sys/util.h>
-#include <zephyr/toolchain.h>
+#include <sys/util.h>
+#include <toolchain.h>
 
 #ifndef _ASMLANGUAGE
 

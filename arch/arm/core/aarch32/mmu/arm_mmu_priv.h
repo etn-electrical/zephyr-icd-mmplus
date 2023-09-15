@@ -201,3 +201,5 @@ struct arm_mmu_perms_attrs {
 };
 
 #endif /* ZEPHYR_ARCH_AARCH32_ARM_MMU_PRIV_H_ */
+
+/* EOF */

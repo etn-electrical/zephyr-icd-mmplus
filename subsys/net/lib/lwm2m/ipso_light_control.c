@@ -14,11 +14,11 @@
 #define LOG_MODULE_NAME net_ipso_light_control
 #define LOG_LEVEL CONFIG_LWM2M_LOG_LEVEL
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 
 #include <stdint.h>
-#include <zephyr/init.h>
+#include <init.h>
 
 #include "lwm2m_object.h"
 #include "lwm2m_engine.h"

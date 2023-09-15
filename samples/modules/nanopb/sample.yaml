@@ -3,8 +3,6 @@ sample:
     buffer
   name: Simple nanopb
 common:
-  modules:
-    - nanopb
   harness: console
   harness_config:
     type: one_line
@@ -13,6 +11,3 @@ common:
 tests:
   sample.modules.nanopb:
     tags: samples nanopb
-    integration_platforms:
-      - native_posix
-      - native_posix_64

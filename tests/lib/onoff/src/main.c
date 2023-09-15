@@ -5,8 +5,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
-#include <zephyr/sys/onoff.h>
+#include <ztest.h>
+#include <sys/onoff.h>
 
 static struct onoff_client cli;
 struct onoff_transitions transitions;
@@ -270,7 +270,7 @@ static void setup_error(void)
 	reset_cli();
 }
 
-ZTEST(onoff_api, test_manager_init)
+static void test_manager_init(void)
 {
 	int rc;
 	struct onoff_transitions xit = {};
@@ -301,7 +301,7 @@ ZTEST(onoff_api, test_manager_init)
 		      "init srv xit ok");
 }
 
-ZTEST(onoff_api, test_mon_reg)
+static void test_mon_reg(void)
 {
 	static struct onoff_monitor mon = {};
 
@@ -319,7 +319,7 @@ ZTEST(onoff_api, test_mon_reg)
 		      "mon reg srv mon(!cb)");
 }
 
-ZTEST(onoff_api, test_mon_unreg)
+static void test_mon_unreg(void)
 {
 	setup_test();
 
@@ -337,7 +337,7 @@ ZTEST(onoff_api, test_mon_unreg)
 		      "mon unreg 0 mon");
 }
 
-ZTEST(onoff_api, test_request)
+static void test_request(void)
 {
 	struct onoff_client cli2 = {};
 	int rc;
@@ -376,7 +376,7 @@ ZTEST(onoff_api, test_request)
 
 }
 
-ZTEST(onoff_api, test_basic_sync)
+static void test_basic_sync(void)
 {
 	int rc;
 
@@ -422,7 +422,7 @@ ZTEST(onoff_api, test_basic_sync)
 		      "re-rel: %d", rc);
 }
 
-ZTEST(onoff_api, test_basic_async)
+static void test_basic_async(void)
 {
 	int rc;
 
@@ -473,7 +473,7 @@ ZTEST(onoff_api, test_basic_async)
 		   "trans off");
 }
 
-ZTEST(onoff_api, test_reset)
+static void test_reset(void)
 {
 	struct onoff_client cli2 = {};
 	int rc;
@@ -510,7 +510,7 @@ ZTEST(onoff_api, test_reset)
 		      "re-rst srv cli");
 }
 
-ZTEST(onoff_api, test_basic_reset)
+static void test_basic_reset(void)
 {
 	int rc;
 
@@ -541,7 +541,7 @@ ZTEST(onoff_api, test_basic_reset)
 		   "trans off");
 }
 
-ZTEST(onoff_api, test_multi_start)
+static void test_multi_start(void)
 {
 	int rc;
 	struct onoff_client cli2 = {};
@@ -585,7 +585,7 @@ ZTEST(onoff_api, test_multi_start)
 		      "req2");
 }
 
-ZTEST(onoff_api, test_indep_req)
+static void test_indep_req(void)
 {
 	int rc;
 	struct onoff_client cli0 = {};
@@ -642,7 +642,7 @@ ZTEST(onoff_api, test_indep_req)
 		      "async req trans");
 }
 
-ZTEST(onoff_api, test_delayed_req)
+static void test_delayed_req(void)
 {
 	int rc;
 
@@ -703,7 +703,7 @@ ZTEST(onoff_api, test_delayed_req)
 }
 
 
-ZTEST(onoff_api, test_recheck_start)
+static void test_recheck_start(void)
 {
 	int rc;
 
@@ -733,7 +733,7 @@ ZTEST(onoff_api, test_recheck_start)
 		      "completed");
 }
 
-ZTEST(onoff_api, test_recheck_stop)
+static void test_recheck_stop(void)
 {
 	int rc;
 
@@ -783,7 +783,7 @@ static void rel_in_req_cb(struct onoff_manager *srv,
 		      "rel-in-req");
 }
 
-ZTEST(onoff_api, test_rel_in_req_cb)
+static void test_rel_in_req_cb(void)
 {
 	int rc;
 
@@ -813,12 +813,12 @@ ZTEST(onoff_api, test_rel_in_req_cb)
 		   "trans off");
 }
 
-ZTEST(onoff_api, test_multi_reset)
+static void test_multi_reset(void)
 {
 	int rc;
 	struct onoff_client cli2 = {};
 
-	/* Verify multiple reset requests are satisfied when reset
+	/* Verify multiple reset requests are statisfied when reset
 	 * transition completes.
 	 */
 	setup_test();
@@ -871,7 +871,7 @@ ZTEST(onoff_api, test_multi_reset)
 		   "trans off");
 }
 
-ZTEST(onoff_api, test_error)
+static void test_error(void)
 {
 	struct onoff_client cli2 = {};
 	int rc;
@@ -904,7 +904,7 @@ ZTEST(onoff_api, test_error)
 		      "rel in err");
 }
 
-ZTEST(onoff_api, test_cancel_req)
+static void test_cancel_req(void)
 {
 	int rc;
 
@@ -953,7 +953,7 @@ ZTEST(onoff_api, test_cancel_req)
 		   "trans off");
 }
 
-ZTEST(onoff_api, test_cancel_delayed_req)
+static void test_cancel_delayed_req(void)
 {
 	int rc;
 
@@ -1006,7 +1006,7 @@ ZTEST(onoff_api, test_cancel_delayed_req)
 		   "trans off");
 }
 
-ZTEST(onoff_api, test_cancel_or_release)
+static void test_cancel_or_release(void)
 {
 	int rc;
 
@@ -1052,7 +1052,7 @@ ZTEST(onoff_api, test_cancel_or_release)
 		   "trans off");
 }
 
-ZTEST(onoff_api, test_sync_basic)
+static void test_sync_basic(void)
 {
 	static struct onoff_sync_service srv = {};
 	k_spinlock_key_t key;
@@ -1129,7 +1129,7 @@ ZTEST(onoff_api, test_sync_basic)
 		      "init req");
 }
 
-ZTEST(onoff_api, test_sync_error)
+static void test_sync_error(void)
 {
 	static struct onoff_sync_service srv = {};
 	k_spinlock_key_t key;
@@ -1180,7 +1180,7 @@ ZTEST(onoff_api, test_sync_error)
 }
 
 
-void *test_init(void)
+void test_main(void)
 {
 	k_sem_init(&isr_sync, 0, 1);
 	k_timer_init(&isr_timer, isr_notify, NULL);
@@ -1188,6 +1188,29 @@ void *test_init(void)
 	(void)isr_reset;
 	(void)isr_release;
 	(void)isr_request;
-	return NULL;
+
+	ztest_test_suite(onoff_api,
+			 ztest_unit_test(test_manager_init),
+			 ztest_unit_test(test_mon_reg),
+			 ztest_unit_test(test_mon_unreg),
+			 ztest_unit_test(test_request),
+			 ztest_unit_test(test_basic_sync),
+			 ztest_unit_test(test_basic_async),
+			 ztest_unit_test(test_reset),
+			 ztest_unit_test(test_basic_reset),
+			 ztest_unit_test(test_multi_start),
+			 ztest_unit_test(test_indep_req),
+			 ztest_unit_test(test_delayed_req),
+			 ztest_unit_test(test_recheck_start),
+			 ztest_unit_test(test_recheck_stop),
+			 ztest_unit_test(test_rel_in_req_cb),
+			 ztest_unit_test(test_multi_reset),
+			 ztest_unit_test(test_error),
+			 ztest_unit_test(test_cancel_req),
+			 ztest_unit_test(test_cancel_delayed_req),
+			 ztest_unit_test(test_cancel_or_release),
+			 ztest_unit_test(test_sync_basic),
+			 ztest_unit_test(test_sync_error));
+
+	ztest_run_test_suite(onoff_api);
 }
-ZTEST_SUITE(onoff_api, NULL, test_init, NULL, NULL, NULL);

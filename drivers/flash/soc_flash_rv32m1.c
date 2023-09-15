@@ -7,12 +7,12 @@
 #define DT_DRV_COMPAT openisa_rv32m1_ftfe
 #define SOC_NV_FLASH_NODE DT_INST(0, soc_nv_flash)
 
-#include <zephyr/kernel.h>
-#include <zephyr/device.h>
+#include <kernel.h>
+#include <device.h>
 #include <string.h>
-#include <zephyr/drivers/flash.h>
+#include <drivers/flash.h>
 #include <errno.h>
-#include <zephyr/init.h>
+#include <init.h>
 #include <soc.h>
 #include "flash_priv.h"
 

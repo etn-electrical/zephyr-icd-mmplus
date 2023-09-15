@@ -16,14 +16,14 @@
  * forth by yielding the cpu. When counter reaches the maximal value, threads
  * stop and the average time of context switch is displayed.
  */
-#include <zephyr/kernel.h>
-#include <zephyr/timing/timing.h>
+#include <kernel.h>
+#include <timing/timing.h>
 #include "utils.h"
 
 /* number of context switches */
 #define NCTXSWITCH 10000
 #ifndef STACKSIZE
-#define STACKSIZE (512 + CONFIG_TEST_EXTRA_STACK_SIZE)
+#define STACKSIZE (512 + CONFIG_TEST_EXTRA_STACKSIZE)
 #endif
 
 /* stack used by the threads */
@@ -45,7 +45,7 @@ K_SEM_DEFINE(sync_sema, 0, 1);
 
 /**
  *
- * thread_one
+ * thread_onne
  *
  * Fiber makes all the test preparations: registers the interrupt handler,
  * gets the first timestamp and invokes the software interrupt.

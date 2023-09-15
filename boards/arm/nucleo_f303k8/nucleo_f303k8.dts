@@ -30,7 +30,7 @@
 	pwmleds {
 		compatible = "pwm-leds";
 		green_pwm_led: green_pwm_led {
-			pwms = <&pwm2 2 PWM_MSEC(20) PWM_POLARITY_NORMAL>;
+			pwms = <&pwm2 2 0 PWM_POLARITY_NORMAL>;
 		};
 	};
 
@@ -38,10 +38,6 @@
 		led0 = &green_led_3;
 		pwm-led0 = &green_pwm_led;
 	};
-};
-
-&clk_lsi {
-	status = "okay";
 };
 
 &clk_hsi {
@@ -101,7 +97,5 @@
 };
 
 &rtc {
-	clocks = <&rcc STM32_CLOCK_BUS_APB1 0x10000000>,
-		 <&rcc STM32_SRC_LSI RTC_SEL(2)>;
 	status = "okay";
 };

@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/linker/sections.h>
-#include <zephyr/arch/cpu.h>
+#include <linker/sections.h>
+#include <arch/cpu.h>
 #include "mmu.h"
 
-#if CONFIG_MMU_PAGE_SIZE == 4096 || defined(CONFIG_ARM_MPU)
+#if CONFIG_MMU_PAGE_SIZE == 4096
 #define HEADER_PGSIZE	1
 #elif CONFIG_MMU_PAGE_SIZE == 16384
 #define HEADER_PGSIZE	2

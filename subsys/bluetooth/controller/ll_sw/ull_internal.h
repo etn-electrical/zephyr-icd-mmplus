@@ -4,41 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/**
- *  User CPR Interval
- */
-#if !defined(CONFIG_BT_CTLR_USER_CPR_INTERVAL_MIN)
-/* Bluetooth defined CPR Interval Minimum (7.5ms) */
-#define CONN_INTERVAL_MIN(x) (6)
-#else /* CONFIG_BT_CTLR_USER_CPR_INTERVAL_MIN */
-/* Proprietary user defined CPR Interval Minimum */
-#define CONN_INTERVAL_MIN(x) (MAX(ull_conn_interval_min_get(x), 1))
-#endif /* CONFIG_BT_CTLR_USER_CPR_INTERVAL_MIN */
-
-/**
- *  User deferance of CPR Anchor Point Move
- */
-#if !defined(CONFIG_BT_CTLR_USER_CPR_ANCHOR_POINT_MOVE)
-#define DEFER_APM_CHECK(x, y, z) (false)
-#else
-/* Proprietary handling of peripheral CPR Anchor Point Movement Response
- *
- * When returning TRUE the LLCP system changes to a
- * USER_WAIT state and an EXTERNAL trigger must kick the LLCP system
- * to continue to either accept (with possibly changed offsets) or reject CPR
- *
- * When returning FALSE the LLCP system will automatically
- * continue and thus respond immediately
- *
- * Possibly modified LLCP internal status/error state will determine the type of 'response'
- *   0U                             - Accept CPR (possibly with changed offsets)
- *   BT_HCI_ERR_UNSUPP_LL_PARAM_VAL - Reject CPR
- */
-struct ll_conn;
-extern bool ull_handle_cpr_anchor_point_move(struct ll_conn *conn, uint16_t *offsets,
-					     uint8_t *status);
-#define DEFER_APM_CHECK(x, y, z) (ull_handle_cpr_anchor_point_move(x, y, z))
-#endif /* CONFIG_BT_CTLR_USER_CPR_ANCHOR_POINT_MOVE */
 /* Macro to convert time in us to connection interval units */
 #define RADIO_CONN_EVENTS(x, y) ((uint16_t)(((x) + (y) - 1) / (y)))
 
@@ -67,12 +32,11 @@ static inline void ull_hdr_init(struct ull_hdr *hdr)
 }
 
 void *ll_rx_link_alloc(void);
-void ll_rx_link_release(memq_link_t *link);
+void ll_rx_link_release(void *link);
 void *ll_rx_alloc(void);
 void ll_rx_release(void *node_rx);
 void *ll_pdu_rx_alloc_peek(uint8_t count);
 void *ll_pdu_rx_alloc(void);
-void ll_rx_put_sched(memq_link_t *link, void *rx);
 void ll_rx_put(memq_link_t *link, void *rx);
 void ll_rx_sched(void);
 void ull_ticker_status_give(uint32_t status, void *param);

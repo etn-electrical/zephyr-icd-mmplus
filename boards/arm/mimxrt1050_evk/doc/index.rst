@@ -20,7 +20,8 @@ interface, SPDIF, and I2S audio interface.
 The following document refers to the discontinued MIMXRT1050-EVK board. For the
 MIMXRT1050-EVKB board, refer to `Board Revisions`_ section.
 
-.. image:: mimxrt1050_evk.jpg
+.. image:: ./mimxrt1050_evk.jpg
+   :width: 720px
    :align: center
    :alt: MIMXRT1050-EVK
 
@@ -88,12 +89,8 @@ these references:
 Supported Features
 ==================
 
-The mimxrt1050_evk board configuration supports the hardware features listed
-below.  For additional features not yet supported, please also refer to the
-:ref:`mimxrt1064_evk` , which is the superset board in NXP's i.MX RT10xx family.
-NXP prioritizes enabling the superset board with NXP's Full Platform Support for
-Zephyr.  Therefore, the mimxrt1064_evk board may have additional features
-already supported, which can also be re-used on this mimxrt1050_evk board:
+The mimxrt1050_evk board configuration supports the following hardware
+features:
 
 +-----------+------------+-------------------------------------+
 | Interface | Controller | Driver/Component                    |
@@ -122,10 +119,6 @@ already supported, which can also be re-used on this mimxrt1050_evk board:
 | ADC       | on-chip    | adc                                 |
 +-----------+------------+-------------------------------------+
 | GPT       | on-chip    | gpt                                 |
-+-----------+------------+-------------------------------------+
-| TRNG      | on-chip    | entropy                             |
-+-----------+------------+-------------------------------------+
-| FLEXSPI   | on-chip    | flash programming                   |
 +-----------+------------+-------------------------------------+
 
 The default configuration can be found in the defconfig file:
@@ -268,13 +261,8 @@ The MIMXRT1050 SoC has five pairs of pinmux/gpio controllers.
 System Clock
 ============
 
-The MIMXRT1050 SoC is configured to use SysTick as the system clock source,
-running at 600MHz.
-
-When power management is enabled, the 32 KHz low frequency
-oscillator on the board will be used as a source for the GPT timer to
-generate a system clock. This clock enables lower power states, at the
-cost of reduced resolution
+The MIMXRT1050 SoC is configured to use the 32 KHz low frequency oscillator on
+the board as a source for the GPT timer to generate a system clock.
 
 Serial Port
 ===========
@@ -389,7 +377,7 @@ Troubleshooting
 
 If the debug probe fails to connect with the following error, it's possible
 that the boot header in HyperFlash is invalid or corrupted. The boot header is
-configured by :kconfig:option:`CONFIG_NXP_IMX_RT_BOOT_HEADER`.
+configured by :kconfig:`CONFIG_NXP_IMX_RT_BOOT_HEADER`.
 
 .. code-block:: console
 

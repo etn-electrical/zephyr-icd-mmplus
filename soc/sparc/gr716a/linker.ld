@@ -39,4 +39,4 @@ REGION_ALIAS("REGION_BSS", RAM);
 #define ROMABLE_REGION RAM
 #define RAMABLE_REGION RAM
 
-#include <zephyr/arch/sparc/linker.ld>
+#include <arch/sparc/linker.ld>

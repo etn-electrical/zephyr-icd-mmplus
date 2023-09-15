@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(npf_ethernet, CONFIG_NET_PKT_FILTER_LOG_LEVEL);
 
-#include <zephyr/net/ethernet.h>
-#include <zephyr/net/net_pkt_filter.h>
+#include <net/ethernet.h>
+#include <net/net_pkt_filter.h>
 
 static bool addr_mask_compare(struct net_eth_addr *addr1,
 			      struct net_eth_addr *addr2,

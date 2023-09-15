@@ -11,18 +11,17 @@
 #ifndef ZEPHYR_DRIVERS_SENSOR_LSM6DSL_LSM6DSL_H_
 #define ZEPHYR_DRIVERS_SENSOR_LSM6DSL_LSM6DSL_H_
 
-#include <zephyr/drivers/sensor.h>
+#include <drivers/sensor.h>
 #include <zephyr/types.h>
-#include <zephyr/drivers/gpio.h>
-#include <zephyr/kernel.h>
-#include <zephyr/sys/util.h>
+#include <drivers/gpio.h>
+#include <sys/util.h>
 
 #if DT_ANY_INST_ON_BUS_STATUS_OKAY(spi)
-#include <zephyr/drivers/spi.h>
+#include <drivers/spi.h>
 #endif /* DT_ANY_INST_ON_BUS_STATUS_OKAY(spi) */
 
 #if DT_ANY_INST_ON_BUS_STATUS_OKAY(i2c)
-#include <zephyr/drivers/i2c.h>
+#include <drivers/i2c.h>
 #endif /* DT_ANY_INST_ON_BUS_STATUS_OKAY(i2c) */
 
 #define LSM6DSL_REG_FUNC_CFG_ACCESS			0x01
@@ -184,7 +183,7 @@
 #define LSM6DSL_SHIFT_CTRL4_C_LPF1_SEL_G		1
 
 #define LSM6DSL_REG_CTRL5_C				0x14
-#define LSM6DSL_MASK_CTRL5_C_ROUNDING			(BIT(7) | BIT(6) | \
+#define LSM6DSL_MASK_CTRL5_C_ROUNDING			(BIT(7) | BIT(6) \
 							 BIT(5))
 #define LSM6DSL_SHIFT_CTRL5_C_ROUNDING			5
 #define LSM6DSL_MASK_CTRL5_C_DEN_LH			BIT(4)
@@ -374,10 +373,10 @@
 #define LSM6DSL_SHIFT_FIFO_STATUS2_DIFF_FIFO		0
 
 #define LSM6DSL_REG_FIFO_STATUS3			0x3C
-#define LSM6DSL_MASK_FIFO_STATUS3_FIFO_PATTERN		0xFF
+#define LSM6DSL_MASK_FIFO_STATUS3_FIFO_PATTERN		0x0F
 #define LSM6DSL_SHIFT_FIFO_STATUS3_FIFO_PATTERN		0
 
-#define LSM6DSL_REG_FIFO_STATUS4			0x3D
+#define LSM6DSL_REG_FIFO_STATUS4			0x3C
 #define LSM6DSL_MASK_FIFO_STATUS4_FIFO_PATTERN		(BIT(1) | BIT(0))
 #define LSM6DSL_SHIFT_FIFO_STATUS4_FIFO_PATTERN		0
 
@@ -528,7 +527,7 @@
 #define LSM6DSL_MASK_MD2_CFG_INT2_SINGLE_TAP		BIT(6)
 #define LSM6DSL_SHIFT_MD2_CFG_INT2_SINGLE_TAP		6
 #define LSM6DSL_MASK_MD2_CFG_INT2_WU			BIT(5)
-#define LSM6DSL_SHIFT_MD2_CFG_INT2_WU			5
+#define LSM6DSL_SHIFT_MD2_CFG_INT1_WU			5
 #define LSM6DSL_MASK_MD2_CFG_INT2_FF			BIT(4)
 #define LSM6DSL_SHIFT_MD2_CFG_INT2_FF			4
 #define LSM6DSL_MASK_MD2_CFG_INT2_DOUBLE_TAP		BIT(3)
@@ -626,7 +625,9 @@ struct lsm6dsl_config {
 	int (*bus_init)(const struct device *dev);
 	const union lsm6dsl_bus_cfg bus_cfg;
 #ifdef CONFIG_LSM6DSL_TRIGGER
-	struct gpio_dt_spec int_gpio;
+	char *irq_dev_name;
+	uint32_t irq_pin;
+	int irq_flags;
 #endif
 };
 
@@ -673,6 +674,7 @@ struct lsm6dsl_data {
 
 #ifdef CONFIG_LSM6DSL_TRIGGER
 	const struct device *dev;
+	const struct device *gpio;
 	struct gpio_callback gpio_cb;
 
 	struct sensor_trigger data_ready_trigger;

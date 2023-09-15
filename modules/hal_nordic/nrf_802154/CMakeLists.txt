@@ -15,6 +15,13 @@ if (CONFIG_NRF_802154_RADIO_DRIVER)
       ${CMAKE_CURRENT_SOURCE_DIR}/sl_opensource/platform/nrf_802154_temperature_zephyr.c
   )
 
+  if (CONFIG_SOC_SERIES_NRF53X AND NOT CONFIG_NRF_802154_SL_OPENSOURCE)
+    target_sources(nrf-802154-platform
+      PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/sl_opensource/platform/nrf_802154_lp_timer_zephyr.c
+    )
+  endif ()
+
   target_compile_definitions(zephyr-802154-interface
     INTERFACE
       # CCA mode options
@@ -67,6 +74,8 @@ target_compile_definitions(zephyr-802154-interface
     # Number of buffers in receive queue.
     NRF_802154_RX_BUFFERS=${CONFIG_NRF_802154_RX_BUFFERS}
 
+    # Enable CSMA/CA
+    NRF_802154_CSMA_CA_ENABLED=1
     NRF_802154_TX_STARTED_NOTIFY_ENABLED=1
 
     # ACK timeout
@@ -87,12 +96,6 @@ if (NOT CONFIG_IEEE802154_NRF5 AND NOT CONFIG_IEEE802154_NRF5_EXT_IRQ_MGMT AND C
   target_compile_definitions(zephyr-802154-interface INTERFACE NRF_802154_INTERNAL_RADIO_IRQ_HANDLING=1)
 else()
   target_compile_definitions(zephyr-802154-interface INTERFACE NRF_802154_INTERNAL_RADIO_IRQ_HANDLING=0)
-endif()
-
-if (CONFIG_NRF_802154_CARRIER_FUNCTIONS)
-  target_compile_definitions(zephyr-802154-interface INTERFACE NRF_802154_CARRIER_FUNCTIONS_ENABLED=1)
-else()
-  target_compile_definitions(zephyr-802154-interface INTERFACE NRF_802154_CARRIER_FUNCTIONS_ENABLED=0)
 endif()
 
 set(NRF52_SERIES  ${CONFIG_SOC_SERIES_NRF52X})

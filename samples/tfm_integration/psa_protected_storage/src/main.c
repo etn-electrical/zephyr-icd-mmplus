@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr.h>
 #include <string.h>
-#include <zephyr/sys/printk.h>
+#include <sys/printk.h>
 #include <psa/storage_common.h>
 #include <psa/protected_storage.h>
 

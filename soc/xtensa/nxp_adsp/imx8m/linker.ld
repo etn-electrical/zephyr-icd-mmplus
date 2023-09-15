@@ -13,13 +13,14 @@
 
 OUTPUT_ARCH(xtensa)
 
-#include <zephyr/devicetree.h>
+#include <devicetree.h>
 #include <xtensa/config/core-isa.h>
 #include <soc/memory.h>
-#include <zephyr/linker/sections.h>
+#include <autoconf.h>
+#include <linker/sections.h>
 
-#include <zephyr/linker/linker-defs.h>
-#include <zephyr/linker/linker-tool.h>
+#include <linker/linker-defs.h>
+#include <linker/linker-tool.h>
 
 PROVIDE(__memctl_default = 0x00000000);
 PROVIDE(_MemErrorHandler = 0x00000000);
@@ -172,7 +173,7 @@ EXTERN(ext_man_fw_ver)
 SECTIONS
 {
 
-#include <zephyr/linker/rel-sections.ld>
+#include <linker/rel-sections.ld>
   .ResetVector.text : ALIGN(4)
   {
     _ResetVector_text_start = ABSOLUTE(.);
@@ -302,7 +303,7 @@ SECTIONS
 
   .rodata : ALIGN(4)
   {
-    __rodata_region_start = ABSOLUTE(.);
+    _rodata_start = ABSOLUTE(.);
     *(.rodata)
     *(.rodata.*)
     *(.gnu.linkonce.r.*)
@@ -333,13 +334,13 @@ SECTIONS
     LONG(_bss_start)
     LONG(_bss_end)
     _bss_table_end = ABSOLUTE(.);
-    __rodata_region_end = ABSOLUTE(.);
+    _rodata_end = ABSOLUTE(.);
   } >sdram0 :sdram0_phdr
 
   .module_init : ALIGN(4)
   {
    _module_init_start = ABSOLUTE(.);
-    *(*.initcall)
+    *(*.module_init)
     _module_init_end = ABSOLUTE(.);
   } >sdram0 :sdram0_phdr
 
@@ -360,7 +361,7 @@ SECTIONS
     _etext = .;
   } >sdram0 :sdram0_phdr
 
-#include <zephyr/linker/common-rom.ld>
+#include <linker/common-rom.ld>
 
   .fw_ready : ALIGN(4)
   {
@@ -376,7 +377,7 @@ SECTIONS
 
   .data : ALIGN(4)
   {
-    __data_start = ABSOLUTE(.);
+    _data_start = ABSOLUTE(.);
     *(.data)
     *(.data.*)
     *(.gnu.linkonce.d.*)
@@ -394,7 +395,7 @@ SECTIONS
     _trace_ctx_end = ABSOLUTE(.);
     . = ALIGN(4);
     *(.gna_model)
-    __data_end = ABSOLUTE(.);
+    _data_end = ABSOLUTE(.);
     . = ALIGN(4096);
   } >sdram0 :sdram0_phdr
 
@@ -407,7 +408,7 @@ SECTIONS
     _lit4_end = ABSOLUTE(.);
   } >sdram0 :sdram0_phdr
 
-#include <zephyr/linker/common-ram.ld>
+#include <linker/common-ram.ld>
 
   .bss (NOLOAD) : ALIGN(8)
   {
@@ -496,7 +497,7 @@ SECTIONS
     KEEP (*(.gnu.linkonce.xt.profile_files.*))
   }
 #ifdef CONFIG_GEN_ISR_TABLES
-#include <zephyr/linker/intlist.ld>
+#include <linker/intlist.ld>
 #endif
 
   .static_uuid_entries (COPY) : ALIGN(1024)

@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/syscall_handler.h>
-#include <zephyr/drivers/led.h>
+#include <syscall_handler.h>
+#include <drivers/led.h>
 
 static inline int z_vrfy_led_blink(const struct device *dev, uint32_t led,
 				   uint32_t delay_on, uint32_t delay_off)

@@ -5,7 +5,19 @@ if SHIELD_BUYDISPLAY_2_8_TFT_TOUCH_ARDUINO
 
 if DISPLAY
 
+config SPI
+	default y
+
+config ILI9340
+	default y
+
 if KSCAN
+
+config I2C
+	default y
+
+config KSCAN_FT5336
+	default y
 
 # NOTE: Enable if IRQ line is available (requires to solder jumper)
 config KSCAN_FT5336_INTERRUPT
@@ -15,32 +27,35 @@ endif # KSCAN
 
 if LVGL
 
-config LV_Z_VDB_SIZE
+config LVGL_VDB_SIZE
 	default 64
 
-config LV_Z_BITS_PER_PIXEL
+config LVGL_BITS_PER_PIXEL
 	default 16
 
-choice LV_COLOR_DEPTH
-	default LV_COLOR_DEPTH_16
+choice LVGL_COLOR_DEPTH
+	default LVGL_COLOR_DEPTH_16
 endchoice
 
-config LV_COLOR_16_SWAP
+config LVGL_COLOR_16_SWAP
 	default y
 
 config KSCAN
 	default y
 
-config LV_Z_POINTER_KSCAN
+config LVGL_POINTER_KSCAN
 	default y
 
-config LV_Z_POINTER_KSCAN_SWAP_XY
+config LVGL_POINTER_KSCAN_DEV_NAME
+	default "TOUCH"
+
+config LVGL_POINTER_KSCAN_SWAP_XY
 	default y
 
-config LV_Z_POINTER_KSCAN_INVERT_X
+config LVGL_POINTER_KSCAN_INVERT_X
 	default y
 
-config LV_Z_POINTER_KSCAN_INVERT_Y
+config LVGL_POINTER_KSCAN_INVERT_Y
 	default y
 
 endif # LVGL

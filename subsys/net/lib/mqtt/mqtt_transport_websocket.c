@@ -10,13 +10,13 @@
  * @brief Internal functions to handle transport over Websocket.
  */
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(net_mqtt_websocket, CONFIG_MQTT_LOG_LEVEL);
 
 #include <errno.h>
-#include <zephyr/net/socket.h>
-#include <zephyr/net/mqtt.h>
-#include <zephyr/net/websocket.h>
+#include <net/socket.h>
+#include <net/mqtt.h>
+#include <net/websocket.h>
 
 #include "mqtt_os.h"
 #include "mqtt_transport.h"
@@ -74,14 +74,14 @@ int mqtt_client_websocket_connect(struct mqtt_client *client)
 			client->transport.websocket.timeout,
 			NULL);
 	if (client->transport.websocket.sock < 0) {
-		NET_ERR("Websocket connect failed (%d)",
+		MQTT_TRC("Websocket connect failed (%d)",
 			 client->transport.websocket.sock);
 
 		(void)close(transport_sock);
 		return client->transport.websocket.sock;
 	}
 
-	NET_DBG("Connect completed");
+	MQTT_TRC("Connect completed");
 
 	return 0;
 }
@@ -150,17 +150,14 @@ int mqtt_client_websocket_read(struct mqtt_client *client, uint8_t *data,
 
 	ret = websocket_recv_msg(client->transport.websocket.sock,
 				 data, buflen, &message_type, NULL, timeout);
-	if (ret >= 0 && message_type > 0) {
+	if (ret > 0 && message_type > 0) {
 		if (message_type & WEBSOCKET_FLAG_CLOSE) {
 			return 0;
 		}
 
-		if ((ret == 0) || !(message_type & WEBSOCKET_FLAG_BINARY)) {
+		if (!(message_type & WEBSOCKET_FLAG_BINARY)) {
 			return -EAGAIN;
 		}
-	}
-	if (ret == -ENOTCONN) {
-		ret = 0;
 	}
 
 	return ret;
@@ -168,7 +165,7 @@ int mqtt_client_websocket_read(struct mqtt_client *client, uint8_t *data,
 
 int mqtt_client_websocket_disconnect(struct mqtt_client *client)
 {
-	NET_INFO("Closing socket %d", client->transport.websocket.sock);
+	MQTT_TRC("Closing socket %d", client->transport.websocket.sock);
 
 	return websocket_disconnect(client->transport.websocket.sock);
 }

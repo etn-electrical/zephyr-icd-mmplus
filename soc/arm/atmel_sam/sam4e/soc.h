@@ -15,7 +15,7 @@
 #ifndef _ATMEL_SAM4E_SOC_H_
 #define _ATMEL_SAM4E_SOC_H_
 
-#include <zephyr/sys/util.h>
+#include <sys/util.h>
 
 #ifndef _ASMLANGUAGE
 

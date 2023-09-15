@@ -5,7 +5,7 @@
  */
 
 #include <offsets.h>
-#include <zephyr/toolchain.h>
+#include <toolchain.h>
 
 #include <soc.h>
 

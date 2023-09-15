@@ -8,15 +8,14 @@
 
 #include <errno.h>
 
-#include <zephyr/kernel.h>
-#include <zephyr/device.h>
-#include <zephyr/init.h>
-#include <zephyr/drivers/gpio.h>
-#include <zephyr/drivers/clock_control.h>
-#include <zephyr/drivers/clock_control/renesas_cpg_mssr.h>
-#include <zephyr/irq.h>
+#include <kernel.h>
+#include <device.h>
+#include <init.h>
+#include <drivers/gpio.h>
+#include <drivers/clock_control.h>
+#include <drivers/clock_control/rcar_clock_control.h>
 
-#include <zephyr/drivers/gpio/gpio_utils.h>
+#include "gpio_utils.h"
 
 typedef void (*init_func_t)(const struct device *dev);
 
@@ -48,6 +47,12 @@ struct gpio_rcar_data {
 #define OUTDTSEL 0x40   /* Output Data Select Register */
 #define BOTHEDGE 0x4c   /* One Edge/Both Edge Select Register */
 
+/* Helper macros for GPIO */
+#define DEV_GPIO_CFG(dev) \
+	((const struct gpio_rcar_cfg *)(dev)->config)
+#define DEV_GPIO_DATA(dev) \
+	((struct gpio_rcar_data *)(dev)->data)
+
 static inline uint32_t gpio_rcar_read(const struct gpio_rcar_cfg *config,
 				      uint32_t offs)
 {
@@ -74,10 +79,11 @@ static void gpio_rcar_modify_bit(const struct gpio_rcar_cfg *config,
 	gpio_rcar_write(config, offs, tmp);
 }
 
-static void gpio_rcar_port_isr(const struct device *dev)
+static void gpio_rcar_port_isr(void *arg)
 {
-	const struct gpio_rcar_cfg *config = dev->config;
-	struct gpio_rcar_data *data = dev->data;
+	const struct device *dev = (const struct device *)arg;
+	const struct gpio_rcar_cfg *config = DEV_GPIO_CFG(dev);
+	struct gpio_rcar_data *data = DEV_GPIO_DATA(dev);
 	uint32_t pending, fsb, mask;
 
 	pending = gpio_rcar_read(config, INTDT);
@@ -119,7 +125,7 @@ static void gpio_rcar_config_general_input_output_mode(
 static int gpio_rcar_configure(const struct device *dev,
 			       gpio_pin_t pin, gpio_flags_t flags)
 {
-	const struct gpio_rcar_cfg *config = dev->config;
+	const struct gpio_rcar_cfg *config = DEV_GPIO_CFG(dev);
 
 	if ((flags & GPIO_OUTPUT) && (flags & GPIO_INPUT)) {
 		/* Pin cannot be configured as input and output */
@@ -146,7 +152,7 @@ static int gpio_rcar_configure(const struct device *dev,
 static int gpio_rcar_port_get_raw(const struct device *dev,
 				  gpio_port_value_t *value)
 {
-	const struct gpio_rcar_cfg *config = dev->config;
+	const struct gpio_rcar_cfg *config = DEV_GPIO_CFG(dev);
 
 	*value = gpio_rcar_read(config, INDT);
 	return 0;
@@ -156,7 +162,7 @@ static int gpio_rcar_port_set_masked_raw(const struct device *dev,
 					 gpio_port_pins_t mask,
 					 gpio_port_value_t value)
 {
-	const struct gpio_rcar_cfg *config = dev->config;
+	const struct gpio_rcar_cfg *config = DEV_GPIO_CFG(dev);
 	uint32_t port_val;
 
 	port_val = gpio_rcar_read(config, OUTDT);
@@ -169,7 +175,7 @@ static int gpio_rcar_port_set_masked_raw(const struct device *dev,
 static int gpio_rcar_port_set_bits_raw(const struct device *dev,
 				       gpio_port_pins_t pins)
 {
-	const struct gpio_rcar_cfg *config = dev->config;
+	const struct gpio_rcar_cfg *config = DEV_GPIO_CFG(dev);
 	uint32_t port_val;
 
 	port_val = gpio_rcar_read(config, OUTDT);
@@ -182,12 +188,12 @@ static int gpio_rcar_port_set_bits_raw(const struct device *dev,
 static int gpio_rcar_port_clear_bits_raw(const struct device *dev,
 					 gpio_port_pins_t pins)
 {
-	const struct gpio_rcar_cfg *config = dev->config;
+	const struct gpio_rcar_cfg *gpio_config = DEV_GPIO_CFG(dev);
 	uint32_t port_val;
 
-	port_val = gpio_rcar_read(config, OUTDT);
+	port_val = gpio_rcar_read(gpio_config, OUTDT);
 	port_val &= ~pins;
-	gpio_rcar_write(config, OUTDT, port_val);
+	gpio_rcar_write(gpio_config, OUTDT, port_val);
 
 	return 0;
 }
@@ -195,12 +201,12 @@ static int gpio_rcar_port_clear_bits_raw(const struct device *dev,
 static int gpio_rcar_port_toggle_bits(const struct device *dev,
 				      gpio_port_pins_t pins)
 {
-	const struct gpio_rcar_cfg *config = dev->config;
+	const struct gpio_rcar_cfg *gpio_config = DEV_GPIO_CFG(dev);
 	uint32_t port_val;
 
-	port_val = gpio_rcar_read(config, OUTDT);
+	port_val = gpio_rcar_read(gpio_config, OUTDT);
 	port_val ^= pins;
-	gpio_rcar_write(config, OUTDT, port_val);
+	gpio_rcar_write(gpio_config, OUTDT, port_val);
 
 	return 0;
 }
@@ -210,47 +216,43 @@ static int gpio_rcar_pin_interrupt_configure(const struct device *dev,
 					     enum gpio_int_mode mode,
 					     enum gpio_int_trig trig)
 {
-	const struct gpio_rcar_cfg *config = dev->config;
+	const struct gpio_rcar_cfg *gpio_config = DEV_GPIO_CFG(dev);
 
 	if (mode == GPIO_INT_MODE_DISABLED) {
 		return -ENOTSUP;
 	}
 
 	/* Configure positive or negative logic in POSNEG */
-	gpio_rcar_modify_bit(config, POSNEG, pin,
+	gpio_rcar_modify_bit(gpio_config, POSNEG, pin,
 			     (trig == GPIO_INT_TRIG_LOW));
 
 	/* Configure edge or level trigger in EDGLEVEL */
 	if (mode == GPIO_INT_MODE_EDGE) {
-		gpio_rcar_modify_bit(config, EDGLEVEL, pin, true);
+		gpio_rcar_modify_bit(gpio_config, EDGLEVEL, pin, true);
 	} else {
-		gpio_rcar_modify_bit(config, EDGLEVEL, pin, false);
+		gpio_rcar_modify_bit(gpio_config, EDGLEVEL, pin, false);
 	}
 
 	if (trig == GPIO_INT_TRIG_BOTH) {
-		gpio_rcar_modify_bit(config, BOTHEDGE, pin, true);
+		gpio_rcar_modify_bit(gpio_config, BOTHEDGE, pin, true);
 	}
 
-	gpio_rcar_modify_bit(config, IOINTSEL, pin, true);
+	gpio_rcar_modify_bit(gpio_config, IOINTSEL, pin, true);
 
 	if (mode == GPIO_INT_MODE_EDGE) {
 		/* Write INTCLR in case of edge trigger */
-		gpio_rcar_write(config, INTCLR, BIT(pin));
+		gpio_rcar_write(gpio_config, INTCLR, BIT(pin));
 	}
 
-	gpio_rcar_write(config, MSKCLR, BIT(pin));
+	gpio_rcar_write(gpio_config, MSKCLR, BIT(pin));
 
 	return 0;
 }
 
 static int gpio_rcar_init(const struct device *dev)
 {
-	const struct gpio_rcar_cfg *config = dev->config;
+	const struct gpio_rcar_cfg *config = DEV_GPIO_CFG(dev);
 	int ret;
-
-	if (!device_is_ready(config->clock_dev)) {
-		return -ENODEV;
-	}
 
 	ret = clock_control_on(config->clock_dev,
 			       (clock_control_subsys_t *) &config->mod_clk);
@@ -267,7 +269,7 @@ static int gpio_rcar_manage_callback(const struct device *dev,
 				     struct gpio_callback *callback,
 				     bool set)
 {
-	struct gpio_rcar_data *data = dev->data;
+	struct gpio_rcar_data *data = DEV_GPIO_DATA(dev);
 
 	return gpio_manage_callback(&data->cb, callback, set);
 }

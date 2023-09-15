@@ -9,10 +9,9 @@
 
 #include "spi_context.h"
 
-#include <zephyr/sys/sys_io.h>
-#include <zephyr/device.h>
-#include <zephyr/drivers/spi.h>
-#include <zephyr/drivers/pinctrl.h>
+#include <sys/sys_io.h>
+#include <device.h>
+#include <drivers/spi.h>
 
 #define SPI_CFG(dev) ((struct spi_sifive_cfg *) ((dev)->config))
 #define SPI_DATA(dev) ((struct spi_sifive_data *) ((dev)->data))
@@ -70,7 +69,6 @@ struct spi_sifive_data {
 struct spi_sifive_cfg {
 	uint32_t base;
 	uint32_t f_sys;
-	const struct pinctrl_dev_config *pcfg;
 };
 
 #endif /* _SPI_SIFIVE__H */

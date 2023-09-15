@@ -4,15 +4,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(net_websocket_client_sample, LOG_LEVEL_DBG);
 
-#include <zephyr/net/net_ip.h>
-#include <zephyr/net/socket.h>
-#include <zephyr/net/tls_credentials.h>
-#include <zephyr/net/websocket.h>
-#include <zephyr/random/rand32.h>
-#include <zephyr/shell/shell.h>
+#include <net/net_ip.h>
+#include <net/socket.h>
+#include <net/tls_credentials.h>
+#include <net/websocket.h>
+#include <random/rand32.h>
+#include <shell/shell.h>
 
 #include "ca_certificate.h"
 
@@ -201,7 +201,7 @@ static void recv_data_wso_api(int sock, size_t amount, uint8_t *buf,
 					 &message_type,
 					 &remaining,
 					 0);
-		if (ret < 0) {
+		if (ret <= 0) {
 			if (ret == -EAGAIN) {
 				k_sleep(K_MSEC(50));
 				continue;

@@ -4,14 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
+#include <ztest.h>
 #include <errno.h>
-#include <zephyr/posix/time.h>
+#include <posix/time.h>
 #include <stdint.h>
-#include <zephyr/sys_clock.h>
+#include <sys_clock.h>
 
 /** req and rem are both NULL */
-ZTEST(posix_apis, test_nanosleep_NULL_NULL)
+void test_nanosleep_NULL_NULL(void)
 {
 	int r = nanosleep(NULL, NULL);
 
@@ -24,7 +24,7 @@ ZTEST(posix_apis, test_nanosleep_NULL_NULL)
  *
  * Expect rem to be the same when function returns
  */
-ZTEST(posix_apis, test_nanosleep_NULL_notNULL)
+void test_nanosleep_NULL_notNULL(void)
 {
 	struct timespec rem = {};
 
@@ -45,7 +45,7 @@ ZTEST(posix_apis, test_nanosleep_NULL_notNULL)
  *
  * Expect req to be the same when function returns
  */
-ZTEST(posix_apis, test_nanosleep_notNULL_NULL)
+void test_nanosleep_notNULL_NULL(void)
 {
 	struct timespec req = {};
 
@@ -65,7 +65,7 @@ ZTEST(posix_apis, test_nanosleep_notNULL_NULL)
  *
  * Expect req & rem to be the same when function returns
  */
-ZTEST(posix_apis, test_nanosleep_notNULL_notNULL)
+void test_nanosleep_notNULL_notNULL(void)
 {
 	struct timespec req = {};
 	struct timespec rem = {};
@@ -91,7 +91,7 @@ ZTEST(posix_apis, test_nanosleep_notNULL_notNULL)
  * Normative spec says they may be the same.
  * Expect rem to be zero after returning.
  */
-ZTEST(posix_apis, test_nanosleep_req_is_rem)
+void test_nanosleep_req_is_rem(void)
 {
 	struct timespec ts = {0, 1};
 
@@ -107,7 +107,7 @@ ZTEST(posix_apis, test_nanosleep_req_is_rem)
 }
 
 /** req tv_sec is -1 */
-ZTEST(posix_apis, test_nanosleep_n1_0)
+void test_nanosleep_n1_0(void)
 {
 	struct timespec req = {-1, 0};
 
@@ -119,7 +119,7 @@ ZTEST(posix_apis, test_nanosleep_n1_0)
 }
 
 /** req tv_nsec is -1 */
-ZTEST(posix_apis, test_nanosleep_0_n1)
+void test_nanosleep_0_n1(void)
 {
 	struct timespec req = {0, -1};
 
@@ -131,7 +131,7 @@ ZTEST(posix_apis, test_nanosleep_0_n1)
 }
 
 /** req tv_sec and tv_nsec are both -1 */
-ZTEST(posix_apis, test_nanosleep_n1_n1)
+void test_nanosleep_n1_n1(void)
 {
 	struct timespec req = {-1, -1};
 
@@ -143,7 +143,7 @@ ZTEST(posix_apis, test_nanosleep_n1_n1)
 }
 
 /** req tv_sec is 0 tv_nsec is 10^9 */
-ZTEST(posix_apis, test_nanosleep_0_1000000000)
+void test_nanosleep_0_1000000000(void)
 {
 	struct timespec req = {0, 1000000000};
 
@@ -191,37 +191,37 @@ static void common(const uint32_t s, uint32_t ns)
 }
 
 /** sleep for 1ns */
-ZTEST(posix_apis, test_nanosleep_0_1)
+void test_nanosleep_0_1(void)
 {
 	common(0, 1);
 }
 
 /** sleep for 1us + 1ns */
-ZTEST(posix_apis, test_nanosleep_0_1001)
+void test_nanosleep_0_1001(void)
 {
 	common(0, 1001);
 }
 
 /** sleep for 500000000ns */
-ZTEST(posix_apis, test_nanosleep_0_500000000)
+void test_nanosleep_0_500000000(void)
 {
 	common(0, 500000000);
 }
 
 /** sleep for 1s */
-ZTEST(posix_apis, test_nanosleep_1_0)
+void test_nanosleep_1_0(void)
 {
 	common(1, 0);
 }
 
 /** sleep for 1s + 1ns */
-ZTEST(posix_apis, test_nanosleep_1_1)
+void test_nanosleep_1_1(void)
 {
 	common(1, 1);
 }
 
 /** sleep for 1s + 1us + 1ns */
-ZTEST(posix_apis, test_nanosleep_1_1001)
+void test_nanosleep_1_1001(void)
 {
 	common(1, 1001);
 }

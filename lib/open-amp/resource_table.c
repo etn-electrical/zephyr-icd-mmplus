@@ -26,12 +26,14 @@
  *   https://github.com/OpenAMP/open-amp/wiki/OpenAMP-Life-Cycle-Management
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr.h>
 #include <resource_table.h>
 
 extern char ram_console[];
 
 #define __resource Z_GENERIC_SECTION(.resource_table)
+
+#if (CONFIG_OPENAMP_RSC_TABLE_NUM_RPMSG_BUFF > 0) || defined(CONFIG_RAM_CONSOLE)
 
 static struct fw_resource_table __resource resource_table = {
 	.ver = 1,
@@ -77,3 +79,4 @@ void rsc_table_get(void **table_ptr, int *length)
 	*table_ptr = (void *)&resource_table;
 	*length = sizeof(resource_table);
 }
+#endif

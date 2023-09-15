@@ -4,13 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/device.h>
-#include <zephyr/devicetree.h>
+#include <zephyr.h>
+#include <device.h>
+#include <devicetree.h>
 
-#include <zephyr/drivers/edac.h>
+#include <drivers/edac.h>
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(main, CONFIG_LOG_DEFAULT_LEVEL);
 
 #define STACKSIZE	1024
@@ -30,12 +30,15 @@ static void notification_callback(const struct device *dev, void *data)
 	atomic_set(&handled, true);
 }
 
+#define DEVICE_NAME DT_LABEL(DT_NODELABEL(ibecc))
+
 void main(void)
 {
-	const struct device *const dev = DEVICE_DT_GET(DT_NODELABEL(ibecc));
+	const struct device *dev;
 
-	if (!device_is_ready(dev)) {
-		printk("%s: device not ready.\n", dev->name);
+	dev = device_get_binding(DEVICE_NAME);
+	if (!dev) {
+		LOG_ERR("Cannot open EDAC device: %s", DEVICE_NAME);
 		return;
 	}
 

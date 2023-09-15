@@ -10,11 +10,11 @@
 
 #define DT_DRV_COMPAT bosch_bmp388
 
-#include <zephyr/logging/log.h>
-#include <zephyr/sys/byteorder.h>
-#include <zephyr/drivers/i2c.h>
-#include <zephyr/drivers/sensor.h>
-#include <zephyr/pm/device.h>
+#include <logging/log.h>
+#include <sys/byteorder.h>
+#include <drivers/i2c.h>
+#include <drivers/sensor.h>
+#include <pm/device.h>
 
 #include "bmp388.h"
 
@@ -53,7 +53,7 @@ static int bmp388_transceive(const struct device *dev,
 	const struct spi_buf buf = { .buf = data, .len = length };
 	const struct spi_buf_set s = { .buffers = &buf, .count = 1 };
 
-	return spi_transceive_dt(&cfg->spi, &s, &s);
+	return spi_transceive_dt(&cfg->spi_bus, &s, &s);
 }
 
 static int bmp388_read_spi(const struct device *dev,
@@ -72,7 +72,7 @@ static int bmp388_read_spi(const struct device *dev,
 	const struct spi_buf_set tx = { .buffers = buf, .count = 1 };
 	const struct spi_buf_set rx = { .buffers = buf, .count = 2 };
 
-	return spi_transceive_dt(&cfg->spi, &tx, &rx);
+	return spi_transceive_dt(&cfg->spi_bus, &tx, &rx);
 }
 
 static int bmp388_byte_read_spi(const struct device *dev,
@@ -129,7 +129,7 @@ static int bmp388_read_i2c(const struct device *dev,
 {
 	const struct bmp388_config *cfg = dev->config;
 
-	return i2c_burst_read_dt(&cfg->i2c, reg, data, length);
+	return i2c_burst_read(cfg->bus, cfg->bus_addr, reg, data, length);
 }
 
 static int bmp388_byte_read_i2c(const struct device *dev,
@@ -138,7 +138,7 @@ static int bmp388_byte_read_i2c(const struct device *dev,
 {
 	const struct bmp388_config *cfg = dev->config;
 
-	return i2c_reg_read_byte_dt(&cfg->i2c, reg, byte);
+	return i2c_reg_read_byte(cfg->bus, cfg->bus_addr, reg, byte);
 }
 
 static int bmp388_byte_write_i2c(const struct device *dev,
@@ -147,7 +147,7 @@ static int bmp388_byte_write_i2c(const struct device *dev,
 {
 	const struct bmp388_config *cfg = dev->config;
 
-	return i2c_reg_write_byte_dt(&cfg->i2c, reg, byte);
+	return i2c_reg_write_byte(cfg->bus, cfg->bus_addr, reg, byte);
 }
 
 int bmp388_reg_field_update_i2c(const struct device *dev,
@@ -157,7 +157,7 @@ int bmp388_reg_field_update_i2c(const struct device *dev,
 {
 	const struct bmp388_config *cfg = dev->config;
 
-	return i2c_reg_update_byte_dt(&cfg->i2c, reg, mask, val);
+	return i2c_reg_update_byte(cfg->bus, cfg->bus_addr, reg, mask, val);
 }
 
 static const struct bmp388_io_ops bmp388_i2c_ops = {
@@ -483,7 +483,7 @@ static uint64_t bmp388_compensate_press(struct bmp388_data *data)
 
 	comp_press = (((uint64_t)partial_data4 * 25) / (uint64_t)1099511627776);
 
-	/* returned value is in hundredths of Pa. */
+	/* returned value is in hundreths of Pa. */
 	return comp_press;
 }
 
@@ -498,7 +498,7 @@ static int bmp388_press_channel_get(const struct device *dev,
 
 	uint64_t tmp = bmp388_compensate_press(data);
 
-	/* tmp is in hundredths of Pa. Convert to kPa as specified in sensor
+	/* tmp is in hundreths of Pa. Convert to kPa as specified in sensor
 	 * interface.
 	 */
 	val->val1 = tmp / 100000;
@@ -597,15 +597,15 @@ static int bmp388_init(const struct device *dev)
 	bool is_spi = (cfg->ops == &bmp388_spi_ops);
 #endif
 
-	if (!device_is_ready(cfg->i2c.bus)) {
-		LOG_ERR("I2C bus device is not ready");
+	if (!device_is_ready(cfg->bus)) {
+		LOG_ERR("Bus device is not ready");
 		return -EINVAL;
 	}
 
 #if DT_ANY_INST_ON_BUS_STATUS_OKAY(spi)
 	/* Verify the SPI bus */
 	if (is_spi) {
-		if (!spi_is_ready_dt(&cfg->spi)) {
+		if (!spi_is_ready(&cfg->spi_bus)) {
 			LOG_ERR("SPI bus is not ready");
 			return -ENODEV;
 		}
@@ -691,11 +691,11 @@ static int bmp388_init(const struct device *dev)
 
 #define BMP388_BUS_CFG_I2C(inst) \
 	.ops = &bmp388_i2c_ops,	 \
-	.i2c = I2C_DT_SPEC_INST_GET(inst)
+	.bus_addr = DT_INST_REG_ADDR(inst)
 
 #define BMP388_BUS_CFG_SPI(inst) \
 	.ops = &bmp388_spi_ops,	 \
-	.spi = SPI_DT_SPEC_INST_GET(inst, SPI_OP_MODE_MASTER | SPI_WORD_SET(8), 0)
+	.spi_bus = SPI_DT_SPEC_INST_GET(inst, SPI_OP_MODE_MASTER | SPI_WORD_SET(8), 0)
 
 #define BMP388_BUS_CFG(inst)			\
 	COND_CODE_1(DT_INST_ON_BUS(inst, i2c),	\
@@ -716,12 +716,13 @@ static int bmp388_init(const struct device *dev)
 		.osr_temp = DT_INST_ENUM_IDX(inst, osr_temp),		   \
 	};								   \
 	static const struct bmp388_config bmp388_config_##inst = {	   \
+		.bus = DEVICE_DT_GET(DT_INST_BUS(inst)),		   \
 		BMP388_BUS_CFG(inst),					   \
 		BMP388_INT_CFG(inst)					   \
 		.iir_filter = DT_INST_ENUM_IDX(inst, iir_filter),	   \
 	};								   \
 	PM_DEVICE_DT_INST_DEFINE(inst, bmp388_pm_action);		   \
-	SENSOR_DEVICE_DT_INST_DEFINE(					   \
+	DEVICE_DT_INST_DEFINE(						   \
 		inst,							   \
 		bmp388_init,						   \
 		PM_DEVICE_DT_INST_GET(inst),				   \

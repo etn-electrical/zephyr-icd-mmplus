@@ -4,17 +4,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
+#include <zephyr.h>
 #include <stddef.h>
-#include <zephyr/ztest.h>
+#include <ztest.h>
 
-#include <zephyr/bluetooth/bluetooth.h>
-#include <zephyr/bluetooth/hci.h>
-#include <zephyr/sys/byteorder.h>
+#include <bluetooth/bluetooth.h>
+#include <bluetooth/hci.h>
+#include <sys/byteorder.h>
 #include <host/hci_core.h>
 
-#include <bt_common.h>
 #include "common.h"
+#include "test_set_cl_cte_tx_enable.h"
 
 /* Macros delivering common values for unit tests */
 #define ADV_HANDLE_INVALID              (CONFIG_BT_CTLR_ADV_AUX_SET + 1)
@@ -53,7 +53,7 @@ int send_set_cl_cte_tx_enable(uint8_t adv_handle, atomic_t *adv_flags,
 				    buf, NULL);
 }
 
-ZTEST(test_set_cl_cte_tx_enable, test_set_cl_cte_tx_enable_invalid_adv_set_handle)
+void test_set_cl_cte_tx_enable_invalid_adv_set_handle(void)
 {
 	int err;
 
@@ -62,7 +62,7 @@ ZTEST(test_set_cl_cte_tx_enable, test_set_cl_cte_tx_enable_invalid_adv_set_handl
 		      "wrong advertising set handle");
 }
 
-ZTEST(test_set_cl_cte_tx_enable, test_set_cl_cte_tx_enable_cte_params_not_set)
+void test_set_cl_cte_tx_enable_cte_params_not_set(void)
 {
 	int err;
 
@@ -78,7 +78,7 @@ ZTEST(test_set_cl_cte_tx_enable, test_set_cl_cte_tx_enable_cte_params_not_set)
 	common_delete_adv_set();
 }
 
-ZTEST(test_set_cl_cte_tx_enable, test_set_cl_cte_tx_enable_per_adv_coded_phy)
+void test_set_cl_cte_tx_enable_per_adv_coded_phy(void)
 {
 	int err;
 
@@ -99,7 +99,7 @@ ZTEST(test_set_cl_cte_tx_enable, test_set_cl_cte_tx_enable_per_adv_coded_phy)
 	g_param.options =  g_param.options & (~BT_LE_ADV_OPT_CODED);
 }
 
-ZTEST(test_set_cl_cte_tx_enable, test_set_cl_cte_tx_enable)
+void test_set_cl_cte_tx_enable(void)
 {
 	int err;
 
@@ -119,7 +119,7 @@ ZTEST(test_set_cl_cte_tx_enable, test_set_cl_cte_tx_enable)
 	common_delete_adv_set();
 }
 
-ZTEST(test_set_cl_cte_tx_enable, test_set_cl_cte_tx_enable_after_per_adv_enabled)
+void test_set_cl_cte_tx_enable_after_per_adv_enabled(void)
 {
 	int err;
 
@@ -142,7 +142,7 @@ ZTEST(test_set_cl_cte_tx_enable, test_set_cl_cte_tx_enable_after_per_adv_enabled
 	common_delete_adv_set();
 }
 
-ZTEST(test_set_cl_cte_tx_enable, test_set_cl_cte_tx_disable_when_no_CTE_enabled)
+void test_set_cl_cte_tx_disable_when_no_CTE_enabled(void)
 {
 	int err;
 
@@ -158,7 +158,7 @@ ZTEST(test_set_cl_cte_tx_enable, test_set_cl_cte_tx_disable_when_no_CTE_enabled)
 	common_delete_adv_set();
 }
 
-ZTEST(test_set_cl_cte_tx_enable, test_set_cl_cte_tx_disable_before_per_adv_enable)
+void test_set_cl_cte_tx_disable_before_per_adv_enable(void)
 {
 	int err;
 
@@ -178,7 +178,7 @@ ZTEST(test_set_cl_cte_tx_enable, test_set_cl_cte_tx_disable_before_per_adv_enabl
 	common_delete_adv_set();
 }
 
-ZTEST(test_set_cl_cte_tx_enable, test_set_cl_cte_tx_disable_during_per_adv_enable)
+void test_set_cl_cte_tx_disable_during_per_adv_enable(void)
 {
 	int err;
 
@@ -201,7 +201,7 @@ ZTEST(test_set_cl_cte_tx_enable, test_set_cl_cte_tx_disable_during_per_adv_enabl
 	common_delete_adv_set();
 }
 
-ZTEST(test_set_cl_cte_tx_enable, test_set_cl_cte_tx_enable_and_update_cte_params)
+void test_set_cl_cte_tx_enable_and_update_cte_params(void)
 {
 	uint8_t cte_len_prev;
 	int err;
@@ -244,4 +244,19 @@ ZTEST(test_set_cl_cte_tx_enable, test_set_cl_cte_tx_enable_and_update_cte_params
 	common_delete_adv_set();
 }
 
-ZTEST_SUITE(test_set_cl_cte_tx_enable, NULL, ut_bt_setup, NULL, NULL, ut_bt_teardown);
+static bool test_set_cl_cte_tx_enable_pragma(const void *state)
+{
+	const struct bt_test_state *s = state;
+
+	return s->is_setup && !s->is_adv_set_created;
+}
+
+ztest_register_test_suite(test_set_cl_cte_tx_enable, test_set_cl_cte_tx_enable_pragma,
+			  ztest_unit_test(test_set_cl_cte_tx_enable_invalid_adv_set_handle),
+			  ztest_unit_test(test_set_cl_cte_tx_enable_cte_params_not_set),
+			  ztest_unit_test(test_set_cl_cte_tx_enable_per_adv_coded_phy),
+			  ztest_unit_test(test_set_cl_cte_tx_enable),
+			  ztest_unit_test(test_set_cl_cte_tx_enable_after_per_adv_enabled),
+			  ztest_unit_test(test_set_cl_cte_tx_disable_before_per_adv_enable),
+			  ztest_unit_test(test_set_cl_cte_tx_enable_and_update_cte_params),
+			  ztest_unit_test(test_set_cl_cte_tx_disable_during_per_adv_enable));

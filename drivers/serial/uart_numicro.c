@@ -5,18 +5,20 @@
  * Author: Saravanan Sekar <saravanan@linumiz.com>
  */
 
-#include <zephyr/drivers/pinctrl.h>
-#include <zephyr/drivers/uart.h>
+#include <drivers/uart.h>
 #include <NuMicro.h>
 #include <string.h>
 
 #define DT_DRV_COMPAT nuvoton_numicro_uart
 
+#define UART_STRUCT(dev)					\
+	((UART_T *)						\
+	 ((const struct uart_numicro_config * const)(dev)->config)->devcfg.base)
+
 struct uart_numicro_config {
-	UART_T *uart;
+	struct uart_device_config devcfg;
 	uint32_t id_rst;
 	uint32_t id_clk;
-	const struct pinctrl_dev_config *pincfg;
 };
 
 struct uart_numicro_data {
@@ -26,22 +28,19 @@ struct uart_numicro_data {
 
 static int uart_numicro_poll_in(const struct device *dev, unsigned char *c)
 {
-	const struct uart_numicro_config *config = dev->config;
+	uint32_t count;
 
-	if ((config->uart->FIFOSTS & UART_FIFOSTS_RXEMPTY_Msk) != 0) {
+	count = UART_Read(UART_STRUCT(dev), c, 1);
+	if (!count) {
 		return -1;
 	}
-
-	*c = (uint8_t)config->uart->DAT;
 
 	return 0;
 }
 
 static void uart_numicro_poll_out(const struct device *dev, unsigned char c)
 {
-	const struct uart_numicro_config *config = dev->config;
-
-	UART_Write(config->uart, &c, 1);
+	UART_Write(UART_STRUCT(dev), &c, 1);
 }
 
 static int uart_numicro_err_check(const struct device *dev)
@@ -100,7 +99,6 @@ static inline uint32_t uart_numicro_convert_parity(enum uart_config_parity parit
 static int uart_numicro_configure(const struct device *dev,
 				  const struct uart_config *cfg)
 {
-	const struct uart_numicro_config *config = dev->config;
 	struct uart_numicro_data *ddata = dev->data;
 	int32_t databits, stopbits;
 	uint32_t parity;
@@ -116,17 +114,17 @@ static int uart_numicro_configure(const struct device *dev,
 	}
 
 	if (cfg->flow_ctrl == UART_CFG_FLOW_CTRL_NONE) {
-		UART_DisableFlowCtrl(config->uart);
+		UART_DisableFlowCtrl(UART_STRUCT(dev));
 	} else if (cfg->flow_ctrl == UART_CFG_FLOW_CTRL_RTS_CTS) {
-		UART_EnableFlowCtrl(config->uart);
+		UART_EnableFlowCtrl(UART_STRUCT(dev));
 	} else {
 		return -ENOTSUP;
 	}
 
 	parity = uart_numicro_convert_parity(cfg->parity);
 
-	UART_SetLineConfig(config->uart, cfg->baudrate, databits, parity,
-			   stopbits);
+	UART_SetLineConfig(UART_STRUCT(dev), cfg->baudrate, databits,
+			   parity, stopbits);
 
 	memcpy(&ddata->ucfg, cfg, sizeof(*cfg));
 
@@ -148,7 +146,6 @@ static int uart_numicro_init(const struct device *dev)
 {
 	const struct uart_numicro_config *config = dev->config;
 	struct uart_numicro_data *ddata = dev->data;
-	int err;
 
 	SYS_ResetModule(config->id_rst);
 
@@ -161,14 +158,14 @@ static int uart_numicro_init(const struct device *dev)
 	CLK_SetModuleClock(config->id_clk, CLK_CLKSEL1_UART0SEL_PLL,
 			   CLK_CLKDIV0_UART0(0));
 
+	/* Set pinctrl for UART0 RXD and TXD */
+	SYS->GPB_MFPH &= ~(SYS_GPB_MFPH_PB12MFP_Msk | SYS_GPB_MFPH_PB13MFP_Msk);
+	SYS->GPB_MFPH |= (SYS_GPB_MFPH_PB12MFP_UART0_RXD |
+			  SYS_GPB_MFPH_PB13MFP_UART0_TXD);
+
 	SYS_LockReg();
 
-	err = pinctrl_apply_state(config->pincfg, PINCTRL_STATE_DEFAULT);
-	if (err != 0) {
-		return err;
-	}
-
-	UART_Open(config->uart, ddata->ucfg.baudrate);
+	UART_Open(UART_STRUCT(dev), ddata->ucfg.baudrate);
 
 	return 0;
 }
@@ -184,13 +181,13 @@ static const struct uart_driver_api uart_numicro_driver_api = {
 };
 
 #define NUMICRO_INIT(index)						\
-PINCTRL_DT_INST_DEFINE(index);						\
 									\
 static const struct uart_numicro_config uart_numicro_cfg_##index = {	\
-	.uart = (UART_T *)DT_INST_REG_ADDR(index),			\
+	.devcfg = {							\
+		.base = (uint8_t *)DT_INST_REG_ADDR(index),		\
+	},								\
 	.id_rst = UART##index##_RST,					\
 	.id_clk = UART##index##_MODULE,					\
-	.pincfg = PINCTRL_DT_INST_DEV_CONFIG_GET(index),		\
 };									\
 									\
 static struct uart_numicro_data uart_numicro_data_##index = {		\

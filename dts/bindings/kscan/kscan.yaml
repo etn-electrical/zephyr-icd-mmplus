@@ -6,3 +6,7 @@
 include: base.yaml
 
 bus: kscan
+
+properties:
+    label:
+      required: true

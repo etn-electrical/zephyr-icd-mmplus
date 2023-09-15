@@ -4,7 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/init.h>
+#include <soc.h>
+#include <init.h>
 
 #define PMODMUX_BASE_ADDR	0xF0000000
 

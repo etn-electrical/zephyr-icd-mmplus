@@ -5,6 +5,8 @@
 
 config CAN_MCAN
 	bool
+	select CAN_HAS_CANFD
+	select CAN_HAS_RX_TIMESTAMP
 	help
 	  Enable Bosch m_can driver.
 	  This driver supports the Bosch m_can IP. This IP is built into the
@@ -14,7 +16,7 @@ config CAN_MCAN
 if CAN_MCAN
 
 config CAN_DELAY_COMP
-	bool "Transceiver delay compensation"
+	bool "Enable transceiver delay compensation"
 	default y
 	help
 	  Enable the automatic transceiver delay compensation.

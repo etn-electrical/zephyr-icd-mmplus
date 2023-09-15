@@ -5,20 +5,20 @@
  */
 
 #define LOG_LEVEL CONFIG_USB_DEVICE_LOG_LEVEL
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(wpanusb);
 
-#include <zephyr/usb/usb_device.h>
+#include <usb/usb_device.h>
 #include <usb_descriptor.h>
 
-#include <zephyr/net/buf.h>
-#include <zephyr/net/ieee802154_radio.h>
+#include <net/buf.h>
+#include <net/ieee802154_radio.h>
 #include <ieee802154/ieee802154_frame.h>
 #include <net_private.h>
 
 #include "wpanusb.h"
 
-#if defined(CONFIG_NET_TC_THREAD_COOPERATIVE)
+#if IS_ENABLED(CONFIG_NET_TC_THREAD_COOPERATIVE)
 #define THREAD_PRIORITY K_PRIO_COOP(CONFIG_NUM_COOP_PRIORITIES - 1)
 #else
 #define THREAD_PRIORITY K_PRIO_PREEMPT(8)
@@ -28,7 +28,7 @@ LOG_MODULE_REGISTER(wpanusb);
 #define WPANUSB_PROTOCOL	0
 
 /* Max packet size for endpoints */
-#if defined(CONFIG_USB_DC_HAS_HS_SUPPORT)
+#if IS_ENABLED(CONFIG_USB_DC_HAS_HS_SUPPORT)
 #define WPANUSB_BULK_EP_MPS		512
 #else
 #define WPANUSB_BULK_EP_MPS		64
@@ -37,13 +37,12 @@ LOG_MODULE_REGISTER(wpanusb);
 #define WPANUSB_IN_EP_IDX		0
 
 static struct ieee802154_radio_api *radio_api;
-static const struct device *const ieee802154_dev =
-	DEVICE_DT_GET(DT_CHOSEN(zephyr_ieee802154));
+static const struct device *ieee802154_dev;
 
 static struct k_fifo tx_queue;
 
 /* IEEE802.15.4 frame + 1 byte len + 1 byte LQI */
-uint8_t tx_buf[IEEE802154_MAX_PHY_PACKET_SIZE + 1 + 1];
+uint8_t tx_buf[IEEE802154_MTU + 1 + 1];
 
 /**
  * Stack for the tx thread.
@@ -424,8 +423,9 @@ void main(void)
 	int ret;
 	LOG_INF("Starting wpanusb");
 
-	if (!device_is_ready(ieee802154_dev)) {
-		LOG_ERR("IEEE802.15.4 device not ready");
+	ieee802154_dev = device_get_binding(CONFIG_NET_CONFIG_IEEE802154_DEV_NAME);
+	if (!ieee802154_dev) {
+		LOG_ERR("Cannot get IEEE802.15.4 device");
 		return;
 	}
 

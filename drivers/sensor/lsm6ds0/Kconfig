@@ -6,9 +6,7 @@
 
 menuconfig LSM6DS0
 	bool "LSM6DS0 I2C accelerometer and gyroscope Chip"
-	default y
-	depends on DT_HAS_ST_LSM6DS0_ENABLED
-	select I2C
+	depends on I2C
 	help
 	  Enable driver for LSM6DS0 I2C-based accelerometer and gyroscope
 	  sensor.
@@ -16,49 +14,49 @@ menuconfig LSM6DS0
 if LSM6DS0
 
 config LSM6DS0_ACCEL_ENABLE_X_AXIS
-	bool "Accelerometer X axis"
+	bool "Enable accelerometer X axis"
 	default y
 	help
 	  Enable/disable accelerometer X axis totally by stripping everything
 	  related in driver.
 
 config LSM6DS0_ACCEL_ENABLE_Y_AXIS
-	bool "Accelerometer Y axis"
+	bool "Enable accelerometer Y axis"
 	default y
 	help
 	  Enable/disable accelerometer Y axis totally by stripping everything
 	  related in driver.
 
 config LSM6DS0_ACCEL_ENABLE_Z_AXIS
-	bool "Accelerometer Z axis"
+	bool "Enable accelerometer Z axis"
 	default y
 	help
 	  Enable/disable accelerometer Z axis totally by stripping everything
 	  related in driver.
 
 config LSM6DS0_GYRO_ENABLE_X_AXIS
-	bool "Gyroscope X axis"
+	bool "Enable gyroscope X axis"
 	default y
 	help
 	  Enable/disable gyroscope X axis totally by stripping everything
 	  related in driver.
 
 config LSM6DS0_GYRO_ENABLE_Y_AXIS
-	bool "Gyroscope Y axis"
+	bool "Enable gyroscope Y axis"
 	default y
 	help
 	  Enable/disable gyroscope Y axis totally by stripping everything
 	  related in driver.
 
 config LSM6DS0_GYRO_ENABLE_Z_AXIS
-	bool "Gyroscope Z axis"
+	bool "Enable gyroscope Z axis"
 	default y
 	help
 	  Enable/disable gyroscope Z axis totally by stripping everything
 	  related in driver.
 
 config LSM6DS0_ENABLE_TEMP
-	bool "Temperature"
+	bool "Enable temperature"
 	help
 	  Enable/disable temperature totally by stripping everything related in
 	  driver.

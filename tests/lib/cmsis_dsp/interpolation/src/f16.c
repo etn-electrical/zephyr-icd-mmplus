@@ -5,8 +5,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
-#include <zephyr/kernel.h>
+#include <ztest.h>
+#include <zephyr.h>
 #include <stdlib.h>
 #include <arm_math_f16.h>
 #include "../../common/test_common.h"
@@ -17,7 +17,7 @@
 #define REL_ERROR_THRESH	(5.0e-3)
 #define ABS_ERROR_THRESH	(5.0e-3)
 
-ZTEST(interpolation_f16, test_arm_linear_interp_f16)
+void test_arm_linear_interp_f16(void)
 {
 	arm_linear_interp_instance_f16 inst;
 	size_t index;
@@ -56,7 +56,7 @@ ZTEST(interpolation_f16, test_arm_linear_interp_f16)
 	free(output);
 }
 
-ZTEST(interpolation_f16, test_arm_bilinear_interp_f16)
+void test_arm_bilinear_interp_f16(void)
 {
 	arm_bilinear_interp_instance_f16 inst;
 	size_t index;
@@ -97,4 +97,12 @@ ZTEST(interpolation_f16, test_arm_bilinear_interp_f16)
 	free(output);
 }
 
-ZTEST_SUITE(interpolation_f16, NULL, NULL, NULL, NULL, NULL);
+void test_interpolation_f16(void)
+{
+	ztest_test_suite(interpolation_f16,
+		ztest_unit_test(test_arm_linear_interp_f16),
+		ztest_unit_test(test_arm_bilinear_interp_f16)
+		);
+
+	ztest_run_test_suite(interpolation_f16);
+}

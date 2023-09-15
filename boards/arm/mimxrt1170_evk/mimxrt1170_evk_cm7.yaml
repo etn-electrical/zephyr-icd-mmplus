@@ -15,17 +15,13 @@ toolchain:
 ram: 256
 flash: 16384
 supported:
-  - adc
+  - gpio
   - counter
   - can
-  - dma
-  - gpio
-  - hwinfo
-  - i2c
-  - kscan:touch
-  - mipi_dsi
-  - netif:eth
-  - pwm
   - spi
-  - usb_device
+  - adc
+  - i2c
+  - pwm
+  - dma
   - watchdog
+  - netif:eth

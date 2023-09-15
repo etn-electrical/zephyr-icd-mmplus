@@ -1,4 +1,4 @@
 tests:
-  pm.power_domain:
+  subsys.pm.power_domain:
     platform_allow: native_posix
     tags: pm

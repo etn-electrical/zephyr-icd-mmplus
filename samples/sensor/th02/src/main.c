@@ -4,40 +4,51 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/device.h>
-#include <zephyr/drivers/sensor.h>
-#include <zephyr/sys/printk.h>
-#include <zephyr/sys/util.h>
+#include <zephyr.h>
+#include <device.h>
+#include <drivers/sensor.h>
+#include <sys/printk.h>
+#include <sys/util.h>
 
-#include <zephyr/drivers/misc/grove_lcd/grove_lcd.h>
+#ifdef CONFIG_GROVE_LCD_RGB
+#include <display/grove_lcd.h>
 #include <stdio.h>
 #include <string.h>
+#endif
 
 struct channel_info {
 	int chan;
+	char *dev_name;
 };
 
+/* change device names if you want to use different sensors */
 static struct channel_info info[] = {
-	{ SENSOR_CHAN_AMBIENT_TEMP, },
-	{ SENSOR_CHAN_HUMIDITY, },
+	{ SENSOR_CHAN_AMBIENT_TEMP, "TH02" },
+	{ SENSOR_CHAN_HUMIDITY, "TH02" },
 };
 
 void main(void)
 {
-	const struct device *const glcd = DEVICE_DT_GET(DT_NODELABEL(glcd));
-	const struct device *const th02 = DEVICE_DT_GET_ONE(hoperf_th02);
+	const struct device *dev[ARRAY_SIZE(info)];
 	struct sensor_value val[ARRAY_SIZE(info)];
 	unsigned int i;
 	int rc;
 
-	if (!device_is_ready(th02)) {
-		printk("TH02 is not ready\n");
-		return;
+	for (i = 0U; i < ARRAY_SIZE(info); i++) {
+		dev[i] = device_get_binding(info[i].dev_name);
+		if (dev[i] == NULL) {
+			printk("Failed to get \"%s\" device\n",
+			       info[i].dev_name);
+			return;
+		}
 	}
 
-	if (!device_is_ready(glcd)) {
-		printk("Grove LCD not ready\n");
+#ifdef CONFIG_GROVE_LCD_RGB
+	const struct device *glcd;
+
+	glcd = device_get_binding(GROVE_LCD_NAME);
+	if (glcd == NULL) {
+		printk("Failed to get Grove LCD\n");
 		return;
 	}
 
@@ -45,22 +56,28 @@ void main(void)
 	glcd_function_set(glcd, GLCD_FS_ROWS_2 | GLCD_FS_DOT_SIZE_LITTLE |
 			  GLCD_FS_8BIT_MODE);
 	glcd_display_state_set(glcd, GLCD_DS_DISPLAY_ON);
+#endif
 
 	while (1) {
 		/* fetch sensor samples */
-		rc = sensor_sample_fetch(th02);
-		if (rc) {
-			printk("Failed to fetch sample for device TH02 (%d)\n", rc);
+		for (i = 0U; i < ARRAY_SIZE(info); i++) {
+			rc = sensor_sample_fetch(dev[i]);
+			if (rc) {
+				printk("Failed to fetch sample for device %s (%d)\n",
+				       info[i].dev_name, rc);
+			}
 		}
 
 		for (i = 0U; i < ARRAY_SIZE(info); i++) {
-			rc = sensor_channel_get(th02, info[i].chan, &val[i]);
+			rc = sensor_channel_get(dev[i], info[i].chan, &val[i]);
 			if (rc) {
-				printk("Failed to get data for device TH02 (%d)\n", rc);
+				printk("Failed to get data for device %s (%d)\n",
+				       info[i].dev_name, rc);
 				continue;
 			}
 		}
 
+#ifdef CONFIG_GROVE_LCD_RGB
 		char row[16];
 
 		/* clear LCD */
@@ -76,11 +93,13 @@ void main(void)
 			223 /* degree symbol */);
 		glcd_print(glcd, row, strlen(row));
 
-		/* display humidity on LCD */
+		/* display himidity on LCD */
 		glcd_cursor_pos_set(glcd, 17 - strlen(row), 0);
 		sprintf(row, "RH:%.0f%c", sensor_value_to_double(val + 1),
 			37 /* percent symbol */);
 		glcd_print(glcd, row, strlen(row));
+
+#endif
 
 		k_sleep(K_MSEC(2000));
 	}

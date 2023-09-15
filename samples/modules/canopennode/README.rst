@@ -46,7 +46,7 @@ Building and Running for FRDM-K64F
 ==================================
 The :ref:`frdm_k64f` board does not come with an onboard CAN
 transceiver. In order to use the CAN bus on the FRDM-K64F board, an
-external CAN bus transceiver must be connected to ``PTB18``
+external CAN bus tranceiver must be connected to ``PTB18``
 (``CAN0_TX``) and ``PTB19`` (``CAN0_RX``). This board supports CANopen
 LED indicators (red and green LEDs)
 
@@ -61,30 +61,11 @@ The sample can be built and executed for the FRDM-K64F as follows:
 Pressing the button labelled ``SW3`` will increment the button press
 counter object at index ``0x2102`` in the object dictionary.
 
-Building and Running for STM32F072RB Discovery
-==============================================
-The :ref:`stm32f072b_disco_board` board does not come with an onboard CAN
-transceiver. In order to use the CAN bus on the STM32F072RB Discovery board, an
-external CAN bus transceiver must be connected to ``PB8`` (``CAN_RX``) and
-``PB9`` (``CAN_TX``). This board supports CANopen LED indicators (red and green
-LEDs)
-
-The sample can be built and executed for the STM32F072RB Discovery as follows:
-
-.. zephyr-app-commands::
-   :zephyr-app: samples/modules/canopennode
-   :board: stm32f072b_disco
-   :goals: build flash
-   :compact:
-
-Pressing the button labelled ``USER`` will increment the button press counter
-object at index ``0x2102`` in the object dictionary.
-
 Building and Running for STM32F3 Discovery
 ==========================================
 The :ref:`stm32f3_disco_board` board does not come with an onboard CAN
 transceiver. In order to use the CAN bus on the STM32F3 Discovery board, an
-external CAN bus transceiver must be connected to ``PD1`` (``CAN_TX``) and
+external CAN bus tranceiver must be connected to ``PD1`` (``CAN_TX``) and
 ``PD0`` (``CAN_RX``). This board supports CANopen LED indicators (red and green
 LEDs)
 
@@ -98,12 +79,6 @@ The sample can be built and executed for the STM32F3 Discovery as follows:
 
 Pressing the button labelled ``USER`` will increment the button press counter
 object at index ``0x2102`` in the object dictionary.
-
-Building and Running for other STM32 boards
-===========================================
-The sample cannot run if the <erase-block-size> of the flash-controller exceeds 0x10000.
-Typically nucleo_h743zi with erase-block-size = <DT_SIZE_K(128)>;
-
 
 Building and Running for boards without storage partition
 =========================================================
@@ -394,34 +369,48 @@ Building and Running for FRDM-K64F
 The sample can be rebuilt with MCUboot and program download support
 for the FRDM-K64F as follows:
 
-#. Build the CANopenNode sample with MCUboot support:
+#. Build and flash MCUboot by following the instructions in the
+   :ref:`mcuboot` documentation page.
+
+#. Rebuild the CANopen sample with MCUboot support:
 
    .. zephyr-app-commands::
-      :tool: west
-      :app: samples/modules/canopennode
+      :zephyr-app: samples/modules/canopennode
       :board: frdm_k64f
       :goals: build
-      :west-args: --sysbuild
-      :gen-args: -Dcanopennode_CONF_FILE=prj_img_mgmt.conf
+      :gen-args: -DCONFIG_BOOTLOADER_MCUBOOT=y
       :compact:
 
-#. Flash the newly built MCUboot and CANopen sample binaries using west:
+#. Sign the newly rebuilt CANopen sample binary (using either the
+   demonstration-only RSA key from MCUboot or any other key used when
+   building MCUboot itself):
 
    .. code-block:: console
 
-      west flash --skip-rebuild
+      west sign -t imgtool --bin --no-hex -- --key mcuboot/root-rsa-2048.pem \
+              --version 1.0.0
+
+#. Flash the newly signed CANopen sample binary using west:
+
+   .. code-block:: console
+
+      west flash --skip-rebuild --bin-file zephyr/zephyr.signed.bin
 
 #. Confirm the newly flashed firmware image using west:
 
    .. code-block:: console
 
-      west flash --skip-rebuild --domain canopennode --runner canopen --confirm-only
+      west flash --skip-rebuild --runner canopen --confirm-only
 
-#. Finally, perform a program download via CANopen:
+#. Finally, resign the CANopen sample binary with a new version number
+   and perform a program download over CANopen:
 
    .. code-block:: console
 
-      west flash --skip-rebuild --domain canopennode --runner canopen
+      west sign -t imgtool --bin --no-hex  -- --key mcuboot/root-rsa-2048.pem \
+              --version 1.0.1
+      west flash --skip-rebuild --bin-file zephyr/zephyr.signed.bin \
+              --runner canopen
 
 Modifying the Object Dictionary
 *******************************

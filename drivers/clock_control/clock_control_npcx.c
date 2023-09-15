@@ -7,10 +7,10 @@
 #define DT_DRV_COMPAT nuvoton_npcx_pcc
 
 #include <soc.h>
-#include <zephyr/drivers/clock_control.h>
-#include <zephyr/dt-bindings/clock/npcx_clock.h>
+#include <drivers/clock_control.h>
+#include <dt-bindings/clock/npcx_clock.h>
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(clock_control_npcx, LOG_LEVEL_ERR);
 
 /* Driver config */
@@ -36,9 +36,8 @@ static inline int npcx_clock_control_on(const struct device *dev,
 	struct npcx_clk_cfg *clk_cfg = (struct npcx_clk_cfg *)(sub_system);
 	const uint32_t pmc_base = ((const struct npcx_pcc_config *)dev->config)->base_pmc;
 
-	if (clk_cfg->ctrl >= NPCX_PWDWN_CTL_COUNT) {
+	if (clk_cfg->ctrl >= NPCX_PWDWN_CTL_COUNT)
 		return -EINVAL;
-	}
 
 	/* Clear related PD (Power-Down) bit of module to turn on clock */
 	NPCX_PWDWN_CTL(pmc_base, clk_cfg->ctrl) &= ~(BIT(clk_cfg->bit));
@@ -52,9 +51,8 @@ static inline int npcx_clock_control_off(const struct device *dev,
 	struct npcx_clk_cfg *clk_cfg = (struct npcx_clk_cfg *)(sub_system);
 	const uint32_t pmc_base = ((const struct npcx_pcc_config *)dev->config)->base_pmc;
 
-	if (clk_cfg->ctrl >= NPCX_PWDWN_CTL_COUNT) {
+	if (clk_cfg->ctrl >= NPCX_PWDWN_CTL_COUNT)
 		return -EINVAL;
-	}
 
 	/* Set related PD (Power-Down) bit of module to turn off clock */
 	NPCX_PWDWN_CTL(pmc_base, clk_cfg->ctrl) |= BIT(clk_cfg->bit);
@@ -94,9 +92,6 @@ static int npcx_clock_control_get_subsys_rate(const struct device *dev,
 		break;
 	case NPCX_CLOCK_BUS_LFCLK:
 		*rate = LFCLK;
-		break;
-	case NPCX_CLOCK_BUS_FMCLK:
-		*rate = FMCLK;
 		break;
 	default:
 		*rate = 0U;
@@ -218,23 +213,13 @@ static int npcx_clock_control_init(const struct device *dev)
 	 * Power-down (turn off clock) the modules initially for better
 	 * power consumption.
 	 */
-	NPCX_PWDWN_CTL(pmc_base, NPCX_PWDWN_CTL1) = 0xFB; /* No SDP_PD/FIU_PD */
+	NPCX_PWDWN_CTL(pmc_base, NPCX_PWDWN_CTL1) = 0xF9; /* No SDP_PD/FIU_PD */
 	NPCX_PWDWN_CTL(pmc_base, NPCX_PWDWN_CTL2) = 0xFF;
 	NPCX_PWDWN_CTL(pmc_base, NPCX_PWDWN_CTL3) = 0x1F; /* No GDMA_PD */
 	NPCX_PWDWN_CTL(pmc_base, NPCX_PWDWN_CTL4) = 0xFF;
 	NPCX_PWDWN_CTL(pmc_base, NPCX_PWDWN_CTL5) = 0xFA;
-#if CONFIG_ESPI
-	/* Don't gate the clock of the eSPI module if eSPI interface is required */
-	NPCX_PWDWN_CTL(pmc_base, NPCX_PWDWN_CTL6) = 0x7F;
-#else
 	NPCX_PWDWN_CTL(pmc_base, NPCX_PWDWN_CTL6) = 0xFF;
-#endif
-#if defined(CONFIG_SOC_SERIES_NPCX7)
 	NPCX_PWDWN_CTL(pmc_base, NPCX_PWDWN_CTL7) = 0xE7;
-#elif defined(CONFIG_SOC_SERIES_NPCX9)
-	NPCX_PWDWN_CTL(pmc_base, NPCX_PWDWN_CTL7) = 0xFF;
-	NPCX_PWDWN_CTL(pmc_base, NPCX_PWDWN_CTL8) = 0x31;
-#endif
 
 	return 0;
 }

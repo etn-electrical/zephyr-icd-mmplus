@@ -13,15 +13,13 @@
  *
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/arch/cpu.h>
-#include <zephyr/sys/__assert.h>
+#include <kernel.h>
+#include <arch/cpu.h>
+#include <sys/__assert.h>
 #include <soc.h>
-#include <zephyr/init.h>
-#include <zephyr/drivers/uart.h>
+#include <init.h>
+#include <drivers/uart.h>
 #include <uart_imx.h>
-#include <zephyr/drivers/pinctrl.h>
-#include <zephyr/irq.h>
 
 #define UART_STRUCT(dev) \
 	((UART_Type *)((const struct imx_uart_config *const)(dev)->config)->base)
@@ -30,7 +28,6 @@ struct imx_uart_config {
 	UART_Type *base;
 	uint32_t baud_rate;
 	uint8_t modem_mode;
-	const struct pinctrl_dev_config *pincfg;
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 	void (*irq_config_func)(const struct device *dev);
 #endif
@@ -58,7 +55,6 @@ static int uart_imx_init(const struct device *dev)
 	UART_Type *uart = UART_STRUCT(dev);
 	const struct imx_uart_config *config = dev->config;
 	unsigned int old_level;
-	int err;
 
 	/* disable interrupts */
 	old_level = irq_lock();
@@ -72,17 +68,12 @@ static int uart_imx_init(const struct device *dev)
 		.direction	= uartDirectionTxRx
 	};
 
-	err = pinctrl_apply_state(config->pincfg, PINCTRL_STATE_DEFAULT);
-	if (err) {
-		return err;
-	}
-
 	/* Get current module clock frequency */
 	initConfig.clockRate  = get_uart_clock_freq(uart);
 
 	UART_Init(uart, &initConfig);
 
-	/* Set UART built-in hardware FIFO Watermark. */
+	/* Set UART build-in hardware FIFO Watermark. */
 	UART_SetTxFifoWatermark(uart, 2);
 	UART_SetRxFifoWatermark(uart, 1);
 
@@ -114,18 +105,16 @@ static void uart_imx_poll_out(const struct device *dev, unsigned char c)
 static int uart_imx_poll_in(const struct device *dev, unsigned char *c)
 {
 	UART_Type *uart = UART_STRUCT(dev);
-	int ret = -1;
 
-	if (UART_GetStatusFlag(uart, uartStatusRxDataReady)) {
-		*c = UART_Getchar(uart);
+	while (!UART_GetStatusFlag(uart, uartStatusRxDataReady)) {
+	}
+	*c = UART_Getchar(uart);
 
-		if (UART_GetStatusFlag(uart, uartStatusRxOverrun)) {
-			UART_ClearStatusFlag(uart, uartStatusRxOverrun);
-		}
-		ret = 0;
+	if (UART_GetStatusFlag(uart, uartStatusRxOverrun)) {
+		UART_ClearStatusFlag(uart, uartStatusRxOverrun);
 	}
 
-	return ret;
+	return 0;
 }
 
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
@@ -294,7 +283,6 @@ static const struct uart_driver_api uart_imx_driver_api = {
 		.base = (UART_Type *) DT_INST_REG_ADDR(n),		\
 		.baud_rate = DT_INST_PROP(n, current_speed),		\
 		.modem_mode = DT_INST_PROP(n, modem_mode),		\
-		.pincfg = PINCTRL_DT_INST_DEV_CONFIG_GET(n),		\
 		IRQ_FUNC_INIT						\
 	}
 
@@ -323,8 +311,6 @@ static const struct uart_driver_api uart_imx_driver_api = {
 	static struct imx_uart_data imx_uart_##n##_data;		\
 									\
 	static const struct imx_uart_config imx_uart_##n##_config;	\
-									\
-	PINCTRL_DT_INST_DEFINE(n);					\
 									\
 	DEVICE_DT_INST_DEFINE(n, &uart_imx_init, NULL,			\
 			&imx_uart_##n##_data, &imx_uart_##n##_config,	\

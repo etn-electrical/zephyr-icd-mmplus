@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/sys/printk.h>
-#include <zephyr/drivers/ipm.h>
+#include <zephyr.h>
+#include <sys/printk.h>
+#include <drivers/ipm.h>
 
 enum cpu_id_t {
 	MHU_CPU0 = 0,

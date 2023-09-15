@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.20.0)
+cmake_minimum_required(VERSION 3.17)
 
 set(SORT_TYPE_NAME Lexical)
 
@@ -333,7 +333,7 @@ function(section_to_string)
 #      endif()
 
       #if(SETTINGS_KEEP)
-      # armlink has --keep=<section_id>, but is there an scatter equivalent ?
+      # armlink has --keep=<section_id>, but is there an scatter equivalant ?
       #endif()
 
       if(first)

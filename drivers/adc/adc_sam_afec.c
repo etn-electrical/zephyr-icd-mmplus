@@ -15,20 +15,18 @@
  */
 
 #include <errno.h>
-#include <zephyr/sys/__assert.h>
-#include <zephyr/sys/util.h>
-#include <zephyr/device.h>
-#include <zephyr/init.h>
+#include <sys/__assert.h>
+#include <sys/util.h>
+#include <device.h>
+#include <init.h>
 #include <soc.h>
-#include <zephyr/drivers/adc.h>
-#include <zephyr/drivers/pinctrl.h>
+#include <drivers/adc.h>
 
 #define ADC_CONTEXT_USES_KERNEL_TIMER
 #include "adc_context.h"
 
 #define LOG_LEVEL CONFIG_ADC_LOG_LEVEL
-#include <zephyr/logging/log.h>
-#include <zephyr/irq.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(adc_sam_afec);
 
 #define NUM_CHANNELS 12
@@ -61,7 +59,7 @@ struct adc_sam_cfg {
 	Afec *regs;
 	cfg_func_t cfg_func;
 	uint32_t periph_id;
-	const struct pinctrl_dev_config *pcfg;
+	struct soc_gpio_pin afec_trg_pin;
 };
 
 static int adc_sam_channel_setup(const struct device *dev,
@@ -262,7 +260,6 @@ static int adc_sam_init(const struct device *dev)
 	const struct adc_sam_cfg *const cfg = dev->config;
 	struct adc_sam_data *data = dev->data;
 	Afec *const afec = cfg->regs;
-	int retval;
 
 	/* Reset the AFEC. */
 	afec->AFEC_CR = AFEC_CR_SWRST;
@@ -289,19 +286,13 @@ static int adc_sam_init(const struct device *dev)
 
 	soc_pmc_peripheral_enable(cfg->periph_id);
 
-	/* Connect pins to the peripheral */
-	retval = pinctrl_apply_state(cfg->pcfg, PINCTRL_STATE_DEFAULT);
-	if (retval < 0) {
-		return retval;
-	}
-
 	cfg->cfg_func(dev);
 
 	data->dev = dev;
 
 	adc_context_unlock_unconditionally(&data->ctx);
 
-	return retval;
+	return 0;
 }
 
 #ifdef CONFIG_ADC_ASYNC
@@ -353,14 +344,13 @@ static void adc_sam_isr(const struct device *dev)
 }
 
 #define ADC_SAM_INIT(n)							\
-	PINCTRL_DT_INST_DEFINE(n);					\
 	static void adc##n##_sam_cfg_func(const struct device *dev);	\
 									\
 	static const struct adc_sam_cfg adc##n##_sam_cfg = {		\
 		.regs = (Afec *)DT_INST_REG_ADDR(n),			\
 		.cfg_func = adc##n##_sam_cfg_func,			\
 		.periph_id = DT_INST_PROP(n, peripheral_id),		\
-		.pcfg = PINCTRL_DT_INST_DEV_CONFIG_GET(n),		\
+		.afec_trg_pin = ATMEL_SAM_DT_INST_PIN(n, 0),		\
 	};								\
 									\
 	static struct adc_sam_data adc##n##_sam_data = {		\

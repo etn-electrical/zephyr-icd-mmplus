@@ -13,7 +13,7 @@ The GD32F450IK features a single-core ARM Cortex-M4F MCU which can run up
 to 200 MHz with flash accesses zero wait states, 3072kiB of Flash, 256kiB of
 SRAM and 140 GPIOs.
 
-.. image:: img/gd32f450i_eval.jpg
+.. image:: img/gd32f450i_eval.png
      :align: center
      :alt: gd32f450i_eval
 
@@ -60,35 +60,32 @@ The board configuration supports the following hardware features:
      - Kconfig option
      - Devicetree compatible
    * - EXTI
-     - :kconfig:option:`CONFIG_GD32_EXTI`
+     - :kconfig:`CONFIG_GD32_EXTI`
      - :dtcompatible:`gd,gd32-exti`
    * - GPIO
-     - :kconfig:option:`CONFIG_GPIO`
+     - :kconfig:`CONFIG_GPIO`
      - :dtcompatible:`gd,gd32-gpio`
    * - NVIC
      - N/A
      - :dtcompatible:`arm,v7m-nvic`
    * - PWM
-     - :kconfig:option:`CONFIG_PWM`
+     - :kconfig:`CONFIG_PWM`
      - :dtcompatible:`gd,gd32-pwm`
    * - SYSTICK
      - N/A
      - N/A
    * - USART
-     - :kconfig:option:`CONFIG_SERIAL`
+     - :kconfig:`CONFIG_SERIAL`
      - :dtcompatible:`gd,gd32-usart`
    * - DAC
-     - :kconfig:option:`CONFIG_DAC`
+     - :kconfig:`CONFIG_DAC`
      - :dtcompatible:`gd,gd32-dac`
    * - I2C
-     - :kconfig:option:`CONFIG_I2C`
+     - :kconfig:`CONFIG_I2C`
      - :dtcompatible:`gd,gd32-i2c`
    * - EEPROM
-     - :kconfig:option:`CONFIG_EEPROM`
+     - :kconfig:`CONFIG_EEPROM`
      - :dtcompatible:`atmel,at24`
-   * - ADC
-     - :kconfig:option:`CONFIG_ADC`
-     - :dtcompatible:`gd,gd32-adc`
 
 Serial Port
 ===========

@@ -22,14 +22,14 @@
  * associated IRQ numbers to work with this driver.
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/drivers/clock_control.h>
-#include <zephyr/init.h>
-#include <zephyr/irq.h>
-#include <zephyr/irq_nextlevel.h>
-#include <zephyr/sw_isr_table.h>
+#include <kernel.h>
+#include <drivers/clock_control.h>
+#include <init.h>
+#include <irq.h>
+#include <irq_nextlevel.h>
+#include <sw_isr_table.h>
 #include <soc.h>
-#include <zephyr/dt-bindings/interrupt-controller/openisa-intmux.h>
+#include <dt-bindings/interrupt-controller/openisa-intmux.h>
 
 /*
  * CHn_VEC registers are offset by a value that is convenient if
@@ -106,7 +106,7 @@ static int rv32m1_intmux_get_line_state(const struct device *dev,
 
 static void rv32m1_intmux_isr(const void *arg)
 {
-	const struct device *const dev = DEVICE_DT_INST_GET(0);
+	const struct device *dev = DEVICE_DT_INST_GET(0);
 	const struct rv32m1_intmux_config *config = dev->config;
 	INTMUX_Type *regs = DEV_REGS(dev);
 	uint32_t channel = POINTER_TO_UINT(arg);
@@ -153,10 +153,6 @@ static int rv32m1_intmux_init(const struct device *dev)
 	const struct rv32m1_intmux_config *config = dev->config;
 	INTMUX_Type *regs = DEV_REGS(dev);
 	size_t i;
-
-	if (!device_is_ready(config->clock_dev)) {
-		return -ENODEV;
-	}
 
 	/* Enable INTMUX clock. */
 	clock_control_on(config->clock_dev, config->clock_subsys);

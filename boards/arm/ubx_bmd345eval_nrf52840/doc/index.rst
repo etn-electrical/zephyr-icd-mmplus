@@ -28,7 +28,8 @@ Both support the following devices:
 * :abbr:`USB (Universal Serial Bus)`
 * :abbr:`WDT (Watchdog Timer)`
 
-.. figure:: img/bmd-345-eval_features.jpg
+.. figure:: img/bmd-345-eval_features.png
+     :width: 442px
      :align: center
      :alt: BMD 345 EVAL
 
@@ -143,7 +144,8 @@ Push buttons
 External Connectors
 -------------------
 
-.. figure:: img/bmd-345-eval_pin_out.jpg
+.. figure:: img/bmd-345-eval_pin_out.png
+     :width: 819px
      :align: center
      :alt: BMD-345-EVAL pin-out
 
@@ -471,38 +473,21 @@ more than one UART for connecting peripheral devices:
 1. Add device tree overlay file to the main directory of your
    application:
 
-   .. code-block:: devicetree
+   .. code-block:: console
 
-      &pinctrl {
-         uart1_default: uart1_default {
-            group1 {
-               psels = <NRF_PSEL(UART_TX, 0, 14)>,
-                       <NRF_PSEL(UART_RX, 0, 16)>;
-            };
-         };
-         /* required if CONFIG_PM_DEVICE=y */
-         uart1_sleep: uart1_sleep {
-            group1 {
-               psels = <NRF_PSEL(UART_TX, 0, 14)>,
-                       <NRF_PSEL(UART_RX, 0, 16)>;
-               low-power-enable;
-            };
-         };
-      };
-
+      $ cat ubx_bmd345eval_nrf52840.overlay
       &uart1 {
         compatible = "nordic,nrf-uarte";
         current-speed = <115200>;
         status = "okay";
-        pinctrl-0 = <&uart1_default>;
-        pinctrl-1 = <&uart1_sleep>;
-        pinctrl-names = "default", "sleep";
+        tx-pin = <14>;
+        rx-pin = <16>;
       };
 
    In the overlay file above, pin P0.16 is used for RX and P0.14 is
    used for TX
 
-2. Use the UART1 as ``DEVICE_DT_GET(DT_NODELABEL(uart1))``
+2. Use the UART1 as ``device_get_binding("UART_1")``
 
 Overlay file naming
 ===================
@@ -513,13 +498,25 @@ compiler.
 
 Selecting the pins
 ==================
+To select the pin numbers for tx-pin and rx-pin:
 
-Pins can be configured in the board pinctrl file. To see the available mappings,
-open the data sheet for the BMD-345 at the `u-blox website`_, Section 2
+.. code-block:: console
+
+   tx-pin = <pin_no>
+
+Open the data sheet for the BMD-345 at the `u-blox website`_, Section 2
 'Pin definition'. In the table 3 select the pins marked 'GPIO'.
 Note that pins marked as 'Standard drive, low frequency I/O only
 (<10 kH' can only be used in under-10KHz applications.
 They are not suitable for 115200 speed of UART.
+
+Translate 'Pin' into number for Device tree by using the following
+formula::
+
+   pin_no = b\*32 + a
+
+where ``a`` and ``b`` are from the Pin value in the table (Pb.a).
+For example, for P0.1, ``pin_no = 1`` and for P1.0, ``pin_no = 32``.
 
 .. note:
   Pins are defined according to the "nRF52" pin number, not the module

@@ -4,18 +4,20 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
-#include <zephyr/device.h>
-#include <zephyr/drivers/i2c.h>
+#include <ztest.h>
+#include <device.h>
+#include <drivers/i2c.h>
 
 #if DT_NODE_HAS_STATUS(DT_ALIAS(i2c_channel_0), okay)
 #define I2C_0_CTRL_NODE_ID      DT_ALIAS(i2c_channel_0)
+#define I2C_0_CTRL_DEV_NAME     DT_LABEL(I2C_0_CTRL_NODE_ID)
 #else
 #error "I2C 0 controller device not found"
 #endif
 
 #if DT_NODE_HAS_STATUS(DT_ALIAS(i2c_channel_1), okay)
 #define I2C_1_CTRL_NODE_ID      DT_ALIAS(i2c_channel_1)
+#define I2C_1_CTRL_DEV_NAME     DT_LABEL(I2C_1_CTRL_NODE_ID)
 #else
 #error "I2C 1 controller device not found"
 #endif
@@ -29,12 +31,12 @@
  * This test verifies various assert macros provided by ztest.
  *
  */
-ZTEST(i2c_tca954x, test_tca954x)
+static void test_tca954x(void)
 {
 	uint8_t buff[1];
 
-	const struct device *const i2c0 = DEVICE_DT_GET(I2C_0_CTRL_NODE_ID);
-	const struct device *const i2c1 = DEVICE_DT_GET(I2C_1_CTRL_NODE_ID);
+	const struct device *i2c0 = DEVICE_DT_GET(I2C_0_CTRL_NODE_ID);
+	const struct device *i2c1 = DEVICE_DT_GET(I2C_1_CTRL_NODE_ID);
 
 	zassert_true(device_is_ready(i2c0), "I2C 0 not ready");
 	zassert_true(device_is_ready(i2c1), "I2C 1 not ready");
@@ -43,4 +45,11 @@ ZTEST(i2c_tca954x, test_tca954x)
 	i2c_read(i2c1, buff, 1, 0x42);
 }
 
-ZTEST_SUITE(i2c_tca954x, NULL, NULL, NULL, NULL, NULL);
+void test_main(void)
+{
+	ztest_test_suite(framework_tests,
+			 ztest_unit_test(test_tca954x)
+			 );
+
+	ztest_run_test_suite(framework_tests);
+}

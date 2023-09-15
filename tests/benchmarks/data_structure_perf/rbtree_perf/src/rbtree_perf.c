@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
-#include <zephyr/sys/rb.h>
+#include <ztest.h>
+#include <sys/rb.h>
 
 #define TREE_SIZE 512
 /* zephyr can't do floating-point arithmetic,
@@ -13,7 +13,7 @@
  */
 const static uint32_t dlog_N = 18;
 
-/* rbnode structure is embeddable in user structure */
+/* rbnode structure is embeddedable in user structure */
 struct container_node {
 	struct rbnode node;
 	int value;
@@ -34,7 +34,7 @@ bool node_lessthan(struct rbnode *a, struct rbnode *b)
  * @details
  * Test Objective:
  * - Define and initialize a rbtree, and test two features:
- * first, rbtree node struct can be embedded in any user struct.
+ * first, rbtree node struct can be embeded in any user struct.
  * last, rbtree can be walked though by some macro APIs.
  *
  * Testing techniques:
@@ -71,7 +71,7 @@ bool node_lessthan(struct rbnode *a, struct rbnode *b)
  *
  * @see RB_FOR_EACH(),RB_FOR_EACH_CONTAINER()
  */
-ZTEST(rbtree_perf, test_rbtree_container)
+void test_rbtree_container(void)
 {
 	int count = 0;
 	struct rbtree test_tree_l;
@@ -104,7 +104,7 @@ ZTEST(rbtree_perf, test_rbtree_container)
 }
 
 /* initialize and insert a tree */
-static void init_tree(struct rbtree *tree, int size)
+void init_tree(struct rbtree *tree, int size)
 {
 	tree->lessthan_fn = node_lessthan;
 
@@ -113,7 +113,7 @@ static void init_tree(struct rbtree *tree, int size)
 	}
 }
 
-static int search_height_recurse(struct rbnode *node, struct rbnode
+int search_height_recurse(struct rbnode *node, struct rbnode
 			*final_node, uint32_t current_height)
 {
 	if (node == NULL) {
@@ -131,12 +131,12 @@ static int search_height_recurse(struct rbnode *node, struct rbnode
 	return search_height_recurse(ch, final_node, current_height);
 }
 
-static void verify_rbtree_perf(struct rbnode *root, struct rbnode *test)
+void verify_rbtree_perf(struct rbnode *root, struct rbnode *test)
 {
 	uint32_t node_height = 0;
 
 	node_height = search_height_recurse(root, test, node_height);
-	zassert_true(node_height <= dlog_N);
+	zassert_true(node_height <= dlog_N, NULL);
 }
 
 /**
@@ -186,7 +186,7 @@ static void verify_rbtree_perf(struct rbnode *root, struct rbnode *test)
  *
  * @see rb_get_min(), rb_get_max()
  */
-ZTEST(rbtree_perf, test_rbtree_perf)
+void test_rbtree_perf(void)
 {
 	init_tree(&tree, TREE_SIZE);
 	struct rbnode *root = tree.root;
@@ -207,4 +207,11 @@ ZTEST(rbtree_perf, test_rbtree_perf)
 	verify_rbtree_perf(root, test);
 }
 
-ZTEST_SUITE(rbtree_perf, NULL, NULL, NULL, NULL, NULL);
+void test_main(void)
+{
+	ztest_test_suite(rbtree,
+			 ztest_unit_test(test_rbtree_container),
+			 ztest_unit_test(test_rbtree_perf)
+			 );
+	ztest_run_test_suite(rbtree);
+}

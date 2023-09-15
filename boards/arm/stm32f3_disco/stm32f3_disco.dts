@@ -68,14 +68,7 @@
 		led0 = &green_led_6;
 		led1 = &green_led_7;
 		sw0 = &user_button;
-		magn0 = &lsm303dlhc_magn;
-		watchdog0 = &iwdg;
-		accel0 = &lsm303dlhc_accel;
 	};
-};
-
-&clk_lsi {
-	status = "okay";
 };
 
 &clk_hse {
@@ -126,16 +119,18 @@
 	status = "okay";
 	clock-frequency = <I2C_BITRATE_FAST>;
 
-	lsm303dlhc_magn: lsm303dlhc-magn@1e {
+	lsm303dlhc-magn@1e {
 		compatible = "st,lsm303dlhc-magn";
 		reg = <0x1e>;
+		label = "LSM303DLHC-MAGN";
 	};
 
-	lsm303dlhc_accel: lsm303dlhc-accel@19 {
+	lsm303dlhc-accel@19 {
 		compatible = "st,lis2dh", "st,lsm303dlhc-accel";
 		reg = <0x19>;
 		irq-gpios = <&gpioe 4 GPIO_ACTIVE_HIGH>,
 			  <&gpioe 5 GPIO_ACTIVE_HIGH>;
+		label = "LSM303DLHC-ACCEL";
 	};
 };
 
@@ -167,20 +162,13 @@ zephyr_udc0: &usb {
 };
 
 &rtc {
-	clocks = <&rcc STM32_CLOCK_BUS_APB1 0x10000000>,
-		 <&rcc STM32_SRC_LSI RTC_SEL(2)>;
 	status = "okay";
-
-	backup_regs {
-		status = "okay";
-	};
 };
 
 &can1 {
 	pinctrl-0 = <&can_rx_pd0 &can_tx_pd1>;
 	pinctrl-names = "default";
 	status = "okay";
-	bus-speed = <125000>;
 };
 
 &flash0 {
@@ -193,7 +181,7 @@ zephyr_udc0: &usb {
 		/* Set 6Kb of storage at the end of the 256Kb of flash */
 		storage_partition: partition@3e800 {
 			label = "storage";
-			reg = <0x0003e800 DT_SIZE_K(6)>;
+			reg = <0x0003e800 0x00001800>;
 		};
 	};
 };
@@ -215,10 +203,6 @@ zephyr_udc0: &usb {
 &adc1 {
 	pinctrl-0 = <&adc1_in1_pa0>;
 	pinctrl-names = "default";
-	status = "okay";
-};
-
-&die_temp {
 	status = "okay";
 };
 

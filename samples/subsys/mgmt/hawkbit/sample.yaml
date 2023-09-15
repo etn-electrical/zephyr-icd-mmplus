@@ -4,11 +4,9 @@ sample:
   description: Hawkbit Firmware Over-the-Air (FOTA)
   name: hawkbit
 tests:
-  sample.net.hawkbit:
+  samples.net.hawkbit:
     harness: net
     tags: net
     depends_on: netif
     build_only: true
     platform_allow: frdm_k64f
-    integration_platforms:
-      - frdm_k64f

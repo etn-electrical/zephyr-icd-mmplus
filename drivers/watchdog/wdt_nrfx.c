@@ -5,11 +5,10 @@
  */
 
 #include <nrfx_wdt.h>
-#include <zephyr/drivers/watchdog.h>
+#include <drivers/watchdog.h>
 
 #define LOG_LEVEL CONFIG_WDT_LOG_LEVEL
-#include <zephyr/logging/log.h>
-#include <zephyr/irq.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(wdt_nrfx);
 
 struct wdt_nrfx_data {

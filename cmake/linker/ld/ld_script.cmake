@@ -1,6 +1,6 @@
 # ToDo:
 # - Ensure LMA / VMA sections are correctly grouped similar to scatter file creation.
-cmake_minimum_required(VERSION 3.20.0)
+cmake_minimum_required(VERSION 3.18)
 
 set(SORT_TYPE_NAME SORT_BY_NAME)
 
@@ -311,7 +311,6 @@ function(section_to_string)
 
   if(NOT nosymbols)
     set(TEMP "${TEMP}\n__${name_clean}_size = __${name_clean}_end - __${name_clean}_start;")
-    set(TEMP "${TEMP}\nPROVIDE(__${name_clean}_align = ALIGNOF(${name}));")
     set(TEMP "${TEMP}\n__${name_clean}_load_start = LOADADDR(${name});")
   endif()
 

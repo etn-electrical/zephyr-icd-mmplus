@@ -5,11 +5,21 @@ description: TI CC13xx / CC26xx I2C node
 
 compatible: "ti,cc13xx-cc26xx-i2c"
 
-include: [i2c-controller.yaml, pinctrl-device.yaml, base.yaml]
+include: i2c-controller.yaml
 
 properties:
-  reg:
-    required: true
+    reg:
+      required: true
 
-  interrupts:
-    required: true
+    interrupts:
+      required: true
+
+    sda-pin:
+      type: int
+      required: true
+      description: SDA pin
+
+    scl-pin:
+      type: int
+      required: true
+      description: SCL pin

@@ -7,7 +7,6 @@
 /dts-v1/;
 
 #include <nordic/nrf51822_qfaa.dtsi>
-#include "qemu_cortex_m0-pinctrl.dtsi"
 
 / {
 	model = "QEMU Cortex-M0";
@@ -22,10 +21,6 @@
 		zephyr,flash = &flash0;
 		zephyr,code-partition = &slot0_partition;
 	};
-
-	aliases {
-		watchdog0 = &wdt0;
-	};
 };
 
 &gpiote {
@@ -39,9 +34,8 @@
 &uart0 {
 	status = "okay";
 	current-speed = <115200>;
-	pinctrl-0 = <&uart0_default>;
-	pinctrl-1 = <&uart0_sleep>;
-	pinctrl-names = "default", "sleep";
+	tx-pin = <24>;
+	rx-pin = <25>;
 };
 
 &flash0 {

@@ -5,7 +5,7 @@
 
 /dts-v1/;
 
-#include <arm64/fvp/fvp-aemv8r.dtsi>
+#include <arm64/fvp-aemv8r/fvp-aemv8r.dtsi>
 
 / {
 	model = "FVP BaseR AEMv8R";
@@ -24,27 +24,23 @@
 	psci {
 		compatible = "arm,psci-0.2";
 		method = "hvc";
+		label = "PSCI";
 	};
 
 	soc {
-		flash0: flash@88000000 {
+		flash0: flash@0 {
 			compatible = "soc-nv-flash";
-			reg = <0x88000000 DT_SIZE_M(64)>;
+			reg = <0x0 DT_SIZE_K(64)>;
 		};
 
-		dram0: memory@0 {
+		dram0: memory@10000000 {
 			compatible = "mmio-dram";
-			reg = <0x0 DT_SIZE_M(128)>;
+			reg = <0x10000000 DT_SIZE_K(2048)>;
 		};
 	};
 };
 
 &uart0 {
-	status = "okay";
-	current-speed = <115200>;
-};
-
-&uart1 {
 	status = "okay";
 	current-speed = <115200>;
 };

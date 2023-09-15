@@ -7,7 +7,10 @@
 #include <string.h>
 #include <errno.h>
 
-#include <zephyr/bluetooth/mesh.h>
+#include <bluetooth/mesh.h>
+
+#define LOG_MODULE_NAME bt_mesh_test
+#include "common/log.h"
 
 #include "mesh.h"
 #include "test.h"

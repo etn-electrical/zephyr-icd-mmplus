@@ -7,14 +7,14 @@
 #include <zephyr/types.h>
 #include <string.h>
 #include <errno.h>
-#include <zephyr/sys/printk.h>
-#include <zephyr/kernel.h>
+#include <sys/printk.h>
+#include <zephyr.h>
 
-#include <zephyr/bluetooth/bluetooth.h>
-#include <zephyr/bluetooth/conn.h>
-#include <zephyr/bluetooth/gatt.h>
+#include <bluetooth/bluetooth.h>
+#include <bluetooth/conn.h>
+#include <bluetooth/gatt.h>
 
-#include <zephyr/bluetooth/services/ots.h>
+#include <bluetooth/services/ots.h>
 
 #define DEVICE_NAME      CONFIG_BT_DEVICE_NAME
 #define DEVICE_NAME_LEN  (sizeof(DEVICE_NAME) - 1)
@@ -42,8 +42,6 @@ struct object_creation_data {
 	char *name;
 	uint32_t props;
 };
-
-#define OTS_OBJ_ID_TO_OBJ_IDX(id) (((id) - BT_OTS_OBJ_ID_MIN) % ARRAY_SIZE(objects))
 
 static struct object_creation_data *object_being_created;
 
@@ -135,11 +133,11 @@ static void ots_obj_selected(struct bt_ots *ots, struct bt_conn *conn,
 }
 
 static ssize_t ots_obj_read(struct bt_ots *ots, struct bt_conn *conn,
-			    uint64_t id, void **data, size_t len,
-			    off_t offset)
+			   uint64_t id, void **data, size_t len,
+			   off_t offset)
 {
 	char id_str[BT_OTS_OBJ_ID_STR_LEN];
-	uint32_t obj_index = OTS_OBJ_ID_TO_OBJ_IDX(id);
+	uint32_t obj_index = (id % ARRAY_SIZE(objects));
 
 	bt_ots_obj_id_to_str(id, id_str, sizeof(id_str));
 
@@ -171,7 +169,7 @@ static ssize_t ots_obj_write(struct bt_ots *ots, struct bt_conn *conn,
 			     off_t offset, size_t rem)
 {
 	char id_str[BT_OTS_OBJ_ID_STR_LEN];
-	uint32_t obj_index = OTS_OBJ_ID_TO_OBJ_IDX(id);
+	uint32_t obj_index = (id % ARRAY_SIZE(objects));
 
 	bt_ots_obj_id_to_str(id, id_str, sizeof(id_str));
 
@@ -184,28 +182,13 @@ static ssize_t ots_obj_write(struct bt_ots *ots, struct bt_conn *conn,
 	return len;
 }
 
-static void ots_obj_name_written(struct bt_ots *ots, struct bt_conn *conn,
-				 uint64_t id, const char *cur_name, const char *new_name)
+void ots_obj_name_written(struct bt_ots *ots, struct bt_conn *conn, uint64_t id, const char *name)
 {
 	char id_str[BT_OTS_OBJ_ID_STR_LEN];
 
 	bt_ots_obj_id_to_str(id, id_str, sizeof(id_str));
 
-	printk("Name for object with %s ID is being changed from '%s' to '%s'\n",
-		id_str, cur_name, new_name);
-}
-
-static int ots_obj_cal_checksum(struct bt_ots *ots, struct bt_conn *conn, uint64_t id,
-				off_t offset, size_t len, void **data)
-{
-	uint32_t obj_index = OTS_OBJ_ID_TO_OBJ_IDX(id);
-
-	if (obj_index >= OBJ_POOL_SIZE) {
-		return -ENOENT;
-	}
-
-	*data = &objects[obj_index].data[offset];
-	return 0;
+	printk("Name for object with %s ID has been written\n", id_str);
 }
 
 static struct bt_ots_cb ots_callbacks = {
@@ -215,7 +198,6 @@ static struct bt_ots_cb ots_callbacks = {
 	.obj_read = ots_obj_read,
 	.obj_write = ots_obj_write,
 	.obj_name_written = ots_obj_name_written,
-	.obj_cal_checksum = ots_obj_cal_checksum,
 };
 
 static int ots_init(void)

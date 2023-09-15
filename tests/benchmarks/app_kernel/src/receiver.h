@@ -9,7 +9,7 @@
 #ifndef _RECEIVER_H
 #define _RECEIVER_H
 
-#include <zephyr/kernel.h>
+#include <zephyr.h>
 #include "config.h"
 #include "memcfg.h"
 #include "master.h"

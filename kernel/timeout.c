@@ -4,13 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/spinlock.h>
+#include <kernel.h>
+#include <spinlock.h>
 #include <ksched.h>
-#include <zephyr/timeout_q.h>
-#include <zephyr/syscall_handler.h>
-#include <zephyr/drivers/timer/system_timer.h>
-#include <zephyr/sys_clock.h>
+#include <timeout_q.h>
+#include <syscall_handler.h>
+#include <drivers/timer/system_timer.h>
+#include <sys_clock.h>
 
 static uint64_t curr_tick;
 
@@ -244,39 +244,24 @@ void sys_clock_announce(int32_t ticks)
 
 	k_spinlock_key_t key = k_spin_lock(&timeout_lock);
 
-	/* We release the lock around the callbacks below, so on SMP
-	 * systems someone might be already running the loop.  Don't
-	 * race (which will cause paralllel execution of "sequential"
-	 * timeouts and confuse apps), just increment the tick count
-	 * and return.
-	 */
-	if (IS_ENABLED(CONFIG_SMP) && (announce_remaining != 0)) {
-		announce_remaining += ticks;
-		k_spin_unlock(&timeout_lock, key);
-		return;
-	}
-
 	announce_remaining = ticks;
 
-	struct _timeout *t = first();
-
-	for (t = first();
-	     (t != NULL) && (t->dticks <= announce_remaining);
-	     t = first()) {
+	while (first() != NULL && first()->dticks <= announce_remaining) {
+		struct _timeout *t = first();
 		int dt = t->dticks;
 
 		curr_tick += dt;
+		announce_remaining -= dt;
 		t->dticks = 0;
 		remove_timeout(t);
 
 		k_spin_unlock(&timeout_lock, key);
 		t->fn(t);
 		key = k_spin_lock(&timeout_lock);
-		announce_remaining -= dt;
 	}
 
-	if (t != NULL) {
-		t->dticks -= announce_remaining;
+	if (first() != NULL) {
+		first()->dticks -= announce_remaining;
 	}
 
 	curr_tick += announce_remaining;
@@ -292,7 +277,7 @@ int64_t sys_clock_tick_get(void)
 	uint64_t t = 0U;
 
 	LOCKED(&timeout_lock) {
-		t = curr_tick + elapsed();
+		t = curr_tick + sys_clock_elapsed();
 	}
 	return t;
 }
@@ -382,15 +367,3 @@ uint64_t sys_clock_timeout_end_calc(k_timeout_t timeout)
 		return sys_clock_tick_get() + MAX(1, dt);
 	}
 }
-
-#ifdef CONFIG_ZTEST
-void z_impl_sys_clock_tick_set(uint64_t tick)
-{
-	curr_tick = tick;
-}
-
-void z_vrfy_sys_clock_tick_set(uint64_t tick)
-{
-	z_impl_sys_clock_tick_set(tick);
-}
-#endif

@@ -9,13 +9,12 @@
  *  Basic example of userspace thread protected memory
  *
  *  NOTE: The encryption algorithm is unverified and
- *  based on a 1930's era piece of hardware.
+ *  based on a 1930's erra piece of hardware.
  *  DO NOT USE THIS CODE FOR SECURITY
  *
  */
 
-#include <zephyr/sys/__assert.h>
-#include <zephyr/sys/libc-hooks.h> /* for z_libc_partition */
+#include <sys/__assert.h>
 
 #include "main.h"
 #include "enc.h"
@@ -27,7 +26,7 @@
  * the definition of variables.  A possible alternative
  * is using one source file per thread and implementing
  * a objcopy to rename the data and bss section for the
- * thread to the partition name.
+ * thread to the partiotion name.
  */
 
 /* prepare the memory partition structures  */
@@ -102,18 +101,8 @@ _app_ct_d char ctMSG[] = "CT!\n";
 
 void main(void)
 {
-	struct k_mem_partition *enc_parts[] = {
-#if Z_LIBC_PARTITION_EXISTS
-		&z_libc_partition,
-#endif
-		&enc_part, &red_part, &blk_part
-	};
-	struct k_mem_partition *pt_parts[] = {
-#if Z_LIBC_PARTITION_EXISTS
-		&z_libc_partition,
-#endif
-		&user_part, &red_part
-	};
+	struct k_mem_partition *enc_parts[] = {&enc_part, &red_part, &blk_part};
+	struct k_mem_partition *pt_parts[] = {&user_part, &red_part};
 	k_tid_t tPT, tENC, tCT;
 	int ret;
 
@@ -140,7 +129,7 @@ void main(void)
 	/* use K_FOREVER followed by k_thread_start*/
 	printk("ENC Thread Created %p\n", tENC);
 
-	ret = k_mem_domain_init(&enc_domain, ARRAY_SIZE(enc_parts), enc_parts);
+	ret = k_mem_domain_init(&enc_domain, 3, enc_parts);
 	__ASSERT(ret == 0, "k_mem_domain_init() on enc_domain failed %d", ret);
 	ARG_UNUSED(ret);
 
@@ -156,7 +145,7 @@ void main(void)
 	k_thread_access_grant(tPT, &allforone);
 	printk("PT Thread Created %p\n", tPT);
 
-	ret = k_mem_domain_init(&pt_domain, ARRAY_SIZE(pt_parts), pt_parts);
+	ret = k_mem_domain_init(&pt_domain, 2, pt_parts);
 	__ASSERT(ret == 0, "k_mem_domain_init() on pt_domain failed %d", ret);
 
 	k_mem_domain_add_thread(&pt_domain, tPT);
@@ -289,7 +278,7 @@ void ct(void)
 	while (1) {
 		k_sem_take(&allforone, K_FOREVER);
 		if (fBUFOUT == 1) {
-			printk("CT Thread Received Message\n");
+			printk("CT Thread Receivedd Message\n");
 			memset((void *)&tbuf, 0, sizeof(tbuf));
 			memcpy((void *)&tbuf, (void *)BUFOUT, SAMP_BLOCKSIZE);
 			fBUFOUT = 0;

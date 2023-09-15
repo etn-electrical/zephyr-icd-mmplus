@@ -12,26 +12,26 @@
  */
 
 #define LOG_LEVEL CONFIG_NET_PPP_LOG_LEVEL
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(net_ppp, LOG_LEVEL);
 
 #include <stdio.h>
 
-#include <zephyr/kernel.h>
+#include <kernel.h>
 
 #include <stdbool.h>
 #include <errno.h>
 #include <stddef.h>
-#include <zephyr/net/ppp.h>
-#include <zephyr/net/buf.h>
-#include <zephyr/net/net_pkt.h>
-#include <zephyr/net/net_if.h>
-#include <zephyr/net/net_core.h>
-#include <zephyr/sys/ring_buffer.h>
-#include <zephyr/sys/crc.h>
-#include <zephyr/drivers/uart.h>
-#include <zephyr/drivers/console/uart_mux.h>
-#include <zephyr/random/rand32.h>
+#include <net/ppp.h>
+#include <net/buf.h>
+#include <net/net_pkt.h>
+#include <net/net_if.h>
+#include <net/net_core.h>
+#include <sys/ring_buffer.h>
+#include <sys/crc.h>
+#include <drivers/uart.h>
+#include <drivers/console/uart_mux.h>
+#include <random/rand32.h>
 
 #include "../../subsys/net/ip/net_stats.h"
 #include "../../subsys/net/ip/net_private.h"
@@ -747,7 +747,21 @@ static int ppp_send(const struct device *dev, struct net_pkt *pkt)
 			protocol = htons(PPP_IP);
 		} else if (net_pkt_family(pkt) == AF_INET6) {
 			protocol = htons(PPP_IPV6);
-		}  else {
+		} else if (IS_ENABLED(CONFIG_NET_SOCKETS_PACKET) &&
+			   net_pkt_family(pkt) == AF_PACKET) {
+			char type = (NET_IPV6_HDR(pkt)->vtc & 0xf0);
+
+			switch (type) {
+			case 0x60:
+				protocol = htons(PPP_IPV6);
+				break;
+			case 0x40:
+				protocol = htons(PPP_IP);
+				break;
+			default:
+				return -EPROTONOSUPPORT;
+			}
+		} else {
 			return -EPROTONOSUPPORT;
 		}
 	}
@@ -1004,12 +1018,14 @@ static int ppp_start(const struct device *dev)
 	 */
 #if !defined(CONFIG_NET_TEST)
 	if (atomic_cas(&context->modem_init_done, false, true)) {
+		const char *dev_name = NULL;
+
 		/* Now try to figure out what device to open. If GSM muxing
 		 * is enabled, then use it. If not, then check if modem
 		 * configuration is enabled, and use that. If none are enabled,
 		 * then use our own config.
 		 */
-#if defined(CONFIG_GSM_MUX)
+#if IS_ENABLED(CONFIG_GSM_MUX)
 		const struct device *mux;
 
 		mux = uart_mux_find(CONFIG_GSM_MUX_DLCI_PPP);
@@ -1019,17 +1035,22 @@ static int ppp_start(const struct device *dev)
 			return -ENOENT;
 		}
 
-		context->dev = mux;
+		dev_name = mux->name;
 #elif IS_ENABLED(CONFIG_MODEM_GSM_PPP)
-		context->dev = DEVICE_DT_GET(DT_BUS(DT_INST(0, zephyr_gsm_ppp)));
+		dev_name = DT_BUS_LABEL(DT_INST(0, zephyr_gsm_ppp));
 #else
-		/* dts chosen zephyr,ppp-uart case */
-		context->dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_ppp_uart));
+		dev_name = CONFIG_NET_PPP_UART_NAME;
 #endif
-		LOG_INF("Initializing PPP to use %s", context->dev->name);
+		if (dev_name == NULL || dev_name[0] == '\0') {
+			LOG_ERR("UART configuration is wrong!");
+			return -EINVAL;
+		}
 
-		if (!device_is_ready(context->dev)) {
-			LOG_ERR("Device %s is not ready", context->dev->name);
+		LOG_INF("Initializing PPP to use %s", dev_name);
+
+		context->dev = device_get_binding(dev_name);
+		if (!context->dev) {
+			LOG_ERR("Cannot find dev %s", dev_name);
 			return -ENODEV;
 		}
 #if defined(CONFIG_NET_PPP_ASYNC_UART)

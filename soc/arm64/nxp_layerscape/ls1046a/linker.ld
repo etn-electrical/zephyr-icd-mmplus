@@ -4,5 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <autoconf.h>
 
-#include <zephyr/arch/arm64/scripts/linker.ld>
+#include <arch/arm64/scripts/linker.ld>

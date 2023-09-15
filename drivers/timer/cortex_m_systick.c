@@ -3,19 +3,18 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#include <zephyr/device.h>
-#include <zephyr/drivers/timer/system_timer.h>
-#include <zephyr/sys_clock.h>
-#include <zephyr/spinlock.h>
-#include <zephyr/arch/arm/aarch32/cortex_m/cmsis.h>
-#include <zephyr/irq.h>
+#include <device.h>
+#include <drivers/timer/system_timer.h>
+#include <sys_clock.h>
+#include <spinlock.h>
+#include <arch/arm/aarch32/cortex_m/cmsis.h>
 
 #define COUNTER_MAX 0x00ffffff
 #define TIMER_STOPPED 0xff000000
 
 #define CYC_PER_TICK (sys_clock_hw_cycles_per_sec()	\
 		      / CONFIG_SYS_CLOCK_TICKS_PER_SEC)
-#define MAX_TICKS ((k_ticks_t)(COUNTER_MAX / CYC_PER_TICK) - 1)
+#define MAX_TICKS ((COUNTER_MAX / CYC_PER_TICK) - 1)
 #define MAX_CYCLES (MAX_TICKS * CYC_PER_TICK)
 
 /* Minimum cycles in the future to try to program.  Note that this is
@@ -27,7 +26,7 @@
  * masked.  Choosing a fraction of a tick is probably a good enough
  * default, with an absolute minimum of 1k cyc.
  */
-#define MIN_DELAY MAX(1024U, ((uint32_t)CYC_PER_TICK/16U))
+#define MIN_DELAY MAX(1024, (CYC_PER_TICK/16))
 
 #define TICKLESS (IS_ENABLED(CONFIG_TICKLESS_KERNEL))
 

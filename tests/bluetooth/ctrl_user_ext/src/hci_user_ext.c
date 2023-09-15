@@ -6,14 +6,11 @@
 
 #if defined(CONFIG_BT_CTLR_USER_EXT)
 
-#include <zephyr/toolchain.h>
+#include <toolchain.h>
 #include <zephyr/types.h>
-#include <zephyr/net/buf.h>
+#include <net/buf.h>
 
 #include "util/memq.h"
-
-#include "ll_sw/pdu_df.h"
-#include "lll/pdu_vendor.h"
 #include "ll_sw/pdu.h"
 #include "ll_sw/lll.h"
 #include "hci/hci_user_ext.h"

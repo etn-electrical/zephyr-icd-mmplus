@@ -11,11 +11,10 @@
  * for the Atmel SAM4L series processor.
  */
 
-#include <zephyr/device.h>
-#include <zephyr/init.h>
+#include <device.h>
+#include <init.h>
 #include <soc.h>
-#include <zephyr/arch/cpu.h>
-#include <zephyr/irq.h>
+#include <arch/cpu.h>
 
 /** Watchdog control register first write keys */
 #define WDT_FIRST_KEY     0x55ul

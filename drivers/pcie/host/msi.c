@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/drivers/pcie/msi.h>
-#include <zephyr/drivers/pcie/cap.h>
+#include <kernel.h>
+#include <drivers/pcie/msi.h>
+#include <drivers/pcie/cap.h>
 
 /* functions documented in include/drivers/pcie/msi.h */
 
@@ -38,7 +38,7 @@ static uint32_t pcie_msi_base(pcie_bdf_t bdf, bool *msi)
 
 #ifdef CONFIG_PCIE_MSI_MULTI_VECTOR
 
-#include <zephyr/sys/mem_manage.h>
+#include <sys/mem_manage.h>
 
 __weak uint8_t arch_pcie_msi_vectors_allocate(unsigned int priority,
 					      msi_vector_t *vectors,
@@ -84,7 +84,7 @@ static bool map_msix_table_entries(pcie_bdf_t bdf,
 {
 	uint32_t table_offset;
 	uint8_t table_bir;
-	struct pcie_bar bar;
+	struct pcie_mbar bar;
 	uintptr_t mapped_table;
 	int i;
 
@@ -207,10 +207,10 @@ static void enable_msix(pcie_bdf_t bdf,
 		uint32_t map = pcie_msi_map(irq, &vectors[i], 1);
 		uint32_t mdr = pcie_msi_mdr(irq, &vectors[i]);
 
-		sys_write32(map, (mm_reg_t) &vectors[i].msix_vector->msg_addr);
-		sys_write32(0, (mm_reg_t) &vectors[i].msix_vector->msg_up_addr);
-		sys_write32(mdr, (mm_reg_t) &vectors[i].msix_vector->msg_data);
-		sys_write32(0, (mm_reg_t) &vectors[i].msix_vector->vector_ctrl);
+		vectors[i].msix_vector->msg_addr = map;
+		vectors[i].msix_vector->msg_up_addr = 0;
+		vectors[i].msix_vector->msg_data = mdr;
+		vectors[i].msix_vector->vector_ctrl = 0;
 	}
 
 	mcr = pcie_conf_read(bdf, base + PCIE_MSIX_MCR);
@@ -248,7 +248,7 @@ static void enable_msi(pcie_bdf_t bdf,
 
 	mdr = pcie_msi_mdr(irq, vectors);
 	mcr = pcie_conf_read(bdf, base + PCIE_MSI_MCR);
-	if ((mcr & PCIE_MSI_MCR_64) != 0U) {
+	if (mcr & PCIE_MSI_MCR_64) {
 		pcie_conf_write(bdf, base + PCIE_MSI_MAP1_64, 0U);
 		pcie_conf_write(bdf, base + PCIE_MSI_MDR_64, mdr);
 	} else {

@@ -18,7 +18,8 @@ at:
 
 
 
-.. image:: mm_swiftio.jpg
+.. image:: ./mm_swiftio.jpg
+   :width: 720px
    :align: center
    :alt: SwiftIO Board
 
@@ -232,4 +233,4 @@ see the following message in the terminal:
    https://madmachine.io
 
 .. _SwiftIO API Reference:
-   https://madmachineio.github.io/SwiftIO/documentation/swiftio/
+   https://madmachine.io/docs

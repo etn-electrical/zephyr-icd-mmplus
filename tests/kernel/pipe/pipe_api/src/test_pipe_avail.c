@@ -10,7 +10,7 @@
  * @{
  */
 
-#include <zephyr/ztest.h>
+#include <ztest.h>
 
 static ZTEST_DMEM unsigned char __aligned(4) data[] = "abcdefgh";
 static struct k_pipe pipe = {
@@ -40,7 +40,7 @@ static struct k_pipe bufferless1 = {
  * simultaneously return 0 for a buffered pipe, but they will both return 0
  * for an unbuffered pipe.
  */
-ZTEST(pipe_api, test_pipe_avail_no_buffer)
+void test_pipe_avail_no_buffer(void)
 {
 	size_t r_avail;
 	size_t w_avail;
@@ -80,7 +80,7 @@ ZTEST(pipe_api, test_pipe_avail_no_buffer)
  *     w_avail = N - (w - r) = 5
  *     would overwrite: e f g h
  */
-ZTEST(pipe_api, test_pipe_avail_r_lt_w)
+void test_pipe_avail_r_lt_w(void)
 {
 	size_t r_avail;
 	size_t w_avail;
@@ -119,7 +119,7 @@ ZTEST(pipe_api, test_pipe_avail_r_lt_w)
  *     w_avail = r - w = 3
  *     would overwrite: a b c d
  */
-ZTEST(pipe_api, test_pipe_avail_w_lt_r)
+void test_pipe_avail_w_lt_r(void)
 {
 	size_t r_avail;
 	size_t w_avail;
@@ -143,7 +143,7 @@ ZTEST(pipe_api, test_pipe_avail_w_lt_r)
  * @ref k_pipe.bytes_used is zero.
  *
  * In this case, @ref k_pipe.bytes_used is relevant because the read and
- * write indices are equal.
+ * write indeces are equal.
  *
  *            r
  *            w
@@ -162,7 +162,7 @@ ZTEST(pipe_api, test_pipe_avail_w_lt_r)
  *     w_avail = N - 0 = 8
  *     would overwrite: e f g h a b c d
  */
-ZTEST(pipe_api, test_pipe_avail_r_eq_w_empty)
+void test_pipe_avail_r_eq_w_empty(void)
 {
 	size_t r_avail;
 	size_t w_avail;
@@ -186,7 +186,7 @@ ZTEST(pipe_api, test_pipe_avail_r_eq_w_empty)
  * @ref k_pipe.bytes_used is equal to @ref k_pipe.size.
  *
  * In this case, @ref k_pipe.bytes_used is relevant because the read and
- * write indices are equal.
+ * write indeces are equal.
  *
  *            r
  *            w
@@ -205,7 +205,7 @@ ZTEST(pipe_api, test_pipe_avail_r_eq_w_empty)
  *     w_avail = N - 8 = 0
  *     would overwrite:
  */
-ZTEST(pipe_api, test_pipe_avail_r_eq_w_full)
+void test_pipe_avail_r_eq_w_full(void)
 {
 	size_t r_avail;
 	size_t w_avail;

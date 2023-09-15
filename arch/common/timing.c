@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/sys_clock.h>
-#include <zephyr/timing/timing.h>
+#include <kernel.h>
+#include <sys_clock.h>
+#include <timing/timing.h>
 
 void arch_timing_init(void)
 {

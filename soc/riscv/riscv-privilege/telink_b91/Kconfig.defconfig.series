@@ -31,9 +31,6 @@ config NUM_IRQS
 	int
 	default 64
 
-config PINCTRL
-	default y
-
 config XIP
 	bool
 	default n
@@ -46,11 +43,8 @@ config IDLE_STACK_SIZE
 	int
 	default 1536
 
-config TEST_EXTRA_STACK_SIZE
+config TEST_EXTRA_STACKSIZE
 	int
 	default 1024
-
-config HAS_FLASH_LOAD_OFFSET
-	default y if BOOTLOADER_MCUBOOT
 
 endif # SOC_SERIES_RISCV_TELINK_B91

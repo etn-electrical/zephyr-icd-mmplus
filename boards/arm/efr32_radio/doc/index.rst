@@ -21,7 +21,8 @@ Support for EFR32 Radio boards is provided by one of the starter kits
 - `SLWSTK6061B Proprietary Wireless Starter Kit`_
 - `SLWSTK6006A Mighty Gecko Wireless Starter Kit`_
 
-.. figure:: efr32_slwstk6020b.jpg
+.. figure:: ./efr32_slwstk6020b.jpg
+   :width: 490px
    :align: center
    :alt: SLWSTK6020B Bluetooth SoC Starter Kit
 
@@ -179,7 +180,7 @@ Reset the board and you should see the following message in the terminal:
    https://www.silabs.com/documents/public/user-guides/ug385-brd4180a-user-guide.pdf
 
 .. _WSTK Main Board BRD4001A Schematics:
-   https://www.silabs.com/documents/public/schematic-files/BRD4001A-A01-schematic.pdf
+   https://www.silabs.com/documents/public/schematic-files/WSTK-Main-BRD4001A-A01-schematic.pdf
 
 .. _J-Link:
    https://www.segger.com/jlink-debug-probes.html

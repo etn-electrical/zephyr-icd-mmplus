@@ -4,14 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
-#include <zephyr/tc_util.h>
+#include <ztest.h>
+#include <tc_util.h>
 
-#include <zephyr/sys/byteorder.h>
-#include <zephyr/usb/usb_device.h>
+#include <sys/byteorder.h>
+#include <usb/usb_device.h>
 
 /* Max packet size for endpoints */
-#if defined(CONFIG_USB_DC_HAS_HS_SUPPORT)
+#if IS_ENABLED(CONFIG_USB_DC_HAS_HS_SUPPORT)
 #define BULK_EP_MPS		512
 #else
 #define BULK_EP_MPS		64
@@ -91,20 +91,20 @@ USBD_DEFINE_CFG_DATA(device_config) = {
 	.endpoint = device_ep,
 };
 
-ZTEST(device_usb, test_usb_disable)
+static void test_usb_disable(void)
 {
 	zassert_equal(usb_disable(), TC_PASS, "usb_disable() failed");
 }
 
-ZTEST(device_usb, test_usb_deconfig)
+static void test_usb_deconfig(void)
 {
 	zassert_equal(usb_deconfig(), TC_PASS, "usb_deconfig() failed");
 }
 
-/* Test USB Device Controller API */
-ZTEST(device_usb, test_usb_dc_api)
+/* Test USB Device Cotnroller API */
+static void test_usb_dc_api(void)
 {
-	/* Control endpoints are configured */
+	/* Control endpoins are configured */
 	zassert_equal(usb_dc_ep_mps(0x0), 64,
 		      "usb_dc_ep_mps(0x00) failed");
 	zassert_equal(usb_dc_ep_mps(0x80), 64,
@@ -115,8 +115,8 @@ ZTEST(device_usb, test_usb_dc_api)
 		      "usb_dc_ep_mps(ENDP_BULK_IN) not configured");
 }
 
-/* Test USB Device Controller API for invalid parameters */
-ZTEST(device_usb, test_usb_dc_api_invalid)
+/* Test USB Device Cotnroller API for invalid parameters */
+static void test_usb_dc_api_invalid(void)
 {
 	uint32_t size;
 	uint8_t byte;
@@ -175,7 +175,7 @@ ZTEST(device_usb, test_usb_dc_api_invalid)
 			  "usb_dc_ep_mps(INVALID_EP)");
 }
 
-ZTEST(device_usb, test_usb_dc_api_read_write)
+static void test_usb_dc_api_read_write(void)
 {
 	uint32_t size;
 	uint8_t byte;
@@ -190,16 +190,24 @@ ZTEST(device_usb, test_usb_dc_api_read_write)
 }
 
 /* test case main entry */
-static void *device_usb_setup(void)
+void test_main(void)
 {
 	int ret;
 
 	ret = usb_enable(NULL);
-	zassert_true(ret == 0, "Failed to enable USB");
-	/*
-	 *Judge failure whether is due to failing to enable USB.
-	 */
+	if (ret != 0) {
+		printk("Failed to enable USB\n");
+		return;
+	}
 
-	return NULL;
+	ztest_test_suite(test_device,
+			 /* Test API for not USB attached state */
+			 ztest_unit_test(test_usb_dc_api_invalid),
+			 ztest_unit_test(test_usb_dc_api),
+			 ztest_unit_test(test_usb_dc_api_read_write),
+			 ztest_unit_test(test_usb_dc_api_invalid),
+			 ztest_unit_test(test_usb_deconfig),
+			 ztest_unit_test(test_usb_disable));
+
+	ztest_run_test_suite(test_device);
 }
-ZTEST_SUITE(device_usb, NULL, device_usb_setup, NULL, NULL, NULL);

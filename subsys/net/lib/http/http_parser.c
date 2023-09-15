@@ -23,14 +23,14 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-#include <zephyr/net/http/parser.h>
-#include <zephyr/sys/__assert.h>
+#include <net/http_parser.h>
+#include <sys/__assert.h>
 #include <stddef.h>
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
-#include <zephyr/toolchain.h>
+#include <toolchain.h>
 
 #ifndef ULLONG_MAX
 # define ULLONG_MAX ((uint64_t) -1) /* 2^64-1 */

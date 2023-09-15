@@ -1,5 +1,4 @@
 # Copyright (c) 2021, Teslabs Engineering S.L.
-# Copyright (c) 2022, Rtone.
 # SPDX-License-Identifier: Apache-2.0
 
 choice
@@ -9,13 +8,7 @@ choice
 	config SOC_GD32F405
 		bool "gd32f405"
 
-	config SOC_GD32F407
-		bool "gd32f407"
-
 	config SOC_GD32F450
 		bool "gd32f450"
-
-	config SOC_GD32F470
-		bool "gd32f470"
 
 endchoice

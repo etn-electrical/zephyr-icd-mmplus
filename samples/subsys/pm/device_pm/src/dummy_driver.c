@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/pm/device.h>
-#include <zephyr/pm/device_runtime.h>
-#include <zephyr/sys/printk.h>
+#include <pm/device.h>
+#include <pm/device_runtime.h>
+#include <sys/printk.h>
 #include "dummy_parent.h"
 #include "dummy_driver.h"
 
@@ -17,15 +17,11 @@ static int dummy_open(const struct device *dev)
 	int ret;
 	enum pm_device_state state;
 
+	printk("open()\n");
+
 	/* Make sure parent is resumed */
 	ret = pm_device_runtime_get(parent);
 	if (ret < 0) {
-		return ret;
-	}
-
-	ret = pm_device_runtime_get(dev);
-	if (ret < 0) {
-		(void)pm_device_runtime_put(parent);
 		return ret;
 	}
 
@@ -46,6 +42,8 @@ static int dummy_read(const struct device *dev, uint32_t *val)
 	struct dummy_parent_api *api;
 	int ret;
 
+	printk("read()\n");
+
 	api = (struct dummy_parent_api *)parent->api;
 	ret = api->transfer(parent, DUMMY_PARENT_RD, val);
 	return ret;
@@ -56,6 +54,7 @@ static int dummy_write(const struct device *dev, uint32_t val)
 	struct dummy_parent_api *api;
 	int ret;
 
+	printk("write()\n");
 	api = (struct dummy_parent_api *)parent->api;
 	ret = api->transfer(parent, DUMMY_PARENT_WR, &val);
 	return ret;
@@ -65,9 +64,10 @@ static int dummy_close(const struct device *dev)
 {
 	int ret;
 
+	printk("close()\n");
 	ret = pm_device_runtime_put(dev);
 	if (ret == 1) {
-		printk("Async suspend request queued\n");
+		printk("Async suspend request ququed\n");
 	}
 
 	/* Parent can be suspended */

@@ -7,7 +7,7 @@
 #ifndef _TRACE_CORE_H
 #define _TRACE_CORE_H
 
-#include <zephyr/irq.h>
+#include <irq.h>
 #include <zephyr/types.h>
 
 #ifdef __cplusplus

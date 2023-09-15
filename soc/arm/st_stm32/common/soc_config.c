@@ -8,10 +8,10 @@
  * @brief System module to support early STM32 MCU configuration
  */
 
-#include <zephyr/device.h>
-#include <zephyr/init.h>
+#include <device.h>
+#include <init.h>
 #include <soc.h>
-#include <zephyr/arch/cpu.h>
+#include <arch/cpu.h>
 #include <stm32_ll_system.h>
 #include <stm32_ll_bus.h>
 
@@ -26,13 +26,11 @@
 static int st_stm32_common_config(const struct device *dev)
 {
 #ifdef CONFIG_LOG_BACKEND_SWO
-	/* Enable SWO trace asynchronous mode */
-#if defined(CONFIG_SOC_SERIES_STM32WBX)
-	LL_DBGMCU_EnableTraceClock();
-#else
-	LL_DBGMCU_SetTracePinAssignment(LL_DBGMCU_TRACE_ASYNCH);
+	/* TRACE pin assignment for asynchronous mode */
+	DBGMCU->CR &= ~DBGMCU_CR_TRACE_MODE_Msk;
+	/* Enable the SWO pin */
+	DBGMCU->CR |= DBGMCU_CR_TRACE_IOEN;
 #endif
-#endif /* CONFIG_LOG_BACKEND_SWO */
 
 #if defined(CONFIG_USE_SEGGER_RTT)
 	/* On some STM32 boards, for unclear reason,
@@ -42,8 +40,6 @@ static int st_stm32_common_config(const struct device *dev)
 	 */
 #if defined(__HAL_RCC_DMA1_CLK_ENABLE)
 	__HAL_RCC_DMA1_CLK_ENABLE();
-#elif defined(__HAL_RCC_GPDMA1_CLK_ENABLE)
-	__HAL_RCC_GPDMA1_CLK_ENABLE();
 #endif /* __HAL_RCC_DMA1_CLK_ENABLE */
 
 	/* On some STM32 boards, for unclear reason,

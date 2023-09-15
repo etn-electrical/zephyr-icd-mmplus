@@ -5,8 +5,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/ztest.h>
-#include <zephyr/kernel.h>
+#include <ztest.h>
+#include <zephyr.h>
 #include <stdlib.h>
 #include <arm_math.h>
 #include "../../common/test_common.h"
@@ -105,8 +105,7 @@ static void test_op2(int op, const uint64_t *ref, size_t length)
 	free(output);
 }
 
-DEFINE_TEST_VARIANT3(matrix_unary_f64,
-	op2, arm_mat_sub_f64, OP2_SUB,
+DEFINE_TEST_VARIANT3(op2, arm_mat_sub_f64, OP2_SUB,
 	ref_sub, ARRAY_SIZE(ref_sub));
 
 static void test_op1(int op, const uint64_t *ref, size_t length,
@@ -180,11 +179,10 @@ static void test_op1(int op, const uint64_t *ref, size_t length,
 	free(output);
 }
 
-DEFINE_TEST_VARIANT4(matrix_unary_f64,
-	op1, arm_mat_trans_f64, OP1_TRANS,
+DEFINE_TEST_VARIANT4(op1, arm_mat_trans_f64, OP1_TRANS,
 	ref_trans, ARRAY_SIZE(ref_trans), true);
 
-ZTEST(matrix_unary_f64, test_arm_mat_inverse_f64)
+static void test_arm_mat_inverse_f64(void)
 {
 	size_t index;
 	size_t length = ARRAY_SIZE(ref_inv);
@@ -247,7 +245,7 @@ ZTEST(matrix_unary_f64, test_arm_mat_inverse_f64)
 	free(output);
 }
 
-ZTEST(matrix_unary_f64, test_arm_mat_cholesky_f64)
+static void test_arm_mat_cholesky_f64(void)
 {
 	size_t index;
 	size_t length = ARRAY_SIZE(ref_cholesky_dpo);
@@ -310,7 +308,7 @@ ZTEST(matrix_unary_f64, test_arm_mat_cholesky_f64)
 	free(output);
 }
 
-ZTEST(matrix_unary_f64, test_arm_mat_solve_upper_triangular_f64)
+static void test_arm_mat_solve_upper_triangular_f64(void)
 {
 	size_t index;
 	size_t length = ARRAY_SIZE(ref_uptriangular_dpo);
@@ -387,7 +385,7 @@ ZTEST(matrix_unary_f64, test_arm_mat_solve_upper_triangular_f64)
 	free(output);
 }
 
-ZTEST(matrix_unary_f64, test_arm_mat_solve_lower_triangular_f64)
+static void test_arm_mat_solve_lower_triangular_f64(void)
 {
 	size_t index;
 	size_t length = ARRAY_SIZE(ref_lotriangular_dpo);
@@ -471,4 +469,16 @@ ZTEST(matrix_unary_f64, test_arm_mat_solve_lower_triangular_f64)
  *       updated to use pre-generated test patterns.
  */
 
-ZTEST_SUITE(matrix_unary_f64, NULL, NULL, NULL, NULL, NULL);
+void test_matrix_unary_f64(void)
+{
+	ztest_test_suite(matrix_unary_f64,
+		ztest_unit_test(test_op2_arm_mat_sub_f64),
+		ztest_unit_test(test_op1_arm_mat_trans_f64),
+		ztest_unit_test(test_arm_mat_inverse_f64),
+		ztest_unit_test(test_arm_mat_cholesky_f64),
+		ztest_unit_test(test_arm_mat_solve_upper_triangular_f64),
+		ztest_unit_test(test_arm_mat_solve_lower_triangular_f64)
+		);
+
+	ztest_run_test_suite(matrix_unary_f64);
+}

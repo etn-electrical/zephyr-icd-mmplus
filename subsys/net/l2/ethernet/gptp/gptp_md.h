@@ -14,7 +14,7 @@
 #ifndef __GPTP_MD_H
 #define __GPTP_MD_H
 
-#include <zephyr/net/gptp.h>
+#include <net/gptp.h>
 
 #ifdef __cplusplus
 extern "C" {

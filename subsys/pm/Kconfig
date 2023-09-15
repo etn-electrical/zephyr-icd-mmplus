@@ -25,32 +25,7 @@ config PM_STATS
 	help
 	  Enable System Power Management Stats.
 
-config PM_S2RAM
-	bool "Suspend-to-RAM (S2RAM)"
-	depends on ARCH_HAS_SUSPEND_TO_RAM
-	help
-	  This option enables suspend-to-RAM (S2RAM).
-
-choice PM_POLICY
-	prompt "Idle State Power Management Policy"
-	default PM_POLICY_DEFAULT
-	help
-	  Select the idle state power management policy.
-
-config PM_POLICY_DEFAULT
-	bool "Default PM policy"
-	help
-	  This option selects the default PM policy. Default policy is based
-	  on CPU residency times and other constraints imposed by the drivers or
-	  application.
-
-config PM_POLICY_CUSTOM
-	bool "Custom PM Policy"
-	help
-	  This options allows applications to override the default policy with
-	  a custom implementation.
-
-endchoice
+source "subsys/pm/policy/Kconfig"
 
 endif # PM
 
@@ -80,7 +55,7 @@ module-str = Device Power Management
 source "subsys/logging/Kconfig.template.log_config"
 
 config PM_DEVICE_POWER_DOMAIN
-	bool "Power domain"
+	bool "Enable power domain"
 	depends on PM_DEVICE
 	default y
 	help
@@ -88,35 +63,12 @@ config PM_DEVICE_POWER_DOMAIN
 	  devices that depend on a domain will be notified when this
 	  domain is suspended or resumed.
 
-config PM_DEVICE_POWER_DOMAIN_DYNAMIC
-	bool "Dynamically bind devices to a Power Pomain"
-	depends on PM_DEVICE_POWER_DOMAIN
-	select HAS_DYNAMIC_DEVICE_HANDLES
-	help
-	  Enable support for dynamically bind devices to a Power Domain.
-
-config PM_DEVICE_POWER_DOMAIN_DYNAMIC_NUM
-	int "Number of devices that can dynamically be bind to a Power Domain"
-	depends on PM_DEVICE_POWER_DOMAIN_DYNAMIC
-	default 1
-	help
-	  The number of devices that can dynamically be bind to a Power Domain.
-
 config PM_DEVICE_RUNTIME
 	bool "Runtime Device Power Management"
-	select EVENTS
 	help
 	  Enable Runtime Power Management to save power. With device runtime PM
 	  enabled, devices can be suspended or resumed based on the device
 	  usage even while the CPU or system is running.
-
-config PM_DEVICE_RUNTIME_EXCLUSIVE
-	depends on PM_DEVICE_RUNTIME
-	bool "Use only on Runtime Power Management on system suspend / resume"
-	default y
-	help
-	  On system suspend / resume do not trigger the Device PM hooks but
-	  only rely on Runtime PM to manage the devices power states.
 
 endif # PM_DEVICE
 

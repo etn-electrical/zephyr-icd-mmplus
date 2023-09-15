@@ -5,23 +5,23 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/arch/x86/mmustructs.h>
-#include <zephyr/sys/mem_manage.h>
-#include <zephyr/sys/__assert.h>
-#include <zephyr/sys/check.h>
-#include <zephyr/logging/log.h>
+#include <kernel.h>
+#include <arch/x86/mmustructs.h>
+#include <sys/mem_manage.h>
+#include <sys/__assert.h>
+#include <sys/check.h>
+#include <logging/log.h>
 #include <errno.h>
 #include <ctype.h>
-#include <zephyr/spinlock.h>
+#include <spinlock.h>
 #include <kernel_arch_func.h>
 #include <x86_mmu.h>
-#include <zephyr/init.h>
+#include <init.h>
 #include <kernel_internal.h>
 #include <mmu.h>
-#include <zephyr/drivers/interrupt_controller/loapic.h>
+#include <drivers/interrupt_controller/loapic.h>
 #include <mmu.h>
-#include <zephyr/arch/x86/memmap.h>
+#include <arch/x86/memmap.h>
 
 LOG_MODULE_DECLARE(os, CONFIG_KERNEL_LOG_LEVEL);
 
@@ -520,18 +520,18 @@ static inline bool is_region_page_aligned(void *addr, size_t size)
 #define COLOR_PAGE_TABLES	1
 
 #if COLOR_PAGE_TABLES
-#define ANSI_DEFAULT "\x1B" "[0m"
-#define ANSI_RED     "\x1B" "[1;31m"
-#define ANSI_GREEN   "\x1B" "[1;32m"
-#define ANSI_YELLOW  "\x1B" "[1;33m"
-#define ANSI_BLUE    "\x1B" "[1;34m"
-#define ANSI_MAGENTA "\x1B" "[1;35m"
-#define ANSI_CYAN    "\x1B" "[1;36m"
-#define ANSI_GREY    "\x1B" "[1;90m"
+#define ANSI_DEFAULT "\x1B[0m"
+#define ANSI_RED     "\x1B[1;31m"
+#define ANSI_GREEN   "\x1B[1;32m"
+#define ANSI_YELLOW  "\x1B[1;33m"
+#define ANSI_BLUE    "\x1B[1;34m"
+#define ANSI_MAGENTA "\x1B[1;35m"
+#define ANSI_CYAN    "\x1B[1;36m"
+#define ANSI_GREY    "\x1B[1;90m"
 
 #define COLOR(x)	printk(_CONCAT(ANSI_, x))
 #else
-#define COLOR(x)	do { } while (false)
+#define COLOR(x)	do { } while (0)
 #endif
 
 __pinned_func
@@ -564,7 +564,7 @@ static char get_entry_code(pentry_t value)
 
 		if ((value & MMU_US) != 0U) {
 			/* Uppercase indicates user mode access */
-			ret = toupper((unsigned char)ret);
+			ret = toupper(ret);
 		}
 	}
 
@@ -740,7 +740,7 @@ static void dump_entry(int level, void *virt, pentry_t entry)
 			if ((entry & MMU_##bit) != 0U) { \
 				str_append(&pos, &sz, #bit " "); \
 			} \
-		} while (false)
+		} while (0)
 
 	DUMP_BIT(RW);
 	DUMP_BIT(US);
@@ -752,7 +752,7 @@ static void dump_entry(int level, void *virt, pentry_t entry)
 	DUMP_BIT(XD);
 
 	LOG_ERR("%sE: %p -> " PRI_ENTRY ": %s", info->name,
-		virtmap, entry & info->mask, buf);
+		virtmap, entry & info->mask, log_strdup(buf));
 
 	#undef DUMP_BIT
 }
@@ -977,7 +977,7 @@ static inline pentry_t pte_atomic_update(pentry_t *pte, pentry_t update_val,
  * bits and return the previous PTE value.
  *
  * Common mask values:
- *  MASK_ALL  - Update all PTE bits. Existing state totally discarded.
+ *  MASK_ALL  - Update all PTE bits. Exitsing state totally discarded.
  *  MASK_PERM - Only update permission bits. All other bits and physical
  *              mapping preserved.
  *
@@ -1147,7 +1147,7 @@ out:
  * @param size Size of the physical region to map
  * @param entry_flags Desired state of non-address PTE bits covered by mask,
  *                    ignored if OPTION_RESET
- * @param mask What bits in the PTE to actually modify; unset bits will
+ * @param mask What bits in the PTE to actually modifiy; unset bits will
  *             be preserved. Ignored if OPTION_RESET.
  * @param options Control options. Do not set OPTION_USER here. OPTION_FLUSH
  *                will trigger a TLB shootdown after all tables are updated.
@@ -1334,7 +1334,7 @@ static void identity_map_remove(uint32_t level)
 #endif
 
 /* Invoked to remove the identity mappings in the page tables,
- * they were only needed to transition the instruction pointer at early boot
+ * they were only needed to tranisition the instruction pointer at early boot
  */
 __boot_func
 void z_x86_mmu_init(void)

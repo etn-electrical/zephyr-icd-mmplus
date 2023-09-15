@@ -7,12 +7,10 @@ toolchain:
   - xtools
   - zephyr
 ram: 88
-flash: 1024
+flash: 256
 supported:
   - arduino_gpio
   - arduino_i2c
-  - arduino_serial
-  - arduino_spi
   - gpio
   - i2c
   - pwm

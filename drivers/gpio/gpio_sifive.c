@@ -11,14 +11,13 @@
  */
 
 #include <errno.h>
-#include <zephyr/kernel.h>
-#include <zephyr/device.h>
+#include <kernel.h>
+#include <device.h>
 #include <soc.h>
-#include <zephyr/drivers/gpio.h>
-#include <zephyr/sys/util.h>
-#include <zephyr/irq.h>
+#include <drivers/gpio.h>
+#include <sys/util.h>
 
-#include <zephyr/drivers/gpio/gpio_utils.h>
+#include "gpio_utils.h"
 
 typedef void (*sifive_cfg_func_t)(void);
 
@@ -304,26 +303,6 @@ static int gpio_sifive_manage_callback(const struct device *dev,
 	return gpio_manage_callback(&data->cb, callback, set);
 }
 
-#ifdef CONFIG_GPIO_GET_DIRECTION
-static int gpio_sifive_port_get_dir(const struct device *dev, gpio_port_pins_t map,
-				    gpio_port_pins_t *inputs, gpio_port_pins_t *outputs)
-{
-	const struct gpio_sifive_config *cfg = DEV_GPIO_CFG(dev);
-
-	map &= cfg->common.port_pin_mask;
-
-	if (inputs != NULL) {
-		*inputs = map & DEV_GPIO(dev)->in_en;
-	}
-
-	if (outputs != NULL) {
-		*outputs = map & DEV_GPIO(dev)->out_en;
-	}
-
-	return 0;
-}
-#endif /* CONFIG_GPIO_GET_DIRECTION */
-
 static const struct gpio_driver_api gpio_sifive_driver = {
 	.pin_configure           = gpio_sifive_config,
 	.port_get_raw            = gpio_sifive_port_get_raw,
@@ -333,9 +312,6 @@ static const struct gpio_driver_api gpio_sifive_driver = {
 	.port_toggle_bits        = gpio_sifive_port_toggle_bits,
 	.pin_interrupt_configure = gpio_sifive_pin_interrupt_configure,
 	.manage_callback         = gpio_sifive_manage_callback,
-#ifdef CONFIG_GPIO_GET_DIRECTION
-	.port_get_direction      = gpio_sifive_port_get_dir,
-#endif /* CONFIG_GPIO_GET_DIRECTION */
 };
 
 /**
@@ -360,8 +336,6 @@ static int gpio_sifive_init(const struct device *dev)
 	gpio->fall_ie = 0U;
 	gpio->high_ie = 0U;
 	gpio->low_ie  = 0U;
-	gpio->iof_en  = 0U;
-	gpio->iof_sel = 0U;
 	gpio->invert  = 0U;
 
 	/* Setup IRQ handler for each gpio pin */

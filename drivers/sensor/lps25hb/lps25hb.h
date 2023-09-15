@@ -12,8 +12,8 @@
 #define ZEPHYR_DRIVERS_SENSOR_LPS25HB_LPS25HB_H_
 
 #include <zephyr/types.h>
-#include <zephyr/drivers/i2c.h>
-#include <zephyr/sys/util.h>
+#include <drivers/i2c.h>
+#include <sys/util.h>
 
 #define LPS25HB_REG_WHO_AM_I                    0x0F
 #define LPS25HB_VAL_WHO_AM_I                    0xBD
@@ -147,10 +147,13 @@
 
 
 struct lps25hb_config {
-	struct i2c_dt_spec i2c;
+	char *i2c_master_dev_name;
+	uint16_t i2c_slave_addr;
 };
 
 struct lps25hb_data {
+	const struct device *i2c_master;
+
 	int32_t sample_press;
 	int16_t sample_temp;
 };

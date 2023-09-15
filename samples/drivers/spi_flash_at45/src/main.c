@@ -4,10 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/drivers/flash.h>
-#include <zephyr/logging/log_ctrl.h>
-#include <zephyr/pm/device.h>
+#include <zephyr.h>
+#include <drivers/flash.h>
+#include <logging/log_ctrl.h>
+#include <pm/device.h>
+
+#define FLASH_DEVICE        DT_LABEL(DT_INST(0, atmel_at45))
 
 /* Set to 1 to test the chip erase functionality. Please be aware that this
  * operation takes quite a while (it depends on the chip size, but can easily
@@ -27,7 +29,7 @@ void main(void)
 {
 	printk("DataFlash sample on %s\n", CONFIG_BOARD);
 
-	const struct device *const flash_dev = DEVICE_DT_GET_ONE(atmel_at45);
+	const struct device *flash_dev;
 	int i;
 	int err;
 	uint8_t data;
@@ -36,8 +38,9 @@ void main(void)
 	size_t page_count, chip_size;
 #endif
 
-	if (!device_is_ready(flash_dev)) {
-		printk("%s: device not ready.\n", flash_dev->name);
+	flash_dev = device_get_binding(FLASH_DEVICE);
+	if (!flash_dev) {
+		printk("Device %s not found!\n", FLASH_DEVICE);
 		return;
 	}
 
@@ -46,7 +49,7 @@ void main(void)
 	(void)flash_get_page_info_by_idx(flash_dev, 0, &pages_info);
 	chip_size = page_count * pages_info.size;
 	printk("Using %s, chip size: %u bytes (page: %u)\n",
-	       flash_dev->name, chip_size, pages_info.size);
+	       FLASH_DEVICE, chip_size, pages_info.size);
 #endif
 
 	printk("Reading the first byte of the test region ... ");
@@ -147,7 +150,7 @@ void main(void)
 
 	printk("OK\n");
 
-#if defined(CONFIG_PM_DEVICE)
+#if IS_ENABLED(CONFIG_PM_DEVICE)
 	printk("Putting the flash device into suspended state... ");
 	err = pm_device_action_run(flash_dev, PM_DEVICE_ACTION_SUSPEND);
 	if (err != 0) {

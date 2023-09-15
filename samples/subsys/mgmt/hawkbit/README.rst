@@ -1,5 +1,3 @@
-.. _hawkbit-api-sample:
-
 Hawkbit Direct Device Integration API sample
 ############################################
 
@@ -157,7 +155,7 @@ following command:
    hawkbit run
 
 And then wait. The board will ping the server, check if there are any new
-updates, and then download the update you've just created. If everything goes
+updates, and then download the update you've just created. If everyting goes
 fine the message ``Image flashed successfully, you can reboot now`` will be
 printed on the terminal.
 
@@ -198,7 +196,7 @@ to support https.
    openssl req -new -key server.key -out server.csr
 
 Once you run the command, it will prompt you to enter your Country,
-State, City, Company name and enter the Command Name field with
+State, City, Company name and enter the Comman Name field with
 ``<your-ip-address>``.
 
 * Generate the self-signed x509 certificate suitable to use on web server.

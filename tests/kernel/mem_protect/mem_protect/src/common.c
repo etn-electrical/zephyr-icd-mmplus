@@ -3,8 +3,8 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#include <zephyr/kernel.h>
-#include <zephyr/ztest.h>
+#include <zephyr.h>
+#include <ztest.h>
 
 ZTEST_BMEM volatile bool valid_fault;
 
@@ -20,7 +20,6 @@ void k_sys_fatal_error_handler(unsigned int reason, const z_arch_esf_t *pEsf)
 		post_fatal_error_handler(reason, pEsf);
 	} else {
 		printk("fatal error was unexpected, aborting\n");
-		printk("PROJECT EXECUTION FAILED\n");
 		k_fatal_halt(reason);
 	}
 }

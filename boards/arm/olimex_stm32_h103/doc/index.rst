@@ -11,10 +11,12 @@ STMicroelectronics STM32F103RBT6 ARM Cortex-M3 CPU, with all the MCU pins
 populated and accessible through two male 26-pin connectors.
 
 .. figure:: img/olimex_stm32_h103_top.jpg
+   :width: 800px
    :align: center
    :alt: OLIMEX-STM32-H103 top
 
 .. figure:: img/olimex_stm32_h103_bottom.jpg
+   :width: 800px
    :align: center
    :alt: OLIMEX-STM32-H103 bottom
 
@@ -209,7 +211,7 @@ Programming and Debugging
 
 This board does not include any embedded debug tool interface, instead you
 will have to use an external probe connected to the available 20-pin JTAG
-connector to program and debug the board. Both JTAG and SWD are supported.
+connector to progran and debug the board. Both JTAG and SWD are supported.
 
 By default when using ``west debug`` ST-Link will be used with OpenOCD's
 SWD transport, but it is also possible to use JTAG with the Olimex ARM-USB-OCD-H

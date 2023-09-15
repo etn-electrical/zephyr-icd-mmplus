@@ -23,14 +23,14 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-#include <zephyr/sys/__assert.h>
+#include <sys/__assert.h>
 #include <stddef.h>
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
-#include <zephyr/net/http/parser_url.h>
-#include <zephyr/toolchain.h>
+#include <net/http_parser_url.h>
+#include <toolchain.h>
 
 #ifndef BIT_AT
 # define BIT_AT(a, i)                                                \
@@ -490,7 +490,7 @@ http_parser_parse_url(const char *buf, size_t buflen, int is_connect,
 		case s_dead:
 			return 1;
 
-		/* Skip delimiters */
+		/* Skip delimeters */
 		case s_req_schema_slash:
 		case s_req_schema_slash_slash:
 		case s_req_server_start:

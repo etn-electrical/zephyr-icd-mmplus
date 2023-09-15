@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/drivers/gpio.h>
-#include <zephyr/logging/log.h>
+#include <drivers/gpio.h>
+#include <logging/log.h>
 
 LOG_MODULE_REGISTER(pine64_pinetime_key_out);
 

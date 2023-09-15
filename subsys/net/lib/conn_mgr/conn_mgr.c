@@ -4,19 +4,19 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(conn_mgr, CONFIG_NET_CONNECTION_MANAGER_LOG_LEVEL);
 
-#include <zephyr/init.h>
-#include <zephyr/kernel.h>
+#include <init.h>
+#include <kernel.h>
 #include <errno.h>
-#include <zephyr/net/net_core.h>
-#include <zephyr/net/net_if.h>
-#include <zephyr/net/net_mgmt.h>
+#include <net/net_core.h>
+#include <net/net_if.h>
+#include <net/net_mgmt.h>
 
 #include <conn_mgr.h>
 
-#if defined(CONFIG_NET_TC_THREAD_COOPERATIVE)
+#if IS_ENABLED(CONFIG_NET_TC_THREAD_COOPERATIVE)
 #define THREAD_PRIORITY K_PRIO_COOP(CONFIG_NUM_COOP_PRIORITIES - 1)
 #else
 #define THREAD_PRIORITY K_PRIO_PREEMPT(7)

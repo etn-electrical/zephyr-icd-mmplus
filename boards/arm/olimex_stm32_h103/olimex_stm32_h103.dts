@@ -37,7 +37,6 @@
 	aliases {
 		led0 = &green_led_2;
 		sw0 = &user_button;
-		watchdog0 = &iwdg;
 	};
 };
 
@@ -58,7 +57,6 @@
 	ahb-prescaler = <1>;
 	apb1-prescaler = <2>;
 	apb2-prescaler = <1>;
-	/* usbpre not set: USB clock = 72 / 1.5: 48MHz */
 };
 
 &usart1 {
@@ -76,7 +74,7 @@
 };
 
 &usart3 {
-	pinctrl-0 = <&usart3_tx_remap1_pc10 &usart3_rx_remap1_pc11>;
+	pinctrl-0 = <&usart3_tx_pc10 &usart3_rx_pc11>;
 	pinctrl-names = "default";
 	current-speed = <115200>;
 };
@@ -115,7 +113,7 @@
 
 	pwm1: pwm {
 		status = "okay";
-		pinctrl-0 = <&tim1_ch1_pwm_out_pa8>;
+		pinctrl-0 = <&tim1_ch1_pwm_pa8>;
 		pinctrl-names = "default";
 	};
 };
@@ -131,7 +129,7 @@
 	status = "okay";
 };
 
-zephyr_udc0: &usb {
+&usb {
 	pinctrl-0 = <&usb_dm_pa11 &usb_dp_pa12>;
 	pinctrl-names = "default";
 	disconnect-gpios = <&gpioc 11 GPIO_ACTIVE_LOW>;

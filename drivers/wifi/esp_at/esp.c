@@ -7,33 +7,49 @@
 
 #define DT_DRV_COMPAT espressif_esp_at
 
-#include <zephyr/logging/log.h>
+#include <logging/log.h>
 LOG_MODULE_REGISTER(wifi_esp_at, CONFIG_WIFI_LOG_LEVEL);
 
-#include <zephyr/kernel.h>
+#include <kernel.h>
 #include <ctype.h>
 #include <errno.h>
-#include <zephyr/device.h>
-#include <zephyr/init.h>
+#include <zephyr.h>
+#include <device.h>
+#include <init.h>
 #include <stdlib.h>
 
-#include <zephyr/drivers/gpio.h>
-#include <zephyr/drivers/uart.h>
+#include <drivers/gpio.h>
+#include <drivers/uart.h>
 
-#include <zephyr/net/dns_resolve.h>
-#include <zephyr/net/net_if.h>
-#include <zephyr/net/net_ip.h>
-#include <zephyr/net/net_offload.h>
-#include <zephyr/net/wifi_mgmt.h>
+#include <net/dns_resolve.h>
+#include <net/net_if.h>
+#include <net/net_ip.h>
+#include <net/net_offload.h>
+#include <net/wifi_mgmt.h>
 
 #include "esp.h"
 
-struct esp_config {
+/* pin settings */
+enum modem_control_pins {
 #if DT_INST_NODE_HAS_PROP(0, power_gpios)
-	const struct gpio_dt_spec power;
+	ESP_POWER,
 #endif
 #if DT_INST_NODE_HAS_PROP(0, reset_gpios)
-	const struct gpio_dt_spec reset;
+	ESP_RESET,
+#endif
+	NUM_PINS,
+};
+
+static struct modem_pin modem_pins[] = {
+#if DT_INST_NODE_HAS_PROP(0, power_gpios)
+	MODEM_PIN(DT_INST_GPIO_LABEL(0, power_gpios),
+		  DT_INST_GPIO_PIN(0, power_gpios),
+		  DT_INST_GPIO_FLAGS(0, power_gpios) | GPIO_OUTPUT_INACTIVE),
+#endif
+#if DT_INST_NODE_HAS_PROP(0, reset_gpios)
+	MODEM_PIN(DT_INST_GPIO_LABEL(0, reset_gpios),
+		  DT_INST_GPIO_PIN(0, reset_gpios),
+		  DT_INST_GPIO_FLAGS(0, reset_gpios) | GPIO_OUTPUT_INACTIVE),
 #endif
 };
 
@@ -49,14 +65,6 @@ struct k_thread esp_rx_thread;
 K_KERNEL_STACK_DEFINE(esp_workq_stack,
 		      CONFIG_WIFI_ESP_AT_WORKQ_STACK_SIZE);
 
-static const struct esp_config esp_driver_config = {
-#if DT_INST_NODE_HAS_PROP(0, power_gpios)
-	.power = GPIO_DT_SPEC_INST_GET(0, power_gpios),
-#endif
-#if DT_INST_NODE_HAS_PROP(0, reset_gpios)
-	.reset = GPIO_DT_SPEC_INST_GET(0, reset_gpios),
-#endif
-};
 struct esp_data esp_driver_data;
 
 static void esp_configure_hostname(struct esp_data *data)
@@ -289,48 +297,8 @@ MODEM_CMD_DEFINE(on_cmd_cwlap)
 	return 0;
 }
 
-/* +CWJAP:(ssid,bssid,channel,rssi) */
-MODEM_CMD_DEFINE(on_cmd_cwjap)
-{
-	struct esp_data *dev = CONTAINER_OF(data, struct esp_data,
-					    cmd_handler_data);
-	struct wifi_iface_status *status = dev->wifi_status;
-	const char *ssid = str_unquote(argv[0]);
-	const char *bssid = str_unquote(argv[1]);
-	const char *channel = argv[2];
-	const char *rssi = argv[3];
-	uint8_t flags = dev->flags;
-	int err;
-
-	status->band = WIFI_FREQ_BAND_2_4_GHZ;
-	status->iface_mode = WIFI_MODE_INFRA;
-
-	if (flags & EDF_STA_CONNECTED) {
-		status->state = WIFI_STATE_COMPLETED;
-	} else if (flags & EDF_STA_CONNECTING) {
-		status->state = WIFI_STATE_SCANNING;
-	} else {
-		status->state = WIFI_STATE_DISCONNECTED;
-	}
-
-	strncpy(status->ssid, ssid, sizeof(status->ssid));
-	status->ssid_len = strlen(status->ssid);
-
-	err = net_bytes_from_str(status->bssid, sizeof(status->bssid), bssid);
-	if (err) {
-		LOG_WRN("Invalid MAC address");
-		memset(status->bssid, 0x0, sizeof(status->bssid));
-	}
-
-	status->channel = strtol(channel, NULL, 10);
-	status->rssi = strtol(rssi, NULL, 10);
-
-	return 0;
-}
-
 static void esp_dns_work(struct k_work *work)
 {
-#if defined(ESP_MAX_DNS)
 	struct esp_data *data = CONTAINER_OF(work, struct esp_data, dns_work);
 	struct dns_resolve_context *dnsctx;
 	struct sockaddr_in *addrs = data->dns_addresses;
@@ -352,13 +320,11 @@ static void esp_dns_work(struct k_work *work)
 	}
 
 	LOG_DBG("DNS resolver reconfigured");
-#endif
 }
 
 /* +CIPDNS:enable[,"DNS IP1"[,"DNS IP2"[,"DNS IP3"]]] */
 MODEM_CMD_DEFINE(on_cmd_cipdns)
 {
-#if defined(ESP_MAX_DNS)
 	struct esp_data *dev = CONTAINER_OF(data, struct esp_data,
 					    cmd_handler_data);
 	struct sockaddr_in *addrs = dev->dns_addresses;
@@ -375,12 +341,12 @@ MODEM_CMD_DEFINE(on_cmd_cipdns)
 		}
 
 		servers[i] = str_unquote(servers[i]);
-		LOG_DBG("DNS[%zu]: %s", i, servers[i]);
+		LOG_DBG("DNS[%zu]: %s", i, log_strdup(servers[i]));
 
 		err = net_addr_pton(AF_INET, servers[i], &addrs[i].sin_addr);
 		if (err) {
 			LOG_ERR("Invalid DNS address: %s",
-				servers[i]);
+				log_strdup(servers[i]));
 			addrs[i].sin_addr.s_addr = 0;
 			break;
 		}
@@ -394,7 +360,6 @@ MODEM_CMD_DEFINE(on_cmd_cipdns)
 	if (valid_servers) {
 		k_work_submit(&dev->dns_work);
 	}
-#endif
 
 	return 0;
 }
@@ -419,20 +384,13 @@ MODEM_CMD_DEFINE(on_cmd_wifi_connected)
 	return 0;
 }
 
-static void esp_mgmt_disconnect_work(struct k_work *work)
+MODEM_CMD_DEFINE(on_cmd_wifi_disconnected)
 {
-	struct esp_socket *sock;
-	struct esp_data *dev;
+	struct esp_data *dev = CONTAINER_OF(data, struct esp_data,
+					    cmd_handler_data);
 
-	dev = CONTAINER_OF(work, struct esp_data, disconnect_work);
-
-	/* Cleanup any sockets that weren't closed */
-	for (int i = 0; i < ARRAY_SIZE(dev->sockets); i++) {
-		sock = &dev->sockets[i];
-		if (esp_socket_connected(sock)) {
-			LOG_WRN("Socket %d left open, manually closing", i);
-			esp_socket_close(sock);
-		}
+	if (!esp_flags_are_set(dev, EDF_STA_CONNECTED)) {
+		return 0;
 	}
 
 	esp_flags_clear(dev, EDF_STA_CONNECTED);
@@ -440,16 +398,6 @@ static void esp_mgmt_disconnect_work(struct k_work *work)
 
 	net_if_ipv4_addr_rm(dev->net_iface, &dev->ip);
 	wifi_mgmt_raise_disconnect_result_event(dev->net_iface, 0);
-}
-
-MODEM_CMD_DEFINE(on_cmd_wifi_disconnected)
-{
-	struct esp_data *dev = CONTAINER_OF(data, struct esp_data,
-					    cmd_handler_data);
-
-	if (esp_flags_are_set(dev, EDF_STA_CONNECTED)) {
-		k_work_submit_to_queue(&dev->workq, &dev->disconnect_work);
-	}
 
 	return 0;
 }
@@ -474,7 +422,7 @@ MODEM_CMD_DEFINE(on_cmd_cipsta)
 	} else if (!strcmp(argv[0], "netmask")) {
 		net_addr_pton(AF_INET, ip, &dev->nm);
 	} else {
-		LOG_WRN("Unknown IP type %s", argv[0]);
+		LOG_WRN("Unknown IP type %s", log_strdup(argv[0]));
 	}
 
 	return 0;
@@ -561,8 +509,6 @@ MODEM_CMD_DEFINE(on_cmd_closed)
 
 	link_id = data->match_buf[0] - '0';
 
-	LOG_DBG("Link %d closed", link_id);
-
 	dev = CONTAINER_OF(data, struct esp_data, cmd_handler_data);
 	sock = esp_socket_ref_from_link_id(dev, link_id);
 	if (!sock) {
@@ -616,7 +562,7 @@ static int cmd_ipd_parse_hdr(struct net_buf *buf, uint16_t len,
 
 	ipd_buf[match_len] = 0;
 	if (ipd_buf[len] != ',' || ipd_buf[len + 2] != ',') {
-		LOG_ERR("Invalid IPD: %s", ipd_buf);
+		LOG_ERR("Invalid IPD: %s", log_strdup(ipd_buf));
 		return -EBADMSG;
 	}
 
@@ -626,7 +572,7 @@ static int cmd_ipd_parse_hdr(struct net_buf *buf, uint16_t len,
 
 	if (endptr == &ipd_buf[len + 3] ||
 	    (*endptr == 0 && match_len >= MAX_IPD_LEN)) {
-		LOG_ERR("Invalid IPD len: %s", ipd_buf);
+		LOG_ERR("Invalid IPD len: %s", log_strdup(ipd_buf));
 		return -EBADMSG;
 	} else if (*endptr == 0) {
 		return -EAGAIN;
@@ -739,9 +685,8 @@ MODEM_CMD_DEFINE(on_cmd_ready)
 					    cmd_handler_data);
 	k_sem_give(&dev->sem_if_ready);
 
-
-	if (net_if_is_carrier_ok(dev->net_iface)) {
-		net_if_carrier_off(dev->net_iface);
+	if (net_if_is_up(dev->net_iface)) {
+		net_if_down(dev->net_iface);
 		LOG_ERR("Unexpected reset");
 	}
 
@@ -760,38 +705,6 @@ MODEM_CMD_DEFINE(on_cmd_ready)
 	return 0;
 }
 
-#if defined(CONFIG_WIFI_ESP_AT_FETCH_VERSION)
-
-static int cmd_version_log(struct modem_cmd_handler_data *data,
-			   const char *type, const char *version)
-{
-	LOG_INF("%s: %s", type, version);
-
-	return 0;
-}
-
-MODEM_CMD_DEFINE(on_cmd_at_version)
-{
-	return cmd_version_log(data, "AT version", argv[0]);
-}
-
-MODEM_CMD_DEFINE(on_cmd_sdk_version)
-{
-	return cmd_version_log(data, "SDK version", argv[0]);
-}
-
-MODEM_CMD_DEFINE(on_cmd_compile_time)
-{
-	return cmd_version_log(data, "compile time", argv[0]);
-}
-
-MODEM_CMD_DEFINE(on_cmd_bin_version)
-{
-	return cmd_version_log(data, "Bin version", argv[0]);
-}
-
-#endif /* CONFIG_WIFI_ESP_AT_FETCH_VERSION */
-
 static const struct modem_cmd unsol_cmds[] = {
 	MODEM_CMD("WIFI CONNECTED", on_cmd_wifi_connected, 0U, ""),
 	MODEM_CMD("WIFI DISCONNECT", on_cmd_wifi_disconnected, 0U, ""),
@@ -809,62 +722,8 @@ static const struct modem_cmd unsol_cmds[] = {
 	MODEM_CMD("busy s...", on_cmd_busy_sending, 0U, ""),
 	MODEM_CMD("busy p...", on_cmd_busy_processing, 0U, ""),
 	MODEM_CMD("ready", on_cmd_ready, 0U, ""),
-#if defined(CONFIG_WIFI_ESP_AT_FETCH_VERSION)
-	MODEM_CMD("AT version:", on_cmd_at_version, 1U, ""),
-	MODEM_CMD("SDK version:", on_cmd_sdk_version, 1U, ""),
-	MODEM_CMD("Compile time", on_cmd_compile_time, 1U, ""),
-	MODEM_CMD("Bin version:", on_cmd_bin_version, 1U, ""),
-#endif
 	MODEM_CMD_DIRECT("+IPD", on_cmd_ipd),
 };
-
-static void esp_mgmt_iface_status_work(struct k_work *work)
-{
-	struct esp_data *data = CONTAINER_OF(work, struct esp_data, iface_status_work);
-	struct wifi_iface_status *status = data->wifi_status;
-	int ret;
-	static const struct modem_cmd cmds[] = {
-		MODEM_CMD("+CWJAP:", on_cmd_cwjap, 4U, ","),
-	};
-
-	ret = esp_cmd_send(data, cmds, ARRAY_SIZE(cmds), "AT+CWJAP?",
-			   ESP_IFACE_STATUS_TIMEOUT);
-	if (ret < 0) {
-		LOG_WRN("Failed to request STA status: ret %d", ret);
-		status->state = WIFI_STATE_UNKNOWN;
-	}
-
-	k_sem_give(&data->wifi_status_sem);
-}
-
-static int esp_mgmt_iface_status(const struct device *dev,
-				 struct wifi_iface_status *status)
-{
-	struct esp_data *data = dev->data;
-
-	memset(status, 0x0, sizeof(*status));
-
-	status->state = WIFI_STATE_UNKNOWN;
-	status->band = WIFI_FREQ_BAND_UNKNOWN;
-	status->iface_mode = WIFI_MODE_UNKNOWN;
-	status->link_mode = WIFI_LINK_MODE_UNKNOWN;
-	status->security = WIFI_SECURITY_TYPE_UNKNOWN;
-	status->mfp = WIFI_MFP_UNKNOWN;
-
-	if (!net_if_is_carrier_ok(data->net_iface)) {
-		status->state = WIFI_STATE_INTERFACE_DISABLED;
-		return 0;
-	}
-
-	data->wifi_status = status;
-	k_sem_init(&data->wifi_status_sem, 0, 1);
-
-	k_work_submit_to_queue(&data->workq, &data->iface_status_work);
-
-	k_sem_take(&data->wifi_status_sem, K_FOREVER);
-
-	return 0;
-}
 
 static void esp_mgmt_scan_work(struct k_work *work)
 {
@@ -1073,9 +932,6 @@ static void esp_init_work(struct k_work *work)
 	static const struct setup_cmd setup_cmds_target_baudrate[] = {
 		SETUP_CMD_NOHANDLE("AT"),
 #endif
-#if defined(CONFIG_WIFI_ESP_AT_FETCH_VERSION)
-		SETUP_CMD_NOHANDLE("AT+GMR"),
-#endif
 #if defined(CONFIG_WIFI_ESP_AT_VERSION_1_7)
 		SETUP_CMD_NOHANDLE(ESP_CMD_CWMODE(STA)),
 #endif
@@ -1095,7 +951,7 @@ static void esp_init_work(struct k_work *work)
 		SETUP_CMD_NOHANDLE(
 			ESP_CMD_CWLAPOPT(ESP_CMD_CWLAPOPT_ORDERED, ESP_CMD_CWLAPOPT_MASK)),
 
-#if !defined(CONFIG_WIFI_ESP_AT_VERSION_1_7)
+#if defined(CONFIG_WIFI_ESP_AT_VERSION_2_0)
 		SETUP_CMD_NOHANDLE(ESP_CMD_CWMODE(STA)),
 		SETUP_CMD_NOHANDLE("AT+CWAUTOCONN=0"),
 		SETUP_CMD_NOHANDLE(ESP_CMD_CWMODE(NONE)),
@@ -1129,7 +985,8 @@ static void esp_init_work(struct k_work *work)
 			UART_CFG_FLOW_CTRL_RTS_CTS : UART_CFG_FLOW_CTRL_NONE,
 	};
 
-	ret = uart_configure(DEVICE_DT_GET(DT_INST_BUS(0)), &uart_config);
+	ret = uart_configure(device_get_binding(DT_INST_BUS_LABEL(0)),
+			     &uart_config);
 	if (ret < 0) {
 		LOG_ERR("Baudrate change failed %d", ret);
 		return;
@@ -1166,36 +1023,30 @@ static void esp_init_work(struct k_work *work)
 
 	LOG_INF("ESP Wi-Fi ready");
 
-	net_if_carrier_on(dev->net_iface);
+	net_if_up(dev->net_iface);
 }
 
-static int esp_reset(const struct device *dev)
+static void esp_reset(struct esp_data *dev)
 {
-	struct esp_data *data = dev->data;
-
-	if (net_if_is_carrier_ok(data->net_iface)) {
-		net_if_carrier_off(data->net_iface);
+	if (net_if_is_up(dev->net_iface)) {
+		net_if_down(dev->net_iface);
 	}
 
 #if DT_INST_NODE_HAS_PROP(0, power_gpios)
-	const struct esp_config *config = dev->config;
-
-	gpio_pin_set_dt(&config->power, 0);
+	modem_pin_write(&dev->mctx, ESP_POWER, 0);
 	k_sleep(K_MSEC(100));
-	gpio_pin_set_dt(&config->power, 1);
+	modem_pin_write(&dev->mctx, ESP_POWER, 1);
 #elif DT_INST_NODE_HAS_PROP(0, reset_gpios)
-	const struct esp_config *config = dev->config;
-
-	gpio_pin_set_dt(&config->reset, 1);
+	modem_pin_write(&dev->mctx, ESP_RESET, 1);
 	k_sleep(K_MSEC(100));
-	gpio_pin_set_dt(&config->reset, 0);
+	modem_pin_write(&dev->mctx, ESP_RESET, 0);
 #else
 	int ret;
 	int retries = 3;
 
 	while (retries--) {
-		ret = modem_cmd_send(&data->mctx.iface, &data->mctx.cmd_handler,
-				     NULL, 0, "AT+RST", &data->sem_if_ready,
+		ret = modem_cmd_send(&dev->mctx.iface, &dev->mctx.cmd_handler,
+				     NULL, 0, "AT+RST", &dev->sem_if_ready,
 				     K_MSEC(CONFIG_WIFI_ESP_AT_RESET_TIMEOUT));
 		if (ret == 0 || ret != -ETIMEDOUT) {
 			break;
@@ -1204,44 +1055,33 @@ static int esp_reset(const struct device *dev)
 
 	if (ret < 0) {
 		LOG_ERR("Failed to reset device: %d", ret);
-		return -EAGAIN;
+		return;
 	}
 #endif
-	return 0;
 }
 
 static void esp_iface_init(struct net_if *iface)
 {
-	net_if_carrier_off(iface);
+	const struct device *dev = net_if_get_device(iface);
+	struct esp_data *data = dev->data;
+
+	net_if_flag_set(iface, NET_IF_NO_AUTO_START);
+	data->net_iface = iface;
 	esp_offload_init(iface);
+	esp_reset(data);
 }
 
 static const struct net_wifi_mgmt_offload esp_api = {
-	.wifi_iface.init = esp_iface_init,
+	.iface_api.init = esp_iface_init,
 	.scan		= esp_mgmt_scan,
 	.connect	= esp_mgmt_connect,
 	.disconnect	= esp_mgmt_disconnect,
 	.ap_enable	= esp_mgmt_ap_enable,
 	.ap_disable	= esp_mgmt_ap_disable,
-	.iface_status	= esp_mgmt_iface_status,
 };
-
-static int esp_init(const struct device *dev);
-
-/* The network device must be instantiated above the init function in order
- * for the struct net_if that the macro declares to be visible inside the
- * function. An `extern` declaration does not work as the struct is static.
- */
-NET_DEVICE_DT_INST_OFFLOAD_DEFINE(0, esp_init, NULL,
-				  &esp_driver_data, &esp_driver_config,
-				  CONFIG_WIFI_INIT_PRIORITY, &esp_api,
-				  ESP_MTU);
 
 static int esp_init(const struct device *dev)
 {
-#if DT_INST_NODE_HAS_PROP(0, power_gpios) || DT_INST_NODE_HAS_PROP(0, reset_gpios)
-	const struct esp_config *config = dev->config;
-#endif
 	struct esp_data *data = dev->data;
 	int ret = 0;
 
@@ -1253,8 +1093,6 @@ static int esp_init(const struct device *dev)
 	k_work_init_delayable(&data->ip_addr_work, esp_ip_addr_work);
 	k_work_init(&data->scan_work, esp_mgmt_scan_work);
 	k_work_init(&data->connect_work, esp_mgmt_connect_work);
-	k_work_init(&data->disconnect_work, esp_mgmt_disconnect_work);
-	k_work_init(&data->iface_status_work, esp_mgmt_iface_status_work);
 	k_work_init(&data->mode_switch_work, esp_mode_switch_work);
 	if (IS_ENABLED(CONFIG_WIFI_ESP_AT_DNS_USE)) {
 		k_work_init(&data->dns_work, esp_dns_work);
@@ -1296,20 +1134,8 @@ static int esp_init(const struct device *dev)
 	}
 
 	/* pin setup */
-#if DT_INST_NODE_HAS_PROP(0, power_gpios)
-	ret = gpio_pin_configure_dt(&config->power, GPIO_OUTPUT_INACTIVE);
-	if (ret < 0) {
-		LOG_ERR("Failed to configure %s pin", "power");
-		goto error;
-	}
-#endif
-#if DT_INST_NODE_HAS_PROP(0, reset_gpios)
-	ret = gpio_pin_configure_dt(&config->reset, GPIO_OUTPUT_INACTIVE);
-	if (ret < 0) {
-		LOG_ERR("Failed to configure %s pin", "reset");
-		goto error;
-	}
-#endif
+	data->mctx.pins = modem_pins;
+	data->mctx.pins_len = ARRAY_SIZE(modem_pins);
 
 	data->mctx.driver_data = data;
 
@@ -1328,12 +1154,11 @@ static int esp_init(const struct device *dev)
 			K_NO_WAIT);
 	k_thread_name_set(&esp_rx_thread, "esp_rx");
 
-	/* Retrieve associated network interface so asynchronous messages can be processed early */
-	data->net_iface = NET_IF_GET(Z_DEVICE_DT_DEV_ID(DT_DRV_INST(0)), 0);
-
-	/* Reset the modem */
-	ret = esp_reset(dev);
-
 error:
 	return ret;
 }
+
+NET_DEVICE_DT_INST_OFFLOAD_DEFINE(0, esp_init, NULL,
+				  &esp_driver_data, NULL,
+				  CONFIG_WIFI_INIT_PRIORITY, &esp_api,
+				  ESP_MTU);

@@ -167,81 +167,12 @@ config TFM_ITS_MAX_ASSET_SIZE
 	  Maximum size (in bytes) of a single asset to be stored in Internal Trusted
 	  Storage (ITS).
 
-config TFM_PARTITION_PLATFORM_CUSTOM_REBOOT
-	bool "Use custom reboot handler"
-	depends on TFM_PARTITION_PLATFORM
-	help
-	  Do not include the default zephyr implementation of calling the TF-M
-	  platform reset service.
-	  Instead the application will have to override the weak ARM
-	  implementation of sys_arch_reset().
-
-config TFM_BL2_NOT_SUPPORTED
-	bool
-	help
-	  Hidden option to mark the BL2, the MCUBoot included in TF-M, as not supported.
-	  Platforms that don't use BL2 should select this option.
-
-config TFM_IMAGE_VERSION_S
-	string "Version of the Secure Image"
-	default "0.0.0+0"
-	help
-	  MCUBoot may be configured to prevent rollback prevention based on image
-	  versions of both the secure firmware and non-secure firmware. This sets
-	  the secure firmware's version for rollback prevention.
-
-config TFM_IMAGE_VERSION_NS
-	string "Version of the Non-Secure Image"
-	default "0.0.0+0"
-	help
-	  MCUBoot may be configured to prevent rollback prevention based on image
-	  versions of both the secure firmware and non-secure firmware. This sets
-	  the non-secure firmware's version for rollback prevention.
-
 config TFM_BL2
 	bool "Add MCUboot to TFM"
-	depends on !TFM_BL2_NOT_SUPPORTED
 	default y
 	help
 	  TFM is designed to run with MCUboot in a certain configuration.
 	  This config adds MCUboot to the build - built via TFM's build system.
-
-config TFM_BUILD_NS
-	bool "Build the TF-M Non-Secure application and libraries"
-	help
-	  Instruct the TF-M build system to build the TF-M Non-Secure
-	  application and libraries.
-
-	  This option is intended for testing purposes only, since this is the
-	  easiest way to build the TF-M regression tests application and test
-	  support libraries in the zephyr build system.
-
-config TFM_USE_NS_APP
-	bool "Use the TF-M Non-Secure application"
-	depends on TFM_BUILD_NS
-	help
-	  The TF-M build system can produce multiple executable files.
-	  The main one is the TF-M secure firmware. Optionally the TF-M
-	  non-secure application can be built.
-	  Usually the TF-M non-secure application is not used since the
-	  zephyr application is the non-secure application.
-	  With this option enabled this is reversed and the TF-M non-secure
-	  application is used instead of the Zephyr non-secure application.
-
-	  This option is intended for testing purposes only, since this is the
-	  easiest way to integrate and run the TF-M regression tests in the
-	  zephyr build system.
-
-config TFM_CONNECTION_BASED_SERVICE_API
-	bool "TF-M use connection based service APIs"
-	help
-	  The TF-M build system produces an interface source file for accessing
-	  connection based services.
-	  Select this option when TF-M service models requires this source file.
-
-	  Note: This is an auto-generated configuration in the TF-M build
-	  system. When this option is not enabled in the TF-M build system this
-	  will result in compilation error.
 
 if TFM_BL2
 
@@ -275,79 +206,33 @@ config TFM_MCUBOOT_PATH_LOCAL
 config TFM_MCUBOOT_PATH_DOWNLOAD
 	bool "TF-M to automatically download MCUboot during build"
 	help
-	  TF-M builds with BL2 will let the TF-M build to automatically
+	  TF-M bulds with BL2 will let the TF-M build to automatically
 	  fetch and check-out the MCUboot version to use in the build.
 
 endchoice
 
-config TFM_QCBOR_PATH
-	string
-	prompt "Path to QCBOR or DOWNLOAD to fetch automatically"
-	default ""
-	help
-	  Path to QCBOR for TF-M builds. Due to a license issue with this
-	  library Zephyr does not ship with this library.
-	  If the application wishes to still use this library they can point
-	  to their own checkout of this library, or set to DOWNLOAD to allow
-	  TF-M build system to automatically download this.
-
-config TFM_MCUBOOT_DATA_SHARING
-	bool "Share app-specific data between TF-M and MCUBoot"
-	help
-	  Add sharing of application specific data using the same
-	  shared data area as for the measured boot.
-
 endif # TFM_BL2
 
-choice TFM_MODEL
-	prompt "TF-M Firmware Framework model"
-	default TFM_IPC
-	help
-	  The Firmware Framework M (FF-M) provides different programming models
-	  for Secure Partitions.
-
 config TFM_IPC
-	bool "IPC Model"
+	bool "IPC" if TFM_PROFILE_TYPE_NOT_SET
+	default y if (TFM_PROFILE_TYPE_MEDIUM || TFM_PROFILE_TYPE_LARGE)
 	help
-	  Use the IPC Model as the SPM backend for the PSA API.
-	  The IPC model supports the IPC and SFN Partition models, and
-	  isolation levels 1, 2 and 3.
-
-	  In this model each Secure Partition processes signals in any order,
-	  and can defer responding to a message while continuing to process
-	  other signals.
-
-	  The IPC model conforms to the PSA Firmware Framework for M (FF-M)
-	  v1.1.
-
-config TFM_SFN
-	bool "SFN model"
-	help
-	  Use the SFN Model as the SPM backend for the PSA API.
-	  The SFN model supports the SFN Partition model, and isolation level 1.
-
-	  In this model each Secure Partition is made up of a collection of
-	  callback functions which implement secure services.
-
-	  The SFN model conforms to the PSA Firmware Framework for M (FF-M)
-	  v1.1.
-
-endchoice # TFM_MODEL
+	  When enabled, this option signifies that the TF-M build supports
+	  the PSA API (IPC mode) instead of the secure library mode. When
+	  TF-M Profile option is supplied, do not allow manual setting of
+	  the IPC mode, as it is determined by the profile setting.
 
 config TFM_REGRESSION_S
 	bool "TF-M Secure Regression tests"
 	help
 	  When enabled, this option signifies that the TF-M build includes
 	  the Secure domain regression tests.
-	  The regression tests will be included in the TF-M secure firmware.
 
 config TFM_REGRESSION_NS
-	bool "TF-M Non-Secure Regression tests"
+	bool "Use the TF-M Non-Secure Regression test application"
 	help
-	  When enabled, this option signifies that the TF-M build includes
-	  the Non-Secure domain regression tests.
-	  The regression tests will be included in the TF-M non-secure
-	  application.
+	  When this is enabled, the Zephyr application as a whole will be
+	  replaced with the TF-M Non-Secure Regression test application.
 
 choice TFM_PSA_TEST
 	prompt "Enable a PSA test suite"
@@ -403,20 +288,14 @@ endif # !TFM_BL2
 config TFM_FLASH_MERGED_BINARY
 	bool
 	help
-	  This option instructs west flash to program the combined (merged)
-	  binary consisting of the TF-M Secure firmware image, optionally, the
-	  BL2 image (if building with TFM_BL2 is enabled), and the Non-Secure
-	  application firmware.
-
-config TFM_LOG_LEVEL_SILENCE
-	bool "TF-M Disable secure logging"
-	help
-	  Set the log level to silence for all TF-M modules (SPM, partition, etc.).
-	  On some platforms this will release the UART from
-	  the secure domain and reduce the uart driver's flash usage.
+		This option instructs west flash to program the
+		combined (merged) binary consisting of the TF-M
+		Secure firmware image, optionally, the BL2 image
+		(if building with TFM_BL2 is enabled), and the
+		Non-Secure application firmware.
 
 choice TFM_SPM_LOG_LEVEL
-	prompt "TF-M SPM Log Level" if !TFM_LOG_LEVEL_SILENCE
+	prompt "TF-M SPM Log Level"
 	default TFM_SPM_LOG_LEVEL_INFO
 config TFM_SPM_LOG_LEVEL_DEBUG
 	bool "Debug"

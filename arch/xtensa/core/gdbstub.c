@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
+#include <kernel.h>
 #include <kernel_internal.h>
-#include <zephyr/toolchain.h>
-#include <zephyr/debug/gdbstub.h>
+#include <toolchain.h>
+#include <debug/gdbstub.h>
 
 #include <xtensa-asm2-context.h>
 #include <xtensa/corebits.h>
@@ -981,7 +981,7 @@ void arch_gdb_init(void)
 	 * converting BREAK.N into BREAK which is bigger.
 	 * This is needed as the GDB stub will need to change
 	 * the program counter past this instruction to
-	 * continue working. Or else SoC would repeatedly
+	 * continue working. Or else SoC would repeartedly
 	 * raise debug exception on this instruction and
 	 * won't go forward.
 	 */
